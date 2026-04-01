@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seu-usuario/bank-api/internal/customer/domain"
@@ -56,4 +57,20 @@ func (r *Repository) Create(ctx context.Context, c *domain.Customer) error {
 	}
 
 	return nil
+}
+
+func (r *Repository) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1 FROM customers WHERE id = $1
+		)
+	`
+
+	var exists bool
+	err := r.db.QueryRow(ctx, query, id).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("customer repository exists: %w", err)
+	}
+
+	return exists, nil
 }
