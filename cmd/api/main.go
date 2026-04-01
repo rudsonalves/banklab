@@ -4,9 +4,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/seu-usuario/bank-api/internal/customer/handler"
-	"github.com/seu-usuario/bank-api/internal/customer/repository"
-	"github.com/seu-usuario/bank-api/internal/customer/usecase"
+	usecase "github.com/seu-usuario/bank-api/internal/customer/application"
+	handler "github.com/seu-usuario/bank-api/internal/customer/delivery"
+	repository "github.com/seu-usuario/bank-api/internal/customer/infra"
 	"github.com/seu-usuario/bank-api/internal/database"
 )
 

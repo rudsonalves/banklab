@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
+	usecase "github.com/seu-usuario/bank-api/internal/customer/application"
 	"github.com/seu-usuario/bank-api/internal/customer/domain"
-	"github.com/seu-usuario/bank-api/internal/customer/usecase"
 )
 
 type Handler struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/seu-usuario/bank-api/internal/customer/domain"
-	"github.com/seu-usuario/bank-api/internal/customer/repository"
+	repository "github.com/seu-usuario/bank-api/internal/customer/infra"
 )
 
 type CreateCustomer struct {

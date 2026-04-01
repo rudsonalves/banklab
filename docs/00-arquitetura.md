@@ -143,7 +143,7 @@ Inicialmente, o projeto será organizado por camada:
 internal/
 ├── domain/
 ├── application/
-├── infra/
+├── infrastructure/
 └── delivery/
 ```
 
