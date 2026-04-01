@@ -1,12 +1,17 @@
 package domain
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Customer struct {
-	ID    uuid.UUID
-	Name  string
-	CPF   string
-	Email string
+	ID        uuid.UUID
+	Name      string
+	CPF       string
+	Email     string
+	CreatedAt time.Time
 }
 
 func NewCustomer(name, cpf, email string) (*Customer, error) {
@@ -23,9 +28,10 @@ func NewCustomer(name, cpf, email string) (*Customer, error) {
 	}
 
 	return &Customer{
-		ID:    uuid.New(),
-		Name:  name,
-		CPF:   cpf,
-		Email: email,
+		ID:        uuid.New(),
+		Name:      name,
+		CPF:       cpf,
+		Email:     email,
+		CreatedAt: time.Now().UTC(),
 	}, nil
 }

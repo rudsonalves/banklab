@@ -1,8 +1,9 @@
-package repository
+package infrastructure
 
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,14 +14,16 @@ type Repository struct {
 	db *pgxpool.Pool
 }
 
+var _ domain.Repository = (*Repository)(nil)
+
 func New(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
 func (r *Repository) Create(ctx context.Context, c *domain.Customer) error {
 	query := `
-		INSERT INTO customers (id, name, cpf, email)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO customers (id, name, cpf, email, created_at)
+		VALUES ($1, $2, $3, $4, $5)
 	`
 
 	_, err := r.db.Exec(ctx, query,
@@ -28,6 +31,7 @@ func (r *Repository) Create(ctx context.Context, c *domain.Customer) error {
 		c.Name,
 		c.CPF,
 		c.Email,
+		c.CreatedAt,
 	)
 
 	if err != nil {
@@ -41,11 +45,14 @@ func (r *Repository) Create(ctx context.Context, c *domain.Customer) error {
 				if pgErr.ConstraintName == "customers_email_key" {
 					return domain.ErrEmailAlreadyExists
 				}
+
 			case "23514": // check_violation
 				return domain.ErrInvalidData
 			}
-			return err
 		}
+
+		// wrap unknown infra errors
+		return fmt.Errorf("repository create: %w", err)
 	}
 
 	return nil
