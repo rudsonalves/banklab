@@ -19,6 +19,10 @@ func (m *transferAccountRepositoryMock) Create(ctx context.Context, account *dom
 	return nil
 }
 
+func (m *transferAccountRepositoryMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
+	return nil
+}
+
 func (m *transferAccountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -52,22 +56,31 @@ func (m *transferAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx,
 }
 
 type transferTxMock struct {
-	lockedOrder         []uuid.UUID
-	accounts            map[uuid.UUID]*domain.Account
-	getForUpdateErrs    map[uuid.UUID]error
-	decreaseBalanceErr  error
-	updateBalanceValues map[uuid.UUID]int64
-	updateBalanceErr    error
-	commitErr           error
-	rollbackErr         error
-	decreaseCalls       int
-	updateCalls         int
-	commitCalls         int
-	rollbackCalls       int
+	lockedOrder            []uuid.UUID
+	accounts               map[uuid.UUID]*domain.Account
+	getForUpdateErrs       map[uuid.UUID]error
+	decreaseBalanceErr     error
+	updateBalanceValues    map[uuid.UUID]int64
+	updateBalanceErr       error
+	createTransactionErr   error
+	commitErr              error
+	rollbackErr            error
+	decreaseCalls          int
+	updateCalls            int
+	createTransactionCalls int
+	commitCalls            int
+	rollbackCalls          int
+	createdTransactions    []*domain.Transaction
 }
 
 func (m *transferTxMock) Create(ctx context.Context, account *domain.Account) error {
 	return nil
+}
+
+func (m *transferTxMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
+	m.createTransactionCalls++
+	m.createdTransactions = append(m.createdTransactions, tx)
+	return m.createTransactionErr
 }
 
 func (m *transferTxMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
@@ -342,6 +355,37 @@ func TestTransfer_Execute_Success(t *testing.T) {
 		t.Fatalf("expected credit once, got %d", tx.updateCalls)
 	}
 
+	if tx.createTransactionCalls != 2 {
+		t.Fatalf("expected two ledger writes, got %d", tx.createTransactionCalls)
+	}
+
+	outgoing := tx.createdTransactions[0]
+	incoming := tx.createdTransactions[1]
+
+	if outgoing.Type != domain.TransactionTransferOut {
+		t.Fatalf("expected first ledger type %s, got %s", domain.TransactionTransferOut, outgoing.Type)
+	}
+
+	if incoming.Type != domain.TransactionTransferIn {
+		t.Fatalf("expected second ledger type %s, got %s", domain.TransactionTransferIn, incoming.Type)
+	}
+
+	if outgoing.BalanceAfter != 50 {
+		t.Fatalf("expected outgoing balance_after %d, got %d", 50, outgoing.BalanceAfter)
+	}
+
+	if incoming.BalanceAfter != 70 {
+		t.Fatalf("expected incoming balance_after %d, got %d", 70, incoming.BalanceAfter)
+	}
+
+	if outgoing.ReferenceID == nil || incoming.ReferenceID == nil {
+		t.Fatalf("expected both ledger entries to have reference id")
+	}
+
+	if *outgoing.ReferenceID != *incoming.ReferenceID {
+		t.Fatalf("expected same reference id on both ledger entries")
+	}
+
 	if tx.commitCalls != 1 {
 		t.Fatalf("expected commit once, got %d", tx.commitCalls)
 	}
@@ -416,6 +460,10 @@ func TestTransfer_Execute_CreditFailure(t *testing.T) {
 	if tx.commitCalls != 0 {
 		t.Fatalf("expected no commit, got %d", tx.commitCalls)
 	}
+
+	if tx.createTransactionCalls != 0 {
+		t.Fatalf("expected no ledger writes, got %d", tx.createTransactionCalls)
+	}
 }
 
 func TestTransfer_Execute_CommitFailure(t *testing.T) {
@@ -449,5 +497,43 @@ func TestTransfer_Execute_CommitFailure(t *testing.T) {
 
 	if tx.rollbackCalls != 1 {
 		t.Fatalf("expected rollback once after commit failure, got %d", tx.rollbackCalls)
+	}
+}
+
+func TestTransfer_Execute_LedgerInsertFailure(t *testing.T) {
+	fromID := uuid.New()
+	toID := uuid.New()
+	expectedErr := errors.New("ledger insert failed")
+	tx := &transferTxMock{
+		accounts: map[uuid.UUID]*domain.Account{
+			fromID: {ID: fromID, Status: domain.AccountActive, Balance: 100},
+			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
+		},
+		updateBalanceValues:  map[uuid.UUID]int64{toID: 70},
+		createTransactionErr: expectedErr,
+	}
+	repo := &transferAccountRepositoryMock{tx: tx}
+	useCase := NewTransfer(repo)
+
+	result, err := useCase.Execute(context.Background(), TransferInput{FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+
+	if result != nil {
+		t.Fatalf("expected result to be nil, got %+v", result)
+	}
+
+	if tx.createTransactionCalls != 1 {
+		t.Fatalf("expected ledger write to fail on first insert, got %d calls", tx.createTransactionCalls)
+	}
+
+	if tx.rollbackCalls != 1 {
+		t.Fatalf("expected rollback once, got %d", tx.rollbackCalls)
+	}
+
+	if tx.commitCalls != 0 {
+		t.Fatalf("expected no commit, got %d", tx.commitCalls)
 	}
 }

@@ -19,6 +19,10 @@ func (m *depositAccountRepositoryMock) Create(ctx context.Context, account *doma
 	return nil
 }
 
+func (m *depositAccountRepositoryMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
+	return nil
+}
+
 func (m *depositAccountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -52,24 +56,33 @@ func (m *depositAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, 
 }
 
 type txMock struct {
-	getByIDCalls          int
-	getByIDForUpdateCalls int
-	updateBalanceCalls    int
-	decreaseBalanceCalls  int
-	commitCalls           int
-	rollbackCalls         int
+	getByIDCalls           int
+	getByIDForUpdateCalls  int
+	updateBalanceCalls     int
+	decreaseBalanceCalls   int
+	createTransactionCalls int
+	commitCalls            int
+	rollbackCalls          int
 
-	account            *domain.Account
-	getByIDErr         error
-	updateBalanceValue int64
-	updateBalanceErr   error
-	decreaseBalanceErr error
-	commitErr          error
-	rollbackErr        error
+	account              *domain.Account
+	getByIDErr           error
+	updateBalanceValue   int64
+	updateBalanceErr     error
+	decreaseBalanceErr   error
+	createTransactionErr error
+	createdTransactions  []*domain.Transaction
+	commitErr            error
+	rollbackErr          error
 }
 
 func (m *txMock) Create(ctx context.Context, account *domain.Account) error {
 	return nil
+}
+
+func (m *txMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
+	m.createTransactionCalls++
+	m.createdTransactions = append(m.createdTransactions, tx)
+	return m.createTransactionErr
 }
 
 func (m *txMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
@@ -196,6 +209,10 @@ func TestDeposit_Execute_AccountInactive(t *testing.T) {
 		t.Fatalf("expected UpdateBalance not to be called, got %d calls", tx.updateBalanceCalls)
 	}
 
+	if tx.createTransactionCalls != 0 {
+		t.Fatalf("expected CreateTransaction not to be called, got %d calls", tx.createTransactionCalls)
+	}
+
 	if tx.rollbackCalls != 1 {
 		t.Fatalf("expected Rollback to be called once, got %d calls", tx.rollbackCalls)
 	}
@@ -239,6 +256,19 @@ func TestDeposit_Execute_Success(t *testing.T) {
 		t.Fatalf("expected balance %d, got %d", dbReturnedBalance, account.Balance)
 	}
 
+	if tx.createTransactionCalls != 1 {
+		t.Fatalf("expected CreateTransaction to be called once, got %d calls", tx.createTransactionCalls)
+	}
+
+	created := tx.createdTransactions[0]
+	if created.Type != domain.TransactionDeposit {
+		t.Fatalf("expected ledger type %s, got %s", domain.TransactionDeposit, created.Type)
+	}
+
+	if created.BalanceAfter != dbReturnedBalance {
+		t.Fatalf("expected ledger balance_after %d, got %d", dbReturnedBalance, created.BalanceAfter)
+	}
+
 	if tx.updateBalanceCalls != 1 {
 		t.Fatalf("expected UpdateBalance to be called once, got %d calls", tx.updateBalanceCalls)
 	}
@@ -272,6 +302,46 @@ func TestDeposit_Execute_RepositoryFailure(t *testing.T) {
 
 	if account != nil {
 		t.Fatalf("expected account to be nil, got %+v", account)
+	}
+
+	if tx.rollbackCalls != 1 {
+		t.Fatalf("expected Rollback to be called once, got %d calls", tx.rollbackCalls)
+	}
+
+	if tx.createTransactionCalls != 0 {
+		t.Fatalf("expected CreateTransaction not to be called, got %d calls", tx.createTransactionCalls)
+	}
+
+	if tx.commitCalls != 0 {
+		t.Fatalf("expected Commit not to be called, got %d calls", tx.commitCalls)
+	}
+}
+
+func TestDeposit_Execute_LedgerInsertFailure(t *testing.T) {
+	expectedErr := errors.New("ledger insert failed")
+	tx := &txMock{
+		account:              &domain.Account{ID: uuid.New(), Balance: 100, Status: domain.AccountActive},
+		updateBalanceValue:   150,
+		createTransactionErr: expectedErr,
+	}
+	repo := &depositAccountRepositoryMock{tx: tx}
+	useCase := NewDeposit(repo)
+
+	account, err := useCase.Execute(context.Background(), DepositInput{
+		AccountID: uuid.New(),
+		Amount:    50,
+	})
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+
+	if account != nil {
+		t.Fatalf("expected account to be nil, got %+v", account)
+	}
+
+	if tx.createTransactionCalls != 1 {
+		t.Fatalf("expected CreateTransaction to be called once, got %d calls", tx.createTransactionCalls)
 	}
 
 	if tx.rollbackCalls != 1 {

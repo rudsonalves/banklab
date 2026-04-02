@@ -75,12 +75,16 @@ func TestWithdraw_Execute_AccountNotFound(t *testing.T) {
 		t.Fatalf("expected Rollback to be called once, got %d calls", tx.rollbackCalls)
 	}
 
-	if tx.getByIDCalls != 1 {
-		t.Fatalf("expected GetByID to be called once, got %d calls", tx.getByIDCalls)
+	if tx.getByIDForUpdateCalls != 1 {
+		t.Fatalf("expected GetByIDForUpdate to be called once, got %d calls", tx.getByIDForUpdateCalls)
 	}
 
 	if tx.decreaseBalanceCalls != 0 {
 		t.Fatalf("expected DecreaseBalance not to be called, got %d calls", tx.decreaseBalanceCalls)
+	}
+
+	if tx.createTransactionCalls != 0 {
+		t.Fatalf("expected CreateTransaction not to be called, got %d calls", tx.createTransactionCalls)
 	}
 }
 
@@ -114,6 +118,10 @@ func TestWithdraw_Execute_InsufficientBalance(t *testing.T) {
 
 	if tx.rollbackCalls != 1 {
 		t.Fatalf("expected Rollback to be called once, got %d calls", tx.rollbackCalls)
+	}
+
+	if tx.createTransactionCalls != 0 {
+		t.Fatalf("expected CreateTransaction not to be called, got %d calls", tx.createTransactionCalls)
 	}
 }
 
@@ -184,11 +192,67 @@ func TestWithdraw_Execute_Success(t *testing.T) {
 		t.Fatalf("expected DecreaseBalance to be called once, got %d calls", tx.decreaseBalanceCalls)
 	}
 
+	if tx.getByIDForUpdateCalls != 1 {
+		t.Fatalf("expected GetByIDForUpdate to be called once, got %d calls", tx.getByIDForUpdateCalls)
+	}
+
+	if tx.createTransactionCalls != 1 {
+		t.Fatalf("expected CreateTransaction to be called once, got %d calls", tx.createTransactionCalls)
+	}
+
+	created := tx.createdTransactions[0]
+	if created.Type != domain.TransactionWithdraw {
+		t.Fatalf("expected ledger type %s, got %s", domain.TransactionWithdraw, created.Type)
+	}
+
+	if created.BalanceAfter != initialBalance-withdrawAmount {
+		t.Fatalf("expected ledger balance_after %d, got %d", initialBalance-withdrawAmount, created.BalanceAfter)
+	}
+
 	if tx.commitCalls != 1 {
 		t.Fatalf("expected Commit to be called once, got %d calls", tx.commitCalls)
 	}
 
 	if tx.rollbackCalls != 0 {
 		t.Fatalf("expected Rollback not to be called, got %d calls", tx.rollbackCalls)
+	}
+}
+
+func TestWithdraw_Execute_LedgerInsertFailure(t *testing.T) {
+	expectedErr := errors.New("ledger insert failed")
+	tx := &txMock{
+		account: &domain.Account{
+			ID:      uuid.New(),
+			Balance: 200,
+			Status:  domain.AccountActive,
+		},
+		createTransactionErr: expectedErr,
+	}
+	repo := &depositAccountRepositoryMock{tx: tx}
+	useCase := NewWithdraw(repo)
+
+	account, err := useCase.Execute(context.Background(), WithdrawInput{
+		AccountID: uuid.New(),
+		Amount:    10,
+	})
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+
+	if account != nil {
+		t.Fatalf("expected account to be nil, got %+v", account)
+	}
+
+	if tx.createTransactionCalls != 1 {
+		t.Fatalf("expected CreateTransaction to be called once, got %d calls", tx.createTransactionCalls)
+	}
+
+	if tx.rollbackCalls != 1 {
+		t.Fatalf("expected Rollback to be called once, got %d calls", tx.rollbackCalls)
+	}
+
+	if tx.commitCalls != 0 {
+		t.Fatalf("expected Commit not to be called, got %d calls", tx.commitCalls)
 	}
 }

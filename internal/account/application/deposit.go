@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -42,8 +43,11 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 		}
 	}()
 
-	account, err := tx.GetByID(ctx, input.AccountID)
+	account, err := tx.GetByIDForUpdate(ctx, input.AccountID)
 	if err != nil {
+		if errors.Is(err, domain.ErrAccountNotFound) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("get account by id: %w", err)
 	}
 
@@ -54,6 +58,17 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 	updatedBalance, err := tx.UpdateBalance(ctx, input.AccountID, input.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("update balance: %w", err)
+	}
+
+	ledgerTx := domain.NewTransaction(
+		input.AccountID,
+		domain.TransactionDeposit,
+		input.Amount,
+		updatedBalance,
+		nil,
+	)
+	if err := tx.CreateTransaction(ctx, ledgerTx); err != nil {
+		return nil, fmt.Errorf("create deposit ledger transaction: %w", err)
 	}
 
 	account.Balance = updatedBalance

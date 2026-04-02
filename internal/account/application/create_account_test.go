@@ -23,6 +23,10 @@ func (m *accountRepositoryMock) Create(ctx context.Context, account *domain.Acco
 	return m.createErr
 }
 
+func (m *accountRepositoryMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
+	return nil
+}
+
 func (m *accountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	m.existsByCustomerIDCalls++
 	return false, nil
