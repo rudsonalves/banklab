@@ -33,6 +33,18 @@ func (m *accountRepositoryMock) NextAccountNumber(ctx context.Context) (string, 
 	return m.nextAccountNumberValue, m.nextAccountNumberErr
 }
 
+func (m *accountRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	return nil, nil
+}
+
+func (m *accountRepositoryMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+	return nil
+}
+
+func (m *accountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error) {
+	return nil, nil
+}
+
 type customerRepositoryMock struct {
 	existsCalls int
 	existsValue bool

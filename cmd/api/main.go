@@ -4,9 +4,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/seu-usuario/bank-api/internal/customer/application"
-	"github.com/seu-usuario/bank-api/internal/customer/delivery"
-	"github.com/seu-usuario/bank-api/internal/customer/infrastructure"
+	accountApplication "github.com/seu-usuario/bank-api/internal/account/application"
+	accountDelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
+	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	customerApplication "github.com/seu-usuario/bank-api/internal/customer/application"
+	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
+	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
 )
 
@@ -15,11 +18,18 @@ func main() {
 
 	log.Println("DB connected")
 
-	repo := infrastructure.New(db)
-	uc := application.NewCreateCustomer(repo)
-	handler := delivery.New(uc)
+	customerRepo := customerInfrastructure.New(db)
+	customerUC := customerApplication.NewCreateCustomer(customerRepo)
+	customerHandler := customerDelivery.New(customerUC)
 
-	http.HandleFunc("/customers", handler.Create)
+	accountRepo := accountInfrastructure.New(db)
+	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo)
+	depositUC := accountApplication.NewDeposit(accountRepo)
+	accountHandler := accountDelivery.New(createAccountUC, depositUC)
+
+	http.HandleFunc("POST /customers", customerHandler.Create)
+	http.HandleFunc("POST /accounts", accountHandler.CreateAccount)
+	http.HandleFunc("POST /accounts/{id}/deposit", accountHandler.Deposit)
 
 	log.Println("Server running on port 8080")
 

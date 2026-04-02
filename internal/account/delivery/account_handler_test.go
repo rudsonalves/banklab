@@ -19,7 +19,20 @@ type createAccountUseCaseMock struct {
 	executeFn    func(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error)
 }
 
+type depositUseCaseMock struct {
+	executeCalls int
+	executeFn    func(ctx context.Context, input application.DepositInput) (*domain.Account, error)
+}
+
 func (m *createAccountUseCaseMock) Execute(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
+	m.executeCalls++
+	if m.executeFn == nil {
+		return nil, nil
+	}
+	return m.executeFn(ctx, input)
+}
+
+func (m *depositUseCaseMock) Execute(ctx context.Context, input application.DepositInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -182,5 +195,43 @@ func TestHandler_CreateAccount_Success(t *testing.T) {
 
 	if got.Data.Status != string(returnedAccount.Status) {
 		t.Fatalf("expected status %q, got %q", string(returnedAccount.Status), got.Data.Status)
+	}
+}
+
+func TestHandler_Deposit_AccountInactive(t *testing.T) {
+	depositUC := &depositUseCaseMock{
+		executeFn: func(ctx context.Context, input application.DepositInput) (*domain.Account, error) {
+			return nil, domain.ErrAccountInactive
+		},
+	}
+	h := &Handler{deposit: depositUC}
+	accountID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
+	req.SetPathValue("id", accountID.String())
+	rec := httptest.NewRecorder()
+
+	h.Deposit(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected status %d, got %d", http.StatusUnprocessableEntity, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "ACCOUNT_INACTIVE" {
+		t.Fatalf("expected error code %q, got %q", "ACCOUNT_INACTIVE", got.Error.Code)
+	}
+
+	if depositUC.executeCalls != 1 {
+		t.Fatalf("expected use case Execute to be called once, got %d calls", depositUC.executeCalls)
 	}
 }

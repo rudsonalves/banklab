@@ -1,3 +1,140 @@
+## 2026/04/02 — account/deposit-01
+
+Implements the **deposit operation** across all architectural layers, introducing transactional consistency, domain validations, HTTP exposure, and full test coverage (unit + integration).
+
+---
+
+### 1. Application Layer — Deposit Use Case
+
+* Introduced `Deposit` use case with explicit input contract (`AccountID`, `Amount`)
+* Enforced domain invariants:
+
+  * non-zero/valid UUID
+  * amount > 0
+  * account must be active
+* Implemented **transactional control at the application layer**, ensuring:
+
+  * `BeginTx → GetByID → UpdateBalance → Commit`
+  * automatic rollback on failure
+* Error wrapping preserves infrastructure context while exposing domain errors
+* Aligns with transactional orchestration responsibility defined in the application layer 
+
+---
+
+### 2. Domain Layer Enhancements
+
+* Expanded `AccountRepository` contract:
+
+  * `GetByID`
+  * `UpdateBalance`
+  * `BeginTx`
+* Introduced `Tx` interface to support transactional operations
+* Added new domain errors:
+
+  * `ErrInvalidAmount`
+  * `ErrAccountNotFound`
+  * `ErrAccountInactive`
+* Strengthens enforcement of domain invariants for financial operations 
+
+---
+
+### 3. Infrastructure Layer — PostgreSQL Implementation
+
+* Implemented transactional repository (`txRepository`) using `pgx.Tx`
+* Added support for:
+
+  * account retrieval (`SELECT`)
+  * atomic balance update (`UPDATE balance = balance + $1`)
+  * transaction lifecycle (`BeginTx`, `Commit`, `Rollback`)
+* Explicit handling for:
+
+  * `ErrNoRows → ErrAccountNotFound`
+  * prevention of nested transactions
+* Ensures ACID compliance and consistency guarantees as required by financial operations 
+
+---
+
+### 4. Delivery Layer — HTTP Endpoint
+
+* Added new endpoint:
+
+  * `POST /accounts/{id}/deposit`
+* Implemented request parsing (`DepositRequest`) and path param validation
+* Mapped domain errors to standardized HTTP responses:
+
+  * `INVALID_AMOUNT → 400`
+  * `INVALID_DATA → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+  * `ACCOUNT_INACTIVE → 422`
+* Response structure follows the defined API contract (`data` / `error`) 
+* Extended handler with `deposit` use case via interface injection (improves decoupling)
+
+---
+
+### 5. Main Wiring (Composition Root)
+
+* Integrated account module alongside customer module
+* Registered new routes:
+
+  * `POST /accounts`
+  * `POST /accounts/{id}/deposit`
+* Proper dependency wiring:
+
+  * shared repository
+  * separate use cases (`CreateAccount`, `Deposit`)
+* Reinforces modular monolith structure and clear separation of concerns 
+
+---
+
+### 6. Test Coverage
+
+#### 6.1 Application Tests
+
+* Full coverage for deposit use case:
+
+  * invalid amount
+  * account not found
+  * inactive account
+  * repository failure
+  * successful execution
+* Validates transaction behavior (commit vs rollback)
+
+#### 6.2 Delivery Tests
+
+* Added handler tests for deposit:
+
+  * error mapping (`ACCOUNT_INACTIVE`)
+  * correct HTTP status and response structure
+
+#### 6.3 Integration Test
+
+* End-to-end validation with PostgreSQL:
+
+  * schema setup (customers, accounts, sequence)
+  * data seeding
+  * HTTP request execution
+  * verification of:
+
+    * response payload
+    * persisted balance in database
+* Confirms real transactional consistency and persistence correctness
+
+---
+
+### 7. Test Infrastructure Adjustments
+
+* Extended mocks to support new repository methods (`GetByID`, `UpdateBalance`, `BeginTx`)
+* Introduced transactional mock (`txMock`) to simulate commit/rollback behavior
+
+---
+
+### Conclusion
+
+This commit introduces a **critical financial operation (deposit)** with proper domain validation, strong transactional guarantees, and full-stack test coverage.
+
+The implementation is technically sound and aligned with the system’s architectural principles, particularly regarding **transaction control in the application layer and consistency at the persistence level**.
+
+
 ## 2026/04/02 — tests/general-01
 
 Introduces comprehensive test coverage for the account module across domain, application, and delivery layers, along with improvements to migration structure and handler decoupling.
