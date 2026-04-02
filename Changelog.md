@@ -1,5 +1,66 @@
 # Changelog
 
+## 2026/04/02 — account/ledger-02
+
+Refines the **deposit operation** to align with ledger-level consistency guarantees by introducing row-level locking and improving error handling semantics.
+
+---
+
+### 1. Application Layer — Deposit Consistency Improvement
+
+* Replaced `GetByID` with `GetByIDForUpdate` inside the deposit transaction flow:
+
+  * ensures **row-level locking (`SELECT ... FOR UPDATE`)**
+  * prevents race conditions during concurrent balance updates
+* This change aligns deposit behavior with other financial operations (withdraw and transfer), establishing a **uniform concurrency model**
+
+---
+
+### 2. Error Handling Enhancement
+
+* Added explicit handling for `ErrAccountNotFound`:
+
+  * now returned directly without wrapping
+* Improves:
+
+  * error transparency
+  * correct propagation to delivery layer (HTTP mapping)
+* Other errors remain wrapped with contextual information for observability
+
+---
+
+### 3. Concurrency and Ledger Integrity
+
+* Deposit now guarantees:
+
+  * **read-after-lock semantics**
+  * no stale balance reads
+  * safe concurrent updates under high contention
+* This is a critical improvement for financial correctness, especially in scenarios with simultaneous deposits and withdrawals
+
+---
+
+### 4. Architectural Consistency
+
+* Aligns deposit with previously implemented operations:
+
+  * withdraw → already transactional + safe
+  * transfer → deterministic locking + multi-entity safety
+* Establishes a **cohesive ledger model**, where all balance mutations:
+
+  * occur within transactions
+  * operate on locked rows
+  * respect ACID guarantees
+
+---
+
+### Conclusion
+
+This commit addresses a subtle but important gap in the deposit flow by introducing **proper locking semantics and precise error handling**.
+
+From a technical standpoint, this is a **high-value correction**, ensuring that even simple credit operations adhere to the same robustness standards required for a reliable financial ledger.
+
+
 ## 2026/04/02 — account/ledger-01
 
 Introduces the **transfer operation as part of the account ledger capabilities**, including transactional coordination, row-level locking, API exposure, and extensive test coverage. Also refines repository contracts and strengthens domain invariants. 

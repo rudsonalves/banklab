@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -42,8 +43,11 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 		}
 	}()
 
-	account, err := tx.GetByID(ctx, input.AccountID)
+	account, err := tx.GetByIDForUpdate(ctx, input.AccountID)
 	if err != nil {
+		if errors.Is(err, domain.ErrAccountNotFound) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("get account by id: %w", err)
 	}
 
