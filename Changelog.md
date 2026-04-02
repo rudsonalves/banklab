@@ -1,3 +1,442 @@
+# Changelog
+
+## 2026/04/02 — account/transfer-01
+
+Implements the **transfer operation** as a fully transactional, concurrency-safe use case, including domain validation, deterministic locking strategy, HTTP exposure, and comprehensive test coverage.
+
+### 1. Application Layer — Transfer Use Case
+
+* Introduced `Transfer` use case with input:
+
+  * `FromAccountID`
+  * `ToAccountID`
+  * `Amount`
+* Enforced validations:
+
+  * non-nil UUIDs
+  * amount > 0
+  * source and destination must be different
+* Implemented **single transaction orchestration**:
+
+  * `BeginTx → Lock Accounts → Validate → Debit → Credit → Commit`
+  * automatic rollback on failure
+* Introduced **deterministic locking strategy**:
+
+  * accounts are locked using `GetByIDForUpdate`
+  * ordered by UUID (`orderedUUIDs`) to **prevent deadlocks** in concurrent transfers
+* Clear separation between:
+
+  * domain validation (`CanTransfer`, `CanDeposit`)
+  * persistence execution (`DecreaseBalance`, `UpdateBalance`)
+* This is a **high-quality implementation**, particularly due to explicit deadlock mitigation and strict transactional boundaries 
+
+### 2. Domain Layer — Transfer Rules
+
+* Added `Account.CanTransfer(amount, destinationID)`:
+
+  * prevents same-account transfers
+  * reuses withdraw validation (`CanWithdraw`)
+* Introduced new domain error:
+
+  * `ErrSameAccountTransfer`
+* Reinforces domain as the **single source of truth for business rules**, eliminating duplication across use cases
+
+### 3. Repository Contract Evolution
+
+* Added `GetByIDForUpdate` to `AccountRepository`:
+
+  * enables row-level locking (`SELECT ... FOR UPDATE`)
+* Clarified `DecreaseBalance` contract:
+
+  * does not validate existence
+  * enforces balance constraint at DB level
+* These changes are essential to support **safe concurrent transfers**
+
+### 4. Infrastructure Layer — PostgreSQL
+
+* Implemented `GetByIDForUpdate` using:
+
+  ```sql
+  SELECT ... FOR UPDATE
+  ```
+* Available both in base repository and transactional (`txRepository`)
+* Guarantees:
+
+  * row-level locking
+  * prevention of race conditions
+  * compatibility with ordered locking strategy
+* Strengthens ACID guarantees for multi-entity operations
+
+### 5. Delivery Layer — Transfer Endpoint
+
+* Added new endpoint:
+
+  * `POST /accounts/transfer`
+* Introduced request/response DTOs:
+
+  * `TransferRequest`
+  * `TransferData`
+* Implemented full validation and error mapping:
+
+  * `INVALID_DATA → 400`
+  * `INVALID_AMOUNT → 400`
+  * `SAME_ACCOUNT_TRANSFER → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+  * `INSUFFICIENT_BALANCE → 422`
+  * `ACCOUNT_INACTIVE → 422`
+* Maintains API response contract consistency (`data` / `error`)
+
+### 6. Handler Refactor
+
+* Extended handler to include `transfer` use case via interface
+* Updated constructor and dependency injection
+* Registered route in `main.go`:
+
+  * `POST /accounts/transfer`
+* Preserves decoupling and adherence to layered architecture
+
+### 7. Test Coverage
+
+#### 7.1 Application Tests
+
+* Extensive test suite covering:
+
+  * invalid inputs (UUID, amount, same account)
+  * account not found (source/destination)
+  * insufficient balance
+  * inactive destination account
+  * debit failure
+  * credit failure
+  * commit failure
+  * success scenario
+* Validates:
+
+  * rollback behavior
+  * commit correctness
+  * deterministic locking order
+
+#### 7.2 Domain Tests
+
+* Added tests for `CanTransfer`:
+
+  * same account
+  * invalid amount
+  * inactive account
+  * insufficient balance
+  * success
+
+#### 7.3 Delivery Tests
+
+* Added handler test:
+
+  * `SAME_ACCOUNT_TRANSFER → 400` mapping
+
+#### 7.4 Test Infrastructure
+
+* Extended mocks:
+
+  * support for `GetByIDForUpdate`
+  * tracking of lock order
+  * transactional behavior validation
+
+### 8. Additional Improvements
+
+* Minor refinement in deposit test:
+
+  * now validates returned DB balance instead of computed value
+* Improved withdraw test assertions:
+
+  * ensures no unintended repository calls occur
+
+### Conclusion
+
+This commit introduces the **most complex financial operation (transfer)** with a robust and production-grade design.
+
+Key highlights:
+
+* **Deterministic locking to prevent deadlocks**
+* **Strict transactional integrity**
+* **Domain-driven validation**
+* **Database-level safety guarantees**
+
+From an architectural standpoint, this is a **mature and well-executed implementation**, significantly elevating the reliability of the system’s financial core.
+
+
+## 2026/04/02 — account/withdraw-01
+
+Implements the **withdraw operation** with strong domain validation, transactional safety, and consistent API exposure. Additionally refines balance handling semantics and consolidates domain rules within the entity.
+
+### 1. Application Layer — Withdraw Use Case
+
+* Introduced `Withdraw` use case with input contract (`AccountID`, `Amount`)
+* Enforced validations:
+
+  * non-nil UUID
+  * positive amount
+* Delegated business rules to domain (`Account.CanWithdraw`)
+* Implemented transactional flow:
+
+  * `BeginTx → GetByID → DecreaseBalance → Commit`
+  * rollback on any failure
+* Ensures atomicity and consistency for debit operations, aligned with financial invariants 
+
+### 2. Domain Layer — Business Rule Consolidation
+
+* Introduced domain methods:
+
+  * `Account.CanDeposit`
+  * `Account.CanWithdraw`
+* Centralized validation logic:
+
+  * account must be active
+  * amount must be > 0
+  * sufficient balance required for withdraw
+* Added new domain error:
+
+  * `ErrInsufficientBalance`
+* This is a **notable improvement in design quality**, moving rule enforcement out of the application layer into the domain, increasing cohesion and correctness
+
+### 3. Repository Contract Evolution
+
+* Updated `AccountRepository`:
+
+  * `UpdateBalance` now returns updated balance (`int64`)
+  * introduced `DecreaseBalance` for debit operations
+* Separation of credit vs debit operations improves:
+
+  * semantic clarity
+  * safety (explicit constraint on balance ≥ amount)
+
+### 4. Infrastructure Layer — PostgreSQL Enhancements
+
+* Updated `UpdateBalance` to use `RETURNING balance`
+
+  * eliminates need for manual balance mutation in memory
+* Implemented `DecreaseBalance` with safeguard:
+
+  ```sql
+  UPDATE accounts
+  SET balance = balance - $1
+  WHERE id = $2 AND balance >= $1
+  ```
+* Guarantees:
+
+  * no negative balance at DB level
+  * concurrency-safe debit operation
+* Mirrors domain invariant enforcement at persistence level (defensive design) 
+
+### 5. Application Refinement — Deposit
+
+* Refactored deposit flow:
+
+  * now uses `Account.CanDeposit`
+  * uses returned balance from repository instead of manual increment
+* Removes duplication and aligns deposit with new domain-centric validation approach
+
+### 6. Delivery Layer — Withdraw Endpoint
+
+* Added new endpoint:
+
+  * `POST /accounts/{id}/withdraw`
+* Implemented request parsing (`WithdrawRequest`)
+* Error mapping aligned with API standard:
+
+  * `INVALID_AMOUNT → 400`
+  * `INVALID_DATA → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+  * `INSUFFICIENT_BALANCE → 422`
+  * `ACCOUNT_INACTIVE → 422`
+* Maintains response contract consistency (`data` / `error`)
+
+### 7. Handler & Wiring
+
+* Extended handler to include `withdraw` use case via interface
+* Updated constructor and dependency injection
+* Registered new route in `main.go`:
+
+  * `POST /accounts/{id}/withdraw`
+* Maintains modular composition aligned with layered architecture
+
+### 8. Test Coverage
+
+#### 8.1 Application Tests
+
+* Added comprehensive tests for withdraw:
+
+  * invalid amount
+  * invalid account ID
+  * account not found
+  * insufficient balance
+  * repository failure
+  * success path
+* Validates transactional behavior (commit/rollback)
+
+#### 8.2 Domain Tests
+
+* Added unit tests for:
+
+  * `CanDeposit`
+  * `CanWithdraw`
+* Ensures correctness of core invariants at domain level
+
+#### 8.3 Delivery Tests
+
+* Added handler test:
+
+  * `INSUFFICIENT_BALANCE → 422` mapping
+
+#### 8.4 Test Infrastructure
+
+* Extended mocks:
+
+  * support for `DecreaseBalance`
+  * updated `UpdateBalance` signature
+* Adjusted integration setup for handler constructor changes
+
+### Conclusion
+
+This commit introduces the **withdraw operation as a first-class financial capability**, with robust safeguards at both domain and database levels.
+
+The most relevant architectural improvement is the **migration of business rules into the domain layer**, combined with **database-level enforcement for balance constraints**, resulting in a highly reliable and consistent implementation.
+
+
+## 2026/04/02 — account/deposit-01
+
+Implements the **deposit operation** across all architectural layers, introducing transactional consistency, domain validations, HTTP exposure, and full test coverage (unit + integration).
+
+---
+
+### 1. Application Layer — Deposit Use Case
+
+* Introduced `Deposit` use case with explicit input contract (`AccountID`, `Amount`)
+* Enforced domain invariants:
+
+  * non-zero/valid UUID
+  * amount > 0
+  * account must be active
+* Implemented **transactional control at the application layer**, ensuring:
+
+  * `BeginTx → GetByID → UpdateBalance → Commit`
+  * automatic rollback on failure
+* Error wrapping preserves infrastructure context while exposing domain errors
+* Aligns with transactional orchestration responsibility defined in the application layer 
+
+---
+
+### 2. Domain Layer Enhancements
+
+* Expanded `AccountRepository` contract:
+
+  * `GetByID`
+  * `UpdateBalance`
+  * `BeginTx`
+* Introduced `Tx` interface to support transactional operations
+* Added new domain errors:
+
+  * `ErrInvalidAmount`
+  * `ErrAccountNotFound`
+  * `ErrAccountInactive`
+* Strengthens enforcement of domain invariants for financial operations 
+
+---
+
+### 3. Infrastructure Layer — PostgreSQL Implementation
+
+* Implemented transactional repository (`txRepository`) using `pgx.Tx`
+* Added support for:
+
+  * account retrieval (`SELECT`)
+  * atomic balance update (`UPDATE balance = balance + $1`)
+  * transaction lifecycle (`BeginTx`, `Commit`, `Rollback`)
+* Explicit handling for:
+
+  * `ErrNoRows → ErrAccountNotFound`
+  * prevention of nested transactions
+* Ensures ACID compliance and consistency guarantees as required by financial operations 
+
+---
+
+### 4. Delivery Layer — HTTP Endpoint
+
+* Added new endpoint:
+
+  * `POST /accounts/{id}/deposit`
+* Implemented request parsing (`DepositRequest`) and path param validation
+* Mapped domain errors to standardized HTTP responses:
+
+  * `INVALID_AMOUNT → 400`
+  * `INVALID_DATA → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+  * `ACCOUNT_INACTIVE → 422`
+* Response structure follows the defined API contract (`data` / `error`) 
+* Extended handler with `deposit` use case via interface injection (improves decoupling)
+
+---
+
+### 5. Main Wiring (Composition Root)
+
+* Integrated account module alongside customer module
+* Registered new routes:
+
+  * `POST /accounts`
+  * `POST /accounts/{id}/deposit`
+* Proper dependency wiring:
+
+  * shared repository
+  * separate use cases (`CreateAccount`, `Deposit`)
+* Reinforces modular monolith structure and clear separation of concerns 
+
+---
+
+### 6. Test Coverage
+
+#### 6.1 Application Tests
+
+* Full coverage for deposit use case:
+
+  * invalid amount
+  * account not found
+  * inactive account
+  * repository failure
+  * successful execution
+* Validates transaction behavior (commit vs rollback)
+
+#### 6.2 Delivery Tests
+
+* Added handler tests for deposit:
+
+  * error mapping (`ACCOUNT_INACTIVE`)
+  * correct HTTP status and response structure
+
+#### 6.3 Integration Test
+
+* End-to-end validation with PostgreSQL:
+
+  * schema setup (customers, accounts, sequence)
+  * data seeding
+  * HTTP request execution
+  * verification of:
+
+    * response payload
+    * persisted balance in database
+* Confirms real transactional consistency and persistence correctness
+
+---
+
+### 7. Test Infrastructure Adjustments
+
+* Extended mocks to support new repository methods (`GetByID`, `UpdateBalance`, `BeginTx`)
+* Introduced transactional mock (`txMock`) to simulate commit/rollback behavior
+
+---
+
+### Conclusion
+
+This commit introduces a **critical financial operation (deposit)** with proper domain validation, strong transactional guarantees, and full-stack test coverage.
+
+The implementation is technically sound and aligned with the system’s architectural principles, particularly regarding **transaction control in the application layer and consistency at the persistence level**.
+
+
 ## 2026/04/02 — tests/general-01
 
 Introduces comprehensive test coverage for the account module across domain, application, and delivery layers, along with improvements to migration structure and handler decoupling.

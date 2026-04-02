@@ -11,12 +11,30 @@ type createAccountUseCase interface {
 	Execute(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error)
 }
 
-type Handler struct {
-	createAccount createAccountUseCase
+type depositUseCase interface {
+	Execute(ctx context.Context, input application.DepositInput) (*domain.Account, error)
 }
 
-func New(createAccount createAccountUseCase) *Handler {
+type withdrawUseCase interface {
+	Execute(ctx context.Context, input application.WithdrawInput) (*domain.Account, error)
+}
+
+type transferUseCase interface {
+	Execute(ctx context.Context, input application.TransferInput) (*application.TransferResult, error)
+}
+
+type Handler struct {
+	createAccount createAccountUseCase
+	deposit       depositUseCase
+	withdraw      withdrawUseCase
+	transfer      transferUseCase
+}
+
+func New(createAccount createAccountUseCase, deposit depositUseCase, withdraw withdrawUseCase, transfer transferUseCase) *Handler {
 	return &Handler{
 		createAccount: createAccount,
+		deposit:       deposit,
+		withdraw:      withdraw,
+		transfer:      transfer,
 	}
 }

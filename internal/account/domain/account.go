@@ -39,3 +39,39 @@ func NewAccount(customerID uuid.UUID, number, branch string) (*Account, error) {
 		CreatedAt:  time.Now().UTC(),
 	}, nil
 }
+
+func (a *Account) CanDeposit(amount int64) error {
+	if amount <= 0 {
+		return ErrInvalidAmount
+	}
+
+	if a.Status != AccountActive {
+		return ErrAccountInactive
+	}
+
+	return nil
+}
+
+func (a *Account) CanWithdraw(amount int64) error {
+	if amount <= 0 {
+		return ErrInvalidAmount
+	}
+
+	if a.Status != AccountActive {
+		return ErrAccountInactive
+	}
+
+	if a.Balance < amount {
+		return ErrInsufficientBalance
+	}
+
+	return nil
+}
+
+func (a *Account) CanTransfer(amount int64, destinationID uuid.UUID) error {
+	if a.ID == destinationID {
+		return ErrSameAccountTransfer
+	}
+
+	return a.CanWithdraw(amount)
+}
