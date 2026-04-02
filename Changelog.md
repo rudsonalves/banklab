@@ -1,5 +1,132 @@
 # Changelog
 
+## 2026/04/02 — auth/phase-03
+
+Implements a complete **authentication and authorization layer**, including JWT-based security, access control rules, standardized error handling, and HTTP response normalization. This phase establishes the foundation for secure interaction across the system.
+
+### 1. Application Layer — Authorization Rules
+
+* Introduced `CanAccessAccount` and `RequireAccountAccess`
+* Implements access control based on:
+
+  * admin override (full access)
+  * customer ownership (account.CustomerID == user.CustomerID)
+* Defensive validation:
+
+  * nil checks
+  * invalid UUID parsing
+* Added `ErrForbidden` to represent authorization failures
+* This design is clean and pragmatic, correctly centralizing authorization logic at the application boundary
+
+### 2. Application Layer — Auth Context Refinement
+
+* Replaced struct-based context key with typed key (`contextKey`)
+* Eliminates collision risks and improves type safety
+* Updated:
+
+  * `WithAuthenticatedUser`
+  * `GetAuthenticatedUser`
+* Supports both value and pointer retrieval patterns
+* This is a subtle but important improvement for robustness in middleware-driven systems
+
+### 3. Delivery Layer — Auth Handlers
+
+* Introduced HTTP handlers:
+
+  * `POST /auth/register`
+  * `POST /auth/login`
+  * `GET /auth/me`
+* Implemented request parsing and response mapping for:
+
+  * user registration
+  * authentication (token issuance)
+  * current user retrieval
+* Centralized error mapping via `MapError`
+* Integrated structured logging for failure scenarios
+* Handlers are well-structured and follow clear separation between transport and application concerns
+
+### 4. JWT Middleware
+
+* Added `JWTMiddleware` with two modes:
+
+  * `RequireAuth`: enforces authentication
+  * `OptionalAuth`: enriches context if token is present
+* Implements:
+
+  * Bearer token extraction
+  * token parsing via `TokenService`
+  * injection of `AuthenticatedUser` into request context
+* Handles:
+
+  * missing header
+  * malformed token
+  * invalid/expired token
+* This middleware is technically solid and aligns with common production patterns
+
+### 5. Delivery Layer — Context Helpers
+
+* Added helper functions:
+
+  * `GetAuthenticatedUser`
+  * `MustGetAuthenticatedUser`
+* Simplifies access to authenticated principal in handlers
+* `MustGetAuthenticatedUser` enforces strict contract via panic (appropriate for internal invariants)
+
+### 6. Shared Layer — Error Standardization
+
+* Introduced `AppError` structure:
+
+  * `code`
+  * `message`
+  * optional `details`
+* Added predefined errors:
+
+  * `INVALID_REQUEST`, `INVALID_DATA`
+  * `UNAUTHORIZED`, `INVALID_TOKEN`
+  * `USER_ALREADY_EXISTS`, etc.
+* Provides consistent error contract across the entire API
+* This is a strong architectural improvement, reducing duplication and ambiguity
+
+### 7. Shared Layer — HTTP Response Abstraction
+
+* Added standardized response format:
+
+  * `{ data, error }`
+* Introduced helpers:
+
+  * `WriteSuccess`
+  * `WriteError`
+* Ensures:
+
+  * consistent headers (`application/json`)
+  * predictable payload structure
+* Removes response formatting duplication across handlers
+
+### 8. Test Coverage
+
+* Comprehensive tests across all layers:
+
+  * authorization rules (customer vs admin vs invalid cases)
+  * context handling (presence and panic scenarios)
+  * handlers (success and error mappings)
+  * JWT middleware (valid, invalid, missing, expired tokens)
+  * shared response and error structures
+* Validates both behavior and contract consistency
+
+### Conclusion
+
+This commit represents a **major architectural milestone**, introducing a cohesive and production-ready authentication system.
+
+Key strengths:
+
+* Clear separation of concerns (application, delivery, shared)
+* Robust JWT-based authentication flow
+* Centralized and consistent error/response handling
+* Well-defined authorization rules at the domain boundary
+
+From a technical perspective, this is a **high-quality and scalable foundation** for securing all future endpoints in the system.
+
+
 ## 2026/04/02 — auth/phase-02
 
 Implements the **core authentication module (phase 02)**, including user registration, login, token generation, and authenticated context handling. Establishes a clean separation between authentication concerns and domain logic, with strong validation and full test coverage.

@@ -16,7 +16,9 @@ type AuthenticatedUser struct {
 	CustomerID *string
 }
 
-type authenticatedUserContextKey struct{}
+type contextKey string
+
+const authenticatedUserKey contextKey = "authenticatedUser"
 
 type GetCurrentUserUseCase struct {
 	userRepo domain.UserRepository
@@ -34,16 +36,16 @@ type GetCurrentUserOutput struct {
 }
 
 func WithAuthenticatedUser(ctx context.Context, user AuthenticatedUser) context.Context {
-	return context.WithValue(ctx, authenticatedUserContextKey{}, user)
+	return context.WithValue(ctx, authenticatedUserKey, user)
 }
 
 func GetAuthenticatedUser(ctx context.Context) (*AuthenticatedUser, bool) {
-	user, ok := ctx.Value(authenticatedUserContextKey{}).(AuthenticatedUser)
+	user, ok := ctx.Value(authenticatedUserKey).(AuthenticatedUser)
 	if ok {
 		return &user, true
 	}
 
-	userPtr, ok := ctx.Value(authenticatedUserContextKey{}).(*AuthenticatedUser)
+	userPtr, ok := ctx.Value(authenticatedUserKey).(*AuthenticatedUser)
 	if !ok || userPtr == nil {
 		return nil, false
 	}
