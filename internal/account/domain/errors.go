@@ -10,4 +10,5 @@ var (
 	ErrSameAccountTransfer = errors.New("same account transfer")
 	ErrCustomerNotFound    = errors.New("customer not found")
 	ErrAccountInactive     = errors.New("account inactive")
+	ErrForbidden           = errors.New("forbidden")
 )

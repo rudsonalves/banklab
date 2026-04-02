@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type Withdraw struct {
@@ -17,6 +18,7 @@ func NewWithdraw(accountRepo domain.AccountRepository) *Withdraw {
 }
 
 type WithdrawInput struct {
+	User      *authdomain.AuthenticatedUser
 	AccountID uuid.UUID
 	Amount    int64
 }
@@ -45,6 +47,10 @@ func (uc *Withdraw) Execute(ctx context.Context, input WithdrawInput) (_ *domain
 	account, err := tx.GetByIDForUpdate(ctx, input.AccountID)
 	if err != nil {
 		return nil, fmt.Errorf("get account by id: %w", err)
+	}
+
+	if !authdomain.CanAccessAccount(input.User, account) {
+		return nil, domain.ErrForbidden
 	}
 
 	if err := account.CanWithdraw(input.Amount); err != nil {

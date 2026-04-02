@@ -4,17 +4,18 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
-	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
 
 type JWTMiddleware struct {
-	tokenService domain.TokenService
+	tokenService authdomain.TokenService
 }
 
-func NewJWTMiddleware(tokenService domain.TokenService) *JWTMiddleware {
+func NewJWTMiddleware(tokenService authdomain.TokenService) *JWTMiddleware {
 	return &JWTMiddleware{tokenService: tokenService}
 }
 
@@ -32,10 +33,16 @@ func (m *JWTMiddleware) RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		principal := application.AuthenticatedUser{
+		customerID, ok := parseNullableCustomerID(claims.CustomerID)
+		if !ok {
+			sharedhttp.WriteError(w, http.StatusUnauthorized, sharederrors.ErrInvalidToken)
+			return
+		}
+
+		principal := authdomain.AuthenticatedUser{
 			UserID:     claims.UserID,
 			Role:       claims.Role,
-			CustomerID: claims.CustomerID,
+			CustomerID: customerID,
 		}
 
 		ctx := application.WithAuthenticatedUser(r.Context(), principal)
@@ -63,10 +70,16 @@ func (m *JWTMiddleware) OptionalAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		principal := application.AuthenticatedUser{
+		customerID, ok := parseNullableCustomerID(claims.CustomerID)
+		if !ok {
+			sharedhttp.WriteError(w, http.StatusUnauthorized, sharederrors.ErrInvalidToken)
+			return
+		}
+
+		principal := authdomain.AuthenticatedUser{
 			UserID:     claims.UserID,
 			Role:       claims.Role,
-			CustomerID: claims.CustomerID,
+			CustomerID: customerID,
 		}
 
 		ctx := application.WithAuthenticatedUser(r.Context(), principal)
@@ -85,4 +98,17 @@ func bearerToken(authorization string) (string, bool) {
 	}
 
 	return parts[1], true
+}
+
+func parseNullableCustomerID(raw *string) (*uuid.UUID, bool) {
+	if raw == nil {
+		return nil, true
+	}
+
+	parsed, err := uuid.Parse(*raw)
+	if err != nil {
+		return nil, false
+	}
+
+	return &parsed, true
 }

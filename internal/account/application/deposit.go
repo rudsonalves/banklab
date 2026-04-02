@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type Deposit struct {
@@ -18,6 +19,7 @@ func NewDeposit(accountRepo domain.AccountRepository) *Deposit {
 }
 
 type DepositInput struct {
+	User      *authdomain.AuthenticatedUser
 	AccountID uuid.UUID
 	Amount    int64
 }
@@ -49,6 +51,10 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 			return nil, err
 		}
 		return nil, fmt.Errorf("get account by id: %w", err)
+	}
+
+	if !authdomain.CanAccessAccount(input.User, account) {
+		return nil, domain.ErrForbidden
 	}
 
 	if err := account.CanDeposit(input.Amount); err != nil {

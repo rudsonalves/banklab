@@ -5,16 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 var ErrUnauthorized = errors.New("unauthorized")
 
-type AuthenticatedUser struct {
-	UserID     string
-	Role       domain.Role
-	CustomerID *string
-}
+type AuthenticatedUser = domain.AuthenticatedUser
 
 type contextKey string
 
@@ -63,7 +60,7 @@ func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOu
 		return &GetCurrentUserOutput{
 			ID:         principal.UserID,
 			Role:       string(principal.Role),
-			CustomerID: principal.CustomerID,
+			CustomerID: nullableUUIDToString(principal.CustomerID),
 		}, nil
 	}
 
@@ -81,4 +78,13 @@ func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOu
 		Role:       string(user.Role),
 		CustomerID: user.CustomerID,
 	}, nil
+}
+
+func nullableUUIDToString(value *uuid.UUID) *string {
+	if value == nil {
+		return nil
+	}
+
+	s := value.String()
+	return &s
 }

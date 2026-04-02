@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type Transfer struct {
@@ -19,6 +20,7 @@ func NewTransfer(accountRepo domain.AccountRepository) *Transfer {
 }
 
 type TransferInput struct {
+	User          *authdomain.AuthenticatedUser
 	FromAccountID uuid.UUID
 	ToAccountID   uuid.UUID
 	Amount        int64
@@ -77,6 +79,10 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 	}
 
 	fromAccount, toAccount := mapTransferAccounts(input.FromAccountID, firstAccount, secondAccount)
+
+	if !authdomain.CanAccessAccount(input.User, fromAccount) {
+		return nil, domain.ErrForbidden
+	}
 
 	if err := fromAccount.CanTransfer(input.Amount, input.ToAccountID); err != nil {
 		return nil, err

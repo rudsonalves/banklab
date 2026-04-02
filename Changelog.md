@@ -1,5 +1,109 @@
 # Changelog
 
+### 2026/04/02 auth/phase-04
+
+Introduces authentication context propagation and enforces authorization rules across account use cases, along with a consistent error handling strategy at the delivery layer.
+
+1. internal/account/application/auth_test.go
+
+   * Added helper functions to create test users (customer and admin) for authentication scenarios
+
+2. internal/account/application/create_account.go
+
+   * Added AuthenticatedUser to input
+   * Enforced authorization: only admins or matching customers can create accounts
+   * Introduced forbidden validation before repository calls
+
+3. internal/account/application/create_account_test.go
+
+   * Updated all tests to include authenticated user context
+   * Added tests for forbidden access and admin privileges
+
+4. internal/account/application/deposit.go
+
+   * Added AuthenticatedUser to input
+   * Enforced access control using CanAccessAccount
+
+5. internal/account/application/deposit_test.go
+
+   * Updated tests to include user context
+   * Added forbidden scenario validation
+
+6. internal/account/application/get_statement.go
+
+   * Added AuthenticatedUser to input
+   * Enforced access validation before retrieving transactions
+
+7. internal/account/application/get_statement_test.go
+
+   * Updated tests to include user context
+   * Added forbidden access validation
+
+8. internal/account/application/transfer.go
+
+   * Added AuthenticatedUser to input
+   * Enforced authorization on source account
+
+9. internal/account/application/transfer_test.go
+
+   * Updated tests to include user context
+   * Added forbidden access scenario
+
+10. internal/account/application/withdraw.go
+
+    * Added AuthenticatedUser to input
+    * Enforced access validation
+
+11. internal/account/application/withdraw_test.go
+
+    * Updated tests to include user context
+    * Added admin access validation
+
+12. internal/account/domain/errors.go
+
+    * Introduced ErrForbidden for authorization failures
+
+13. internal/account/delivery/account_handler.go
+
+    * Added RequireUser to enforce authentication at handler level
+    * Injected user context into all use cases
+    * Replaced manual error handling with centralized mapAccountError
+    * Standardized success responses using writeSuccess
+
+14. internal/account/delivery/account_handler_test.go
+
+    * Updated tests to include authenticated requests
+    * Added tests for unauthorized and forbidden scenarios
+
+15. internal/account/delivery/auth_test.go
+
+    * Added helpers to inject authenticated user into request context
+
+16. internal/account/delivery/deposit_integration_test.go
+
+    * Injected authentication context into integration test flow
+
+17. internal/account/delivery/handler.go
+
+    * Added RequireUser helper to extract authenticated user from context
+
+18. internal/account/delivery/response.go
+
+    * Refactored response handling to use shared HTTP utilities
+    * Replaced custom response structure with shared abstractions
+
+19. internal/auth/application/authorization.go
+
+    * Delegated authorization logic to auth domain layer
+    * Simplified CanAccessAccount and RequireAccountAccess
+
+20. internal/auth/application/authorization_test.go
+
+    * Updated tests to use UUID instead of string for CustomerID
+
+This commit establishes a consistent security boundary across application and delivery layers, ensuring that all account operations are protected by explicit authentication and authorization rules while improving error handling cohesion.
+
+
 ## 2026/04/02 — auth/phase-03
 
 Implements a complete **authentication and authorization layer**, including JWT-based security, access control rules, standardized error handling, and HTTP response normalization. This phase establishes the foundation for secure interaction across the system.

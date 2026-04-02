@@ -89,17 +89,20 @@ func TestWithdraw_Execute_AccountNotFound(t *testing.T) {
 }
 
 func TestWithdraw_Execute_InsufficientBalance(t *testing.T) {
+	customerID := uuid.New()
 	tx := &txMock{
 		account: &domain.Account{
-			ID:      uuid.New(),
-			Balance: 100,
-			Status:  domain.AccountActive,
+			ID:         uuid.New(),
+			CustomerID: customerID,
+			Balance:    100,
+			Status:     domain.AccountActive,
 		},
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
 	useCase := NewWithdraw(repo)
 
 	account, err := useCase.Execute(context.Background(), WithdrawInput{
+		User:      testCustomerUser(customerID),
 		AccountID: uuid.New(),
 		Amount:    150,
 	})
@@ -127,11 +130,13 @@ func TestWithdraw_Execute_InsufficientBalance(t *testing.T) {
 
 func TestWithdraw_Execute_RepositoryFailure(t *testing.T) {
 	expectedErr := errors.New("decrease failed")
+	customerID := uuid.New()
 	tx := &txMock{
 		account: &domain.Account{
-			ID:      uuid.New(),
-			Balance: 200,
-			Status:  domain.AccountActive,
+			ID:         uuid.New(),
+			CustomerID: customerID,
+			Balance:    200,
+			Status:     domain.AccountActive,
 		},
 		decreaseBalanceErr: expectedErr,
 	}
@@ -139,6 +144,7 @@ func TestWithdraw_Execute_RepositoryFailure(t *testing.T) {
 	useCase := NewWithdraw(repo)
 
 	account, err := useCase.Execute(context.Background(), WithdrawInput{
+		User:      testCustomerUser(customerID),
 		AccountID: uuid.New(),
 		Amount:    10,
 	})
@@ -160,18 +166,21 @@ func TestWithdraw_Execute_Success(t *testing.T) {
 	initialBalance := int64(100)
 	withdrawAmount := int64(50)
 	accountID := uuid.New()
+	customerID := uuid.New()
 
 	tx := &txMock{
 		account: &domain.Account{
-			ID:      accountID,
-			Balance: initialBalance,
-			Status:  domain.AccountActive,
+			ID:         accountID,
+			CustomerID: customerID,
+			Balance:    initialBalance,
+			Status:     domain.AccountActive,
 		},
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
 	useCase := NewWithdraw(repo)
 
 	account, err := useCase.Execute(context.Background(), WithdrawInput{
+		User:      testCustomerUser(customerID),
 		AccountID: accountID,
 		Amount:    withdrawAmount,
 	})
@@ -220,11 +229,13 @@ func TestWithdraw_Execute_Success(t *testing.T) {
 
 func TestWithdraw_Execute_LedgerInsertFailure(t *testing.T) {
 	expectedErr := errors.New("ledger insert failed")
+	customerID := uuid.New()
 	tx := &txMock{
 		account: &domain.Account{
-			ID:      uuid.New(),
-			Balance: 200,
-			Status:  domain.AccountActive,
+			ID:         uuid.New(),
+			CustomerID: customerID,
+			Balance:    200,
+			Status:     domain.AccountActive,
 		},
 		createTransactionErr: expectedErr,
 	}
@@ -232,6 +243,7 @@ func TestWithdraw_Execute_LedgerInsertFailure(t *testing.T) {
 	useCase := NewWithdraw(repo)
 
 	account, err := useCase.Execute(context.Background(), WithdrawInput{
+		User:      testCustomerUser(customerID),
 		AccountID: uuid.New(),
 		Amount:    10,
 	})
@@ -254,5 +266,37 @@ func TestWithdraw_Execute_LedgerInsertFailure(t *testing.T) {
 
 	if tx.commitCalls != 0 {
 		t.Fatalf("expected Commit not to be called, got %d calls", tx.commitCalls)
+	}
+}
+
+func TestWithdraw_Execute_AdminAllowed(t *testing.T) {
+	accountID := uuid.New()
+	tx := &txMock{
+		account: &domain.Account{
+			ID:         accountID,
+			CustomerID: uuid.New(),
+			Balance:    100,
+			Status:     domain.AccountActive,
+		},
+	}
+	repo := &depositAccountRepositoryMock{tx: tx}
+	useCase := NewWithdraw(repo)
+
+	account, err := useCase.Execute(context.Background(), WithdrawInput{
+		User:      testAdminUser(),
+		AccountID: accountID,
+		Amount:    10,
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if account == nil {
+		t.Fatal("expected account to be non-nil")
+	}
+
+	if tx.decreaseBalanceCalls != 1 {
+		t.Fatalf("expected DecreaseBalance to be called once, got %d calls", tx.decreaseBalanceCalls)
 	}
 }

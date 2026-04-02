@@ -11,11 +11,10 @@ import (
 
 func TestCanAccessAccount_SameCustomer(t *testing.T) {
 	customerID := uuid.New()
-	userCustomerID := customerID.String()
 	user := &AuthenticatedUser{
 		UserID:     "user-1",
 		Role:       authdomain.RoleCustomer,
-		CustomerID: &userCustomerID,
+		CustomerID: &customerID,
 	}
 	account := &accountdomain.Account{CustomerID: customerID}
 
@@ -25,7 +24,7 @@ func TestCanAccessAccount_SameCustomer(t *testing.T) {
 }
 
 func TestCanAccessAccount_DifferentCustomer(t *testing.T) {
-	userCustomerID := uuid.NewString()
+	userCustomerID := uuid.New()
 	user := &AuthenticatedUser{
 		UserID:     "user-1",
 		Role:       authdomain.RoleCustomer,
@@ -63,7 +62,7 @@ func TestCanAccessAccount_NilCustomerDenied(t *testing.T) {
 }
 
 func TestCanAccessAccount_AccountWithoutCustomerDenied(t *testing.T) {
-	userCustomerID := uuid.NewString()
+	userCustomerID := uuid.New()
 	user := &AuthenticatedUser{
 		UserID:     "user-1",
 		Role:       authdomain.RoleCustomer,
@@ -77,7 +76,7 @@ func TestCanAccessAccount_AccountWithoutCustomerDenied(t *testing.T) {
 }
 
 func TestRequireAccountAccess_ReturnsForbidden(t *testing.T) {
-	userCustomerID := uuid.NewString()
+	userCustomerID := uuid.New()
 	user := &AuthenticatedUser{
 		UserID:     "user-1",
 		Role:       authdomain.RoleCustomer,

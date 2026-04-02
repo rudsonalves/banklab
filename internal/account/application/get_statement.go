@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 const (
@@ -16,6 +17,8 @@ const (
 )
 
 type GetStatementInput struct {
+	User *authdomain.AuthenticatedUser
+
 	AccountID uuid.UUID
 
 	Limit    int
@@ -78,8 +81,13 @@ func (uc *GetStatement) Execute(ctx context.Context, input GetStatementInput) (*
 		limit = maxStatementLimit
 	}
 
-	if _, err := uc.repo.GetByID(ctx, input.AccountID); err != nil {
+	account, err := uc.repo.GetByID(ctx, input.AccountID)
+	if err != nil {
 		return nil, err
+	}
+
+	if !authdomain.CanAccessAccount(input.User, account) {
+		return nil, domain.ErrForbidden
 	}
 
 	transactions, err := uc.repo.GetTransactions(

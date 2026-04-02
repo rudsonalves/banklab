@@ -37,4 +37,5 @@ var (
 	ErrInvalidCredentials = NewError("INVALID_CREDENTIALS", "Invalid credentials")
 	ErrUnauthorized       = NewError("UNAUTHORIZED", "Unauthorized")
 	ErrInvalidToken       = NewError("INVALID_TOKEN", "Invalid token")
+	ErrForbidden          = NewError("FORBIDDEN", "Access denied")
 )

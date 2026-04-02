@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
@@ -32,12 +33,13 @@ func (m *tokenServiceMock) ParseAccessToken(token string) (*domain.TokenClaims, 
 }
 
 func TestJWTMiddleware_RequireAuth_ValidToken(t *testing.T) {
-	customerID := "customer-1"
+	customerID := uuid.New()
+	cid := customerID.String()
 	tokenService := &tokenServiceMock{
 		claims: &domain.TokenClaims{
 			UserID:     "user-1",
 			Role:       domain.RoleCustomer,
-			CustomerID: &customerID,
+			CustomerID: &cid,
 		},
 	}
 	middleware := NewJWTMiddleware(tokenService)
@@ -80,6 +82,27 @@ func TestJWTMiddleware_RequireAuth_ValidToken(t *testing.T) {
 	if principal.CustomerID == nil || *principal.CustomerID != customerID {
 		t.Fatalf("expected customer id %q, got %#v", customerID, principal.CustomerID)
 	}
+}
+
+func TestJWTMiddleware_RequireAuth_InvalidCustomerIDClaim(t *testing.T) {
+	badCID := "not-a-uuid"
+	tokenService := &tokenServiceMock{
+		claims: &domain.TokenClaims{
+			UserID:     "user-1",
+			Role:       domain.RoleCustomer,
+			CustomerID: &badCID,
+		},
+	}
+	middleware := NewJWTMiddleware(tokenService)
+	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer valid-token")
+	rec := httptest.NewRecorder()
+
+	middleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("expected next handler not to be called")
+	})).ServeHTTP(rec, req)
+
+	assertAuthErrorCode(t, rec, http.StatusUnauthorized, "INVALID_TOKEN")
 }
 
 func TestJWTMiddleware_RequireAuth_MissingHeader(t *testing.T) {

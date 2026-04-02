@@ -208,16 +208,19 @@ func TestDeposit_Execute_AccountNotFound(t *testing.T) {
 }
 
 func TestDeposit_Execute_AccountInactive(t *testing.T) {
+	customerID := uuid.New()
 	tx := &txMock{
 		account: &domain.Account{
-			ID:     uuid.New(),
-			Status: domain.AccountInactive,
+			ID:         uuid.New(),
+			CustomerID: customerID,
+			Status:     domain.AccountInactive,
 		},
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
 	useCase := NewDeposit(repo)
 
 	account, err := useCase.Execute(context.Background(), DepositInput{
+		User:      testCustomerUser(customerID),
 		AccountID: uuid.New(),
 		Amount:    100,
 	})
@@ -251,13 +254,15 @@ func TestDeposit_Execute_Success(t *testing.T) {
 	initialBalance := int64(100)
 	depositAmount := int64(50)
 	accountID := uuid.New()
+	customerID := uuid.New()
 	dbReturnedBalance := int64(999)
 
 	tx := &txMock{
 		account: &domain.Account{
-			ID:      accountID,
-			Balance: initialBalance,
-			Status:  domain.AccountActive,
+			ID:         accountID,
+			CustomerID: customerID,
+			Balance:    initialBalance,
+			Status:     domain.AccountActive,
 		},
 		updateBalanceValue: dbReturnedBalance,
 	}
@@ -265,6 +270,7 @@ func TestDeposit_Execute_Success(t *testing.T) {
 	useCase := NewDeposit(repo)
 
 	account, err := useCase.Execute(context.Background(), DepositInput{
+		User:      testCustomerUser(customerID),
 		AccountID: accountID,
 		Amount:    depositAmount,
 	})
@@ -309,14 +315,16 @@ func TestDeposit_Execute_Success(t *testing.T) {
 
 func TestDeposit_Execute_RepositoryFailure(t *testing.T) {
 	expectedErr := errors.New("update failed")
+	customerID := uuid.New()
 	tx := &txMock{
-		account:          &domain.Account{ID: uuid.New(), Balance: 200, Status: domain.AccountActive},
+		account:          &domain.Account{ID: uuid.New(), CustomerID: customerID, Balance: 200, Status: domain.AccountActive},
 		updateBalanceErr: expectedErr,
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
 	useCase := NewDeposit(repo)
 
 	account, err := useCase.Execute(context.Background(), DepositInput{
+		User:      testCustomerUser(customerID),
 		AccountID: uuid.New(),
 		Amount:    10,
 	})
@@ -344,8 +352,9 @@ func TestDeposit_Execute_RepositoryFailure(t *testing.T) {
 
 func TestDeposit_Execute_LedgerInsertFailure(t *testing.T) {
 	expectedErr := errors.New("ledger insert failed")
+	customerID := uuid.New()
 	tx := &txMock{
-		account:              &domain.Account{ID: uuid.New(), Balance: 100, Status: domain.AccountActive},
+		account:              &domain.Account{ID: uuid.New(), CustomerID: customerID, Balance: 100, Status: domain.AccountActive},
 		updateBalanceValue:   150,
 		createTransactionErr: expectedErr,
 	}
@@ -353,6 +362,7 @@ func TestDeposit_Execute_LedgerInsertFailure(t *testing.T) {
 	useCase := NewDeposit(repo)
 
 	account, err := useCase.Execute(context.Background(), DepositInput{
+		User:      testCustomerUser(customerID),
 		AccountID: uuid.New(),
 		Amount:    50,
 	})
@@ -375,5 +385,39 @@ func TestDeposit_Execute_LedgerInsertFailure(t *testing.T) {
 
 	if tx.commitCalls != 0 {
 		t.Fatalf("expected Commit not to be called, got %d calls", tx.commitCalls)
+	}
+}
+
+func TestDeposit_Execute_ForbiddenForDifferentCustomer(t *testing.T) {
+	tx := &txMock{
+		account: &domain.Account{
+			ID:         uuid.New(),
+			CustomerID: uuid.New(),
+			Status:     domain.AccountActive,
+		},
+	}
+	repo := &depositAccountRepositoryMock{tx: tx}
+	useCase := NewDeposit(repo)
+
+	account, err := useCase.Execute(context.Background(), DepositInput{
+		User:      testCustomerUser(uuid.New()),
+		AccountID: uuid.New(),
+		Amount:    10,
+	})
+
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
+	}
+
+	if account != nil {
+		t.Fatalf("expected account to be nil, got %+v", account)
+	}
+
+	if tx.updateBalanceCalls != 0 {
+		t.Fatalf("expected UpdateBalance not to be called, got %d calls", tx.updateBalanceCalls)
+	}
+
+	if tx.rollbackCalls != 1 {
+		t.Fatalf("expected Rollback to be called once, got %d calls", tx.rollbackCalls)
 	}
 }

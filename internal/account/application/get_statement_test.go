@@ -13,6 +13,7 @@ import (
 type statementRepositoryMock struct {
 	getByIDCalls           int
 	getByIDErr             error
+	account                *domain.Account
 	getTransactionsCalls   int
 	getTransactionsErr     error
 	getTransactionsResult  []domain.Transaction
@@ -46,6 +47,9 @@ func (m *statementRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*d
 	m.getByIDCalls++
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
+	}
+	if m.account != nil {
+		return m.account, nil
 	}
 
 	return &domain.Account{ID: id}, nil
@@ -114,8 +118,10 @@ func TestGetStatement_Execute_DefaultAndCappedLimit(t *testing.T) {
 	repo := &statementRepositoryMock{}
 	uc := NewGetStatement(repo)
 	accountID := uuid.New()
+	customerID := uuid.New()
+	repo.account = &domain.Account{ID: accountID, CustomerID: customerID}
 
-	_, err := uc.Execute(context.Background(), GetStatementInput{AccountID: accountID})
+	_, err := uc.Execute(context.Background(), GetStatementInput{User: testCustomerUser(customerID), AccountID: accountID})
 	if err != nil {
 		t.Fatalf("expected no error for default limit, got %v", err)
 	}
@@ -124,7 +130,7 @@ func TestGetStatement_Execute_DefaultAndCappedLimit(t *testing.T) {
 		t.Fatalf("expected default limit 50, got %d", repo.lastGetTransactionsArg.limit)
 	}
 
-	_, err = uc.Execute(context.Background(), GetStatementInput{AccountID: accountID, Limit: 500})
+	_, err = uc.Execute(context.Background(), GetStatementInput{User: testCustomerUser(customerID), AccountID: accountID, Limit: 500})
 	if err != nil {
 		t.Fatalf("expected no error for capped limit, got %v", err)
 	}
@@ -156,8 +162,11 @@ func TestGetStatement_Execute_AccountNotFound(t *testing.T) {
 func TestGetStatement_Execute_GetTransactionsAccountNotFoundPropagates(t *testing.T) {
 	repo := &statementRepositoryMock{getTransactionsErr: domain.ErrAccountNotFound}
 	uc := NewGetStatement(repo)
+	accountID := uuid.New()
+	customerID := uuid.New()
+	repo.account = &domain.Account{ID: accountID, CustomerID: customerID}
 
-	result, err := uc.Execute(context.Background(), GetStatementInput{AccountID: uuid.New()})
+	result, err := uc.Execute(context.Background(), GetStatementInput{User: testCustomerUser(customerID), AccountID: accountID})
 
 	if !errors.Is(err, domain.ErrAccountNotFound) {
 		t.Fatalf("expected error %v, got %v", domain.ErrAccountNotFound, err)
@@ -171,6 +180,7 @@ func TestGetStatement_Execute_GetTransactionsAccountNotFoundPropagates(t *testin
 func TestGetStatement_Execute_Success(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	accountID := uuid.New()
+	customerID := uuid.New()
 	txID := uuid.New()
 	refID := uuid.New()
 	cursorID := uuid.New()
@@ -178,6 +188,7 @@ func TestGetStatement_Execute_Success(t *testing.T) {
 	to := now
 
 	repo := &statementRepositoryMock{
+		account: &domain.Account{ID: accountID, CustomerID: customerID},
 		getTransactionsResult: []domain.Transaction{
 			{
 				ID:           txID,
@@ -193,6 +204,7 @@ func TestGetStatement_Execute_Success(t *testing.T) {
 	uc := NewGetStatement(repo)
 
 	result, err := uc.Execute(context.Background(), GetStatementInput{
+		User:      testCustomerUser(customerID),
 		AccountID: accountID,
 		Limit:     1,
 		Cursor:    &to,
@@ -234,5 +246,30 @@ func TestGetStatement_Execute_Success(t *testing.T) {
 
 	if result.NextCursor.ID != txID.String() {
 		t.Fatalf("expected next cursor id %q, got %q", txID.String(), result.NextCursor.ID)
+	}
+}
+
+func TestGetStatement_Execute_ForbiddenForDifferentCustomer(t *testing.T) {
+	accountID := uuid.New()
+	repo := &statementRepositoryMock{
+		account: &domain.Account{ID: accountID, CustomerID: uuid.New()},
+	}
+	uc := NewGetStatement(repo)
+
+	result, err := uc.Execute(context.Background(), GetStatementInput{
+		User:      testCustomerUser(uuid.New()),
+		AccountID: accountID,
+	})
+
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
+	}
+
+	if result != nil {
+		t.Fatalf("expected nil result, got %+v", result)
+	}
+
+	if repo.getTransactionsCalls != 0 {
+		t.Fatalf("expected GetTransactions not to be called, got %d", repo.getTransactionsCalls)
 	}
 }

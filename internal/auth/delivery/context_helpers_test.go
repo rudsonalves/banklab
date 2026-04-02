@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 func TestGetAuthenticatedUser_ContextContainsUser(t *testing.T) {
-	customerID := "customer-1"
+	customerID := uuid.New()
 	ctx := application.WithAuthenticatedUser(context.Background(), application.AuthenticatedUser{
 		UserID:     "user-1",
 		Role:       domain.RoleCustomer,

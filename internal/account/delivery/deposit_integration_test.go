@@ -16,6 +16,8 @@ import (
 	accountApplication "github.com/seu-usuario/bank-api/internal/account/application"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	auth "github.com/seu-usuario/bank-api/internal/auth/delivery"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 func TestHandler_Deposit_Integration(t *testing.T) {
@@ -35,7 +37,14 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 	handler := New(nil, depositUC, nil, nil, nil)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /accounts/{id}/deposit", handler.Deposit)
+	mux.HandleFunc("POST /accounts/{id}/deposit", func(w http.ResponseWriter, r *http.Request) {
+		ctx := auth.WithAuthenticatedUser(r.Context(), auth.AuthenticatedUser{
+			UserID:     "user-1",
+			Role:       authdomain.RoleCustomer,
+			CustomerID: &customerID,
+		})
+		handler.Deposit(w, r.WithContext(ctx))
+	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
