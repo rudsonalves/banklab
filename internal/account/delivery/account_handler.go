@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/application"
@@ -237,4 +239,145 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 		},
 		Error: nil,
 	})
+}
+
+func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
+	if h.statement == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	accountIDRaw := r.PathValue("id")
+	accountID, err := uuid.Parse(accountIDRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "account id must be a valid UUID")
+		return
+	}
+
+	limit, err := parseOptionalInt(r.URL.Query().Get("limit"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "limit must be a valid integer")
+		return
+	}
+
+	cursor, err := parseOptionalTime(r.URL.Query().Get("cursor"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "cursor must be a valid RFC3339 datetime")
+		return
+	}
+
+	cursorID, err := parseOptionalUUID(r.URL.Query().Get("cursor_id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "cursor_id must be a valid UUID")
+		return
+	}
+
+	if (cursor == nil) != (cursorID == nil) {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "cursor and cursor_id must be provided together")
+		return
+	}
+
+	from, err := parseOptionalTime(r.URL.Query().Get("from"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "from must be a valid RFC3339 datetime")
+		return
+	}
+
+	to, err := parseOptionalTime(r.URL.Query().Get("to"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "to must be a valid RFC3339 datetime")
+		return
+	}
+
+	result, err := h.statement.Execute(r.Context(), application.GetStatementInput{
+		AccountID: accountID,
+		Limit:     limit,
+		Cursor:    cursor,
+		CursorID:  cursorID,
+		From:      from,
+		To:        to,
+	})
+	if err != nil {
+		log.Printf("event=get_statement error=%v", err)
+
+		switch {
+		case errors.Is(err, domain.ErrInvalidData):
+			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
+			return
+		case errors.Is(err, domain.ErrAccountNotFound):
+			writeError(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", "account not found")
+			return
+		}
+
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	items := make([]StatementItemData, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, StatementItemData{
+			TransactionID: item.TransactionID,
+			Type:          item.Type,
+			Amount:        item.Amount,
+			BalanceAfter:  item.BalanceAfter,
+			ReferenceID:   item.ReferenceID,
+			CreatedAt:     item.CreatedAt,
+		})
+	}
+
+	var nextCursor *StatementCursorData
+	if result.NextCursor != nil {
+		nextCursor = &StatementCursorData{
+			CreatedAt: result.NextCursor.CreatedAt,
+			ID:        result.NextCursor.ID,
+		}
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Data: StatementData{
+			AccountID:  result.AccountID,
+			Items:      items,
+			NextCursor: nextCursor,
+		},
+		Error: nil,
+	})
+}
+
+func parseOptionalInt(raw string) (int, error) {
+	if raw == "" {
+		return 0, nil
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, err
+	}
+
+	return value, nil
+}
+
+func parseOptionalTime(raw string) (*time.Time, error) {
+	if raw == "" {
+		return nil, nil
+	}
+
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &parsed, nil
+}
+
+func parseOptionalUUID(raw string) (*uuid.UUID, error) {
+	if raw == "" {
+		return nil, nil
+	}
+
+	parsed, err := uuid.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &parsed, nil
 }

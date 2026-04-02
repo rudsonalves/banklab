@@ -23,18 +23,30 @@ type transferUseCase interface {
 	Execute(ctx context.Context, input application.TransferInput) (*application.TransferResult, error)
 }
 
+type statementUseCase interface {
+	Execute(ctx context.Context, input application.GetStatementInput) (*application.Statement, error)
+}
+
 type Handler struct {
 	createAccount createAccountUseCase
 	deposit       depositUseCase
 	withdraw      withdrawUseCase
 	transfer      transferUseCase
+	statement     statementUseCase
 }
 
-func New(createAccount createAccountUseCase, deposit depositUseCase, withdraw withdrawUseCase, transfer transferUseCase) *Handler {
+func New(
+	createAccount createAccountUseCase,
+	deposit depositUseCase,
+	withdraw withdrawUseCase,
+	transfer transferUseCase,
+	statement statementUseCase,
+) *Handler {
 	return &Handler{
 		createAccount: createAccount,
 		deposit:       deposit,
 		withdraw:      withdraw,
 		transfer:      transfer,
+		statement:     statement,
 	}
 }

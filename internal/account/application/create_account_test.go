@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
@@ -42,6 +43,18 @@ func (m *accountRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*dom
 }
 
 func (m *accountRepositoryMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	return nil, nil
+}
+
+func (m *accountRepositoryMock) GetTransactions(
+	ctx context.Context,
+	accountID uuid.UUID,
+	limit int,
+	cursorTime *time.Time,
+	cursorID *uuid.UUID,
+	from *time.Time,
+	to *time.Time,
+) ([]domain.Transaction, error) {
 	return nil, nil
 }
 

@@ -27,12 +27,14 @@ func main() {
 	depositUC := accountApplication.NewDeposit(accountRepo)
 	withdrawUC := accountApplication.NewWithdraw(accountRepo)
 	transferUC := accountApplication.NewTransfer(accountRepo)
-	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC)
+	statementUC := accountApplication.NewGetStatement(accountRepo)
+	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC, statementUC)
 
 	http.HandleFunc("POST /customers", customerHandler.Create)
 	http.HandleFunc("POST /accounts", accountHandler.CreateAccount)
 	http.HandleFunc("POST /accounts/{id}/deposit", accountHandler.Deposit)
 	http.HandleFunc("POST /accounts/{id}/withdraw", accountHandler.Withdraw)
+	http.HandleFunc("GET /accounts/{id}/statement", accountHandler.Statement)
 	http.HandleFunc("POST /accounts/transfer", accountHandler.Transfer)
 
 	log.Println("Server running on port 8080")
