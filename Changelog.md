@@ -1,5 +1,161 @@
 # Changelog
 
+## 2026/04/02 — auth/phase-02
+
+Implements the **core authentication module (phase 02)**, including user registration, login, token generation, and authenticated context handling. Establishes a clean separation between authentication concerns and domain logic, with strong validation and full test coverage.
+
+### 1. Application Layer — User Registration
+
+* Added `RegisterUserUseCase` with input (`Email`, `Password`)
+* Implemented validation rules:
+
+  * normalized email (trim + lowercase)
+  * structural email validation
+  * minimum password length (≥ 8)
+* Enforced uniqueness via `ExistsByEmail`
+* Integrated password hashing through `PasswordHasher`
+* Created user entity with:
+
+  * UUID identifier
+  * default role = `customer`
+  * timestamps (`CreatedAt`, `UpdatedAt`)
+* Returns structured output without exposing sensitive data (no password)
+
+### 2. Application Layer — Login
+
+* Introduced `LoginUserUseCase`
+* Responsibilities:
+
+  * normalize email input
+  * validate credentials
+  * compare password hash
+  * generate access token via `TokenService`
+* Returns:
+
+  * JWT (or equivalent token)
+  * user identity and role
+  * optional `CustomerID`
+* Proper error handling:
+
+  * `ErrInvalidCredentials` for authentication failures
+  * avoids leaking whether email or password is incorrect
+
+### 3. Application Layer — Current User Resolution
+
+* Added `GetCurrentUserUseCase`
+* Retrieves authenticated user from context (`context.Context`)
+* Supports two modes:
+
+  * **context-only** (no repository) → lightweight resolution
+  * **repository-backed** → ensures user still exists
+* Introduced:
+
+  * `AuthenticatedUser` (principal abstraction)
+  * `WithAuthenticatedUser` / `GetAuthenticatedUser` helpers
+* Returns:
+
+  * user ID, email, role, and optional customer binding
+* Handles unauthorized scenarios via `ErrUnauthorized`
+
+### 4. Context-Based Authentication Model
+
+* Establishes a **request-scoped identity propagation mechanism**
+* Decouples authentication middleware from business logic
+* Enables:
+
+  * future integration with JWT middleware
+  * role-based authorization at use case level
+* This is a solid architectural decision, aligning with Go idioms and clean layering
+
+### 5. Domain Integration
+
+* Leverages existing domain contracts:
+
+  * `UserRepository`
+  * `PasswordHasher`
+  * `TokenService`
+* Introduces no leakage of infrastructure concerns into application layer
+* Maintains clear dependency inversion
+
+### 6. Validation & Normalization Strategy
+
+* Centralized helpers:
+
+  * `normalizeEmail`
+  * `isValidEmail`
+  * `isValidPassword`
+* Ensures:
+
+  * consistent input handling
+  * predictable authentication behavior
+* Notably avoids over-engineering while covering essential edge cases
+
+### 7. Test Coverage
+
+#### 7.1 RegisterUser
+
+* success flow (including normalization and persistence)
+* duplicate email
+* invalid email
+* invalid password
+* hashing failure
+* verifies:
+
+  * repository interaction
+  * correct entity construction
+  * timestamp integrity
+
+#### 7.2 LoginUser
+
+* success scenario (full flow: lookup → compare → token)
+* user not found
+* wrong password
+* token generation failure
+* validates:
+
+  * normalization
+  * secure flow (no unnecessary calls on failure)
+  * correct token claims
+
+#### 7.3 GetCurrentUser
+
+* success with repository
+* missing context (unauthorized)
+* user not found
+* repository error propagation
+* ensures strict control over authentication state
+
+### 8. Error Handling Strategy
+
+* Clear domain-aligned errors:
+
+  * `ErrInvalidEmail`
+  * `ErrInvalidPassword`
+  * `ErrEmailAlreadyExists`
+  * `ErrInvalidCredentials`
+  * `ErrUnauthorized`
+* Consistent wrapping for infrastructure errors
+* Prevents information leakage in authentication flows
+
+### Conclusion
+
+This commit establishes a **robust and extensible authentication foundation**, covering:
+
+* user lifecycle (register + login)
+* secure credential handling
+* token-based authentication
+* request-scoped identity propagation
+
+From an architectural perspective, the design is **clean, idiomatic, and production-ready**, particularly due to:
+
+* strict separation of concerns
+* context-driven authentication model
+* defensive error handling
+* comprehensive test coverage
+
+It provides a solid base for future extensions such as middleware, authorization policies, and multi-tenant support.
+
+
 ## 2026/04/02 — auth/phase-01
 
 Introduces the **account statement (ledger query) capability**, expands repository contracts to support transaction history retrieval, and improves project operability with tooling and documentation. This marks a transition from pure command operations to **read-side financial visibility**.
