@@ -15,14 +15,20 @@ type depositUseCase interface {
 	Execute(ctx context.Context, input application.DepositInput) (*domain.Account, error)
 }
 
+type withdrawUseCase interface {
+	Execute(ctx context.Context, input application.WithdrawInput) (*domain.Account, error)
+}
+
 type Handler struct {
 	createAccount createAccountUseCase
 	deposit       depositUseCase
+	withdraw      withdrawUseCase
 }
 
-func New(createAccount createAccountUseCase, deposit depositUseCase) *Handler {
+func New(createAccount createAccountUseCase, deposit depositUseCase, withdraw withdrawUseCase) *Handler {
 	return &Handler{
 		createAccount: createAccount,
 		deposit:       deposit,
+		withdraw:      withdraw,
 	}
 }

@@ -82,3 +82,85 @@ func TestNewAccount_ValidInput(t *testing.T) {
 		t.Fatal("expected CreatedAt to be non-zero")
 	}
 }
+
+func TestAccount_CanDeposit(t *testing.T) {
+	tests := []struct {
+		name    string
+		account Account
+		amount  int64
+		wantErr error
+	}{
+		{
+			name:    "invalid amount",
+			account: Account{Status: AccountActive},
+			amount:  0,
+			wantErr: ErrInvalidAmount,
+		},
+		{
+			name:    "inactive account",
+			account: Account{Status: AccountInactive},
+			amount:  10,
+			wantErr: ErrAccountInactive,
+		},
+		{
+			name:    "success",
+			account: Account{Status: AccountActive},
+			amount:  10,
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.account.CanDeposit(tt.amount)
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestAccount_CanWithdraw(t *testing.T) {
+	tests := []struct {
+		name    string
+		account Account
+		amount  int64
+		wantErr error
+	}{
+		{
+			name:    "invalid amount",
+			account: Account{Status: AccountActive, Balance: 100},
+			amount:  0,
+			wantErr: ErrInvalidAmount,
+		},
+		{
+			name:    "inactive account",
+			account: Account{Status: AccountInactive, Balance: 100},
+			amount:  10,
+			wantErr: ErrAccountInactive,
+		},
+		{
+			name:    "insufficient balance",
+			account: Account{Status: AccountActive, Balance: 50},
+			amount:  100,
+			wantErr: ErrInsufficientBalance,
+		},
+		{
+			name:    "success",
+			account: Account{Status: AccountActive, Balance: 100},
+			amount:  10,
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.account.CanWithdraw(tt.amount)
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+			}
+		})
+	}
+}

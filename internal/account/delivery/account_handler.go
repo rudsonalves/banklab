@@ -112,3 +112,60 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 		Error: nil,
 	})
 }
+
+func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
+	if h.withdraw == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	accountIDRaw := r.PathValue("id")
+	accountID, err := uuid.Parse(accountIDRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "account id must be a valid UUID")
+		return
+	}
+
+	var req WithdrawRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		return
+	}
+
+	account, err := h.withdraw.Execute(r.Context(), application.WithdrawInput{
+		AccountID: accountID,
+		Amount:    req.Amount,
+	})
+	if err != nil {
+		log.Printf("event=withdraw error=%v", err)
+
+		switch {
+		case errors.Is(err, domain.ErrInvalidAmount):
+			writeError(w, http.StatusBadRequest, "INVALID_AMOUNT", "amount must be greater than zero")
+			return
+		case errors.Is(err, domain.ErrInvalidData):
+			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
+			return
+		case errors.Is(err, domain.ErrAccountNotFound):
+			writeError(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", "account not found")
+			return
+		case errors.Is(err, domain.ErrInsufficientBalance):
+			writeError(w, http.StatusUnprocessableEntity, "INSUFFICIENT_BALANCE", "insufficient balance")
+			return
+		case errors.Is(err, domain.ErrAccountInactive):
+			writeError(w, http.StatusUnprocessableEntity, "ACCOUNT_INACTIVE", "account is not active")
+			return
+		}
+
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Data: map[string]interface{}{
+			"id":      account.ID.String(),
+			"balance": account.Balance,
+		},
+		Error: nil,
+	})
+}

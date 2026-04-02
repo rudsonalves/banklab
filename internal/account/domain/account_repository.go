@@ -12,7 +12,8 @@ type AccountRepository interface {
 	NextAccountNumber(ctx context.Context) (string, error)
 
 	GetByID(ctx context.Context, id uuid.UUID) (*Account, error)
-	UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) error
+	UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
+	DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error
 
 	BeginTx(ctx context.Context) (Tx, error)
 }

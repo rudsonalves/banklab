@@ -1,3 +1,143 @@
+# Changelog
+
+## 2026/04/02 — account/withdraw-01
+
+Implements the **withdraw operation** with strong domain validation, transactional safety, and consistent API exposure. Additionally refines balance handling semantics and consolidates domain rules within the entity.
+
+### 1. Application Layer — Withdraw Use Case
+
+* Introduced `Withdraw` use case with input contract (`AccountID`, `Amount`)
+* Enforced validations:
+
+  * non-nil UUID
+  * positive amount
+* Delegated business rules to domain (`Account.CanWithdraw`)
+* Implemented transactional flow:
+
+  * `BeginTx → GetByID → DecreaseBalance → Commit`
+  * rollback on any failure
+* Ensures atomicity and consistency for debit operations, aligned with financial invariants 
+
+### 2. Domain Layer — Business Rule Consolidation
+
+* Introduced domain methods:
+
+  * `Account.CanDeposit`
+  * `Account.CanWithdraw`
+* Centralized validation logic:
+
+  * account must be active
+  * amount must be > 0
+  * sufficient balance required for withdraw
+* Added new domain error:
+
+  * `ErrInsufficientBalance`
+* This is a **notable improvement in design quality**, moving rule enforcement out of the application layer into the domain, increasing cohesion and correctness
+
+### 3. Repository Contract Evolution
+
+* Updated `AccountRepository`:
+
+  * `UpdateBalance` now returns updated balance (`int64`)
+  * introduced `DecreaseBalance` for debit operations
+* Separation of credit vs debit operations improves:
+
+  * semantic clarity
+  * safety (explicit constraint on balance ≥ amount)
+
+### 4. Infrastructure Layer — PostgreSQL Enhancements
+
+* Updated `UpdateBalance` to use `RETURNING balance`
+
+  * eliminates need for manual balance mutation in memory
+* Implemented `DecreaseBalance` with safeguard:
+
+  ```sql
+  UPDATE accounts
+  SET balance = balance - $1
+  WHERE id = $2 AND balance >= $1
+  ```
+* Guarantees:
+
+  * no negative balance at DB level
+  * concurrency-safe debit operation
+* Mirrors domain invariant enforcement at persistence level (defensive design) 
+
+### 5. Application Refinement — Deposit
+
+* Refactored deposit flow:
+
+  * now uses `Account.CanDeposit`
+  * uses returned balance from repository instead of manual increment
+* Removes duplication and aligns deposit with new domain-centric validation approach
+
+### 6. Delivery Layer — Withdraw Endpoint
+
+* Added new endpoint:
+
+  * `POST /accounts/{id}/withdraw`
+* Implemented request parsing (`WithdrawRequest`)
+* Error mapping aligned with API standard:
+
+  * `INVALID_AMOUNT → 400`
+  * `INVALID_DATA → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+  * `INSUFFICIENT_BALANCE → 422`
+  * `ACCOUNT_INACTIVE → 422`
+* Maintains response contract consistency (`data` / `error`)
+
+### 7. Handler & Wiring
+
+* Extended handler to include `withdraw` use case via interface
+* Updated constructor and dependency injection
+* Registered new route in `main.go`:
+
+  * `POST /accounts/{id}/withdraw`
+* Maintains modular composition aligned with layered architecture
+
+### 8. Test Coverage
+
+#### 8.1 Application Tests
+
+* Added comprehensive tests for withdraw:
+
+  * invalid amount
+  * invalid account ID
+  * account not found
+  * insufficient balance
+  * repository failure
+  * success path
+* Validates transactional behavior (commit/rollback)
+
+#### 8.2 Domain Tests
+
+* Added unit tests for:
+
+  * `CanDeposit`
+  * `CanWithdraw`
+* Ensures correctness of core invariants at domain level
+
+#### 8.3 Delivery Tests
+
+* Added handler test:
+
+  * `INSUFFICIENT_BALANCE → 422` mapping
+
+#### 8.4 Test Infrastructure
+
+* Extended mocks:
+
+  * support for `DecreaseBalance`
+  * updated `UpdateBalance` signature
+* Adjusted integration setup for handler constructor changes
+
+### Conclusion
+
+This commit introduces the **withdraw operation as a first-class financial capability**, with robust safeguards at both domain and database levels.
+
+The most relevant architectural improvement is the **migration of business rules into the domain layer**, combined with **database-level enforcement for balance constraints**, resulting in a highly reliable and consistent implementation.
+
+
 ## 2026/04/02 — account/deposit-01
 
 Implements the **deposit operation** across all architectural layers, introducing transactional consistency, domain validations, HTTP exposure, and full test coverage (unit + integration).

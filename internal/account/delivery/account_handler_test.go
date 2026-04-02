@@ -24,6 +24,11 @@ type depositUseCaseMock struct {
 	executeFn    func(ctx context.Context, input application.DepositInput) (*domain.Account, error)
 }
 
+type withdrawUseCaseMock struct {
+	executeCalls int
+	executeFn    func(ctx context.Context, input application.WithdrawInput) (*domain.Account, error)
+}
+
 func (m *createAccountUseCaseMock) Execute(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
@@ -33,6 +38,14 @@ func (m *createAccountUseCaseMock) Execute(ctx context.Context, input applicatio
 }
 
 func (m *depositUseCaseMock) Execute(ctx context.Context, input application.DepositInput) (*domain.Account, error) {
+	m.executeCalls++
+	if m.executeFn == nil {
+		return nil, nil
+	}
+	return m.executeFn(ctx, input)
+}
+
+func (m *withdrawUseCaseMock) Execute(ctx context.Context, input application.WithdrawInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -233,5 +246,39 @@ func TestHandler_Deposit_AccountInactive(t *testing.T) {
 
 	if depositUC.executeCalls != 1 {
 		t.Fatalf("expected use case Execute to be called once, got %d calls", depositUC.executeCalls)
+	}
+}
+
+func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
+	withdrawUC := &withdrawUseCaseMock{
+		executeFn: func(ctx context.Context, input application.WithdrawInput) (*domain.Account, error) {
+			return nil, domain.ErrInsufficientBalance
+		},
+	}
+	h := &Handler{withdraw: withdrawUC}
+	accountID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/withdraw", strings.NewReader(`{"amount":100}`))
+	req.SetPathValue("id", accountID.String())
+	rec := httptest.NewRecorder()
+
+	h.Withdraw(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected status %d, got %d", http.StatusUnprocessableEntity, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INSUFFICIENT_BALANCE" {
+		t.Fatalf("expected error code %q, got %q", "INSUFFICIENT_BALANCE", got.Error.Code)
 	}
 }

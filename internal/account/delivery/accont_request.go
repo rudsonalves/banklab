@@ -7,3 +7,7 @@ type CreateAccountRequest struct {
 type DepositRequest struct {
 	Amount int64 `json:"amount"`
 }
+
+type WithdrawRequest struct {
+	Amount int64 `json:"amount"`
+}

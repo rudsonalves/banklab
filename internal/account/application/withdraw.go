@@ -8,20 +8,20 @@ import (
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 )
 
-type Deposit struct {
+type Withdraw struct {
 	accountRepo domain.AccountRepository
 }
 
-func NewDeposit(accountRepo domain.AccountRepository) *Deposit {
-	return &Deposit{accountRepo: accountRepo}
+func NewWithdraw(accountRepo domain.AccountRepository) *Withdraw {
+	return &Withdraw{accountRepo: accountRepo}
 }
 
-type DepositInput struct {
+type WithdrawInput struct {
 	AccountID uuid.UUID
 	Amount    int64
 }
 
-func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.Account, err error) {
+func (uc *Withdraw) Execute(ctx context.Context, input WithdrawInput) (_ *domain.Account, err error) {
 	if input.AccountID == uuid.Nil {
 		return nil, domain.ErrInvalidData
 	}
@@ -47,16 +47,15 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 		return nil, fmt.Errorf("get account by id: %w", err)
 	}
 
-	if err := account.CanDeposit(input.Amount); err != nil {
+	if err := account.CanWithdraw(input.Amount); err != nil {
 		return nil, err
 	}
 
-	updatedBalance, err := tx.UpdateBalance(ctx, input.AccountID, input.Amount)
-	if err != nil {
-		return nil, fmt.Errorf("update balance: %w", err)
+	if err := tx.DecreaseBalance(ctx, input.AccountID, input.Amount); err != nil {
+		return nil, fmt.Errorf("decrease balance: %w", err)
 	}
 
-	account.Balance = updatedBalance
+	account.Balance -= input.Amount
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit transaction: %w", err)

@@ -110,20 +110,42 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account
 	return &account, nil
 }
 
-func (r *Repository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (r *Repository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	var balance int64
+
 	query := `
 		UPDATE accounts
 		SET balance = balance + $1
 		WHERE id = $2
+		RETURNING balance
+	`
+
+	err := r.db.QueryRow(ctx, query, amount, id).Scan(&balance)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, domain.ErrAccountNotFound
+		}
+		return 0, fmt.Errorf("update balance: %w", err)
+	}
+
+	return balance, nil
+}
+
+func (r *Repository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+	query := `
+		UPDATE accounts
+		SET balance = balance - $1
+		WHERE id = $2
+		  AND balance >= $1
 	`
 
 	cmdTag, err := r.db.Exec(ctx, query, amount, id)
 	if err != nil {
-		return fmt.Errorf("update balance: %w", err)
+		return fmt.Errorf("decrease balance: %w", err)
 	}
 
 	if cmdTag.RowsAffected() == 0 {
-		return domain.ErrAccountNotFound
+		return domain.ErrInsufficientBalance
 	}
 
 	return nil
@@ -222,20 +244,42 @@ func (r *txRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Accou
 	return &account, nil
 }
 
-func (r *txRepository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (r *txRepository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	var balance int64
+
 	query := `
 		UPDATE accounts
 		SET balance = balance + $1
 		WHERE id = $2
+		RETURNING balance
+	`
+
+	err := r.tx.QueryRow(ctx, query, amount, id).Scan(&balance)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, domain.ErrAccountNotFound
+		}
+		return 0, fmt.Errorf("update balance: %w", err)
+	}
+
+	return balance, nil
+}
+
+func (r *txRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+	query := `
+		UPDATE accounts
+		SET balance = balance - $1
+		WHERE id = $2
+		  AND balance >= $1
 	`
 
 	cmdTag, err := r.tx.Exec(ctx, query, amount, id)
 	if err != nil {
-		return fmt.Errorf("update balance: %w", err)
+		return fmt.Errorf("decrease balance: %w", err)
 	}
 
 	if cmdTag.RowsAffected() == 0 {
-		return domain.ErrAccountNotFound
+		return domain.ErrInsufficientBalance
 	}
 
 	return nil

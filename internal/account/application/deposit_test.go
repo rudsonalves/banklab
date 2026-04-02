@@ -31,7 +31,11 @@ func (m *depositAccountRepositoryMock) GetByID(ctx context.Context, id uuid.UUID
 	return nil, nil
 }
 
-func (m *depositAccountRepositoryMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (m *depositAccountRepositoryMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	return 0, nil
+}
+
+func (m *depositAccountRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
 	return nil
 }
 
@@ -44,16 +48,19 @@ func (m *depositAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, 
 }
 
 type txMock struct {
-	getByIDCalls       int
-	updateBalanceCalls int
-	commitCalls        int
-	rollbackCalls      int
+	getByIDCalls         int
+	updateBalanceCalls   int
+	decreaseBalanceCalls int
+	commitCalls          int
+	rollbackCalls        int
 
-	account          *domain.Account
-	getByIDErr       error
-	updateBalanceErr error
-	commitErr        error
-	rollbackErr      error
+	account            *domain.Account
+	getByIDErr         error
+	updateBalanceValue int64
+	updateBalanceErr   error
+	decreaseBalanceErr error
+	commitErr          error
+	rollbackErr        error
 }
 
 func (m *txMock) Create(ctx context.Context, account *domain.Account) error {
@@ -76,9 +83,14 @@ func (m *txMock) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, er
 	return m.account, nil
 }
 
-func (m *txMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (m *txMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	m.updateBalanceCalls++
-	return m.updateBalanceErr
+	return m.updateBalanceValue, m.updateBalanceErr
+}
+
+func (m *txMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+	m.decreaseBalanceCalls++
+	return m.decreaseBalanceErr
 }
 
 func (m *txMock) BeginTx(ctx context.Context) (domain.Tx, error) {
@@ -191,6 +203,7 @@ func TestDeposit_Execute_Success(t *testing.T) {
 			Balance: initialBalance,
 			Status:  domain.AccountActive,
 		},
+		updateBalanceValue: initialBalance + depositAmount,
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
 	useCase := NewDeposit(repo)
@@ -208,8 +221,8 @@ func TestDeposit_Execute_Success(t *testing.T) {
 		t.Fatal("expected account to be non-nil")
 	}
 
-	if account.Balance != initialBalance+depositAmount {
-		t.Fatalf("expected balance %d, got %d", initialBalance+depositAmount, account.Balance)
+	if account.Balance != tx.updateBalanceValue {
+		t.Fatalf("expected balance %d, got %d", tx.updateBalanceValue, account.Balance)
 	}
 
 	if tx.updateBalanceCalls != 1 {
