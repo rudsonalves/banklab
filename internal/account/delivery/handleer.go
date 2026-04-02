@@ -1,12 +1,21 @@
 package delivery
 
-import "github.com/seu-usuario/bank-api/internal/account/application"
+import (
+	"context"
 
-type Handler struct {
-	createAccount *application.CreateAccount
+	"github.com/seu-usuario/bank-api/internal/account/application"
+	"github.com/seu-usuario/bank-api/internal/account/domain"
+)
+
+type createAccountUseCase interface {
+	Execute(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error)
 }
 
-func New(createAccount *application.CreateAccount) *Handler {
+type Handler struct {
+	createAccount createAccountUseCase
+}
+
+func New(createAccount createAccountUseCase) *Handler {
 	return &Handler{
 		createAccount: createAccount,
 	}

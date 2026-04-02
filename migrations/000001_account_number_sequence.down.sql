@@ -1,0 +1,1 @@
+DROP SEQUENCE account_number_seq;
