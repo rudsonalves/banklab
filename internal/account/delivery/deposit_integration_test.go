@@ -157,12 +157,16 @@ func seedDepositTestData(t *testing.T, ctx context.Context, pool *pgxpool.Pool, 
 func cleanupDepositTestData(t *testing.T, ctx context.Context, pool *pgxpool.Pool, customerID, accountID uuid.UUID) {
 	t.Helper()
 
+	if _, err := pool.Exec(ctx, `DELETE FROM account_transactions WHERE account_id = $1 OR reference_id = $1`, accountID); err != nil {
+		t.Logf("cleanup warning: failed to delete account transactions: %v", err)
+	}
+
 	if _, err := pool.Exec(ctx, `DELETE FROM accounts WHERE id = $1`, accountID); err != nil {
-		t.Fatalf("failed to delete account: %v", err)
+		t.Logf("cleanup warning: failed to delete account: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, `DELETE FROM customers WHERE id = $1`, customerID); err != nil {
-		t.Fatalf("failed to delete customer: %v", err)
+		t.Logf("cleanup warning: failed to delete customer: %v", err)
 	}
 }
 
