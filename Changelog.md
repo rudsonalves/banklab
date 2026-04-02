@@ -1,5 +1,172 @@
 # Changelog
 
+## 2026/04/02 — auth/phase-00
+
+Introduces the **account statement (ledger retrieval) capability** as the first step toward read-oriented financial visibility, along with infrastructure improvements, repository extensions, and enhanced tooling support.
+
+### 1. Application Layer — Get Statement Use Case
+
+* Added `GetStatement` use case with support for:
+
+  * pagination (`limit`, `cursor`, `cursor_id`)
+  * time filtering (`from`, `to`)
+* Implemented validation rules:
+
+  * non-nil account ID
+  * `from <= to`
+  * cursor and cursor_id must be provided together
+  * limit normalization (default = 50, max = 100)
+* Execution flow:
+
+  * validate input
+  * ensure account existence (`GetByID`)
+  * retrieve transactions via repository
+  * map to response DTO
+  * build cursor for pagination
+* Returns structured result (`Statement`) with:
+
+  * items
+  * next cursor (for forward pagination)
+
+### 2. Domain Layer — Repository Evolution
+
+* Extended `AccountRepository` with:
+
+  * `GetTransactions(...)`
+* Enables:
+
+  * cursor-based pagination
+  * time-range filtering
+  * ordered retrieval of ledger entries
+* Maintains separation between:
+
+  * write operations (balance changes)
+  * read operations (ledger queries)
+
+### 3. Infrastructure Layer — PostgreSQL Implementation
+
+* Implemented `GetTransactions` in:
+
+  * base repository
+  * transactional repository (`txRepository`)
+* Query characteristics:
+
+  * ordered by `(created_at DESC, id DESC)`
+  * cursor-based pagination using tuple comparison
+  * optional filters (`from`, `to`)
+* Ensures:
+
+  * stable ordering
+  * efficient pagination without offset
+  * consistency with append-only ledger model
+
+### 4. Delivery Layer — Statement Endpoint
+
+* Added new endpoint:
+
+  * `GET /accounts/{id}/statement`
+* Implemented:
+
+  * query parsing (`limit`, `cursor`, `cursor_id`, `from`, `to`)
+  * validation helpers:
+
+    * `parseOptionalInt`
+    * `parseOptionalTime`
+    * `parseOptionalUUID`
+* Error handling:
+
+  * `INVALID_DATA → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+* Response includes:
+
+  * transaction list
+  * pagination cursor (`next_cursor`)
+* Maintains consistent API contract (`data` / `error`)
+
+### 5. Handler Refactor & Wiring
+
+* Added `statementUseCase` interface to handler
+* Updated constructor to include new dependency
+* Registered route in `main.go`:
+
+  * `GET /accounts/{id}/statement`
+* Renamed `handleer.go` → `handler.go` (naming correction)
+
+### 6. Data Structures — Statement DTOs
+
+* Introduced:
+
+  * `StatementItemData`
+  * `StatementData`
+  * `StatementCursorData`
+* Provides clear separation between:
+
+  * domain models
+  * API response representation
+
+### 7. Test Coverage
+
+#### 7.1 Application Tests
+
+* Full coverage for `GetStatement`:
+
+  * invalid input scenarios
+  * default and capped limits
+  * account not found
+  * repository error propagation
+  * successful mapping and cursor generation
+
+#### 7.2 Delivery Tests
+
+* Added handler tests for:
+
+  * invalid query params
+  * missing cursor pair
+  * account not found
+  * success scenario with full query validation
+* Ensures:
+
+  * correct HTTP status mapping
+  * proper request parsing behavior
+
+#### 7.3 Test Infrastructure
+
+* Extended mocks across use cases to support:
+
+  * `GetTransactions`
+* Maintains consistency across all existing tests
+
+### 8. Tooling — Makefile Introduction
+
+* Added `Makefile` with commands:
+
+  * `migration` → run DB migrations
+  * `commit` → standardized commit workflow
+  * `diff` → staged diff + line count
+  * `push` / `pull` → branch-aware Git operations
+* Improves developer experience and workflow consistency
+
+### 9. Documentation
+
+* Added `docs/06-implementation.md`:
+
+  * comprehensive description of current system implementation
+  * covers architecture, domain, use cases, persistence, and testing
+* Serves as a **baseline reference for future phases**, including authentication
+
+### Conclusion
+
+This commit introduces the **read side of the financial ledger (account statement)**, completing the core CRUD + transactional flow with observability over historical operations.
+
+From an architectural standpoint, this is a **crucial milestone**, as it:
+
+* separates read concerns from write flows
+* introduces cursor-based pagination (scalable pattern)
+* reinforces the ledger model as the source of truth
+
+Additionally, the inclusion of documentation and tooling indicates a transition toward a more **structured and maintainable development process**, which is essential before introducing authentication and authorization layers in subsequent phases.
+
+
 ## 2026/04/02 — account/statement-01
 
 Implements **account statement retrieval (ledger visualization)** with cursor-based pagination, date filtering, and full-stack integration (application, delivery, and persistence). Also introduces developer tooling improvements and formalizes implementation documentation.
