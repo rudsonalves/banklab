@@ -67,3 +67,11 @@ func (a *Account) CanWithdraw(amount int64) error {
 
 	return nil
 }
+
+func (a *Account) CanTransfer(amount int64, destinationID uuid.UUID) error {
+	if a.ID == destinationID {
+		return ErrSameAccountTransfer
+	}
+
+	return a.CanWithdraw(amount)
+}

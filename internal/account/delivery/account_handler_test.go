@@ -29,6 +29,11 @@ type withdrawUseCaseMock struct {
 	executeFn    func(ctx context.Context, input application.WithdrawInput) (*domain.Account, error)
 }
 
+type transferUseCaseMock struct {
+	executeCalls int
+	executeFn    func(ctx context.Context, input application.TransferInput) (*application.TransferResult, error)
+}
+
 func (m *createAccountUseCaseMock) Execute(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
@@ -46,6 +51,14 @@ func (m *depositUseCaseMock) Execute(ctx context.Context, input application.Depo
 }
 
 func (m *withdrawUseCaseMock) Execute(ctx context.Context, input application.WithdrawInput) (*domain.Account, error) {
+	m.executeCalls++
+	if m.executeFn == nil {
+		return nil, nil
+	}
+	return m.executeFn(ctx, input)
+}
+
+func (m *transferUseCaseMock) Execute(ctx context.Context, input application.TransferInput) (*application.TransferResult, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -280,5 +293,38 @@ func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
 
 	if got.Error.Code != "INSUFFICIENT_BALANCE" {
 		t.Fatalf("expected error code %q, got %q", "INSUFFICIENT_BALANCE", got.Error.Code)
+	}
+}
+
+func TestHandler_Transfer_SameAccount(t *testing.T) {
+	transferUC := &transferUseCaseMock{
+		executeFn: func(ctx context.Context, input application.TransferInput) (*application.TransferResult, error) {
+			return nil, domain.ErrSameAccountTransfer
+		},
+	}
+	h := &Handler{transfer: transferUC}
+	accountID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_account_id":"`+accountID.String()+`","to_account_id":"`+accountID.String()+`","amount":100}`))
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "SAME_ACCOUNT_TRANSFER" {
+		t.Fatalf("expected error code %q, got %q", "SAME_ACCOUNT_TRANSFER", got.Error.Code)
 	}
 }

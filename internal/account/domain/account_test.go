@@ -164,3 +164,62 @@ func TestAccount_CanWithdraw(t *testing.T) {
 		})
 	}
 }
+
+func TestAccount_CanTransfer(t *testing.T) {
+	accountID := uuid.New()
+	otherAccountID := uuid.New()
+
+	tests := []struct {
+		name          string
+		account       Account
+		destinationID uuid.UUID
+		amount        int64
+		wantErr       error
+	}{
+		{
+			name:          "same account is invalid",
+			account:       Account{ID: accountID, Status: AccountActive, Balance: 100},
+			destinationID: accountID,
+			amount:        10,
+			wantErr:       ErrSameAccountTransfer,
+		},
+		{
+			name:          "invalid amount",
+			account:       Account{ID: accountID, Status: AccountActive, Balance: 100},
+			destinationID: otherAccountID,
+			amount:        0,
+			wantErr:       ErrInvalidAmount,
+		},
+		{
+			name:          "inactive account",
+			account:       Account{ID: accountID, Status: AccountInactive, Balance: 100},
+			destinationID: otherAccountID,
+			amount:        10,
+			wantErr:       ErrAccountInactive,
+		},
+		{
+			name:          "insufficient balance",
+			account:       Account{ID: accountID, Status: AccountActive, Balance: 10},
+			destinationID: otherAccountID,
+			amount:        100,
+			wantErr:       ErrInsufficientBalance,
+		},
+		{
+			name:          "success",
+			account:       Account{ID: accountID, Status: AccountActive, Balance: 100},
+			destinationID: otherAccountID,
+			amount:        10,
+			wantErr:       nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.account.CanTransfer(tt.amount, tt.destinationID)
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+			}
+		})
+	}
+}

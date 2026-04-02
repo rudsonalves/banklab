@@ -74,6 +74,14 @@ func TestWithdraw_Execute_AccountNotFound(t *testing.T) {
 	if tx.rollbackCalls != 1 {
 		t.Fatalf("expected Rollback to be called once, got %d calls", tx.rollbackCalls)
 	}
+
+	if tx.getByIDCalls != 1 {
+		t.Fatalf("expected GetByID to be called once, got %d calls", tx.getByIDCalls)
+	}
+
+	if tx.decreaseBalanceCalls != 0 {
+		t.Fatalf("expected DecreaseBalance not to be called, got %d calls", tx.decreaseBalanceCalls)
+	}
 }
 
 func TestWithdraw_Execute_InsufficientBalance(t *testing.T) {

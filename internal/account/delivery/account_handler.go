@@ -169,3 +169,72 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		Error: nil,
 	})
 }
+
+func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
+	if h.transfer == nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	var req TransferRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		return
+	}
+
+	fromAccountID, err := uuid.Parse(req.FromAccountID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "from_account_id must be a valid UUID")
+		return
+	}
+
+	toAccountID, err := uuid.Parse(req.ToAccountID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_DATA", "to_account_id must be a valid UUID")
+		return
+	}
+
+	result, err := h.transfer.Execute(r.Context(), application.TransferInput{
+		FromAccountID: fromAccountID,
+		ToAccountID:   toAccountID,
+		Amount:        req.Amount,
+	})
+	if err != nil {
+		log.Printf("event=transfer error=%v", err)
+
+		switch {
+		case errors.Is(err, domain.ErrInvalidData):
+			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
+			return
+		case errors.Is(err, domain.ErrInvalidAmount):
+			writeError(w, http.StatusBadRequest, "INVALID_AMOUNT", "amount must be greater than zero")
+			return
+		case errors.Is(err, domain.ErrSameAccountTransfer):
+			writeError(w, http.StatusBadRequest, "SAME_ACCOUNT_TRANSFER", "source and destination accounts must be different")
+			return
+		case errors.Is(err, domain.ErrAccountNotFound):
+			writeError(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", "account not found")
+			return
+		case errors.Is(err, domain.ErrInsufficientBalance):
+			writeError(w, http.StatusUnprocessableEntity, "INSUFFICIENT_BALANCE", "insufficient balance")
+			return
+		case errors.Is(err, domain.ErrAccountInactive):
+			writeError(w, http.StatusUnprocessableEntity, "ACCOUNT_INACTIVE", "account is not active")
+			return
+		}
+
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, response{
+		Data: TransferData{
+			FromAccountID: result.FromAccountID.String(),
+			ToAccountID:   result.ToAccountID.String(),
+			Amount:        result.Amount,
+			FromBalance:   result.FromBalance,
+			ToBalance:     result.ToBalance,
+		},
+		Error: nil,
+	})
+}

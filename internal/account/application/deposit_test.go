@@ -31,6 +31,10 @@ func (m *depositAccountRepositoryMock) GetByID(ctx context.Context, id uuid.UUID
 	return nil, nil
 }
 
+func (m *depositAccountRepositoryMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	return nil, nil
+}
+
 func (m *depositAccountRepositoryMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	return 0, nil
 }
@@ -48,11 +52,12 @@ func (m *depositAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, 
 }
 
 type txMock struct {
-	getByIDCalls         int
-	updateBalanceCalls   int
-	decreaseBalanceCalls int
-	commitCalls          int
-	rollbackCalls        int
+	getByIDCalls          int
+	getByIDForUpdateCalls int
+	updateBalanceCalls    int
+	decreaseBalanceCalls  int
+	commitCalls           int
+	rollbackCalls         int
 
 	account            *domain.Account
 	getByIDErr         error
@@ -77,6 +82,14 @@ func (m *txMock) NextAccountNumber(ctx context.Context) (string, error) {
 
 func (m *txMock) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	m.getByIDCalls++
+	if m.getByIDErr != nil {
+		return nil, m.getByIDErr
+	}
+	return m.account, nil
+}
+
+func (m *txMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	m.getByIDForUpdateCalls++
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
 	}
@@ -196,6 +209,7 @@ func TestDeposit_Execute_Success(t *testing.T) {
 	initialBalance := int64(100)
 	depositAmount := int64(50)
 	accountID := uuid.New()
+	dbReturnedBalance := int64(999)
 
 	tx := &txMock{
 		account: &domain.Account{
@@ -203,7 +217,7 @@ func TestDeposit_Execute_Success(t *testing.T) {
 			Balance: initialBalance,
 			Status:  domain.AccountActive,
 		},
-		updateBalanceValue: initialBalance + depositAmount,
+		updateBalanceValue: dbReturnedBalance,
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
 	useCase := NewDeposit(repo)
@@ -221,8 +235,8 @@ func TestDeposit_Execute_Success(t *testing.T) {
 		t.Fatal("expected account to be non-nil")
 	}
 
-	if account.Balance != tx.updateBalanceValue {
-		t.Fatalf("expected balance %d, got %d", tx.updateBalanceValue, account.Balance)
+	if account.Balance != dbReturnedBalance {
+		t.Fatalf("expected balance %d, got %d", dbReturnedBalance, account.Balance)
 	}
 
 	if tx.updateBalanceCalls != 1 {

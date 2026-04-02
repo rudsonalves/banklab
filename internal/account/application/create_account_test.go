@@ -37,6 +37,10 @@ func (m *accountRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*dom
 	return nil, nil
 }
 
+func (m *accountRepositoryMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	return nil, nil
+}
+
 func (m *accountRepositoryMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	return 0, nil
 }

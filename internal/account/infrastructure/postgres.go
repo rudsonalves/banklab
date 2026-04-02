@@ -110,6 +110,35 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account
 	return &account, nil
 }
 
+func (r *Repository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	var account domain.Account
+
+	query := `
+		SELECT id, customer_id, number, branch, balance, status, created_at
+		FROM accounts
+		WHERE id = $1
+		FOR UPDATE
+	`
+
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&account.ID,
+		&account.CustomerID,
+		&account.Number,
+		&account.Branch,
+		&account.Balance,
+		&account.Status,
+		&account.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrAccountNotFound
+		}
+		return nil, fmt.Errorf("get account by id for update: %w", err)
+	}
+
+	return &account, nil
+}
+
 func (r *Repository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	var balance int64
 
@@ -239,6 +268,35 @@ func (r *txRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Accou
 			return nil, domain.ErrAccountNotFound
 		}
 		return nil, fmt.Errorf("get account by id: %w", err)
+	}
+
+	return &account, nil
+}
+
+func (r *txRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	var account domain.Account
+
+	query := `
+		SELECT id, customer_id, number, branch, balance, status, created_at
+		FROM accounts
+		WHERE id = $1
+		FOR UPDATE
+	`
+
+	err := r.tx.QueryRow(ctx, query, id).Scan(
+		&account.ID,
+		&account.CustomerID,
+		&account.Number,
+		&account.Branch,
+		&account.Balance,
+		&account.Status,
+		&account.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrAccountNotFound
+		}
+		return nil, fmt.Errorf("get account by id for update: %w", err)
 	}
 
 	return &account, nil
