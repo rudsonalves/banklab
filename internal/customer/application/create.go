@@ -1,17 +1,16 @@
-package usecase
+package application
 
 import (
 	"context"
 
 	"github.com/seu-usuario/bank-api/internal/customer/domain"
-	repository "github.com/seu-usuario/bank-api/internal/customer/infra"
 )
 
 type CreateCustomer struct {
-	repo *repository.Repository
+	repo domain.Repository
 }
 
-func NewCreateCustomer(repo *repository.Repository) *CreateCustomer {
+func NewCreateCustomer(repo domain.Repository) *CreateCustomer {
 	return &CreateCustomer{repo: repo}
 }
 
@@ -21,15 +20,19 @@ type Input struct {
 	Email string
 }
 
-func (uc *CreateCustomer) Execute(ctx context.Context, input Input) error {
+func (uc *CreateCustomer) Execute(ctx context.Context, input Input) (*domain.Customer, error) {
 	customer, err := domain.NewCustomer(
 		input.Name,
 		input.CPF,
 		input.Email,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return uc.repo.Create(ctx, customer)
+	if err := uc.repo.Create(ctx, customer); err != nil {
+		return nil, err
+	}
+
+	return customer, nil
 }

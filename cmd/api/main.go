@@ -4,9 +4,9 @@ import (
 	"log"
 	"net/http"
 
-	usecase "github.com/seu-usuario/bank-api/internal/customer/application"
-	handler "github.com/seu-usuario/bank-api/internal/customer/delivery"
-	repository "github.com/seu-usuario/bank-api/internal/customer/infra"
+	"github.com/seu-usuario/bank-api/internal/customer/application"
+	"github.com/seu-usuario/bank-api/internal/customer/delivery"
+	"github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
 )
 
@@ -15,9 +15,9 @@ func main() {
 
 	log.Println("DB connected")
 
-	repo := repository.New(db)
-	uc := usecase.NewCreateCustomer(repo)
-	handler := handler.New(uc)
+	repo := infrastructure.New(db)
+	uc := application.NewCreateCustomer(repo)
+	handler := delivery.New(uc)
 
 	http.HandleFunc("/customers", handler.Create)
 
