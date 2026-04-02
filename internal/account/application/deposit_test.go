@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
@@ -36,6 +37,18 @@ func (m *depositAccountRepositoryMock) GetByID(ctx context.Context, id uuid.UUID
 }
 
 func (m *depositAccountRepositoryMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	return nil, nil
+}
+
+func (m *depositAccountRepositoryMock) GetTransactions(
+	ctx context.Context,
+	accountID uuid.UUID,
+	limit int,
+	cursorTime *time.Time,
+	cursorID *uuid.UUID,
+	from *time.Time,
+	to *time.Time,
+) ([]domain.Transaction, error) {
 	return nil, nil
 }
 
@@ -107,6 +120,18 @@ func (m *txMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Ac
 		return nil, m.getByIDErr
 	}
 	return m.account, nil
+}
+
+func (m *txMock) GetTransactions(
+	ctx context.Context,
+	accountID uuid.UUID,
+	limit int,
+	cursorTime *time.Time,
+	cursorID *uuid.UUID,
+	from *time.Time,
+	to *time.Time,
+) ([]domain.Transaction, error) {
+	return nil, nil
 }
 
 func (m *txMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {

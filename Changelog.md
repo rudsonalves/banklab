@@ -1,5 +1,187 @@
 # Changelog
 
+## 2026/04/02 — account/statement-01
+
+Implements **account statement retrieval (ledger visualization)** with cursor-based pagination, date filtering, and full-stack integration (application, delivery, and persistence). Also introduces developer tooling improvements and formalizes implementation documentation.
+
+### 1. Application Layer — GetStatement Use Case
+
+* Introduced `GetStatement` use case with input:
+
+  * `AccountID`
+  * `Limit`
+  * `Cursor` + `CursorID` (pagination)
+  * `From` / `To` (date filters)
+* Implemented validation rules:
+
+  * non-nil account ID
+  * `from <= to`
+  * cursor consistency (cursor + cursor_id must coexist)
+  * limit normalization:
+
+    * default = 50
+    * max cap = 100
+* Flow:
+
+  * validate input
+  * ensure account exists
+  * fetch transactions via repository
+  * map to statement DTO
+  * generate `NextCursor` when applicable
+* Returns structured result (`Statement`, `StatementItem`, `StatementCursor`)
+
+### 2. Domain Layer — Repository Expansion
+
+* Extended `AccountRepository` with:
+
+  * `GetTransactions(...)`
+* Supports:
+
+  * cursor-based pagination (created_at + id)
+  * optional date filtering
+* Enables read-side access to the **ledger (account_transactions)**
+* Maintains domain-driven contract for data retrieval
+
+### 3. Infrastructure Layer — PostgreSQL Implementation
+
+* Implemented `GetTransactions` in both:
+
+  * base repository
+  * transactional repository (`txRepository`)
+* Query characteristics:
+
+  * ordered by `(created_at DESC, id DESC)`
+  * cursor pagination using tuple comparison:
+
+    ```sql
+    (created_at, id) < ($cursor_time, $cursor_id)
+    ```
+  * optional filters:
+
+    * `from` (>= created_at)
+    * `to` (<= created_at)
+* Ensures:
+
+  * stable pagination
+  * deterministic ordering
+  * efficient range queries via indexes
+* Defensive handling:
+
+  * limit normalization at repository level
+
+### 4. Delivery Layer — Statement Endpoint
+
+* Added endpoint:
+
+  * `GET /accounts/{id}/statement`
+* Implemented query parsing:
+
+  * `limit` (int)
+  * `cursor` (RFC3339 datetime)
+  * `cursor_id` (UUID)
+  * `from` / `to` (RFC3339 datetime)
+* Introduced helpers:
+
+  * `parseOptionalInt`
+  * `parseOptionalTime`
+  * `parseOptionalUUID`
+* Validation rules enforced at handler boundary:
+
+  * invalid formats → `400 INVALID_DATA`
+  * cursor mismatch → `400 INVALID_DATA`
+* Response structure:
+
+  * `StatementData`
+  * `StatementItemData`
+  * `StatementCursorData`
+* Maintains API contract consistency (`data` / `error`)
+
+### 5. Handler & Wiring
+
+* Extended handler to include `statement` use case via interface
+* Updated constructor signature (now includes 5 use cases)
+* Registered route in `main.go`:
+
+  * `GET /accounts/{id}/statement`
+* Renamed file:
+
+  * `handleer.go` → `handler.go` (corrects naming inconsistency)
+
+### 6. Test Coverage
+
+#### 6.1 Application Tests
+
+* Added `get_statement_test.go` covering:
+
+  * invalid account ID
+  * default and capped limits
+  * account not found
+  * repository error propagation
+  * successful pagination + cursor generation
+* Verifies:
+
+  * correct argument propagation to repository
+  * cursor construction logic
+
+#### 6.2 Delivery Tests
+
+* Added handler tests for:
+
+  * invalid query parameters (`from`, cursor mismatch)
+  * account not found → `404`
+  * successful response with:
+
+    * items mapping
+    * cursor serialization
+
+#### 6.3 Test Infrastructure Updates
+
+* Updated mocks across use cases to support:
+
+  * `GetTransactions`
+* Ensures compatibility with expanded repository interface
+
+### 7. Documentation
+
+* Added `docs/06-implementation.md`:
+
+  * comprehensive description of:
+
+    * architecture
+    * domain model
+    * use cases
+    * persistence strategy
+    * concurrency model
+    * test coverage
+* This is a **significant improvement in project maturity**, providing a clear implementation reference
+
+### 8. Developer Experience
+
+* Added `Makefile` with utilities:
+
+  * `migration` (run DB migrations)
+  * `commit` (standardized commit flow)
+  * `diff` (staged diff + line count)
+  * `push` / `pull` (branch-aware git operations)
+* Improves local workflow consistency and productivity
+
+### Conclusion
+
+This commit introduces **read-side capabilities for the account ledger**, completing the core financial lifecycle:
+
+* write operations (deposit, withdraw, transfer)
+* read operations (statement with pagination and filtering)
+
+Key strengths:
+
+* **robust cursor-based pagination design**
+* **consistent domain-driven validation**
+* **clean separation between layers**
+* **strong test coverage across boundaries**
+
+From an architectural perspective, this marks the transition from a purely transactional system to a **fully observable financial ledger**, which is essential for real-world banking systems.
+
+
 ## 2026/04/02 — account/ledger-02
 
 Refines the **deposit operation** to align with ledger-level consistency guarantees by introducing row-level locking and improving error handling semantics.

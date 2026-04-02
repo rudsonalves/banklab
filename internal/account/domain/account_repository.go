@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -19,6 +20,15 @@ type AccountRepository interface {
 
 	GetByID(ctx context.Context, id uuid.UUID) (*Account, error)
 	GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*Account, error)
+	GetTransactions(
+		ctx context.Context,
+		accountID uuid.UUID,
+		limit int,
+		cursorTime *time.Time,
+		cursorID *uuid.UUID,
+		from *time.Time,
+		to *time.Time,
+	) ([]Transaction, error)
 	UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
 	// DecreaseBalance performs an atomic balance decrement.
 	// IMPORTANT:

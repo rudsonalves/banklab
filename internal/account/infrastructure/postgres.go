@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -161,6 +162,69 @@ func (r *Repository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domai
 	}
 
 	return &account, nil
+}
+
+func (r *Repository) GetTransactions(
+	ctx context.Context,
+	accountID uuid.UUID,
+	limit int,
+	cursorTime *time.Time,
+	cursorID *uuid.UUID,
+	from *time.Time,
+	to *time.Time,
+) ([]domain.Transaction, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+
+	if cursorTime == nil || cursorID == nil {
+		cursorTime = nil
+		cursorID = nil
+	}
+
+	query := `
+		SELECT id, account_id, type, amount, balance_after, reference_id, created_at
+		FROM account_transactions
+		WHERE account_id = $1
+		  AND ($2::timestamptz IS NULL OR created_at >= $2)
+		  AND ($3::timestamptz IS NULL OR created_at <= $3)
+		  AND (
+			$4::timestamptz IS NULL OR
+			(created_at, id) < ($4, $5)
+		  )
+		ORDER BY created_at DESC, id DESC
+		LIMIT $6
+	`
+
+	rows, err := r.db.Query(ctx, query, accountID, from, to, cursorTime, cursorID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get transactions: %w", err)
+	}
+	defer rows.Close()
+
+	transactions := make([]domain.Transaction, 0, limit)
+	for rows.Next() {
+		var transaction domain.Transaction
+		if err := rows.Scan(
+			&transaction.ID,
+			&transaction.AccountID,
+			&transaction.Type,
+			&transaction.Amount,
+			&transaction.BalanceAfter,
+			&transaction.ReferenceID,
+			&transaction.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("get transactions: %w", err)
+		}
+
+		transactions = append(transactions, transaction)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("get transactions: %w", err)
+	}
+
+	return transactions, nil
 }
 
 func (r *Repository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
@@ -348,6 +412,69 @@ func (r *txRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*dom
 	}
 
 	return &account, nil
+}
+
+func (r *txRepository) GetTransactions(
+	ctx context.Context,
+	accountID uuid.UUID,
+	limit int,
+	cursorTime *time.Time,
+	cursorID *uuid.UUID,
+	from *time.Time,
+	to *time.Time,
+) ([]domain.Transaction, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+
+	if cursorTime == nil || cursorID == nil {
+		cursorTime = nil
+		cursorID = nil
+	}
+
+	query := `
+		SELECT id, account_id, type, amount, balance_after, reference_id, created_at
+		FROM account_transactions
+		WHERE account_id = $1
+		  AND ($2::timestamptz IS NULL OR created_at >= $2)
+		  AND ($3::timestamptz IS NULL OR created_at <= $3)
+		  AND (
+			$4::timestamptz IS NULL OR
+			(created_at, id) < ($4, $5)
+		  )
+		ORDER BY created_at DESC, id DESC
+		LIMIT $6
+	`
+
+	rows, err := r.tx.Query(ctx, query, accountID, from, to, cursorTime, cursorID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get transactions: %w", err)
+	}
+	defer rows.Close()
+
+	transactions := make([]domain.Transaction, 0, limit)
+	for rows.Next() {
+		var transaction domain.Transaction
+		if err := rows.Scan(
+			&transaction.ID,
+			&transaction.AccountID,
+			&transaction.Type,
+			&transaction.Amount,
+			&transaction.BalanceAfter,
+			&transaction.ReferenceID,
+			&transaction.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("get transactions: %w", err)
+		}
+
+		transactions = append(transactions, transaction)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("get transactions: %w", err)
+	}
+
+	return transactions, nil
 }
 
 func (r *txRepository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
