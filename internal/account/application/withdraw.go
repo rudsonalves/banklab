@@ -42,7 +42,7 @@ func (uc *Withdraw) Execute(ctx context.Context, input WithdrawInput) (_ *domain
 		}
 	}()
 
-	account, err := tx.GetByID(ctx, input.AccountID)
+	account, err := tx.GetByIDForUpdate(ctx, input.AccountID)
 	if err != nil {
 		return nil, fmt.Errorf("get account by id: %w", err)
 	}
@@ -56,6 +56,17 @@ func (uc *Withdraw) Execute(ctx context.Context, input WithdrawInput) (_ *domain
 	}
 
 	account.Balance -= input.Amount
+
+	ledgerTx := domain.NewTransaction(
+		input.AccountID,
+		domain.TransactionWithdraw,
+		input.Amount,
+		account.Balance,
+		nil,
+	)
+	if err := tx.CreateTransaction(ctx, ledgerTx); err != nil {
+		return nil, fmt.Errorf("create withdraw ledger transaction: %w", err)
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit transaction: %w", err)

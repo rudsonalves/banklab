@@ -97,6 +97,30 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 	}
 	toAccount.Balance = updatedToBalance
 
+	referenceID := uuid.New()
+
+	outgoing := domain.NewTransaction(
+		input.FromAccountID,
+		domain.TransactionTransferOut,
+		input.Amount,
+		fromAccount.Balance,
+		&referenceID,
+	)
+	if err := tx.CreateTransaction(ctx, outgoing); err != nil {
+		return nil, fmt.Errorf("create transfer out ledger transaction: %w", err)
+	}
+
+	incoming := domain.NewTransaction(
+		input.ToAccountID,
+		domain.TransactionTransferIn,
+		input.Amount,
+		toAccount.Balance,
+		&referenceID,
+	)
+	if err := tx.CreateTransaction(ctx, incoming); err != nil {
+		return nil, fmt.Errorf("create transfer in ledger transaction: %w", err)
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit transaction: %w", err)
 	}

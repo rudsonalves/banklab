@@ -6,7 +6,13 @@ import (
 	"github.com/google/uuid"
 )
 
+type TransactionRepository interface {
+	CreateTransaction(ctx context.Context, tx *Transaction) error
+}
+
 type AccountRepository interface {
+	TransactionRepository
+
 	Create(ctx context.Context, account *Account) error
 	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)
 	NextAccountNumber(ctx context.Context) (string, error)

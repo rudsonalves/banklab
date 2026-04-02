@@ -63,6 +63,30 @@ func (r *Repository) Create(ctx context.Context, acc *domain.Account) error {
 	return nil
 }
 
+func (r *Repository) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
+	query := `
+		INSERT INTO account_transactions (
+			id, account_id, type, amount, balance_after, reference_id, created_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+
+	_, err := r.db.Exec(ctx, query,
+		tx.ID,
+		tx.AccountID,
+		tx.Type,
+		tx.Amount,
+		tx.BalanceAfter,
+		tx.ReferenceID,
+		tx.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("create account transaction: %w", err)
+	}
+
+	return nil
+}
+
 func (r *Repository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	query := `
 		SELECT 1
@@ -221,6 +245,30 @@ func (r *txRepository) Create(ctx context.Context, acc *domain.Account) error {
 	)
 	if err != nil {
 		return fmt.Errorf("create account: %w", err)
+	}
+
+	return nil
+}
+
+func (r *txRepository) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
+	query := `
+		INSERT INTO account_transactions (
+			id, account_id, type, amount, balance_after, reference_id, created_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`
+
+	_, err := r.tx.Exec(ctx, query,
+		tx.ID,
+		tx.AccountID,
+		tx.Type,
+		tx.Amount,
+		tx.BalanceAfter,
+		tx.ReferenceID,
+		tx.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("create account transaction: %w", err)
 	}
 
 	return nil

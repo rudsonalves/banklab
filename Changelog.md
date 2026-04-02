@@ -1,5 +1,161 @@
 # Changelog
 
+## 2026/04/02 — account/ledger-01
+
+Introduces the **transfer operation as part of the account ledger capabilities**, including transactional coordination, row-level locking, API exposure, and extensive test coverage. Also refines repository contracts and strengthens domain invariants. 
+
+### 1. Application Layer — Transfer Use Case
+
+* Added `Transfer` use case with input:
+
+  * `FromAccountID`
+  * `ToAccountID`
+  * `Amount`
+* Implemented full transactional workflow:
+
+  * `BeginTx → Lock दोनों accounts → Validate → Debit → Credit → Commit`
+  * rollback guaranteed via deferred handler
+* Introduced **deterministic locking strategy**:
+
+  * accounts locked via `GetByIDForUpdate`
+  * ordered by UUID (`orderedUUIDs`) to reduce deadlock risk
+* Explicit separation between:
+
+  * domain validation (`CanTransfer`, `CanDeposit`)
+  * persistence operations (`DecreaseBalance`, `UpdateBalance`)
+* Returns enriched result (`TransferResult`) with both balances after operation
+
+### 2. Domain Layer — Ledger Rules Consolidation
+
+* Added `Account.CanTransfer(amount, destinationID)`:
+
+  * prevents self-transfer
+  * reuses withdraw validation chain
+* Introduced new domain error:
+
+  * `ErrSameAccountTransfer`
+* Reinforces domain as the authoritative layer for financial rules
+
+### 3. Repository Contract Evolution
+
+* Added `GetByIDForUpdate`:
+
+  * enables row-level locking (`SELECT ... FOR UPDATE`)
+* Clarified `DecreaseBalance` contract:
+
+  * assumes account existence
+  * enforces balance constraint at DB level
+* These changes are critical for **multi-entity consistency in ledger operations**
+
+### 4. Infrastructure Layer — PostgreSQL
+
+* Implemented `GetByIDForUpdate` in both:
+
+  * base repository
+  * transactional repository (`txRepository`)
+* Uses:
+
+  ```sql
+  SELECT ... FOR UPDATE
+  ```
+* Guarantees:
+
+  * row-level locking
+  * concurrency safety
+  * compatibility with ordered locking strategy
+* Strengthens ACID guarantees for transfer operations
+
+### 5. Delivery Layer — Transfer Endpoint
+
+* Added endpoint:
+
+  * `POST /accounts/transfer`
+* Introduced DTOs:
+
+  * `TransferRequest`
+  * `TransferData`
+* Implemented validation and error mapping:
+
+  * `INVALID_DATA → 400`
+  * `INVALID_AMOUNT → 400`
+  * `SAME_ACCOUNT_TRANSFER → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+  * `INSUFFICIENT_BALANCE → 422`
+  * `ACCOUNT_INACTIVE → 422`
+* Maintains API response standard (`data` / `error`)
+
+### 6. Handler & Wiring
+
+* Extended handler to support `transfer` use case via interface
+* Updated constructor signature to include new dependency
+* Registered route in `main.go`:
+
+  * `POST /accounts/transfer`
+* Updated integration setup to reflect new handler signature
+
+### 7. Test Coverage
+
+#### 7.1 Application Tests
+
+* Comprehensive test suite covering:
+
+  * invalid inputs (UUID, amount, same account)
+  * account not found (source/destination)
+  * insufficient balance
+  * inactive destination
+  * debit/credit failures
+  * commit failure
+  * success scenario
+* Validates:
+
+  * rollback behavior
+  * commit execution
+  * deterministic locking order
+
+#### 7.2 Domain Tests
+
+* Added tests for `CanTransfer`:
+
+  * self-transfer
+  * invalid amount
+  * inactive account
+  * insufficient balance
+  * success
+
+#### 7.3 Delivery Tests
+
+* Added handler test for:
+
+  * `SAME_ACCOUNT_TRANSFER → 400`
+
+#### 7.4 Test Infrastructure
+
+* Extended mocks:
+
+  * support for `GetByIDForUpdate`
+  * lock order tracking
+  * transactional behavior validation
+
+### 8. Test Refinements
+
+* Updated deposit tests:
+
+  * now assert returned DB balance instead of computed value
+* Improved withdraw tests:
+
+  * stricter assertions on repository interaction (no unintended calls)
+
+### Conclusion
+
+This commit elevates the system to support **ledger-level operations via account transfers**, with strong guarantees around:
+
+* **atomicity (single transaction)**
+* **consistency (domain + DB constraints)**
+* **concurrency safety (row-level locking + deterministic ordering)**
+
+From an architectural perspective, this is a **robust and production-ready implementation**, particularly due to its explicit handling of deadlocks and strict separation of responsibilities across layers.
+
+
 ## 2026/04/02 — account/transfer-01
 
 Implements the **transfer operation** as a fully transactional, concurrency-safe use case, including domain validation, deterministic locking strategy, HTTP exposure, and comprehensive test coverage.

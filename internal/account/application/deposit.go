@@ -56,6 +56,17 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 		return nil, fmt.Errorf("update balance: %w", err)
 	}
 
+	ledgerTx := domain.NewTransaction(
+		input.AccountID,
+		domain.TransactionDeposit,
+		input.Amount,
+		updatedBalance,
+		nil,
+	)
+	if err := tx.CreateTransaction(ctx, ledgerTx); err != nil {
+		return nil, fmt.Errorf("create deposit ledger transaction: %w", err)
+	}
+
 	account.Balance = updatedBalance
 
 	if err := tx.Commit(ctx); err != nil {
