@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document describes the current HTTP REST contract implemented by the service.
+This document describes the HTTP REST contract currently implemented by the service.
 
 Base URL (local):
 - http://localhost:8080
@@ -10,6 +10,10 @@ Base URL (local):
 Content type:
 - request: application/json
 - response: application/json
+
+Authentication:
+- JWT Bearer token
+- Send in header Authorization: Bearer <access_token>
 
 ## 2. Response Envelope
 
@@ -37,12 +41,111 @@ Error:
 }
 ```
 
-## 3. Endpoints
+## 3. Authentication Endpoints
 
-## 3.1 Create Customer
+## 3.1 Register User
+
+- Method: POST
+- Path: /auth/register
+- Auth required: no
+
+Request body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "P@ssword123"
+}
+```
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "email": "user@example.com",
+    "role": "customer",
+    "customer_id": null
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 400 INVALID_REQUEST: invalid JSON body
+- 400 INVALID_DATA: invalid email or password
+- 409 USER_ALREADY_EXISTS: duplicate email
+- 500 INTERNAL_ERROR: unexpected internal error
+
+## 3.2 Login User
+
+- Method: POST
+- Path: /auth/login
+- Auth required: no
+
+Request body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "P@ssword123"
+}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "access_token": "<jwt>",
+    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "email": "user@example.com",
+    "role": "customer",
+    "customer_id": null
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 400 INVALID_REQUEST: invalid JSON body
+- 400 INVALID_DATA: invalid email or password input
+- 401 INVALID_CREDENTIALS: invalid email/password
+- 500 INTERNAL_ERROR: unexpected internal error
+
+## 3.3 Get Current User
+
+- Method: GET
+- Path: /auth/me
+- Auth required: yes
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "email": "user@example.com",
+    "role": "customer",
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 500 INTERNAL_ERROR: unexpected internal error
+
+## 4. Customer Endpoint
+
+## 4.1 Create Customer
 
 - Method: POST
 - Path: /customers
+- Auth required: no
 
 Request body:
 
@@ -71,14 +174,19 @@ Success response (201):
 
 Possible errors:
 - 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: missing/invalid fields (may include details.field)
+- 400 INVALID_DATA: missing/invalid fields
 - 409 CUSTOMER_ALREADY_EXISTS: duplicate CPF or email
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.2 Create Account
+## 5. Account Endpoints
+
+All account routes are protected and require Authorization header with Bearer token.
+
+## 5.1 Create Account
 
 - Method: POST
 - Path: /accounts
+- Auth required: yes
 
 Request body:
 
@@ -105,17 +213,19 @@ Success response (201):
 ```
 
 Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_DATA: customer_id invalid
+- 403 FORBIDDEN: access denied to account
 - 404 CUSTOMER_NOT_FOUND: customer does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.3 Deposit
+## 5.2 Deposit
 
 - Method: POST
 - Path: /accounts/{id}/deposit
-- Path param:
-  - id: account UUID
+- Auth required: yes
 
 Request body:
 
@@ -138,19 +248,21 @@ Success response (200):
 ```
 
 Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_DATA: invalid account id
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_AMOUNT: amount must be greater than zero
+- 403 FORBIDDEN: access denied to account
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.4 Withdraw
+## 5.3 Withdraw
 
 - Method: POST
 - Path: /accounts/{id}/withdraw
-- Path param:
-  - id: account UUID
+- Auth required: yes
 
 Request body:
 
@@ -173,18 +285,22 @@ Success response (200):
 ```
 
 Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_DATA: invalid account id
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_AMOUNT: amount must be greater than zero
+- 403 FORBIDDEN: access denied to account
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 422 INSUFFICIENT_BALANCE: insufficient funds
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.5 Transfer
+## 5.4 Transfer
 
 - Method: POST
 - Path: /accounts/transfer
+- Auth required: yes
 
 Request body:
 
@@ -212,21 +328,23 @@ Success response (200):
 ```
 
 Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_DATA: invalid UUID data
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
+- 403 FORBIDDEN: access denied to account
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
 - 422 INSUFFICIENT_BALANCE: source account has insufficient funds
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.6 Get Statement
+## 5.5 Get Statement
 
 - Method: GET
 - Path: /accounts/{id}/statement
-- Path param:
-  - id: account UUID
+- Auth required: yes
 
 Query params (optional):
 - limit: integer, default 50, max 100
@@ -236,11 +354,8 @@ Query params (optional):
 - to: RFC3339 datetime
 
 Notes:
-- cursor and cursor_id must be provided together.
-- items are returned in descending order by created_at and id.
-
-Example request:
-- GET /accounts/{id}/statement?limit=2&from=2026-04-01T00:00:00Z&to=2026-04-02T23:59:59Z
+- cursor and cursor_id must be provided together
+- items are returned in descending order by created_at and id
 
 Success response (200):
 
@@ -256,31 +371,23 @@ Success response (200):
         "balance_after": 15000,
         "reference_id": null,
         "created_at": "2026-04-02T12:00:00Z"
-      },
-      {
-        "transaction_id": "6b667f90-c94b-4f81-a8c2-b6ca38a4e45d",
-        "type": "transfer_in",
-        "amount": 2500,
-        "balance_after": 10000,
-        "reference_id": "7a8da098-5351-469a-95be-b59d14fe43a8",
-        "created_at": "2026-04-02T11:55:00Z"
       }
     ],
-    "next_cursor": {
-      "created_at": "2026-04-02T11:55:00Z",
-      "id": "6b667f90-c94b-4f81-a8c2-b6ca38a4e45d"
-    }
+    "next_cursor": null
   },
   "error": null
 }
 ```
 
 Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_DATA: invalid path/query value or cursor/cursor_id mismatch
+- 403 FORBIDDEN: access denied to account
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 4. Error Code Reference
+## 6. Error Code Reference
 
 Common error codes currently used by handlers:
 - INVALID_REQUEST
@@ -288,15 +395,20 @@ Common error codes currently used by handlers:
 - INVALID_AMOUNT
 - CUSTOMER_ALREADY_EXISTS
 - CUSTOMER_NOT_FOUND
+- USER_ALREADY_EXISTS
+- INVALID_CREDENTIALS
+- UNAUTHORIZED
+- INVALID_TOKEN
+- FORBIDDEN
 - ACCOUNT_NOT_FOUND
 - ACCOUNT_INACTIVE
 - INSUFFICIENT_BALANCE
 - SAME_ACCOUNT_TRANSFER
 - INTERNAL_ERROR
 
-## 5. Domain Notes for API Consumers
+## 7. Domain Notes for API Consumers
 
-- Monetary values are represented as integer cents.
-- UUID is used for all resource identifiers.
-- Financial operations are synchronous and strongly consistent.
-- Transfer operation is atomic: debit and credit are committed together.
+- Monetary values are represented as integer cents
+- UUID is used for all resource identifiers
+- Financial operations are synchronous and strongly consistent
+- Transfer operation is atomic: debit and credit are committed together

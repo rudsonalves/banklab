@@ -1,6 +1,139 @@
 # Changelog
 
-## 2026/04/02 — auth/phase-05
+## 2026/04/02 — auth/phase-06
+
+Implements authentication and authorization as a first-class concern in the API, introducing JWT-based identity, route protection, and ownership validation across account operations. This phase consolidates security boundaries while maintaining clear separation of concerns across layers.
+
+### 1. API Bootstrap and Wiring
+
+* Integrated full auth stack into `main.go`:
+
+  * user repository (PostgreSQL with pgx)
+  * bcrypt password hasher
+  * JWT token service with configurable secret and expiration
+* Introduced auth use cases:
+
+  * register user
+  * login user
+  * get current user
+* Added JWT middleware and applied it to protected routes
+* Protected all `/accounts/*` endpoints and `/auth/me`
+* Kept `/auth/register` and `/auth/login` as public endpoints
+
+### 2. Route Protection Layer
+
+* Introduced `RequireAuth` middleware:
+
+  * validates JWT token
+  * injects authenticated context into request
+* Enforced authentication boundary at HTTP layer instead of use case layer
+* Ensures:
+
+  * unauthenticated requests fail early
+  * authenticated requests proceed with identity context
+
+### 3. Authorization Enforcement
+
+* Enforced account ownership rules through middleware and use case integration:
+
+  * user must own the account (`customer_id`)
+  * admin role bypasses ownership restriction
+* Standardized forbidden responses:
+
+  * `FORBIDDEN` with message "access denied to account"
+* Covered critical flows:
+
+  * own account access succeeds
+  * cross-account access is denied
+  * admin override is allowed
+
+### 4. Infrastructure Migration to pgx
+
+* Refactored `PostgresUserRepository`:
+
+  * replaced `database/sql` with `pgxpool`
+  * updated query execution (`Exec`, `QueryRow`)
+  * replaced `sql.ErrNoRows` with `pgx.ErrNoRows`
+* Aligns auth module with existing database infrastructure
+* Improves consistency and performance characteristics
+
+### 5. Authentication Contracts and Documentation
+
+* Expanded README:
+
+  * added auth module and endpoints
+  * documented protected routes
+  * introduced JWT configuration via `JWT_SECRET`
+* Extended REST documentation:
+
+  * added authentication section
+  * documented `/auth/register`, `/auth/login`, `/auth/me`
+  * updated all account endpoints with auth requirements
+  * included new error codes: `UNAUTHORIZED`, `INVALID_TOKEN`, `FORBIDDEN`, `USER_ALREADY_EXISTS`, `INVALID_CREDENTIALS`
+
+### 6. Error Standardization
+
+* Refined shared error messages:
+
+  * `UNAUTHORIZED` → "authentication required"
+  * `FORBIDDEN` → "access denied to account"
+* Updated response tests to reflect new semantics
+* Aligns API responses with security expectations and clarity
+
+### 7. Test Coverage
+
+#### 7.1 Integration Tests
+
+* Added end-to-end test suite for auth and authorization:
+
+  * register → login → access `/auth/me`
+  * authenticated access to own account
+  * forbidden access to чужой account
+  * admin override scenarios
+* Validates:
+
+  * JWT issuance and parsing
+  * middleware enforcement
+  * ownership rules
+
+#### 7.2 Infrastructure Tests
+
+* Added bcrypt tests:
+
+  * cost fallback behavior
+  * hash and compare validation
+  * failure on wrong password
+* Added JWT tests:
+
+  * token generation and parsing
+  * invalid signature handling
+  * expired token rejection
+  * malformed token detection
+  * invalid signing method protection
+  * missing claims validation
+
+#### 7.3 Repository Tests
+
+* Added integration tests for `PostgresUserRepository`:
+
+  * create and query user
+  * duplicate email constraint
+  * not found behavior
+  * existence checks
+
+### 8. Developer Experience
+
+* Added `make tests` target:
+
+  * runs all tests with coverage
+* Improves feedback loop and encourages test-driven workflow
+
+### Conclusion
+
+This phase establishes a solid security foundation by introducing authentication, enforcing authorization boundaries, and protecting critical financial routes. The implementation is cohesive, with proper layering, strong test coverage, and clear API contracts, enabling the system to evolve toward production-grade security standards.
+
+
+## 2026/04/04 — auth/phase-05
 
 Introduces **authorization enforcement and transactional abstraction improvements** across account operations, consolidating transaction management, refining repository design, and strengthening consistency guarantees between application and infrastructure layers.
 

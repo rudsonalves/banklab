@@ -53,3 +53,6 @@ pull: ## Pull current branch or specified branch (make pull branch=xxx)
 
 gitlog: ## Show git log in one line format
 	git log --oneline
+
+tests: ## Run tests with coverage
+	go test -cover ./...

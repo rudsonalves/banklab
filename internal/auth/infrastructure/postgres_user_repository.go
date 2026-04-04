@@ -5,16 +5,18 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type PostgresUserRepository struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
 var _ domain.UserRepository = (*PostgresUserRepository)(nil)
 
-func NewPostgresUserRepository(db *sql.DB) *PostgresUserRepository {
+func NewPostgresUserRepository(db *pgxpool.Pool) *PostgresUserRepository {
 	return &PostgresUserRepository{db: db}
 }
 
@@ -32,7 +34,7 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
-	_, err := r.db.ExecContext(
+	_, err := r.db.Exec(
 		ctx,
 		query,
 		user.ID,
@@ -64,10 +66,10 @@ func (r *PostgresUserRepository) FindByEmail(ctx context.Context, email string) 
 		WHERE email = $1
 	`
 
-	row := r.db.QueryRowContext(ctx, query, email)
+	row := r.db.QueryRow(ctx, query, email)
 	user, err := scanUser(row)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
@@ -90,10 +92,10 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*doma
 		WHERE id = $1
 	`
 
-	row := r.db.QueryRowContext(ctx, query, id)
+	row := r.db.QueryRow(ctx, query, id)
 	user, err := scanUser(row)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
@@ -111,9 +113,9 @@ func (r *PostgresUserRepository) ExistsByEmail(ctx context.Context, email string
 	`
 
 	var exists int
-	err := r.db.QueryRowContext(ctx, query, email).Scan(&exists)
+	err := r.db.QueryRow(ctx, query, email).Scan(&exists)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
 		}
 		return false, err

@@ -73,7 +73,7 @@ func TestWriteError(t *testing.T) {
 		t.Fatalf("expected error code %q, got %q", "UNAUTHORIZED", got.Error.Code)
 	}
 
-	if got.Error.Message != "Unauthorized" {
-		t.Fatalf("expected message %q, got %q", "Unauthorized", got.Error.Message)
+	if got.Error.Message != "authentication required" {
+		t.Fatalf("expected message %q, got %q", "authentication required", got.Error.Message)
 	}
 }

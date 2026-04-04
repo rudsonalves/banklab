@@ -3,14 +3,20 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"time"
 
 	accountApplication "github.com/seu-usuario/bank-api/internal/account/application"
 	accountDelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	authApplication "github.com/seu-usuario/bank-api/internal/auth/application"
+	authDelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
+	authInfrastructure "github.com/seu-usuario/bank-api/internal/auth/infrastructure"
 	customerApplication "github.com/seu-usuario/bank-api/internal/customer/application"
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
 	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -30,12 +36,31 @@ func main() {
 	statementUC := accountApplication.NewGetStatement(accountRepo)
 	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC, statementUC)
 
+	userRepo := authInfrastructure.NewPostgresUserRepository(db)
+	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "dev-change-me"
+	}
+	tokenService := authInfrastructure.NewJWTTokenService(jwtSecret, 15*time.Minute)
+
+	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, hasher)
+	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService)
+	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
+	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)
+	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
+
 	http.HandleFunc("POST /customers", customerHandler.Create)
-	http.HandleFunc("POST /accounts", accountHandler.CreateAccount)
-	http.HandleFunc("POST /accounts/{id}/deposit", accountHandler.Deposit)
-	http.HandleFunc("POST /accounts/{id}/withdraw", accountHandler.Withdraw)
-	http.HandleFunc("GET /accounts/{id}/statement", accountHandler.Statement)
-	http.HandleFunc("POST /accounts/transfer", accountHandler.Transfer)
+
+	http.HandleFunc("POST /auth/register", authHandler.Register)
+	http.HandleFunc("POST /auth/login", authHandler.Login)
+	http.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
+
+	http.Handle("POST /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.CreateAccount)))
+	http.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))
+	http.Handle("POST /accounts/{id}/withdraw", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Withdraw)))
+	http.Handle("GET /accounts/{id}/statement", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Statement)))
+	http.Handle("POST /accounts/transfer", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Transfer)))
 
 	log.Println("Server running on port 8080")
 
