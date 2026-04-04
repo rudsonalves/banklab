@@ -31,13 +31,12 @@ type AccountRepository interface {
 	) ([]Transaction, error)
 	UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
 	// DecreaseBalance performs an atomic balance decrement.
-	// IMPORTANT:
-	// - It does NOT check account existence.
-	// - Caller MUST ensure account exists before calling.
-	// - Returns ErrInsufficientBalance if no rows are affected.
+	// It returns ErrAccountNotFound when the account does not exist and
+	// ErrInsufficientBalance when the account exists but has insufficient funds.
 	DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error
 
 	BeginTx(ctx context.Context) (Tx, error)
+	WithTransaction(ctx context.Context, fn func(tx Tx) error) error
 }
 
 type Tx interface {

@@ -95,6 +95,10 @@ func (m *statementRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error
 	return nil, nil
 }
 
+func (m *statementRepositoryMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	return errors.New("transactions are not used in this test")
+}
+
 func TestGetStatement_Execute_InvalidAccountID(t *testing.T) {
 	repo := &statementRepositoryMock{}
 	uc := NewGetStatement(repo)

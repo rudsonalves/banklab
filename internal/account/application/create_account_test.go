@@ -70,6 +70,10 @@ func (m *accountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error) 
 	return nil, nil
 }
 
+func (m *accountRepositoryMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	return errors.New("transactions are not used in this test")
+}
+
 type customerRepositoryMock struct {
 	existsCalls int
 	existsValue bool

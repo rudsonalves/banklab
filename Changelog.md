@@ -1,5 +1,153 @@
 # Changelog
 
+## 2026/04/02 — auth/phase-05
+
+Introduces **authorization enforcement and transactional abstraction improvements** across account operations, consolidating transaction management, refining repository design, and strengthening consistency guarantees between application and infrastructure layers.
+
+### 1. Application Layer — Transaction Handling Refactor
+
+* Replaced manual transaction management (`BeginTx`, `Commit`, `Rollback`) with `WithTransaction`
+* Eliminated boilerplate patterns:
+
+  * removed `committed` flags
+  * removed deferred rollback logic
+* Centralized transaction lifecycle:
+
+  * execution, commit, and rollback now handled by repository
+* Improved readability and reduced error-prone patterns
+
+### 2. Authorization Enforcement
+
+* Added authorization checks using:
+
+  * `authdomain.CanAccessAccount`
+* Applied consistently across use cases:
+
+  * `Deposit`
+  * `Withdraw`
+  * `Transfer`
+* Ensures:
+
+  * only account owners (or authorized roles) can operate
+  * unauthorized access returns `domain.ErrForbidden`
+* This marks the first concrete enforcement of **Phase 5 — Authorization**
+
+### 3. Transfer Use Case Adjustments
+
+* Migrated full transfer flow to `WithTransaction`
+* Preserved deterministic locking strategy using ordered UUIDs
+* Maintained atomic behavior:
+
+  * debit → credit → ledger entries
+* Simplified error propagation by removing manual transaction boundaries
+
+### 4. Withdraw and Deposit Use Cases
+
+* Refactored both operations to:
+
+  * use `WithTransaction`
+  * enforce authorization before business logic
+* Improved error handling:
+
+  * explicit propagation of domain errors (`ErrAccountNotFound`, `ErrInsufficientBalance`)
+* Ledger creation now fully encapsulated within transactional closure
+
+### 5. Repository Contract Evolution
+
+* Added new method:
+
+  * `WithTransaction(ctx, fn)`
+* Updated contract of `DecreaseBalance`:
+
+  * now distinguishes:
+
+    * `ErrAccountNotFound`
+    * `ErrInsufficientBalance`
+* Improves semantic clarity and enables better error mapping at upper layers
+
+### 6. Infrastructure Layer — PostgreSQL Refactor
+
+* Introduced `baseRepository` abstraction:
+
+  * decouples execution (`exec`) from concrete type (`db` or `tx`)
+  * enables reuse across repository and transactional repository
+* Added `executor` interface:
+
+  * unifies `pgxpool.Pool` and `pgx.Tx`
+* Refactored all data access methods to use `baseRepository`
+* Eliminated duplicated logic between:
+
+  * `Repository`
+  * `txRepository`
+
+### 7. Transaction Orchestration
+
+* Implemented `runInTransaction` helper:
+
+  * executes callback
+  * handles rollback on error
+  * ensures rollback on commit failure
+* Added `WithTransaction` implementation:
+
+  * wraps `BeginTx` + `runInTransaction`
+* Prevented nested transactions:
+
+  * explicit errors returned in `txRepository`
+
+### 8. Balance Consistency Improvements
+
+* Enhanced `DecreaseBalance`:
+
+  * now uses `RETURNING` clause
+  * distinguishes between:
+
+    * account not found
+    * insufficient balance
+  * fallback existence check implemented
+* Ensures stronger correctness under concurrent conditions
+
+### 9. Test Updates and Additions
+
+* Updated mocks to support `WithTransaction`
+* Added safeguards:
+
+  * prevent nested transactions in tests
+* Introduced new infrastructure tests:
+
+  * `DecreaseBalance` scenarios:
+
+    * account not found
+    * insufficient balance
+    * success
+  * parity between repository and transactional repository
+  * transaction lifecycle:
+
+    * rollback on callback error
+    * commit on success
+    * rollback on commit failure
+* Improved coverage of transactional behavior and edge cases
+
+### 10. Architectural Impact
+
+* Moves transaction management from application layer to infrastructure boundary
+* Enforces clear separation:
+
+  * application defines intent
+  * repository controls execution and consistency
+* Reduces duplication and aligns with unit-of-work pattern
+
+### Conclusion
+
+This commit represents a significant step toward a **robust authorization and transaction model**, combining:
+
+* centralized transaction orchestration
+* consistent authorization enforcement
+* reduced duplication via repository abstraction
+* improved correctness in concurrent financial operations
+
+The system is now better aligned with production-grade patterns, particularly in terms of **security, consistency, and maintainability**.
+
+
 ### 2026/04/02 auth/phase-04
 
 Introduces authentication context propagation and enforces authorization rules across account use cases, along with a consistent error handling strategy at the delivery layer.

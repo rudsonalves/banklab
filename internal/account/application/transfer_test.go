@@ -68,6 +68,20 @@ func (m *transferAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx,
 	return m.tx, nil
 }
 
+func (m *transferAccountRepositoryMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	m.beginTxCalls++
+	if m.beginTxErr != nil {
+		return m.beginTxErr
+	}
+
+	if err := fn(m.tx); err != nil {
+		_ = m.tx.Rollback(ctx)
+		return err
+	}
+
+	return m.tx.Commit(ctx)
+}
+
 type transferTxMock struct {
 	lockedOrder            []uuid.UUID
 	accounts               map[uuid.UUID]*domain.Account
@@ -157,6 +171,10 @@ func (m *transferTxMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amou
 
 func (m *transferTxMock) BeginTx(ctx context.Context) (domain.Tx, error) {
 	return nil, nil
+}
+
+func (m *transferTxMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	return errors.New("nested transactions are not supported")
 }
 
 func (m *transferTxMock) Commit(ctx context.Context) error {

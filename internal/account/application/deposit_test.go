@@ -68,6 +68,20 @@ func (m *depositAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, 
 	return m.tx, nil
 }
 
+func (m *depositAccountRepositoryMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	m.beginTxCalls++
+	if m.beginTxErr != nil {
+		return m.beginTxErr
+	}
+
+	if err := fn(m.tx); err != nil {
+		_ = m.tx.Rollback(ctx)
+		return err
+	}
+
+	return m.tx.Commit(ctx)
+}
+
 type txMock struct {
 	getByIDCalls           int
 	getByIDForUpdateCalls  int
@@ -146,6 +160,10 @@ func (m *txMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64
 
 func (m *txMock) BeginTx(ctx context.Context) (domain.Tx, error) {
 	return nil, nil
+}
+
+func (m *txMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	return errors.New("nested transactions are not supported")
 }
 
 func (m *txMock) Commit(ctx context.Context) error {
