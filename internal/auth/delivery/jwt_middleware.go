@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/auth/application"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
@@ -45,7 +44,7 @@ func (m *JWTMiddleware) RequireAuth(next http.Handler) http.Handler {
 			CustomerID: customerID,
 		}
 
-		ctx := application.WithAuthenticatedUser(r.Context(), principal)
+		ctx := WithAuthenticatedUser(r.Context(), principal)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -82,7 +81,7 @@ func (m *JWTMiddleware) OptionalAuth(next http.Handler) http.Handler {
 			CustomerID: customerID,
 		}
 
-		ctx := application.WithAuthenticatedUser(r.Context(), principal)
+		ctx := WithAuthenticatedUser(r.Context(), principal)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -2,13 +2,11 @@ package delivery
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/seu-usuario/bank-api/internal/customer/application"
-	"github.com/seu-usuario/bank-api/internal/customer/domain"
 )
 
 type Handler struct {
@@ -50,23 +48,23 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("create customer error:", err)
 
-		if field, ok := validationField(err); ok {
+		if field, ok := application.ValidationField(err); ok {
 			writeErrorWithDetails(w, http.StatusBadRequest, "INVALID_DATA", "invalid data", map[string]string{
 				"field": field,
 			})
 			return
 		}
 
-		switch {
-		case errors.Is(err, domain.ErrInvalidData):
+		switch application.CategorizeError(err) {
+		case application.ErrorCategoryInvalidData:
 			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
 			return
 
-		case errors.Is(err, domain.ErrCPFAlreadyExists):
+		case application.ErrorCategoryAlreadyExistsCPF:
 			writeError(w, http.StatusConflict, "CUSTOMER_ALREADY_EXISTS", "cpf already exists")
 			return
 
-		case errors.Is(err, domain.ErrEmailAlreadyExists):
+		case application.ErrorCategoryAlreadyExistsEML:
 			writeError(w, http.StatusConflict, "CUSTOMER_ALREADY_EXISTS", "email already exists")
 			return
 		}
@@ -106,19 +104,6 @@ func writeErrorWithDetails(w http.ResponseWriter, status int, code, message stri
 			Details: details,
 		},
 	})
-}
-
-func validationField(err error) (string, bool) {
-	switch {
-	case errors.Is(err, domain.ErrNameRequired):
-		return "name", true
-	case errors.Is(err, domain.ErrCPFRequired):
-		return "cpf", true
-	case errors.Is(err, domain.ErrEmailRequired):
-		return "email", true
-	}
-
-	return "", false
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload response) {

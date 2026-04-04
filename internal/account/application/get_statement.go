@@ -86,7 +86,7 @@ func (uc *GetStatement) Execute(ctx context.Context, input GetStatementInput) (*
 		return nil, err
 	}
 
-	if !authdomain.CanAccessAccount(input.User, account) {
+	if !CanAccessAccount(input.User, account) {
 		return nil, domain.ErrForbidden
 	}
 

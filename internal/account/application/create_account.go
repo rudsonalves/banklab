@@ -34,14 +34,8 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 		return nil, domain.ErrInvalidData
 	}
 
-	if input.User == nil {
+	if !CanAccessCustomer(input.User, input.CustomerID) {
 		return nil, domain.ErrForbidden
-	}
-
-	if input.User.Role != authdomain.RoleAdmin {
-		if input.User.CustomerID == nil || *input.User.CustomerID != input.CustomerID {
-			return nil, domain.ErrForbidden
-		}
 	}
 
 	exists, err := uc.customerRepo.Exists(ctx, input.CustomerID)

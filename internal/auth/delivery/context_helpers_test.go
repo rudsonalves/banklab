@@ -27,17 +27,17 @@ func TestGetAuthenticatedUser_ContextContainsUser(t *testing.T) {
 	}
 }
 
-func TestMustGetAuthenticatedUser_PanicsWhenMissing(t *testing.T) {
-	defer func() {
-		recovered := recover()
-		if recovered == nil {
-			t.Fatal("expected panic when authenticated user is missing")
-		}
+func TestRequireAuthenticatedUser_ReturnsErrorWhenMissing(t *testing.T) {
+	user, err := RequireAuthenticatedUser(context.Background())
+	if err == nil {
+		t.Fatal("expected error when authenticated user is missing")
+	}
 
-		if recovered != "authenticated user not found in context" {
-			t.Fatalf("expected panic %q, got %#v", "authenticated user not found in context", recovered)
-		}
-	}()
+	if user != nil {
+		t.Fatalf("expected nil user, got %#v", user)
+	}
 
-	_ = MustGetAuthenticatedUser(context.Background())
+	if err != ErrAuthenticatedUserNotFound {
+		t.Fatalf("expected error %v, got %v", ErrAuthenticatedUserNotFound, err)
+	}
 }

@@ -1,6 +1,118 @@
 # Changelog
 
-## 2026/04/02 — auth/phase-06
+## 2026/04/04 — check/small_adjustments-01
+
+Applies a set of **targeted architectural refinements** focused on access control centralization, error standardization, and safer authentication handling. These changes improve consistency, reduce duplication, and strengthen boundary responsibilities across modules.
+
+### 1. Changelog Update
+
+* Updated reference date for `auth/phase-06` to reflect the correct delivery timeline
+* Ensures historical accuracy and alignment with recent changes
+
+### 2. Access Control Centralization (Account Module)
+
+* Introduced `access_policy.go` with:
+
+  * `CanAccessCustomer`
+  * `CanAccessAccount`
+* Consolidates authorization logic within the **account application layer**, removing cross-module coupling with auth
+* Replaced previous scattered checks with unified policy usage across:
+
+  * `CreateAccount`
+  * `Deposit`
+  * `Withdraw`
+  * `Transfer`
+  * `GetStatement`
+* Improves cohesion and enforces a **single source of truth for access rules**
+
+### 3. Removal of Legacy Authorization Logic (Auth Module)
+
+* Removed:
+
+  * `internal/auth/application/authorization.go`
+  * `internal/auth/domain/authorization.go`
+* Eliminates duplicated responsibility between modules
+* Clarifies architectural boundary:
+
+  * **Auth → identity**
+  * **Account → authorization rules**
+
+### 4. Error Categorization Standardization
+
+* Introduced `application/errors.go` (account module):
+
+  * defines `ErrorCategory`
+  * implements `CategorizeError`
+
+* Refactored handler error mapping to rely on categories instead of `errors.Is` chains
+
+* Benefits:
+
+  * consistent error translation
+  * reduced coupling to domain error types
+  * easier extensibility
+
+* Applied same pattern to **customer module**:
+
+  * centralized `CategorizeError`
+  * extracted `ValidationField` helper
+
+### 5. Delivery Layer Simplification
+
+* Refactored account handler:
+
+  * removed direct dependency on domain errors
+  * now maps errors via application layer categorization
+* Refactored customer handler:
+
+  * removed local validation logic duplication
+  * delegates to application helpers
+
+### 6. Authentication Context Handling (Safety Improvement)
+
+* Replaced panic-based helper:
+
+  * `MustGetAuthenticatedUser` → `RequireAuthenticatedUser`
+
+* Now returns explicit error (`ErrAuthenticatedUserNotFound`) instead of panicking
+
+* This is a **significant robustness improvement**, preventing uncontrolled crashes in production paths
+
+* Updated JWT middleware:
+
+  * now uses delivery-level context helpers instead of application-level functions
+
+* Reinforces correct layer responsibility
+
+### 7. Test Coverage
+
+* Added tests for:
+
+  * access policy (`CanAccessCustomer`, `CanAccessAccount`)
+  * new authentication helper behavior (error instead of panic)
+* Removed obsolete authorization tests from auth module
+* Adjusted existing tests to align with new abstractions
+
+### 8. Minor Consistency Improvements
+
+* Standardized access checks across all account use cases
+* Reduced duplicated logic in validation and error handling
+* Improved readability and intent clarity in application layer
+
+### Conclusion
+
+This commit delivers **architectural hygiene and consistency improvements** rather than new features.
+
+Key highlights:
+
+* **Authorization logic correctly placed in the account domain boundary**
+* **Error handling standardized via categorization**
+* **Safer authentication context management (no panics)**
+
+Overall, this is a **high-value refactor**, reducing technical debt and reinforcing clean architecture principles without increasing system complexity.
+
+
+## 2026/04/04 — auth/phase-06
 
 Implements authentication and authorization as a first-class concern in the API, introducing JWT-based identity, route protection, and ownership validation across account operations. This phase consolidates security boundaries while maintaining clear separation of concerns across layers.
 
