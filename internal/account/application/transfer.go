@@ -70,7 +70,7 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 
 		fromAccount, toAccount := mapTransferAccounts(input.FromAccountID, firstAccount, secondAccount)
 
-		if !authdomain.CanAccessAccount(input.User, fromAccount) {
+		if !CanAccessAccount(input.User, fromAccount) {
 			return domain.ErrForbidden
 		}
 

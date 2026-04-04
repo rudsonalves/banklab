@@ -2,7 +2,6 @@ package delivery
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/application"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 )
 
@@ -315,22 +313,22 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 }
 
 func mapAccountError(err error) (*sharederrors.AppError, int) {
-	switch {
-	case errors.Is(err, domain.ErrForbidden):
+	switch application.CategorizeError(err) {
+	case application.ErrorCategoryForbidden:
 		return sharederrors.ErrForbidden, http.StatusForbidden
-	case errors.Is(err, domain.ErrInvalidData):
+	case application.ErrorCategoryInvalidData:
 		return sharederrors.ErrInvalidData, http.StatusBadRequest
-	case errors.Is(err, domain.ErrInvalidAmount):
+	case application.ErrorCategoryInvalidAmount:
 		return sharederrors.NewError("INVALID_AMOUNT", "Invalid amount"), http.StatusBadRequest
-	case errors.Is(err, domain.ErrCustomerNotFound):
+	case application.ErrorCategoryCustomerNotFound:
 		return sharederrors.NewError("CUSTOMER_NOT_FOUND", "Customer not found"), http.StatusNotFound
-	case errors.Is(err, domain.ErrAccountNotFound):
+	case application.ErrorCategoryAccountNotFound:
 		return sharederrors.NewError("ACCOUNT_NOT_FOUND", "Account not found"), http.StatusNotFound
-	case errors.Is(err, domain.ErrAccountInactive):
+	case application.ErrorCategoryAccountInactive:
 		return sharederrors.NewError("ACCOUNT_INACTIVE", "Account is not active"), http.StatusUnprocessableEntity
-	case errors.Is(err, domain.ErrInsufficientBalance):
+	case application.ErrorCategoryInsufficientAmount:
 		return sharederrors.NewError("INSUFFICIENT_BALANCE", "Insufficient balance"), http.StatusUnprocessableEntity
-	case errors.Is(err, domain.ErrSameAccountTransfer):
+	case application.ErrorCategorySameAccount:
 		return sharederrors.NewError("SAME_ACCOUNT_TRANSFER", "Source and destination accounts must be different"), http.StatusBadRequest
 	default:
 		return sharederrors.ErrInternal, http.StatusInternalServerError

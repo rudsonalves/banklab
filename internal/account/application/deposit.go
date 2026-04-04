@@ -43,7 +43,7 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 			return fmt.Errorf("get account by id: %w", err)
 		}
 
-		if !authdomain.CanAccessAccount(input.User, account) {
+		if !CanAccessAccount(input.User, account) {
 			return domain.ErrForbidden
 		}
 

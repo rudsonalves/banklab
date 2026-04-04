@@ -43,7 +43,7 @@ func (uc *Withdraw) Execute(ctx context.Context, input WithdrawInput) (_ *domain
 			return fmt.Errorf("get account by id: %w", err)
 		}
 
-		if !authdomain.CanAccessAccount(input.User, account) {
+		if !CanAccessAccount(input.User, account) {
 			return domain.ErrForbidden
 		}
 
