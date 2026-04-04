@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type CreateAccount struct {
@@ -24,12 +25,23 @@ func NewCreateAccount(
 }
 
 type CreateAccountInput struct {
+	User       *authdomain.AuthenticatedUser
 	CustomerID uuid.UUID
 }
 
 func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) (*domain.Account, error) {
 	if input.CustomerID == uuid.Nil {
 		return nil, domain.ErrInvalidData
+	}
+
+	if input.User == nil {
+		return nil, domain.ErrForbidden
+	}
+
+	if input.User.Role != authdomain.RoleAdmin {
+		if input.User.CustomerID == nil || *input.User.CustomerID != input.CustomerID {
+			return nil, domain.ErrForbidden
+		}
 	}
 
 	exists, err := uc.customerRepo.Exists(ctx, input.CustomerID)

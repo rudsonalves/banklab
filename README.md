@@ -4,9 +4,11 @@ Bank API is a modular Go service that implements a simplified banking core with 
 
 It provides:
 - customer creation
+- user registration and login (JWT)
 - account creation
 - deposit, withdraw, and transfer operations
 - account statement with pagination and filters
+- authentication and account ownership authorization
 
 The project is organized as a layered modular monolith, with clear separation between HTTP delivery, application use cases, domain rules, and PostgreSQL infrastructure.
 
@@ -30,6 +32,7 @@ Entrypoint:
 Main modules:
 - internal/customer
 - internal/account
+- internal/auth
 - internal/database
 
 ## Stack
@@ -41,12 +44,19 @@ Main modules:
 
 ## Implemented Endpoints
 
+- POST /auth/register
+- POST /auth/login
+- GET /auth/me
 - POST /customers
 - POST /accounts
 - POST /accounts/{id}/deposit
 - POST /accounts/{id}/withdraw
 - POST /accounts/transfer
 - GET /accounts/{id}/statement
+
+Protected routes (JWT required):
+- GET /auth/me
+- /accounts/*
 
 ## Response Pattern
 
@@ -76,6 +86,7 @@ All endpoints use a consistent envelope:
 
 3. Run API
 
+	export JWT_SECRET=dev-change-me
 	go run ./cmd/api
 
 Server default address:
@@ -86,6 +97,7 @@ Server default address:
 - cmd/api: process bootstrap and route registration
 - internal/customer: customer domain, use case, HTTP, repository
 - internal/account: account and ledger domain, use cases, HTTP, repository
+- internal/auth: auth domain, use cases, middleware, and repository
 - internal/database: DB pool creation
 - db: SQL schema
 - migrations: schema evolution files
@@ -100,6 +112,8 @@ Server default address:
 - docs/04-estrategia_de_consistencia_e_concorrencia.md
 - docs/05-padrao_de_erros_e_respostas.md
 - docs/06-implementation.md
+- docs/07-api-rest.md
+- docs/08-auth_implementation.md
 
 ## Current Notes
 

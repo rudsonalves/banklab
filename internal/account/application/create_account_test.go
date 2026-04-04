@@ -70,6 +70,10 @@ func (m *accountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error) 
 	return nil, nil
 }
 
+func (m *accountRepositoryMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	return errors.New("transactions are not used in this test")
+}
+
 type customerRepositoryMock struct {
 	existsCalls int
 	existsValue bool
@@ -117,8 +121,9 @@ func TestCreateAccount_Execute_CustomerNotFound(t *testing.T) {
 	accountRepo := &accountRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	useCase := NewCreateAccount(accountRepo, customerRepo)
+	customerID := uuid.New()
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{CustomerID: uuid.New()})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID), CustomerID: customerID})
 
 	if !errors.Is(err, domain.ErrCustomerNotFound) {
 		t.Fatalf("expected error %v, got %v", domain.ErrCustomerNotFound, err)
@@ -146,8 +151,9 @@ func TestCreateAccount_Execute_CustomerExistsReturnsError(t *testing.T) {
 	accountRepo := &accountRepositoryMock{}
 	customerRepo := &customerRepositoryMock{existsErr: expectedErr}
 	useCase := NewCreateAccount(accountRepo, customerRepo)
+	customerID := uuid.New()
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{CustomerID: uuid.New()})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID), CustomerID: customerID})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -175,8 +181,9 @@ func TestCreateAccount_Execute_NextAccountNumberReturnsError(t *testing.T) {
 	accountRepo := &accountRepositoryMock{nextAccountNumberErr: expectedErr}
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	useCase := NewCreateAccount(accountRepo, customerRepo)
+	customerID := uuid.New()
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{CustomerID: uuid.New()})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID), CustomerID: customerID})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -199,8 +206,9 @@ func TestCreateAccount_Execute_CreateReturnsError(t *testing.T) {
 	}
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	useCase := NewCreateAccount(accountRepo, customerRepo)
+	customerID := uuid.New()
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{CustomerID: uuid.New()})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID), CustomerID: customerID})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -229,7 +237,7 @@ func TestCreateAccount_Execute_Success(t *testing.T) {
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	useCase := NewCreateAccount(accountRepo, customerRepo)
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{CustomerID: inputCustomerID})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(inputCustomerID), CustomerID: inputCustomerID})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -260,8 +268,9 @@ func TestCreateAccount_Execute_InteractionCountsOnSuccess(t *testing.T) {
 	accountRepo := &accountRepositoryMock{nextAccountNumberValue: "12345678"}
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	useCase := NewCreateAccount(accountRepo, customerRepo)
+	customerID := uuid.New()
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{CustomerID: uuid.New()})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID), CustomerID: customerID})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -288,10 +297,66 @@ func TestCreateAccount_Execute_DoesNotCallCreateWhenCustomerNotFound(t *testing.
 	accountRepo := &accountRepositoryMock{}
 	customerRepo := &customerRepositoryMock{existsValue: false}
 	useCase := NewCreateAccount(accountRepo, customerRepo)
+	customerID := uuid.New()
 
-	_, _ = useCase.Execute(context.Background(), CreateAccountInput{CustomerID: uuid.New()})
+	_, _ = useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID), CustomerID: customerID})
 
 	if accountRepo.createCalls != 0 {
 		t.Fatalf("Create must not be called when customer does not exist, got %d calls", accountRepo.createCalls)
+	}
+}
+
+func TestCreateAccount_Execute_ForbiddenForDifferentCustomer(t *testing.T) {
+	accountRepo := &accountRepositoryMock{}
+	customerRepo := &customerRepositoryMock{}
+	useCase := NewCreateAccount(accountRepo, customerRepo)
+
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{
+		User:       testCustomerUser(uuid.New()),
+		CustomerID: uuid.New(),
+	})
+
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
+	}
+
+	if account != nil {
+		t.Fatalf("expected account to be nil, got %+v", account)
+	}
+
+	if customerRepo.existsCalls != 0 {
+		t.Fatalf("expected Exists not to be called, got %d calls", customerRepo.existsCalls)
+	}
+
+	if accountRepo.createCalls != 0 {
+		t.Fatalf("expected Create not to be called, got %d calls", accountRepo.createCalls)
+	}
+}
+
+func TestCreateAccount_Execute_AdminCanCreateForAnyCustomer(t *testing.T) {
+	customerID := uuid.New()
+	accountRepo := &accountRepositoryMock{nextAccountNumberValue: "12345678"}
+	customerRepo := &customerRepositoryMock{existsValue: true}
+	useCase := NewCreateAccount(accountRepo, customerRepo)
+
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{
+		User:       testAdminUser(),
+		CustomerID: customerID,
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if account == nil || account.CustomerID != customerID {
+		t.Fatalf("expected account for customer %v, got %+v", customerID, account)
+	}
+
+	if accountRepo.createCalls != 1 {
+		t.Fatalf("expected Create to be called once, got %d calls", accountRepo.createCalls)
+	}
+
+	if customerRepo.existsCalls != 1 {
+		t.Fatalf("expected Exists to be called once, got %d calls", customerRepo.existsCalls)
 	}
 }

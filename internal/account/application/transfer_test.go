@@ -68,6 +68,20 @@ func (m *transferAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx,
 	return m.tx, nil
 }
 
+func (m *transferAccountRepositoryMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	m.beginTxCalls++
+	if m.beginTxErr != nil {
+		return m.beginTxErr
+	}
+
+	if err := fn(m.tx); err != nil {
+		_ = m.tx.Rollback(ctx)
+		return err
+	}
+
+	return m.tx.Commit(ctx)
+}
+
 type transferTxMock struct {
 	lockedOrder            []uuid.UUID
 	accounts               map[uuid.UUID]*domain.Account
@@ -157,6 +171,10 @@ func (m *transferTxMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amou
 
 func (m *transferTxMock) BeginTx(ctx context.Context) (domain.Tx, error) {
 	return nil, nil
+}
+
+func (m *transferTxMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
+	return errors.New("nested transactions are not supported")
 }
 
 func (m *transferTxMock) Commit(ctx context.Context) error {
@@ -290,16 +308,17 @@ func TestTransfer_Execute_DestinationAccountNotFound(t *testing.T) {
 func TestTransfer_Execute_InsufficientBalance(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
+	customerID := uuid.New()
 	tx := &transferTxMock{
 		accounts: map[uuid.UUID]*domain.Account{
-			fromID: {ID: fromID, Status: domain.AccountActive, Balance: 10},
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 10},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
 	}
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
 
-	result, err := useCase.Execute(context.Background(), TransferInput{FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+	result, err := useCase.Execute(context.Background(), TransferInput{User: testCustomerUser(customerID), FromAccountID: fromID, ToAccountID: toID, Amount: 50})
 
 	if !errors.Is(err, domain.ErrInsufficientBalance) {
 		t.Fatalf("expected error %v, got %v", domain.ErrInsufficientBalance, err)
@@ -321,16 +340,17 @@ func TestTransfer_Execute_InsufficientBalance(t *testing.T) {
 func TestTransfer_Execute_DestinationInactive(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
+	customerID := uuid.New()
 	tx := &transferTxMock{
 		accounts: map[uuid.UUID]*domain.Account{
-			fromID: {ID: fromID, Status: domain.AccountActive, Balance: 100},
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountInactive, Balance: 20},
 		},
 	}
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
 
-	result, err := useCase.Execute(context.Background(), TransferInput{FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+	result, err := useCase.Execute(context.Background(), TransferInput{User: testCustomerUser(customerID), FromAccountID: fromID, ToAccountID: toID, Amount: 50})
 
 	if !errors.Is(err, domain.ErrAccountInactive) {
 		t.Fatalf("expected error %v, got %v", domain.ErrAccountInactive, err)
@@ -344,9 +364,10 @@ func TestTransfer_Execute_DestinationInactive(t *testing.T) {
 func TestTransfer_Execute_Success(t *testing.T) {
 	fromID := uuid.MustParse("00000000-0000-0000-0000-000000000003")
 	toID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	customerID := uuid.New()
 	tx := &transferTxMock{
 		accounts: map[uuid.UUID]*domain.Account{
-			fromID: {ID: fromID, Status: domain.AccountActive, Balance: 100},
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
 		updateBalanceValues: map[uuid.UUID]int64{toID: 70},
@@ -354,7 +375,7 @@ func TestTransfer_Execute_Success(t *testing.T) {
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
 
-	result, err := useCase.Execute(context.Background(), TransferInput{FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+	result, err := useCase.Execute(context.Background(), TransferInput{User: testCustomerUser(customerID), FromAccountID: fromID, ToAccountID: toID, Amount: 50})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -424,10 +445,11 @@ func TestTransfer_Execute_Success(t *testing.T) {
 func TestTransfer_Execute_DebitFailure(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
+	customerID := uuid.New()
 	expectedErr := errors.New("debit failed")
 	tx := &transferTxMock{
 		accounts: map[uuid.UUID]*domain.Account{
-			fromID: {ID: fromID, Status: domain.AccountActive, Balance: 100},
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
 		decreaseBalanceErr: expectedErr,
@@ -435,7 +457,7 @@ func TestTransfer_Execute_DebitFailure(t *testing.T) {
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
 
-	result, err := useCase.Execute(context.Background(), TransferInput{FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+	result, err := useCase.Execute(context.Background(), TransferInput{User: testCustomerUser(customerID), FromAccountID: fromID, ToAccountID: toID, Amount: 50})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -453,10 +475,11 @@ func TestTransfer_Execute_DebitFailure(t *testing.T) {
 func TestTransfer_Execute_CreditFailure(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
+	customerID := uuid.New()
 	expectedErr := errors.New("credit failed")
 	tx := &transferTxMock{
 		accounts: map[uuid.UUID]*domain.Account{
-			fromID: {ID: fromID, Status: domain.AccountActive, Balance: 100},
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
 		updateBalanceErr: expectedErr,
@@ -464,7 +487,7 @@ func TestTransfer_Execute_CreditFailure(t *testing.T) {
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
 
-	result, err := useCase.Execute(context.Background(), TransferInput{FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+	result, err := useCase.Execute(context.Background(), TransferInput{User: testCustomerUser(customerID), FromAccountID: fromID, ToAccountID: toID, Amount: 50})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -494,10 +517,11 @@ func TestTransfer_Execute_CreditFailure(t *testing.T) {
 func TestTransfer_Execute_CommitFailure(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
+	customerID := uuid.New()
 	expectedErr := errors.New("commit failed")
 	tx := &transferTxMock{
 		accounts: map[uuid.UUID]*domain.Account{
-			fromID: {ID: fromID, Status: domain.AccountActive, Balance: 100},
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
 		updateBalanceValues: map[uuid.UUID]int64{toID: 70},
@@ -506,7 +530,7 @@ func TestTransfer_Execute_CommitFailure(t *testing.T) {
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
 
-	result, err := useCase.Execute(context.Background(), TransferInput{FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+	result, err := useCase.Execute(context.Background(), TransferInput{User: testCustomerUser(customerID), FromAccountID: fromID, ToAccountID: toID, Amount: 50})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -519,19 +543,47 @@ func TestTransfer_Execute_CommitFailure(t *testing.T) {
 	if tx.commitCalls != 1 {
 		t.Fatalf("expected commit once, got %d", tx.commitCalls)
 	}
+}
+
+func TestTransfer_Execute_ForbiddenForDifferentCustomer(t *testing.T) {
+	fromID := uuid.New()
+	toID := uuid.New()
+	tx := &transferTxMock{
+		accounts: map[uuid.UUID]*domain.Account{
+			fromID: {ID: fromID, CustomerID: uuid.New(), Status: domain.AccountActive, Balance: 100},
+			toID:   {ID: toID, CustomerID: uuid.New(), Status: domain.AccountActive, Balance: 20},
+		},
+	}
+	repo := &transferAccountRepositoryMock{tx: tx}
+	useCase := NewTransfer(repo)
+
+	result, err := useCase.Execute(context.Background(), TransferInput{User: testCustomerUser(uuid.New()), FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
+	}
+
+	if result != nil {
+		t.Fatalf("expected result to be nil, got %+v", result)
+	}
+
+	if tx.decreaseCalls != 0 {
+		t.Fatalf("expected no debit call, got %d", tx.decreaseCalls)
+	}
 
 	if tx.rollbackCalls != 1 {
-		t.Fatalf("expected rollback once after commit failure, got %d", tx.rollbackCalls)
+		t.Fatalf("expected rollback once, got %d", tx.rollbackCalls)
 	}
 }
 
 func TestTransfer_Execute_LedgerInsertFailure(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
+	customerID := uuid.New()
 	expectedErr := errors.New("ledger insert failed")
 	tx := &transferTxMock{
 		accounts: map[uuid.UUID]*domain.Account{
-			fromID: {ID: fromID, Status: domain.AccountActive, Balance: 100},
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
 		updateBalanceValues:  map[uuid.UUID]int64{toID: 70},
@@ -540,7 +592,7 @@ func TestTransfer_Execute_LedgerInsertFailure(t *testing.T) {
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
 
-	result, err := useCase.Execute(context.Background(), TransferInput{FromAccountID: fromID, ToAccountID: toID, Amount: 50})
+	result, err := useCase.Execute(context.Background(), TransferInput{User: testCustomerUser(customerID), FromAccountID: fromID, ToAccountID: toID, Amount: 50})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)

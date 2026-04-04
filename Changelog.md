@@ -1,5 +1,1024 @@
 # Changelog
 
+## 2026/04/02 — auth/phase-06
+
+Implements authentication and authorization as a first-class concern in the API, introducing JWT-based identity, route protection, and ownership validation across account operations. This phase consolidates security boundaries while maintaining clear separation of concerns across layers.
+
+### 1. API Bootstrap and Wiring
+
+* Integrated full auth stack into `main.go`:
+
+  * user repository (PostgreSQL with pgx)
+  * bcrypt password hasher
+  * JWT token service with configurable secret and expiration
+* Introduced auth use cases:
+
+  * register user
+  * login user
+  * get current user
+* Added JWT middleware and applied it to protected routes
+* Protected all `/accounts/*` endpoints and `/auth/me`
+* Kept `/auth/register` and `/auth/login` as public endpoints
+
+### 2. Route Protection Layer
+
+* Introduced `RequireAuth` middleware:
+
+  * validates JWT token
+  * injects authenticated context into request
+* Enforced authentication boundary at HTTP layer instead of use case layer
+* Ensures:
+
+  * unauthenticated requests fail early
+  * authenticated requests proceed with identity context
+
+### 3. Authorization Enforcement
+
+* Enforced account ownership rules through middleware and use case integration:
+
+  * user must own the account (`customer_id`)
+  * admin role bypasses ownership restriction
+* Standardized forbidden responses:
+
+  * `FORBIDDEN` with message "access denied to account"
+* Covered critical flows:
+
+  * own account access succeeds
+  * cross-account access is denied
+  * admin override is allowed
+
+### 4. Infrastructure Migration to pgx
+
+* Refactored `PostgresUserRepository`:
+
+  * replaced `database/sql` with `pgxpool`
+  * updated query execution (`Exec`, `QueryRow`)
+  * replaced `sql.ErrNoRows` with `pgx.ErrNoRows`
+* Aligns auth module with existing database infrastructure
+* Improves consistency and performance characteristics
+
+### 5. Authentication Contracts and Documentation
+
+* Expanded README:
+
+  * added auth module and endpoints
+  * documented protected routes
+  * introduced JWT configuration via `JWT_SECRET`
+* Extended REST documentation:
+
+  * added authentication section
+  * documented `/auth/register`, `/auth/login`, `/auth/me`
+  * updated all account endpoints with auth requirements
+  * included new error codes: `UNAUTHORIZED`, `INVALID_TOKEN`, `FORBIDDEN`, `USER_ALREADY_EXISTS`, `INVALID_CREDENTIALS`
+
+### 6. Error Standardization
+
+* Refined shared error messages:
+
+  * `UNAUTHORIZED` → "authentication required"
+  * `FORBIDDEN` → "access denied to account"
+* Updated response tests to reflect new semantics
+* Aligns API responses with security expectations and clarity
+
+### 7. Test Coverage
+
+#### 7.1 Integration Tests
+
+* Added end-to-end test suite for auth and authorization:
+
+  * register → login → access `/auth/me`
+  * authenticated access to own account
+  * forbidden access to чужой account
+  * admin override scenarios
+* Validates:
+
+  * JWT issuance and parsing
+  * middleware enforcement
+  * ownership rules
+
+#### 7.2 Infrastructure Tests
+
+* Added bcrypt tests:
+
+  * cost fallback behavior
+  * hash and compare validation
+  * failure on wrong password
+* Added JWT tests:
+
+  * token generation and parsing
+  * invalid signature handling
+  * expired token rejection
+  * malformed token detection
+  * invalid signing method protection
+  * missing claims validation
+
+#### 7.3 Repository Tests
+
+* Added integration tests for `PostgresUserRepository`:
+
+  * create and query user
+  * duplicate email constraint
+  * not found behavior
+  * existence checks
+
+### 8. Developer Experience
+
+* Added `make tests` target:
+
+  * runs all tests with coverage
+* Improves feedback loop and encourages test-driven workflow
+
+### Conclusion
+
+This phase establishes a solid security foundation by introducing authentication, enforcing authorization boundaries, and protecting critical financial routes. The implementation is cohesive, with proper layering, strong test coverage, and clear API contracts, enabling the system to evolve toward production-grade security standards.
+
+
+## 2026/04/04 — auth/phase-05
+
+Introduces **authorization enforcement and transactional abstraction improvements** across account operations, consolidating transaction management, refining repository design, and strengthening consistency guarantees between application and infrastructure layers.
+
+### 1. Application Layer — Transaction Handling Refactor
+
+* Replaced manual transaction management (`BeginTx`, `Commit`, `Rollback`) with `WithTransaction`
+* Eliminated boilerplate patterns:
+
+  * removed `committed` flags
+  * removed deferred rollback logic
+* Centralized transaction lifecycle:
+
+  * execution, commit, and rollback now handled by repository
+* Improved readability and reduced error-prone patterns
+
+### 2. Authorization Enforcement
+
+* Added authorization checks using:
+
+  * `authdomain.CanAccessAccount`
+* Applied consistently across use cases:
+
+  * `Deposit`
+  * `Withdraw`
+  * `Transfer`
+* Ensures:
+
+  * only account owners (or authorized roles) can operate
+  * unauthorized access returns `domain.ErrForbidden`
+* This marks the first concrete enforcement of **Phase 5 — Authorization**
+
+### 3. Transfer Use Case Adjustments
+
+* Migrated full transfer flow to `WithTransaction`
+* Preserved deterministic locking strategy using ordered UUIDs
+* Maintained atomic behavior:
+
+  * debit → credit → ledger entries
+* Simplified error propagation by removing manual transaction boundaries
+
+### 4. Withdraw and Deposit Use Cases
+
+* Refactored both operations to:
+
+  * use `WithTransaction`
+  * enforce authorization before business logic
+* Improved error handling:
+
+  * explicit propagation of domain errors (`ErrAccountNotFound`, `ErrInsufficientBalance`)
+* Ledger creation now fully encapsulated within transactional closure
+
+### 5. Repository Contract Evolution
+
+* Added new method:
+
+  * `WithTransaction(ctx, fn)`
+* Updated contract of `DecreaseBalance`:
+
+  * now distinguishes:
+
+    * `ErrAccountNotFound`
+    * `ErrInsufficientBalance`
+* Improves semantic clarity and enables better error mapping at upper layers
+
+### 6. Infrastructure Layer — PostgreSQL Refactor
+
+* Introduced `baseRepository` abstraction:
+
+  * decouples execution (`exec`) from concrete type (`db` or `tx`)
+  * enables reuse across repository and transactional repository
+* Added `executor` interface:
+
+  * unifies `pgxpool.Pool` and `pgx.Tx`
+* Refactored all data access methods to use `baseRepository`
+* Eliminated duplicated logic between:
+
+  * `Repository`
+  * `txRepository`
+
+### 7. Transaction Orchestration
+
+* Implemented `runInTransaction` helper:
+
+  * executes callback
+  * handles rollback on error
+  * ensures rollback on commit failure
+* Added `WithTransaction` implementation:
+
+  * wraps `BeginTx` + `runInTransaction`
+* Prevented nested transactions:
+
+  * explicit errors returned in `txRepository`
+
+### 8. Balance Consistency Improvements
+
+* Enhanced `DecreaseBalance`:
+
+  * now uses `RETURNING` clause
+  * distinguishes between:
+
+    * account not found
+    * insufficient balance
+  * fallback existence check implemented
+* Ensures stronger correctness under concurrent conditions
+
+### 9. Test Updates and Additions
+
+* Updated mocks to support `WithTransaction`
+* Added safeguards:
+
+  * prevent nested transactions in tests
+* Introduced new infrastructure tests:
+
+  * `DecreaseBalance` scenarios:
+
+    * account not found
+    * insufficient balance
+    * success
+  * parity between repository and transactional repository
+  * transaction lifecycle:
+
+    * rollback on callback error
+    * commit on success
+    * rollback on commit failure
+* Improved coverage of transactional behavior and edge cases
+
+### 10. Architectural Impact
+
+* Moves transaction management from application layer to infrastructure boundary
+* Enforces clear separation:
+
+  * application defines intent
+  * repository controls execution and consistency
+* Reduces duplication and aligns with unit-of-work pattern
+
+### Conclusion
+
+This commit represents a significant step toward a **robust authorization and transaction model**, combining:
+
+* centralized transaction orchestration
+* consistent authorization enforcement
+* reduced duplication via repository abstraction
+* improved correctness in concurrent financial operations
+
+The system is now better aligned with production-grade patterns, particularly in terms of **security, consistency, and maintainability**.
+
+
+### 2026/04/02 auth/phase-04
+
+Introduces authentication context propagation and enforces authorization rules across account use cases, along with a consistent error handling strategy at the delivery layer.
+
+1. internal/account/application/auth_test.go
+
+   * Added helper functions to create test users (customer and admin) for authentication scenarios
+
+2. internal/account/application/create_account.go
+
+   * Added AuthenticatedUser to input
+   * Enforced authorization: only admins or matching customers can create accounts
+   * Introduced forbidden validation before repository calls
+
+3. internal/account/application/create_account_test.go
+
+   * Updated all tests to include authenticated user context
+   * Added tests for forbidden access and admin privileges
+
+4. internal/account/application/deposit.go
+
+   * Added AuthenticatedUser to input
+   * Enforced access control using CanAccessAccount
+
+5. internal/account/application/deposit_test.go
+
+   * Updated tests to include user context
+   * Added forbidden scenario validation
+
+6. internal/account/application/get_statement.go
+
+   * Added AuthenticatedUser to input
+   * Enforced access validation before retrieving transactions
+
+7. internal/account/application/get_statement_test.go
+
+   * Updated tests to include user context
+   * Added forbidden access validation
+
+8. internal/account/application/transfer.go
+
+   * Added AuthenticatedUser to input
+   * Enforced authorization on source account
+
+9. internal/account/application/transfer_test.go
+
+   * Updated tests to include user context
+   * Added forbidden access scenario
+
+10. internal/account/application/withdraw.go
+
+    * Added AuthenticatedUser to input
+    * Enforced access validation
+
+11. internal/account/application/withdraw_test.go
+
+    * Updated tests to include user context
+    * Added admin access validation
+
+12. internal/account/domain/errors.go
+
+    * Introduced ErrForbidden for authorization failures
+
+13. internal/account/delivery/account_handler.go
+
+    * Added RequireUser to enforce authentication at handler level
+    * Injected user context into all use cases
+    * Replaced manual error handling with centralized mapAccountError
+    * Standardized success responses using writeSuccess
+
+14. internal/account/delivery/account_handler_test.go
+
+    * Updated tests to include authenticated requests
+    * Added tests for unauthorized and forbidden scenarios
+
+15. internal/account/delivery/auth_test.go
+
+    * Added helpers to inject authenticated user into request context
+
+16. internal/account/delivery/deposit_integration_test.go
+
+    * Injected authentication context into integration test flow
+
+17. internal/account/delivery/handler.go
+
+    * Added RequireUser helper to extract authenticated user from context
+
+18. internal/account/delivery/response.go
+
+    * Refactored response handling to use shared HTTP utilities
+    * Replaced custom response structure with shared abstractions
+
+19. internal/auth/application/authorization.go
+
+    * Delegated authorization logic to auth domain layer
+    * Simplified CanAccessAccount and RequireAccountAccess
+
+20. internal/auth/application/authorization_test.go
+
+    * Updated tests to use UUID instead of string for CustomerID
+
+This commit establishes a consistent security boundary across application and delivery layers, ensuring that all account operations are protected by explicit authentication and authorization rules while improving error handling cohesion.
+
+
+## 2026/04/02 — auth/phase-03
+
+Implements a complete **authentication and authorization layer**, including JWT-based security, access control rules, standardized error handling, and HTTP response normalization. This phase establishes the foundation for secure interaction across the system.
+
+### 1. Application Layer — Authorization Rules
+
+* Introduced `CanAccessAccount` and `RequireAccountAccess`
+* Implements access control based on:
+
+  * admin override (full access)
+  * customer ownership (account.CustomerID == user.CustomerID)
+* Defensive validation:
+
+  * nil checks
+  * invalid UUID parsing
+* Added `ErrForbidden` to represent authorization failures
+* This design is clean and pragmatic, correctly centralizing authorization logic at the application boundary
+
+### 2. Application Layer — Auth Context Refinement
+
+* Replaced struct-based context key with typed key (`contextKey`)
+* Eliminates collision risks and improves type safety
+* Updated:
+
+  * `WithAuthenticatedUser`
+  * `GetAuthenticatedUser`
+* Supports both value and pointer retrieval patterns
+* This is a subtle but important improvement for robustness in middleware-driven systems
+
+### 3. Delivery Layer — Auth Handlers
+
+* Introduced HTTP handlers:
+
+  * `POST /auth/register`
+  * `POST /auth/login`
+  * `GET /auth/me`
+* Implemented request parsing and response mapping for:
+
+  * user registration
+  * authentication (token issuance)
+  * current user retrieval
+* Centralized error mapping via `MapError`
+* Integrated structured logging for failure scenarios
+* Handlers are well-structured and follow clear separation between transport and application concerns
+
+### 4. JWT Middleware
+
+* Added `JWTMiddleware` with two modes:
+
+  * `RequireAuth`: enforces authentication
+  * `OptionalAuth`: enriches context if token is present
+* Implements:
+
+  * Bearer token extraction
+  * token parsing via `TokenService`
+  * injection of `AuthenticatedUser` into request context
+* Handles:
+
+  * missing header
+  * malformed token
+  * invalid/expired token
+* This middleware is technically solid and aligns with common production patterns
+
+### 5. Delivery Layer — Context Helpers
+
+* Added helper functions:
+
+  * `GetAuthenticatedUser`
+  * `MustGetAuthenticatedUser`
+* Simplifies access to authenticated principal in handlers
+* `MustGetAuthenticatedUser` enforces strict contract via panic (appropriate for internal invariants)
+
+### 6. Shared Layer — Error Standardization
+
+* Introduced `AppError` structure:
+
+  * `code`
+  * `message`
+  * optional `details`
+* Added predefined errors:
+
+  * `INVALID_REQUEST`, `INVALID_DATA`
+  * `UNAUTHORIZED`, `INVALID_TOKEN`
+  * `USER_ALREADY_EXISTS`, etc.
+* Provides consistent error contract across the entire API
+* This is a strong architectural improvement, reducing duplication and ambiguity
+
+### 7. Shared Layer — HTTP Response Abstraction
+
+* Added standardized response format:
+
+  * `{ data, error }`
+* Introduced helpers:
+
+  * `WriteSuccess`
+  * `WriteError`
+* Ensures:
+
+  * consistent headers (`application/json`)
+  * predictable payload structure
+* Removes response formatting duplication across handlers
+
+### 8. Test Coverage
+
+* Comprehensive tests across all layers:
+
+  * authorization rules (customer vs admin vs invalid cases)
+  * context handling (presence and panic scenarios)
+  * handlers (success and error mappings)
+  * JWT middleware (valid, invalid, missing, expired tokens)
+  * shared response and error structures
+* Validates both behavior and contract consistency
+
+### Conclusion
+
+This commit represents a **major architectural milestone**, introducing a cohesive and production-ready authentication system.
+
+Key strengths:
+
+* Clear separation of concerns (application, delivery, shared)
+* Robust JWT-based authentication flow
+* Centralized and consistent error/response handling
+* Well-defined authorization rules at the domain boundary
+
+From a technical perspective, this is a **high-quality and scalable foundation** for securing all future endpoints in the system.
+
+
+## 2026/04/02 — auth/phase-02
+
+Implements the **core authentication module (phase 02)**, including user registration, login, token generation, and authenticated context handling. Establishes a clean separation between authentication concerns and domain logic, with strong validation and full test coverage.
+
+### 1. Application Layer — User Registration
+
+* Added `RegisterUserUseCase` with input (`Email`, `Password`)
+* Implemented validation rules:
+
+  * normalized email (trim + lowercase)
+  * structural email validation
+  * minimum password length (≥ 8)
+* Enforced uniqueness via `ExistsByEmail`
+* Integrated password hashing through `PasswordHasher`
+* Created user entity with:
+
+  * UUID identifier
+  * default role = `customer`
+  * timestamps (`CreatedAt`, `UpdatedAt`)
+* Returns structured output without exposing sensitive data (no password)
+
+### 2. Application Layer — Login
+
+* Introduced `LoginUserUseCase`
+* Responsibilities:
+
+  * normalize email input
+  * validate credentials
+  * compare password hash
+  * generate access token via `TokenService`
+* Returns:
+
+  * JWT (or equivalent token)
+  * user identity and role
+  * optional `CustomerID`
+* Proper error handling:
+
+  * `ErrInvalidCredentials` for authentication failures
+  * avoids leaking whether email or password is incorrect
+
+### 3. Application Layer — Current User Resolution
+
+* Added `GetCurrentUserUseCase`
+* Retrieves authenticated user from context (`context.Context`)
+* Supports two modes:
+
+  * **context-only** (no repository) → lightweight resolution
+  * **repository-backed** → ensures user still exists
+* Introduced:
+
+  * `AuthenticatedUser` (principal abstraction)
+  * `WithAuthenticatedUser` / `GetAuthenticatedUser` helpers
+* Returns:
+
+  * user ID, email, role, and optional customer binding
+* Handles unauthorized scenarios via `ErrUnauthorized`
+
+### 4. Context-Based Authentication Model
+
+* Establishes a **request-scoped identity propagation mechanism**
+* Decouples authentication middleware from business logic
+* Enables:
+
+  * future integration with JWT middleware
+  * role-based authorization at use case level
+* This is a solid architectural decision, aligning with Go idioms and clean layering
+
+### 5. Domain Integration
+
+* Leverages existing domain contracts:
+
+  * `UserRepository`
+  * `PasswordHasher`
+  * `TokenService`
+* Introduces no leakage of infrastructure concerns into application layer
+* Maintains clear dependency inversion
+
+### 6. Validation & Normalization Strategy
+
+* Centralized helpers:
+
+  * `normalizeEmail`
+  * `isValidEmail`
+  * `isValidPassword`
+* Ensures:
+
+  * consistent input handling
+  * predictable authentication behavior
+* Notably avoids over-engineering while covering essential edge cases
+
+### 7. Test Coverage
+
+#### 7.1 RegisterUser
+
+* success flow (including normalization and persistence)
+* duplicate email
+* invalid email
+* invalid password
+* hashing failure
+* verifies:
+
+  * repository interaction
+  * correct entity construction
+  * timestamp integrity
+
+#### 7.2 LoginUser
+
+* success scenario (full flow: lookup → compare → token)
+* user not found
+* wrong password
+* token generation failure
+* validates:
+
+  * normalization
+  * secure flow (no unnecessary calls on failure)
+  * correct token claims
+
+#### 7.3 GetCurrentUser
+
+* success with repository
+* missing context (unauthorized)
+* user not found
+* repository error propagation
+* ensures strict control over authentication state
+
+### 8. Error Handling Strategy
+
+* Clear domain-aligned errors:
+
+  * `ErrInvalidEmail`
+  * `ErrInvalidPassword`
+  * `ErrEmailAlreadyExists`
+  * `ErrInvalidCredentials`
+  * `ErrUnauthorized`
+* Consistent wrapping for infrastructure errors
+* Prevents information leakage in authentication flows
+
+### Conclusion
+
+This commit establishes a **robust and extensible authentication foundation**, covering:
+
+* user lifecycle (register + login)
+* secure credential handling
+* token-based authentication
+* request-scoped identity propagation
+
+From an architectural perspective, the design is **clean, idiomatic, and production-ready**, particularly due to:
+
+* strict separation of concerns
+* context-driven authentication model
+* defensive error handling
+* comprehensive test coverage
+
+It provides a solid base for future extensions such as middleware, authorization policies, and multi-tenant support.
+
+
+## 2026/04/02 — auth/phase-01
+
+Introduces the **account statement (ledger query) capability**, expands repository contracts to support transaction history retrieval, and improves project operability with tooling and documentation. This marks a transition from pure command operations to **read-side financial visibility**.
+
+### 1. Application Layer — Get Statement Use Case
+
+* Added `GetStatement` use case with support for:
+
+  * pagination (`limit`, `cursor`, `cursor_id`)
+  * date filtering (`from`, `to`)
+* Implemented validations:
+
+  * non-nil account ID
+  * cursor consistency (cursor + cursor_id must coexist)
+  * valid date range (`from <= to`)
+  * limit normalization (default: 50, max: 100)
+* Flow:
+
+  * validate input
+  * ensure account exists
+  * query transactions via repository
+  * map to output DTO
+  * build next cursor when applicable
+* Returns structured response with:
+
+  * transaction list
+  * pagination cursor
+* Clean separation between **query logic and persistence concerns**
+
+### 2. Domain & Repository Evolution
+
+* Extended `AccountRepository` with:
+
+  * `GetTransactions(...)`
+* Enables:
+
+  * cursor-based pagination
+  * time-range filtering
+* Maintains domain purity by exposing **query intent without leaking SQL concerns**
+
+
+### 3. Infrastructure Layer — PostgreSQL Statement Query
+
+* Implemented `GetTransactions` for:
+
+  * base repository
+  * transactional repository (`txRepository`)
+* SQL characteristics:
+
+  * ordered by `(created_at DESC, id DESC)`
+  * cursor pagination using tuple comparison:
+
+    ```sql
+    (created_at, id) < ($cursor_time, $cursor_id)
+    ```
+  * optional filters:
+
+    * `from` (>= created_at)
+    * `to` (<= created_at)
+* Ensures:
+
+  * stable pagination
+  * deterministic ordering
+  * efficient index usage (assuming proper indexing)
+
+### 4. Delivery Layer — Statement Endpoint
+
+* Added endpoint:
+
+  * `GET /accounts/{id}/statement`
+* Implemented:
+
+  * path param parsing (account ID)
+  * query param parsing:
+
+    * `limit`
+    * `cursor`
+    * `cursor_id`
+    * `from`
+    * `to`
+* Introduced helper parsers:
+
+  * `parseOptionalInt`
+  * `parseOptionalTime`
+  * `parseOptionalUUID`
+* Error handling:
+
+  * `INVALID_DATA → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+* Response includes:
+
+  * list of transactions
+  * optional `next_cursor` for pagination
+
+### 5. DTO Additions
+
+* Added:
+
+  * `StatementData`
+  * `StatementItemData`
+  * `StatementCursorData`
+* Clearly separates:
+
+  * internal domain representation
+  * external API contract
+
+### 6. Handler & Wiring Updates
+
+* Extended handler to include `statement` use case via interface
+* Updated constructor signature accordingly
+* Registered new route in `main.go`
+* Refactored handler file naming (`handleer.go → handler.go`)
+* Maintains consistency with dependency injection and layered design
+
+### 7. Test Coverage
+
+#### 7.1 Application Tests
+
+* Added full suite for `GetStatement`:
+
+  * invalid input scenarios
+  * default and capped limits
+  * account not found
+  * transaction retrieval failure
+  * successful pagination flow
+* Verifies:
+
+  * correct repository invocation
+  * cursor generation logic
+
+#### 7.2 Delivery Tests
+
+* Added handler tests for:
+
+  * invalid query params
+  * cursor consistency validation
+  * account not found
+  * successful response mapping
+
+#### 7.3 Test Infrastructure
+
+* Updated all mocks to support:
+
+  * `GetTransactions`
+* Ensures compatibility across all existing use cases
+
+### 8. Tooling — Makefile
+
+* Introduced `Makefile` to standardize developer workflow:
+
+  * `migration` → run DB migrations
+  * `commit` → commit using predefined message file
+  * `diff` → generate staged diff and line count
+  * `push` / `pull` → simplified git operations
+* Improves productivity and consistency in development operations
+
+### 9. Documentation
+
+* Added `docs/06-implementation.md`:
+
+  * comprehensive description of:
+
+    * architecture
+    * domain model
+    * use cases
+    * persistence strategy
+    * concurrency model
+    * test coverage
+* Serves as **authoritative reference of the current implementation state**
+
+### Conclusion
+
+This commit introduces the **read-side of the financial ledger (account statement)**, completing a critical capability for any banking system.
+
+Key highlights:
+
+* **Cursor-based pagination with deterministic ordering**
+* **Time-range filtering**
+* **Clean separation between command (write) and query (read) concerns**
+* **Strong alignment with transactional consistency already established**
+
+From an architectural standpoint, this is a **natural and necessary evolution**, transforming the system from a purely operational core into a **queryable financial platform** with proper observability of account activity.
+
+
+## 2026/04/02 — auth/phase-00
+
+Introduces the **account statement (ledger retrieval) capability** as the first step toward read-oriented financial visibility, along with infrastructure improvements, repository extensions, and enhanced tooling support.
+
+### 1. Application Layer — Get Statement Use Case
+
+* Added `GetStatement` use case with support for:
+
+  * pagination (`limit`, `cursor`, `cursor_id`)
+  * time filtering (`from`, `to`)
+* Implemented validation rules:
+
+  * non-nil account ID
+  * `from <= to`
+  * cursor and cursor_id must be provided together
+  * limit normalization (default = 50, max = 100)
+* Execution flow:
+
+  * validate input
+  * ensure account existence (`GetByID`)
+  * retrieve transactions via repository
+  * map to response DTO
+  * build cursor for pagination
+* Returns structured result (`Statement`) with:
+
+  * items
+  * next cursor (for forward pagination)
+
+### 2. Domain Layer — Repository Evolution
+
+* Extended `AccountRepository` with:
+
+  * `GetTransactions(...)`
+* Enables:
+
+  * cursor-based pagination
+  * time-range filtering
+  * ordered retrieval of ledger entries
+* Maintains separation between:
+
+  * write operations (balance changes)
+  * read operations (ledger queries)
+
+### 3. Infrastructure Layer — PostgreSQL Implementation
+
+* Implemented `GetTransactions` in:
+
+  * base repository
+  * transactional repository (`txRepository`)
+* Query characteristics:
+
+  * ordered by `(created_at DESC, id DESC)`
+  * cursor-based pagination using tuple comparison
+  * optional filters (`from`, `to`)
+* Ensures:
+
+  * stable ordering
+  * efficient pagination without offset
+  * consistency with append-only ledger model
+
+### 4. Delivery Layer — Statement Endpoint
+
+* Added new endpoint:
+
+  * `GET /accounts/{id}/statement`
+* Implemented:
+
+  * query parsing (`limit`, `cursor`, `cursor_id`, `from`, `to`)
+  * validation helpers:
+
+    * `parseOptionalInt`
+    * `parseOptionalTime`
+    * `parseOptionalUUID`
+* Error handling:
+
+  * `INVALID_DATA → 400`
+  * `ACCOUNT_NOT_FOUND → 404`
+* Response includes:
+
+  * transaction list
+  * pagination cursor (`next_cursor`)
+* Maintains consistent API contract (`data` / `error`)
+
+### 5. Handler Refactor & Wiring
+
+* Added `statementUseCase` interface to handler
+* Updated constructor to include new dependency
+* Registered route in `main.go`:
+
+  * `GET /accounts/{id}/statement`
+* Renamed `handleer.go` → `handler.go` (naming correction)
+
+### 6. Data Structures — Statement DTOs
+
+* Introduced:
+
+  * `StatementItemData`
+  * `StatementData`
+  * `StatementCursorData`
+* Provides clear separation between:
+
+  * domain models
+  * API response representation
+
+### 7. Test Coverage
+
+#### 7.1 Application Tests
+
+* Full coverage for `GetStatement`:
+
+  * invalid input scenarios
+  * default and capped limits
+  * account not found
+  * repository error propagation
+  * successful mapping and cursor generation
+
+#### 7.2 Delivery Tests
+
+* Added handler tests for:
+
+  * invalid query params
+  * missing cursor pair
+  * account not found
+  * success scenario with full query validation
+* Ensures:
+
+  * correct HTTP status mapping
+  * proper request parsing behavior
+
+#### 7.3 Test Infrastructure
+
+* Extended mocks across use cases to support:
+
+  * `GetTransactions`
+* Maintains consistency across all existing tests
+
+### 8. Tooling — Makefile Introduction
+
+* Added `Makefile` with commands:
+
+  * `migration` → run DB migrations
+  * `commit` → standardized commit workflow
+  * `diff` → staged diff + line count
+  * `push` / `pull` → branch-aware Git operations
+* Improves developer experience and workflow consistency
+
+### 9. Documentation
+
+* Added `docs/06-implementation.md`:
+
+  * comprehensive description of current system implementation
+  * covers architecture, domain, use cases, persistence, and testing
+* Serves as a **baseline reference for future phases**, including authentication
+
+### Conclusion
+
+This commit introduces the **read side of the financial ledger (account statement)**, completing the core CRUD + transactional flow with observability over historical operations.
+
+From an architectural standpoint, this is a **crucial milestone**, as it:
+
+* separates read concerns from write flows
+* introduces cursor-based pagination (scalable pattern)
+* reinforces the ledger model as the source of truth
+
+Additionally, the inclusion of documentation and tooling indicates a transition toward a more **structured and maintainable development process**, which is essential before introducing authentication and authorization layers in subsequent phases.
+
+
 ## 2026/04/02 — account/statement-01
 
 Implements **account statement retrieval (ledger visualization)** with cursor-based pagination, date filtering, and full-stack integration (application, delivery, and persistence). Also introduces developer tooling improvements and formalizes implementation documentation.

@@ -11,285 +11,268 @@ import (
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/application"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
+	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 )
 
 func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
+	user, authErr := RequireUser(r.Context())
+	if authErr != nil {
+		writeError(w, http.StatusUnauthorized, authErr)
+		return
+	}
+
 	var req CreateAccountRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		writeError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
 		return
 	}
 
 	customerID, err := uuid.Parse(req.CustomerID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "customer_id must be a valid UUID")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "customer_id",
+		}))
 		return
 	}
 
 	input := application.CreateAccountInput{
+		User:       user,
 		CustomerID: customerID,
 	}
 
 	account, err := h.createAccount.Execute(r.Context(), input)
 	if err != nil {
 		log.Printf("event=create_account error=%v", err)
-
-		switch {
-		case errors.Is(err, domain.ErrCustomerNotFound):
-			writeError(w, http.StatusNotFound, "CUSTOMER_NOT_FOUND", "customer not found")
-			return
-		case errors.Is(err, domain.ErrInvalidData):
-			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
-			return
-		}
-
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		appErr, status := mapAccountError(err)
+		writeError(w, status, appErr)
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, response{
-		Data: AccountData{
-			ID:         account.ID.String(),
-			CustomerID: account.CustomerID.String(),
-			Number:     account.Number,
-			Branch:     account.Branch,
-			Balance:    account.Balance,
-			Status:     string(account.Status),
-		},
-		Error: nil,
+	writeSuccess(w, http.StatusCreated, AccountData{
+		ID:         account.ID.String(),
+		CustomerID: account.CustomerID.String(),
+		Number:     account.Number,
+		Branch:     account.Branch,
+		Balance:    account.Balance,
+		Status:     string(account.Status),
 	})
 }
 
 func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 	if h.deposit == nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		writeError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		return
+	}
+
+	user, authErr := RequireUser(r.Context())
+	if authErr != nil {
+		writeError(w, http.StatusUnauthorized, authErr)
 		return
 	}
 
 	accountIDRaw := r.PathValue("id")
 	accountID, err := uuid.Parse(accountIDRaw)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "account id must be a valid UUID")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "account_id",
+		}))
 		return
 	}
 
 	var req DepositRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		writeError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
 		return
 	}
 
 	account, err := h.deposit.Execute(r.Context(), application.DepositInput{
+		User:      user,
 		AccountID: accountID,
 		Amount:    req.Amount,
 	})
 	if err != nil {
 		log.Printf("event=deposit error=%v", err)
-
-		switch {
-		case errors.Is(err, domain.ErrInvalidAmount):
-			writeError(w, http.StatusBadRequest, "INVALID_AMOUNT", "amount must be greater than zero")
-			return
-		case errors.Is(err, domain.ErrInvalidData):
-			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
-			return
-		case errors.Is(err, domain.ErrAccountNotFound):
-			writeError(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", "account not found")
-			return
-		case errors.Is(err, domain.ErrAccountInactive):
-			writeError(w, http.StatusUnprocessableEntity, "ACCOUNT_INACTIVE", "account is not active")
-			return
-		}
-
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		appErr, status := mapAccountError(err)
+		writeError(w, status, appErr)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response{
-		Data: map[string]interface{}{
-			"id":      account.ID.String(),
-			"balance": account.Balance,
-		},
-		Error: nil,
+	writeSuccess(w, http.StatusOK, map[string]interface{}{
+		"id":      account.ID.String(),
+		"balance": account.Balance,
 	})
 }
 
 func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	if h.withdraw == nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		writeError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		return
+	}
+
+	user, authErr := RequireUser(r.Context())
+	if authErr != nil {
+		writeError(w, http.StatusUnauthorized, authErr)
 		return
 	}
 
 	accountIDRaw := r.PathValue("id")
 	accountID, err := uuid.Parse(accountIDRaw)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "account id must be a valid UUID")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "account_id",
+		}))
 		return
 	}
 
 	var req WithdrawRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		writeError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
 		return
 	}
 
 	account, err := h.withdraw.Execute(r.Context(), application.WithdrawInput{
+		User:      user,
 		AccountID: accountID,
 		Amount:    req.Amount,
 	})
 	if err != nil {
 		log.Printf("event=withdraw error=%v", err)
-
-		switch {
-		case errors.Is(err, domain.ErrInvalidAmount):
-			writeError(w, http.StatusBadRequest, "INVALID_AMOUNT", "amount must be greater than zero")
-			return
-		case errors.Is(err, domain.ErrInvalidData):
-			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
-			return
-		case errors.Is(err, domain.ErrAccountNotFound):
-			writeError(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", "account not found")
-			return
-		case errors.Is(err, domain.ErrInsufficientBalance):
-			writeError(w, http.StatusUnprocessableEntity, "INSUFFICIENT_BALANCE", "insufficient balance")
-			return
-		case errors.Is(err, domain.ErrAccountInactive):
-			writeError(w, http.StatusUnprocessableEntity, "ACCOUNT_INACTIVE", "account is not active")
-			return
-		}
-
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		appErr, status := mapAccountError(err)
+		writeError(w, status, appErr)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response{
-		Data: map[string]interface{}{
-			"id":      account.ID.String(),
-			"balance": account.Balance,
-		},
-		Error: nil,
+	writeSuccess(w, http.StatusOK, map[string]interface{}{
+		"id":      account.ID.String(),
+		"balance": account.Balance,
 	})
 }
 
 func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	if h.transfer == nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		writeError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		return
+	}
+
+	user, authErr := RequireUser(r.Context())
+	if authErr != nil {
+		writeError(w, http.StatusUnauthorized, authErr)
 		return
 	}
 
 	var req TransferRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		writeError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
 		return
 	}
 
 	fromAccountID, err := uuid.Parse(req.FromAccountID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "from_account_id must be a valid UUID")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "from_account_id",
+		}))
 		return
 	}
 
 	toAccountID, err := uuid.Parse(req.ToAccountID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "to_account_id must be a valid UUID")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "to_account_id",
+		}))
 		return
 	}
 
 	result, err := h.transfer.Execute(r.Context(), application.TransferInput{
+		User:          user,
 		FromAccountID: fromAccountID,
 		ToAccountID:   toAccountID,
 		Amount:        req.Amount,
 	})
 	if err != nil {
 		log.Printf("event=transfer error=%v", err)
-
-		switch {
-		case errors.Is(err, domain.ErrInvalidData):
-			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
-			return
-		case errors.Is(err, domain.ErrInvalidAmount):
-			writeError(w, http.StatusBadRequest, "INVALID_AMOUNT", "amount must be greater than zero")
-			return
-		case errors.Is(err, domain.ErrSameAccountTransfer):
-			writeError(w, http.StatusBadRequest, "SAME_ACCOUNT_TRANSFER", "source and destination accounts must be different")
-			return
-		case errors.Is(err, domain.ErrAccountNotFound):
-			writeError(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", "account not found")
-			return
-		case errors.Is(err, domain.ErrInsufficientBalance):
-			writeError(w, http.StatusUnprocessableEntity, "INSUFFICIENT_BALANCE", "insufficient balance")
-			return
-		case errors.Is(err, domain.ErrAccountInactive):
-			writeError(w, http.StatusUnprocessableEntity, "ACCOUNT_INACTIVE", "account is not active")
-			return
-		}
-
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		appErr, status := mapAccountError(err)
+		writeError(w, status, appErr)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response{
-		Data: TransferData{
-			FromAccountID: result.FromAccountID.String(),
-			ToAccountID:   result.ToAccountID.String(),
-			Amount:        result.Amount,
-			FromBalance:   result.FromBalance,
-			ToBalance:     result.ToBalance,
-		},
-		Error: nil,
+	writeSuccess(w, http.StatusOK, TransferData{
+		FromAccountID: result.FromAccountID.String(),
+		ToAccountID:   result.ToAccountID.String(),
+		Amount:        result.Amount,
+		FromBalance:   result.FromBalance,
+		ToBalance:     result.ToBalance,
 	})
 }
 
 func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 	if h.statement == nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		writeError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		return
+	}
+
+	user, authErr := RequireUser(r.Context())
+	if authErr != nil {
+		writeError(w, http.StatusUnauthorized, authErr)
 		return
 	}
 
 	accountIDRaw := r.PathValue("id")
 	accountID, err := uuid.Parse(accountIDRaw)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "account id must be a valid UUID")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "account_id",
+		}))
 		return
 	}
 
 	limit, err := parseOptionalInt(r.URL.Query().Get("limit"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "limit must be a valid integer")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "limit",
+		}))
 		return
 	}
 
 	cursor, err := parseOptionalTime(r.URL.Query().Get("cursor"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "cursor must be a valid RFC3339 datetime")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "cursor",
+		}))
 		return
 	}
 
 	cursorID, err := parseOptionalUUID(r.URL.Query().Get("cursor_id"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "cursor_id must be a valid UUID")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "cursor_id",
+		}))
 		return
 	}
 
 	if (cursor == nil) != (cursorID == nil) {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "cursor and cursor_id must be provided together")
+		writeError(w, http.StatusBadRequest, sharederrors.NewError("INVALID_DATA", "Invalid data"))
 		return
 	}
 
 	from, err := parseOptionalTime(r.URL.Query().Get("from"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "from must be a valid RFC3339 datetime")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "from",
+		}))
 		return
 	}
 
 	to, err := parseOptionalTime(r.URL.Query().Get("to"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_DATA", "to must be a valid RFC3339 datetime")
+		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
+			"field": "to",
+		}))
 		return
 	}
 
 	result, err := h.statement.Execute(r.Context(), application.GetStatementInput{
+		User:      user,
 		AccountID: accountID,
 		Limit:     limit,
 		Cursor:    cursor,
@@ -299,17 +282,8 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("event=get_statement error=%v", err)
-
-		switch {
-		case errors.Is(err, domain.ErrInvalidData):
-			writeError(w, http.StatusBadRequest, "INVALID_DATA", "invalid data")
-			return
-		case errors.Is(err, domain.ErrAccountNotFound):
-			writeError(w, http.StatusNotFound, "ACCOUNT_NOT_FOUND", "account not found")
-			return
-		}
-
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		appErr, status := mapAccountError(err)
+		writeError(w, status, appErr)
 		return
 	}
 
@@ -333,14 +307,34 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, response{
-		Data: StatementData{
-			AccountID:  result.AccountID,
-			Items:      items,
-			NextCursor: nextCursor,
-		},
-		Error: nil,
+	writeSuccess(w, http.StatusOK, StatementData{
+		AccountID:  result.AccountID,
+		Items:      items,
+		NextCursor: nextCursor,
 	})
+}
+
+func mapAccountError(err error) (*sharederrors.AppError, int) {
+	switch {
+	case errors.Is(err, domain.ErrForbidden):
+		return sharederrors.ErrForbidden, http.StatusForbidden
+	case errors.Is(err, domain.ErrInvalidData):
+		return sharederrors.ErrInvalidData, http.StatusBadRequest
+	case errors.Is(err, domain.ErrInvalidAmount):
+		return sharederrors.NewError("INVALID_AMOUNT", "Invalid amount"), http.StatusBadRequest
+	case errors.Is(err, domain.ErrCustomerNotFound):
+		return sharederrors.NewError("CUSTOMER_NOT_FOUND", "Customer not found"), http.StatusNotFound
+	case errors.Is(err, domain.ErrAccountNotFound):
+		return sharederrors.NewError("ACCOUNT_NOT_FOUND", "Account not found"), http.StatusNotFound
+	case errors.Is(err, domain.ErrAccountInactive):
+		return sharederrors.NewError("ACCOUNT_INACTIVE", "Account is not active"), http.StatusUnprocessableEntity
+	case errors.Is(err, domain.ErrInsufficientBalance):
+		return sharederrors.NewError("INSUFFICIENT_BALANCE", "Insufficient balance"), http.StatusUnprocessableEntity
+	case errors.Is(err, domain.ErrSameAccountTransfer):
+		return sharederrors.NewError("SAME_ACCOUNT_TRANSFER", "Source and destination accounts must be different"), http.StatusBadRequest
+	default:
+		return sharederrors.ErrInternal, http.StatusInternalServerError
+	}
 }
 
 func parseOptionalInt(raw string) (int, error) {

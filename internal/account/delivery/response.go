@@ -1,37 +1,16 @@
 package delivery
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
+
+	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
+	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
 
-type apiError struct {
-	Code    string      `json:"code"`
-	Message string      `json:"message"`
-	Details interface{} `json:"details,omitempty"`
+func writeSuccess(w http.ResponseWriter, status int, data interface{}) {
+	sharedhttp.WriteSuccess(w, status, data)
 }
 
-type response struct {
-	Data  interface{} `json:"data"`
-	Error *apiError   `json:"error"`
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload response) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		log.Println("write response error:", err)
-	}
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	writeJSON(w, status, response{
-		Data: nil,
-		Error: &apiError{
-			Code:    code,
-			Message: message,
-		},
-	})
+func writeError(w http.ResponseWriter, status int, err *sharederrors.AppError) {
+	sharedhttp.WriteError(w, status, err)
 }

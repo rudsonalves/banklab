@@ -83,6 +83,7 @@ func (m *statementUseCaseMock) Execute(ctx context.Context, input application.Ge
 func TestHandler_CreateAccount_InvalidJSON(t *testing.T) {
 	h := &Handler{createAccount: nil}
 	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader("{"))
+	req = testAuthenticatedRequest(req, uuid.New())
 	rec := httptest.NewRecorder()
 
 	h.CreateAccount(rec, req)
@@ -110,6 +111,7 @@ func TestHandler_CreateAccount_InvalidCustomerID(t *testing.T) {
 	uc := &createAccountUseCaseMock{}
 	h := &Handler{createAccount: uc}
 	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{"customer_id":"invalid-uuid"}`))
+	req = testAuthenticatedRequest(req, uuid.New())
 	rec := httptest.NewRecorder()
 
 	h.CreateAccount(rec, req)
@@ -140,11 +142,16 @@ func TestHandler_CreateAccount_InvalidCustomerID(t *testing.T) {
 func TestHandler_CreateAccount_CustomerNotFound(t *testing.T) {
 	uc := &createAccountUseCaseMock{
 		executeFn: func(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
 			return nil, domain.ErrCustomerNotFound
 		},
 	}
 	h := &Handler{createAccount: uc}
-	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{"customer_id":"`+uuid.New().String()+`"}`))
+	customerID := uuid.New()
+	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{"customer_id":"`+customerID.String()+`"}`))
+	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
 	h.CreateAccount(rec, req)
@@ -184,11 +191,15 @@ func TestHandler_CreateAccount_Success(t *testing.T) {
 			if input.CustomerID != inputCustomerID {
 				return nil, errors.New("unexpected customer id")
 			}
+			if input.User == nil || input.User.CustomerID == nil || *input.User.CustomerID != inputCustomerID {
+				return nil, errors.New("unexpected user")
+			}
 			return returnedAccount, nil
 		},
 	}
 	h := &Handler{createAccount: uc}
 	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{"customer_id":"`+inputCustomerID.String()+`"}`))
+	req = testAuthenticatedRequest(req, inputCustomerID)
 	rec := httptest.NewRecorder()
 
 	h.CreateAccount(rec, req)
@@ -238,9 +249,27 @@ func TestHandler_CreateAccount_Success(t *testing.T) {
 	}
 }
 
+func TestHandler_Deposit_MissingAuth(t *testing.T) {
+	h := &Handler{deposit: &depositUseCaseMock{}}
+	accountID := uuid.New()
+	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
+	req.SetPathValue("id", accountID.String())
+	rec := httptest.NewRecorder()
+
+	h.Deposit(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+}
+
 func TestHandler_Deposit_AccountInactive(t *testing.T) {
+	customerID := uuid.New()
 	depositUC := &depositUseCaseMock{
 		executeFn: func(ctx context.Context, input application.DepositInput) (*domain.Account, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
 			return nil, domain.ErrAccountInactive
 		},
 	}
@@ -249,6 +278,7 @@ func TestHandler_Deposit_AccountInactive(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
 	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
 	h.Deposit(rec, req)
@@ -276,9 +306,47 @@ func TestHandler_Deposit_AccountInactive(t *testing.T) {
 	}
 }
 
+func TestHandler_Deposit_Forbidden(t *testing.T) {
+	depositUC := &depositUseCaseMock{
+		executeFn: func(ctx context.Context, input application.DepositInput) (*domain.Account, error) {
+			return nil, domain.ErrForbidden
+		},
+	}
+	h := &Handler{deposit: depositUC}
+	accountID := uuid.New()
+	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
+	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, uuid.New())
+	rec := httptest.NewRecorder()
+
+	h.Deposit(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "FORBIDDEN" {
+		t.Fatalf("expected error code %q, got %q", "FORBIDDEN", got.Error.Code)
+	}
+}
+
 func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
+	customerID := uuid.New()
 	withdrawUC := &withdrawUseCaseMock{
 		executeFn: func(ctx context.Context, input application.WithdrawInput) (*domain.Account, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
 			return nil, domain.ErrInsufficientBalance
 		},
 	}
@@ -287,6 +355,7 @@ func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/withdraw", strings.NewReader(`{"amount":100}`))
 	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
 	h.Withdraw(rec, req)
@@ -311,8 +380,12 @@ func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
 }
 
 func TestHandler_Transfer_SameAccount(t *testing.T) {
+	customerID := uuid.New()
 	transferUC := &transferUseCaseMock{
 		executeFn: func(ctx context.Context, input application.TransferInput) (*application.TransferResult, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
 			return nil, domain.ErrSameAccountTransfer
 		},
 	}
@@ -320,6 +393,7 @@ func TestHandler_Transfer_SameAccount(t *testing.T) {
 	accountID := uuid.New()
 
 	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_account_id":"`+accountID.String()+`","to_account_id":"`+accountID.String()+`","amount":100}`))
+	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
 	h.Transfer(rec, req)
@@ -347,9 +421,11 @@ func TestHandler_Statement_InvalidFromQuery(t *testing.T) {
 	statementUC := &statementUseCaseMock{}
 	h := &Handler{statement: statementUC}
 	accountID := uuid.New()
+	customerID := uuid.New()
 
 	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountID.String()+"/statement?from=not-a-date", nil)
 	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
 	h.Statement(rec, req)
@@ -378,8 +454,12 @@ func TestHandler_Statement_InvalidFromQuery(t *testing.T) {
 }
 
 func TestHandler_Statement_AccountNotFound(t *testing.T) {
+	customerID := uuid.New()
 	statementUC := &statementUseCaseMock{
 		executeFn: func(ctx context.Context, input application.GetStatementInput) (*application.Statement, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
 			return nil, domain.ErrAccountNotFound
 		},
 	}
@@ -388,6 +468,7 @@ func TestHandler_Statement_AccountNotFound(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountID.String()+"/statement", nil)
 	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
 	h.Statement(rec, req)
@@ -401,10 +482,12 @@ func TestHandler_Statement_CursorWithoutCursorID(t *testing.T) {
 	statementUC := &statementUseCaseMock{}
 	h := &Handler{statement: statementUC}
 	accountID := uuid.New()
+	customerID := uuid.New()
 	cursor := time.Now().UTC().Truncate(time.Second)
 
 	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountID.String()+"/statement?cursor="+cursor.Format(time.RFC3339), nil)
 	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
 	h.Statement(rec, req)
@@ -430,6 +513,9 @@ func TestHandler_Statement_Success(t *testing.T) {
 		executeFn: func(ctx context.Context, input application.GetStatementInput) (*application.Statement, error) {
 			if input.AccountID != accountID {
 				return nil, errors.New("unexpected account id")
+			}
+			if input.User == nil || input.User.CustomerID == nil || *input.User.CustomerID != accountID {
+				return nil, errors.New("unexpected user")
 			}
 			if input.Limit != 20 {
 				return nil, errors.New("unexpected limit")
@@ -471,6 +557,7 @@ func TestHandler_Statement_Success(t *testing.T) {
 		nil,
 	)
 	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, accountID)
 	rec := httptest.NewRecorder()
 
 	h.Statement(rec, req)

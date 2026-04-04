@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type Deposit struct {
@@ -18,6 +19,7 @@ func NewDeposit(accountRepo domain.AccountRepository) *Deposit {
 }
 
 type DepositInput struct {
+	User      *authdomain.AuthenticatedUser
 	AccountID uuid.UUID
 	Amount    int64
 }
@@ -31,52 +33,49 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 		return nil, domain.ErrInvalidAmount
 	}
 
-	tx, err := uc.accountRepo.BeginTx(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin transaction: %w", err)
-	}
-
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback(ctx)
+	var account *domain.Account
+	err = uc.accountRepo.WithTransaction(ctx, func(tx domain.Tx) error {
+		account, err = tx.GetByIDForUpdate(ctx, input.AccountID)
+		if err != nil {
+			if errors.Is(err, domain.ErrAccountNotFound) {
+				return err
+			}
+			return fmt.Errorf("get account by id: %w", err)
 		}
-	}()
 
-	account, err := tx.GetByIDForUpdate(ctx, input.AccountID)
-	if err != nil {
-		if errors.Is(err, domain.ErrAccountNotFound) {
-			return nil, err
+		if !authdomain.CanAccessAccount(input.User, account) {
+			return domain.ErrForbidden
 		}
-		return nil, fmt.Errorf("get account by id: %w", err)
-	}
 
-	if err := account.CanDeposit(input.Amount); err != nil {
+		if err := account.CanDeposit(input.Amount); err != nil {
+			return err
+		}
+
+		updatedBalance, err := tx.UpdateBalance(ctx, input.AccountID, input.Amount)
+		if err != nil {
+			if errors.Is(err, domain.ErrAccountNotFound) {
+				return err
+			}
+			return fmt.Errorf("update balance: %w", err)
+		}
+
+		ledgerTx := domain.NewTransaction(
+			input.AccountID,
+			domain.TransactionDeposit,
+			input.Amount,
+			updatedBalance,
+			nil,
+		)
+		if err := tx.CreateTransaction(ctx, ledgerTx); err != nil {
+			return fmt.Errorf("create deposit ledger transaction: %w", err)
+		}
+
+		account.Balance = updatedBalance
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	updatedBalance, err := tx.UpdateBalance(ctx, input.AccountID, input.Amount)
-	if err != nil {
-		return nil, fmt.Errorf("update balance: %w", err)
-	}
-
-	ledgerTx := domain.NewTransaction(
-		input.AccountID,
-		domain.TransactionDeposit,
-		input.Amount,
-		updatedBalance,
-		nil,
-	)
-	if err := tx.CreateTransaction(ctx, ledgerTx); err != nil {
-		return nil, fmt.Errorf("create deposit ledger transaction: %w", err)
-	}
-
-	account.Balance = updatedBalance
-
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit transaction: %w", err)
-	}
-	committed = true
 
 	return account, nil
 }
