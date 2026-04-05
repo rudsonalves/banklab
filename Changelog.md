@@ -1,5 +1,114 @@
 # Changelog
 
+## 2026/04/05 — check/adjustments-02
+
+Refactors and consolidates the error handling strategy across the application, eliminating duplication, enforcing domain-driven error definitions, and standardizing HTTP responses through shared infrastructure.
+
+### 1. Centralized Error Handling (Shared Layer)
+
+* Introduced a unified error system in `internal/shared/errors`:
+
+  * Added `AppError` struct with `Code`, `Message`, and `Status`
+  * Created `codes.go` to define all standardized error codes
+  * Implemented `mapper.go` with `MapError(err)` to translate domain errors into HTTP responses
+* Removed legacy error definitions and factories (`errors.go`)
+* Introduced `ErrInvalidRequest` as a shared sentinel error
+
+This change establishes a single source of truth for error mapping and eliminates scattered error logic across layers
+
+### 2. Domain-Driven Error Definitions
+
+* Moved all auth-related errors into `internal/auth/domain/errors.go`:
+
+  * `ErrUnauthorized`, `ErrInvalidToken`, `ErrInvalidCredentials`, etc.
+* Updated all application use cases to rely on domain errors instead of local definitions:
+
+  * `login_user.go`
+  * `register_user.go`
+  * `get_current_user.go`
+* Removed duplicated error declarations from application layer
+
+This enforces a clean architecture boundary where domain owns business semantics
+
+### 3. Removal of Application-Level Error Categorization
+
+* Deleted:
+
+  * `internal/account/application/errors.go`
+  * `internal/customer/application/errors.go`
+* Removed all categorization helpers (`CategorizeError`, `ValidationField`)
+* Eliminated `mapAccountError` and similar mapping logic from delivery layer
+
+Error interpretation is now fully delegated to the shared mapper
+
+### 4. HTTP Layer Standardization
+
+* Refactored `internal/shared/http/response.go`:
+
+  * Replaced `WriteSuccess` with `WriteJSON`
+  * Simplified `WriteError` to accept `AppError`
+  * Introduced `Response` and `ErrorBody` structs
+* Updated all handlers to use:
+
+  * `sharedhttp.WriteJSON`
+  * `sharedhttp.WriteError(sharederrors.MapError(err))`
+
+This ensures consistent response structure across all endpoints
+
+### 5. Delivery Layer Simplification
+
+* Removed custom response wrappers:
+
+  * `internal/account/delivery/response.go`
+  * custom response structs in customer delivery
+* Replaced manual error construction with centralized mapping:
+
+  * Removed inline `NewErrorWithDetails`
+  * Removed duplicated HTTP status handling
+* Updated handlers in:
+
+  * account
+  * auth
+  * customer
+    to rely exclusively on shared error and response utilities
+
+This significantly reduces boilerplate and improves maintainability
+
+### 6. Authentication Flow Adjustments
+
+* Updated `RequireUser` to return `error` instead of `AppError`
+* Standardized unauthorized handling using `domain.ErrUnauthorized`
+* Updated JWT middleware to use:
+
+  * `sharederrors.MapError(authdomain.ErrUnauthorized)`
+  * `sharederrors.MapError(authdomain.ErrInvalidToken)`
+
+This aligns authentication errors with the global error strategy
+
+### 7. Test Adjustments
+
+* Updated tests to use domain errors instead of application-level errors:
+
+  * auth use cases and handlers
+* Adjusted expected error codes:
+
+  * `INSUFFICIENT_BALANCE` → `INSUFFICIENT_FUNDS`
+* Updated HTTP response tests to reflect new API:
+
+  * `WriteSuccess` → `WriteJSON`
+  * `WriteError` signature change
+
+### 8. Minor Cleanups
+
+* Removed unused imports (`errors` in multiple files)
+* Adjusted handler dependencies and imports for consistency
+* Updated response writing logic across all modules
+
+### Conclusion
+
+This commit delivers a substantial architectural improvement by **centralizing error handling, enforcing domain ownership of business errors, and standardizing HTTP responses**. The result is a cleaner, more maintainable codebase with reduced duplication and clearer separation of concerns, particularly between domain, application, and delivery layers.
+
+
 ## 2026/04/04 — check/small_adjustments-01
 
 Applies a set of **targeted architectural refinements** focused on access control centralization, error standardization, and safer authentication handling. These changes improve consistency, reduce duplication, and strengthen boundary responsibilities across modules.

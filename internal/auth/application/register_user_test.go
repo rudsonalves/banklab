@@ -139,8 +139,8 @@ func TestRegisterUserUseCase_Execute_DuplicateEmail(t *testing.T) {
 		Password: "password123",
 	})
 
-	if !errors.Is(err, ErrEmailAlreadyExists) {
-		t.Fatalf("expected error %v, got %v", ErrEmailAlreadyExists, err)
+	if !errors.Is(err, domain.ErrEmailAlreadyExists) {
+		t.Fatalf("expected error %v, got %v", domain.ErrEmailAlreadyExists, err)
 	}
 
 	if output != nil {
@@ -166,8 +166,8 @@ func TestRegisterUserUseCase_Execute_InvalidEmail(t *testing.T) {
 		Password: "password123",
 	})
 
-	if !errors.Is(err, ErrInvalidEmail) {
-		t.Fatalf("expected error %v, got %v", ErrInvalidEmail, err)
+	if !errors.Is(err, domain.ErrInvalidEmail) {
+		t.Fatalf("expected error %v, got %v", domain.ErrInvalidEmail, err)
 	}
 
 	if output != nil {
@@ -197,8 +197,8 @@ func TestRegisterUserUseCase_Execute_InvalidPassword(t *testing.T) {
 		Password: "short",
 	})
 
-	if !errors.Is(err, ErrInvalidPassword) {
-		t.Fatalf("expected error %v, got %v", ErrInvalidPassword, err)
+	if !errors.Is(err, domain.ErrInvalidPassword) {
+		t.Fatalf("expected error %v, got %v", domain.ErrInvalidPassword, err)
 	}
 
 	if output != nil {

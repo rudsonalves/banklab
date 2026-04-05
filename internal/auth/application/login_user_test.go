@@ -170,8 +170,8 @@ func TestLoginUserUseCase_Execute_UserNotFound(t *testing.T) {
 		Password: "password123",
 	})
 
-	if !errors.Is(err, ErrInvalidCredentials) {
-		t.Fatalf("expected error %v, got %v", ErrInvalidCredentials, err)
+	if !errors.Is(err, domain.ErrInvalidCredentials) {
+		t.Fatalf("expected error %v, got %v", domain.ErrInvalidCredentials, err)
 	}
 
 	if output != nil {
@@ -205,8 +205,8 @@ func TestLoginUserUseCase_Execute_WrongPassword(t *testing.T) {
 		Password: "bad-password",
 	})
 
-	if !errors.Is(err, ErrInvalidCredentials) {
-		t.Fatalf("expected error %v, got %v", ErrInvalidCredentials, err)
+	if !errors.Is(err, domain.ErrInvalidCredentials) {
+		t.Fatalf("expected error %v, got %v", domain.ErrInvalidCredentials, err)
 	}
 
 	if output != nil {

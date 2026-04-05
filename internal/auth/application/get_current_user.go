@@ -2,14 +2,11 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
-
-var ErrUnauthorized = errors.New("unauthorized")
 
 type AuthenticatedUser = domain.AuthenticatedUser
 
@@ -53,7 +50,7 @@ func GetAuthenticatedUser(ctx context.Context) (*AuthenticatedUser, bool) {
 func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOutput, error) {
 	principal, ok := GetAuthenticatedUser(ctx)
 	if !ok || principal.UserID == "" {
-		return nil, ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	if uc.userRepo == nil {
@@ -69,7 +66,7 @@ func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOu
 		return nil, fmt.Errorf("find user by id: %w", err)
 	}
 	if user == nil {
-		return nil, ErrUnauthorized
+		return nil, domain.ErrUnauthorized
 	}
 
 	return &GetCurrentUserOutput{

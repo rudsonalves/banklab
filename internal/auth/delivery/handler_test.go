@@ -3,13 +3,13 @@ package delivery
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/seu-usuario/bank-api/internal/auth/application"
+	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type registerUserUseCaseMock struct {
@@ -98,7 +98,7 @@ func TestHandler_Register_Success(t *testing.T) {
 }
 
 func TestHandler_Register_UserAlreadyExists(t *testing.T) {
-	registerUC := &registerUserUseCaseMock{err: application.ErrEmailAlreadyExists}
+	registerUC := &registerUserUseCaseMock{err: domain.ErrEmailAlreadyExists}
 	handler := New(registerUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
 	rec := httptest.NewRecorder()
@@ -130,7 +130,7 @@ func TestHandler_Register_UserAlreadyExists(t *testing.T) {
 }
 
 func TestHandler_Login_InvalidCredentials(t *testing.T) {
-	loginUC := &loginUserUseCaseMock{err: application.ErrInvalidCredentials}
+	loginUC := &loginUserUseCaseMock{err: domain.ErrInvalidCredentials}
 	handler := New(nil, loginUC, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"wrong"}`))
 	rec := httptest.NewRecorder()
@@ -157,7 +157,7 @@ func TestHandler_Login_InvalidCredentials(t *testing.T) {
 }
 
 func TestHandler_Me_Unauthorized(t *testing.T) {
-	currentUserUC := &getCurrentUserUseCaseMock{err: application.ErrUnauthorized}
+	currentUserUC := &getCurrentUserUseCaseMock{err: domain.ErrUnauthorized}
 	handler := New(nil, nil, currentUserUC)
 	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	rec := httptest.NewRecorder()
@@ -180,17 +180,5 @@ func TestHandler_Me_Unauthorized(t *testing.T) {
 
 	if got.Error.Code != "UNAUTHORIZED" {
 		t.Fatalf("expected error code %q, got %q", "UNAUTHORIZED", got.Error.Code)
-	}
-}
-
-func TestMapError_DefaultInternal(t *testing.T) {
-	appErr, status := MapError(errors.New("boom"))
-
-	if status != http.StatusInternalServerError {
-		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, status)
-	}
-
-	if appErr == nil || appErr.Code != "INTERNAL_ERROR" {
-		t.Fatalf("expected INTERNAL_ERROR, got %#v", appErr)
 	}
 }

@@ -22,19 +22,19 @@ func (m *JWTMiddleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := bearerToken(r.Header.Get("Authorization"))
 		if !ok {
-			sharedhttp.WriteError(w, http.StatusUnauthorized, sharederrors.ErrUnauthorized)
+			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrUnauthorized))
 			return
 		}
 
 		claims, err := m.tokenService.ParseAccessToken(token)
 		if err != nil {
-			sharedhttp.WriteError(w, http.StatusUnauthorized, sharederrors.ErrInvalidToken)
+			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidToken))
 			return
 		}
 
 		customerID, ok := parseNullableCustomerID(claims.CustomerID)
 		if !ok {
-			sharedhttp.WriteError(w, http.StatusUnauthorized, sharederrors.ErrInvalidToken)
+			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidToken))
 			return
 		}
 
@@ -59,19 +59,19 @@ func (m *JWTMiddleware) OptionalAuth(next http.Handler) http.Handler {
 
 		token, ok := bearerToken(authorization)
 		if !ok {
-			sharedhttp.WriteError(w, http.StatusUnauthorized, sharederrors.ErrUnauthorized)
+			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrUnauthorized))
 			return
 		}
 
 		claims, err := m.tokenService.ParseAccessToken(token)
 		if err != nil {
-			sharedhttp.WriteError(w, http.StatusUnauthorized, sharederrors.ErrInvalidToken)
+			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidToken))
 			return
 		}
 
 		customerID, ok := parseNullableCustomerID(claims.CustomerID)
 		if !ok {
-			sharedhttp.WriteError(w, http.StatusUnauthorized, sharederrors.ErrInvalidToken)
+			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidToken))
 			return
 		}
 

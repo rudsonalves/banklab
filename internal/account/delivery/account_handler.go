@@ -9,28 +9,28 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/application"
+	"github.com/seu-usuario/bank-api/internal/account/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
+	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
 
 func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	user, authErr := RequireUser(r.Context())
 	if authErr != nil {
-		writeError(w, http.StatusUnauthorized, authErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
 		return
 	}
 
 	var req CreateAccountRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
 	customerID, err := uuid.Parse(req.CustomerID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "customer_id",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
@@ -42,12 +42,11 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	account, err := h.createAccount.Execute(r.Context(), input)
 	if err != nil {
 		log.Printf("event=create_account error=%v", err)
-		appErr, status := mapAccountError(err)
-		writeError(w, status, appErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 
-	writeSuccess(w, http.StatusCreated, AccountData{
+	sharedhttp.WriteJSON(w, http.StatusCreated, AccountData{
 		ID:         account.ID.String(),
 		CustomerID: account.CustomerID.String(),
 		Number:     account.Number,
@@ -59,28 +58,26 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 	if h.deposit == nil {
-		writeError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
 	user, authErr := RequireUser(r.Context())
 	if authErr != nil {
-		writeError(w, http.StatusUnauthorized, authErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
 		return
 	}
 
 	accountIDRaw := r.PathValue("id")
 	accountID, err := uuid.Parse(accountIDRaw)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "account_id",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	var req DepositRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
@@ -91,12 +88,11 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("event=deposit error=%v", err)
-		appErr, status := mapAccountError(err)
-		writeError(w, status, appErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 
-	writeSuccess(w, http.StatusOK, map[string]interface{}{
+	sharedhttp.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"id":      account.ID.String(),
 		"balance": account.Balance,
 	})
@@ -104,28 +100,26 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	if h.withdraw == nil {
-		writeError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
 	user, authErr := RequireUser(r.Context())
 	if authErr != nil {
-		writeError(w, http.StatusUnauthorized, authErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
 		return
 	}
 
 	accountIDRaw := r.PathValue("id")
 	accountID, err := uuid.Parse(accountIDRaw)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "account_id",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	var req WithdrawRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
@@ -136,12 +130,11 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("event=withdraw error=%v", err)
-		appErr, status := mapAccountError(err)
-		writeError(w, status, appErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 
-	writeSuccess(w, http.StatusOK, map[string]interface{}{
+	sharedhttp.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"id":      account.ID.String(),
 		"balance": account.Balance,
 	})
@@ -149,35 +142,31 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	if h.transfer == nil {
-		writeError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
 	user, authErr := RequireUser(r.Context())
 	if authErr != nil {
-		writeError(w, http.StatusUnauthorized, authErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
 		return
 	}
 
 	var req TransferRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
 	fromAccountID, err := uuid.Parse(req.FromAccountID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "from_account_id",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	toAccountID, err := uuid.Parse(req.ToAccountID)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "to_account_id",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
@@ -189,12 +178,11 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("event=transfer error=%v", err)
-		appErr, status := mapAccountError(err)
-		writeError(w, status, appErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 
-	writeSuccess(w, http.StatusOK, TransferData{
+	sharedhttp.WriteJSON(w, http.StatusOK, TransferData{
 		FromAccountID: result.FromAccountID.String(),
 		ToAccountID:   result.ToAccountID.String(),
 		Amount:        result.Amount,
@@ -205,67 +193,55 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 	if h.statement == nil {
-		writeError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
 	user, authErr := RequireUser(r.Context())
 	if authErr != nil {
-		writeError(w, http.StatusUnauthorized, authErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
 		return
 	}
 
 	accountIDRaw := r.PathValue("id")
 	accountID, err := uuid.Parse(accountIDRaw)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "account_id",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	limit, err := parseOptionalInt(r.URL.Query().Get("limit"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "limit",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	cursor, err := parseOptionalTime(r.URL.Query().Get("cursor"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "cursor",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	cursorID, err := parseOptionalUUID(r.URL.Query().Get("cursor_id"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "cursor_id",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	if (cursor == nil) != (cursorID == nil) {
-		writeError(w, http.StatusBadRequest, sharederrors.NewError("INVALID_DATA", "Invalid data"))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	from, err := parseOptionalTime(r.URL.Query().Get("from"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "from",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	to, err := parseOptionalTime(r.URL.Query().Get("to"))
 	if err != nil {
-		writeError(w, http.StatusBadRequest, sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "to",
-		}))
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
@@ -280,8 +256,7 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("event=get_statement error=%v", err)
-		appErr, status := mapAccountError(err)
-		writeError(w, status, appErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 
@@ -305,34 +280,11 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeSuccess(w, http.StatusOK, StatementData{
+	sharedhttp.WriteJSON(w, http.StatusOK, StatementData{
 		AccountID:  result.AccountID,
 		Items:      items,
 		NextCursor: nextCursor,
 	})
-}
-
-func mapAccountError(err error) (*sharederrors.AppError, int) {
-	switch application.CategorizeError(err) {
-	case application.ErrorCategoryForbidden:
-		return sharederrors.ErrForbidden, http.StatusForbidden
-	case application.ErrorCategoryInvalidData:
-		return sharederrors.ErrInvalidData, http.StatusBadRequest
-	case application.ErrorCategoryInvalidAmount:
-		return sharederrors.NewError("INVALID_AMOUNT", "Invalid amount"), http.StatusBadRequest
-	case application.ErrorCategoryCustomerNotFound:
-		return sharederrors.NewError("CUSTOMER_NOT_FOUND", "Customer not found"), http.StatusNotFound
-	case application.ErrorCategoryAccountNotFound:
-		return sharederrors.NewError("ACCOUNT_NOT_FOUND", "Account not found"), http.StatusNotFound
-	case application.ErrorCategoryAccountInactive:
-		return sharederrors.NewError("ACCOUNT_INACTIVE", "Account is not active"), http.StatusUnprocessableEntity
-	case application.ErrorCategoryInsufficientAmount:
-		return sharederrors.NewError("INSUFFICIENT_BALANCE", "Insufficient balance"), http.StatusUnprocessableEntity
-	case application.ErrorCategorySameAccount:
-		return sharederrors.NewError("SAME_ACCOUNT_TRANSFER", "Source and destination accounts must be different"), http.StatusBadRequest
-	default:
-		return sharederrors.ErrInternal, http.StatusInternalServerError
-	}
 }
 
 func parseOptionalInt(raw string) (int, error) {

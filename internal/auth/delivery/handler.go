@@ -3,7 +3,6 @@ package delivery
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 
@@ -69,13 +68,13 @@ func New(
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if h.registerUser == nil {
-		sharedhttp.WriteError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
 	var req registerUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedhttp.WriteError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
@@ -84,13 +83,12 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
-		appErr, status := MapError(err)
 		log.Printf("event=register_user error=%v", err)
-		sharedhttp.WriteError(w, status, appErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 
-	sharedhttp.WriteSuccess(w, http.StatusCreated, userData{
+	sharedhttp.WriteJSON(w, http.StatusCreated, userData{
 		ID:         output.ID,
 		Email:      output.Email,
 		Role:       output.Role,
@@ -100,13 +98,13 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.loginUser == nil {
-		sharedhttp.WriteError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
 	var req loginUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sharedhttp.WriteError(w, http.StatusBadRequest, sharederrors.ErrInvalidRequest)
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
@@ -115,13 +113,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
-		appErr, status := MapError(err)
 		log.Printf("event=login_user error=%v", err)
-		sharedhttp.WriteError(w, status, appErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 
-	sharedhttp.WriteSuccess(w, http.StatusOK, loginData{
+	sharedhttp.WriteJSON(w, http.StatusOK, loginData{
 		AccessToken: output.AccessToken,
 		UserID:      output.UserID,
 		Email:       output.Email,
@@ -132,43 +129,21 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	if h.getCurrentUser == nil {
-		sharedhttp.WriteError(w, http.StatusInternalServerError, sharederrors.ErrInternal)
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
 	output, err := h.getCurrentUser.Execute(r.Context())
 	if err != nil {
-		appErr, status := MapError(err)
 		log.Printf("event=get_current_user error=%v", err)
-		sharedhttp.WriteError(w, status, appErr)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 
-	sharedhttp.WriteSuccess(w, http.StatusOK, userData{
+	sharedhttp.WriteJSON(w, http.StatusOK, userData{
 		ID:         output.ID,
 		Email:      output.Email,
 		Role:       output.Role,
 		CustomerID: output.CustomerID,
 	})
-}
-
-func MapError(err error) (*sharederrors.AppError, int) {
-	switch {
-	case errors.Is(err, application.ErrEmailAlreadyExists):
-		return sharederrors.ErrUserAlreadyExists, http.StatusConflict
-	case errors.Is(err, application.ErrInvalidCredentials):
-		return sharederrors.ErrInvalidCredentials, http.StatusUnauthorized
-	case errors.Is(err, application.ErrUnauthorized):
-		return sharederrors.ErrUnauthorized, http.StatusUnauthorized
-	case errors.Is(err, application.ErrInvalidEmail):
-		return sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "email",
-		}), http.StatusBadRequest
-	case errors.Is(err, application.ErrInvalidPassword):
-		return sharederrors.NewErrorWithDetails("INVALID_DATA", "Invalid data", map[string]interface{}{
-			"field": "password",
-		}), http.StatusBadRequest
-	default:
-		return sharederrors.ErrInternal, http.StatusInternalServerError
-	}
 }
