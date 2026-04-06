@@ -2,6 +2,102 @@
 
 ## 2026/04/06 — check/adjustments-04
 
+Refines database migration strategy, removes legacy schema artifacts, and improves development tooling consistency. These changes align the project with a migration-first approach and reinforce separation between schema evolution and source control. 
+
+### 1. Makefile — Migration Commands Standardization
+
+* Renamed command:
+
+  * `migration` → `migrate-up`
+* Added new command:
+
+  * `migrate-down` for rollback support
+* Improves clarity and aligns naming with common migration tooling conventions
+* Enables explicit forward and backward schema control
+
+### 2. Removal of Static Schema File
+
+* Deleted `db/schema.sql`
+* Eliminates duplication between:
+
+  * static schema definition
+  * versioned migrations
+* Enforces migrations as the **single source of truth** for database structure
+* This is a correct architectural decision for long-term maintainability
+
+### 3. Docker Compose Cleanup
+
+* Removed obsolete `version` field from `docker-compose.yml`
+* Aligns with current Docker Compose specifications
+* Avoids warnings and potential confusion
+
+### 4. Initial Schema Migration Simplification
+
+* Cleaned `000000_initial_schema.up.sql`:
+
+  * removed `account_transactions` table definition
+  * removed immutability trigger and function
+* Cleaned `000000_initial_schema.down.sql`:
+
+  * removed related trigger, function, and indexes
+* Result:
+
+  * initial schema now contains only core entities (`customers`, `accounts`, `transactions`)
+  * ledger concerns moved to dedicated migration
+
+### 5. Ledger Extraction to Dedicated Migration
+
+* Refactored `account_transactions` into its own migration:
+
+  * `000002_account_transactions.up.sql`
+  * `000002_account_transactions.down.sql`
+* Improvements:
+
+  * clearer separation of concerns
+  * better migration traceability
+  * easier rollback and evolution of ledger independently
+* Added:
+
+  * descriptive header comment in migration
+  * explicit index for `(account_id, created_at DESC)`
+
+### 6. Migration Down Script Improvements
+
+* Standardized drop order:
+
+  * triggers and functions
+  * indexes
+  * tables
+* Added missing index removals:
+
+  * `idx_account_transactions_account_id`
+* Improved naming consistency and readability
+
+### 7. Index Strategy Adjustments
+
+* Consolidated ledger indexes:
+
+  * introduced composite index for account timeline queries
+* Ensures better performance for:
+
+  * statement/history queries
+  * ordered retrieval by account
+
+### Conclusion
+
+This commit improves the **structural integrity of the persistence layer** by enforcing a migration-driven approach and isolating ledger responsibilities into dedicated evolution steps.
+
+From an architectural perspective, this is a **high-quality refactor**, as it:
+
+* removes schema duplication
+* improves rollback safety
+* enhances clarity of database evolution
+
+It positions the project for safer and more controlled changes as the data model grows.
+
+
+## 2026/04/06 — check/adjustments-04
+
 Refines **idempotency handling for transfers**, standardizes repository contracts, and aligns API/documentation with updated domain semantics. Also introduces database-level support for idempotent operations and improves consistency across layers.
 
 ### 1. Application Layer — Transfer Idempotency
