@@ -12,6 +12,7 @@ import (
 	authApplication "github.com/seu-usuario/bank-api/internal/auth/application"
 	authDelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authInfrastructure "github.com/seu-usuario/bank-api/internal/auth/infrastructure"
+	"github.com/seu-usuario/bank-api/internal/bootstrap"
 	customerApplication "github.com/seu-usuario/bank-api/internal/customer/application"
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
 	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
@@ -20,6 +21,8 @@ import (
 )
 
 func main() {
+	bootstrap.Init()
+
 	db := database.NewPool()
 
 	log.Println("DB connected")

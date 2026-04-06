@@ -1,5 +1,87 @@
 # Changelog
 
+## 2026/04/05 — check/adjustments-03
+
+Introduces a centralized and extensible error registration mechanism, replacing hardcoded mappings with a registry-based approach. Also standardizes error initialization across modules and ensures consistent behavior in both runtime and test environments.
+
+### 1. Bootstrap Initialization
+
+* Added `bootstrap.Init()` in `main.go` to ensure all application errors are registered at startup
+* Introduced `internal/bootstrap` package to centralize cross-module initialization
+* Created `bootstrap.RegisterErrors()` to orchestrate error registration across:
+
+  * account
+  * customer
+  * auth
+
+### 2. Modular Error Registration per Domain
+
+* Added `errors_registry.go` in:
+
+  * `account/application`
+  * `auth/application`
+  * `customer/application`
+* Each module now:
+
+  * defines its own domain-to-AppError mappings
+  * registers errors using `RegisterDomainError`
+* Improves:
+
+  * modularity
+  * separation of concerns
+  * scalability for new domains
+
+### 3. Shared Error System Refactor
+
+* Replaced large `switch` in `MapError` with a dynamic registry-based system
+* Introduced:
+
+  * `entry` struct for matching logic
+  * global `registry` slice
+  * `Register(match, AppError)` function
+* Implemented validation:
+
+  * prevents duplicate error code registration with conflicting definitions
+* Added `RegisterDomainError` helper:
+
+  * simplifies domain error mapping using `errors.Is`
+
+### 4. Default Error Handling Improvements
+
+* Introduced `internalError()` helper for fallback responses
+* Standardized behavior:
+
+  * `nil` error returns internal error
+  * unmatched errors default to internal error
+* Added default registration for `ErrInvalidRequest` via `init()`
+
+### 5. Test Environment Consistency
+
+* Added `TestMain` setup in:
+
+  * `account/delivery`
+  * `auth/delivery`
+* Ensures error registry is initialized before test execution
+* Aligns test behavior with application runtime
+
+### 6. Architectural Impact
+
+* Eliminates coupling between shared error mapper and domain packages
+* Moves system from:
+
+  * static, tightly coupled error mapping
+  * to dynamic, pluggable registration model
+* Enables:
+
+  * independent evolution of domains
+  * safer extension of error catalog
+  * cleaner application boundaries
+
+### Conclusion
+
+This refactor significantly improves the robustness and maintainability of the error handling strategy. By introducing a registry-based approach with centralized bootstrap, the system becomes more modular, predictable, and aligned with clean architecture principles, especially regarding dependency direction and domain isolation.
+
+
 ## 2026/04/05 — check/adjustments-02
 
 Refactors and consolidates the error handling strategy across the application, eliminating duplication, enforcing domain-driven error definitions, and standardizing HTTP responses through shared infrastructure.
