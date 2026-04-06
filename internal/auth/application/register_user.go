@@ -2,19 +2,12 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
-)
-
-var (
-	ErrEmailAlreadyExists = errors.New("email already exists")
-	ErrInvalidEmail       = errors.New("invalid email")
-	ErrInvalidPassword    = errors.New("invalid password")
 )
 
 type RegisterUserUseCase struct {
@@ -50,11 +43,11 @@ func (uc *RegisterUserUseCase) Execute(
 ) (*RegisterUserOutput, error) {
 	email := normalizeEmail(input.Email)
 	if !isValidEmail(email) {
-		return nil, ErrInvalidEmail
+		return nil, domain.ErrInvalidEmail
 	}
 
 	if !isValidPassword(input.Password) {
-		return nil, ErrInvalidPassword
+		return nil, domain.ErrInvalidPassword
 	}
 
 	exists, err := uc.userRepo.ExistsByEmail(ctx, email)
@@ -62,7 +55,7 @@ func (uc *RegisterUserUseCase) Execute(
 		return nil, fmt.Errorf("check email uniqueness: %w", err)
 	}
 	if exists {
-		return nil, ErrEmailAlreadyExists
+		return nil, domain.ErrEmailAlreadyExists
 	}
 
 	hash, err := uc.hasher.Hash(input.Password)

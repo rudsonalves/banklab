@@ -12,7 +12,7 @@ import (
 func TestWriteSuccess(t *testing.T) {
 	rec := httptest.NewRecorder()
 
-	WriteSuccess(rec, http.StatusCreated, map[string]string{"id": "123"})
+	WriteJSON(rec, http.StatusCreated, map[string]string{"id": "123"})
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, rec.Code)
@@ -43,7 +43,7 @@ func TestWriteSuccess(t *testing.T) {
 func TestWriteError(t *testing.T) {
 	rec := httptest.NewRecorder()
 
-	WriteError(rec, http.StatusUnauthorized, sharederrors.ErrUnauthorized)
+	WriteError(rec, sharederrors.AppError{Code: "UNAUTHORIZED", Message: "authentication required", Status: http.StatusUnauthorized})
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)

@@ -94,8 +94,8 @@ func TestGetCurrentUserUseCase_Execute_MissingContext(t *testing.T) {
 
 	output, err := useCase.Execute(context.Background())
 
-	if !errors.Is(err, ErrUnauthorized) {
-		t.Fatalf("expected error %v, got %v", ErrUnauthorized, err)
+	if !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("expected error %v, got %v", domain.ErrUnauthorized, err)
 	}
 
 	if output != nil {
@@ -117,8 +117,8 @@ func TestGetCurrentUserUseCase_Execute_UserNotFound(t *testing.T) {
 
 	output, err := useCase.Execute(ctx)
 
-	if !errors.Is(err, ErrUnauthorized) {
-		t.Fatalf("expected error %v, got %v", ErrUnauthorized, err)
+	if !errors.Is(err, domain.ErrUnauthorized) {
+		t.Fatalf("expected error %v, got %v", domain.ErrUnauthorized, err)
 	}
 
 	if output != nil {

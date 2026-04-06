@@ -2,14 +2,11 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
-
-var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type LoginUserUseCase struct {
 	userRepo     domain.UserRepository
@@ -48,11 +45,11 @@ func (uc *LoginUserUseCase) Execute(
 ) (*LoginUserOutput, error) {
 	email := normalizeEmail(input.Email)
 	if email == "" {
-		return nil, ErrInvalidEmail
+		return nil, domain.ErrInvalidEmail
 	}
 
 	if strings.TrimSpace(input.Password) == "" {
-		return nil, ErrInvalidPassword
+		return nil, domain.ErrInvalidPassword
 	}
 
 	user, err := uc.userRepo.FindByEmail(ctx, email)
@@ -60,11 +57,11 @@ func (uc *LoginUserUseCase) Execute(
 		return nil, fmt.Errorf("find user by email: %w", err)
 	}
 	if user == nil {
-		return nil, ErrInvalidCredentials
+		return nil, domain.ErrInvalidCredentials
 	}
 
 	if err := uc.hasher.Compare(user.PasswordHash, input.Password); err != nil {
-		return nil, ErrInvalidCredentials
+		return nil, domain.ErrInvalidCredentials
 	}
 
 	token, err := uc.tokenService.GenerateAccessToken(domain.TokenClaims{

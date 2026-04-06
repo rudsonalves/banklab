@@ -6,7 +6,7 @@ import (
 	"github.com/seu-usuario/bank-api/internal/account/application"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	authdelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
-	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type createAccountUseCase interface {
@@ -53,10 +53,10 @@ func New(
 	}
 }
 
-func RequireUser(ctx context.Context) (*authdelivery.AuthenticatedUser, *sharederrors.AppError) {
+func RequireUser(ctx context.Context) (*authdelivery.AuthenticatedUser, error) {
 	user, ok := authdelivery.GetAuthenticatedUser(ctx)
 	if !ok || user == nil {
-		return nil, sharederrors.ErrUnauthorized
+		return nil, authdomain.ErrUnauthorized
 	}
 
 	return user, nil

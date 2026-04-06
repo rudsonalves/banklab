@@ -374,8 +374,8 @@ func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
 		t.Fatalf("failed to decode response body: %v", err)
 	}
 
-	if got.Error.Code != "INSUFFICIENT_BALANCE" {
-		t.Fatalf("expected error code %q, got %q", "INSUFFICIENT_BALANCE", got.Error.Code)
+	if got.Error.Code != "INSUFFICIENT_FUNDS" {
+		t.Fatalf("expected error code %q, got %q", "INSUFFICIENT_FUNDS", got.Error.Code)
 	}
 }
 

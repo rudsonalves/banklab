@@ -8,30 +8,35 @@ import (
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 )
 
-type response struct {
-	Data  interface{}            `json:"data"`
-	Error *sharederrors.AppError `json:"error"`
+type Response struct {
+	Data  any        `json:"data"`
+	Error *ErrorBody `json:"error"`
 }
 
-func WriteSuccess(w http.ResponseWriter, status int, data interface{}) {
-	writeJSON(w, status, response{
+type ErrorBody struct {
+	Code    string      `json:"code"`
+	Message string      `json:"message"`
+	Details interface{} `json:"details,omitempty"`
+}
+
+func WriteJSON(w http.ResponseWriter, status int, data any) {
+	writeResponse(w, status, Response{
 		Data:  data,
 		Error: nil,
 	})
 }
 
-func WriteError(w http.ResponseWriter, status int, err *sharederrors.AppError) {
-	if err == nil {
-		err = sharederrors.ErrInternal
-	}
-
-	writeJSON(w, status, response{
-		Data:  nil,
-		Error: err,
+func WriteError(w http.ResponseWriter, appErr sharederrors.AppError) {
+	writeResponse(w, appErr.Status, Response{
+		Data: nil,
+		Error: &ErrorBody{
+			Code:    appErr.Code,
+			Message: appErr.Message,
+		},
 	})
 }
 
-func writeJSON(w http.ResponseWriter, status int, payload response) {
+func writeResponse(w http.ResponseWriter, status int, payload Response) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
