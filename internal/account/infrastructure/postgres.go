@@ -116,6 +116,78 @@ func (r *Repository) CreateTransaction(ctx context.Context, tx *domain.Transacti
 	return r.base.CreateTransaction(ctx, tx)
 }
 
+func (r *baseRepository) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	var operation domain.Operation
+
+	query := `
+		SELECT id, account_id, type, amount, description, related_account_id, reference_id, idempotency_key, created_at
+		FROM transactions
+		WHERE account_id = $1 AND idempotency_key = $2
+		LIMIT 1
+	`
+
+	err := r.exec.QueryRow(ctx, query, accountID, key).Scan(
+		&operation.ID,
+		&operation.AccountID,
+		&operation.Type,
+		&operation.Amount,
+		&operation.Description,
+		&operation.RelatedAccountID,
+		&operation.ReferenceID,
+		&operation.IdempotencyKey,
+		&operation.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get operation by idempotency key: %w", err)
+	}
+
+	return &operation, nil
+}
+
+func (r *Repository) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	return r.base.GetOperationByIdempotencyKey(ctx, accountID, key)
+}
+
+func (r *baseRepository) CreateOperation(ctx context.Context, op *domain.Operation) error {
+	query := `
+		INSERT INTO transactions (
+			id, account_id, type, amount, description, related_account_id, reference_id, idempotency_key, created_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (account_id, idempotency_key)
+		WHERE idempotency_key IS NOT NULL
+		DO NOTHING
+	`
+
+	cmd, err := r.exec.Exec(ctx, query,
+		op.ID,
+		op.AccountID,
+		op.Type,
+		op.Amount,
+		op.Description,
+		op.RelatedAccountID,
+		op.ReferenceID,
+		op.IdempotencyKey,
+		op.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("create operation: %w", err)
+	}
+
+	if cmd.RowsAffected() == 0 {
+		return domain.ErrOperationAlreadyProcessed
+	}
+
+	return nil
+}
+
+func (r *Repository) CreateOperation(ctx context.Context, op *domain.Operation) error {
+	return r.base.CreateOperation(ctx, op)
+}
+
 func (r *baseRepository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	query := `
 		SELECT 1
@@ -279,7 +351,7 @@ func (r *Repository) GetTransactions(
 	return r.base.GetTransactions(ctx, accountID, limit, cursorTime, cursorID, from, to)
 }
 
-func (r *baseRepository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+func (r *baseRepository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	var balance int64
 
 	query := `
@@ -292,7 +364,7 @@ func (r *baseRepository) UpdateBalance(ctx context.Context, id uuid.UUID, amount
 	err := r.exec.QueryRow(ctx, query, amount, id).Scan(&balance)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, domain.ErrAccountNotFound
+			return 0, domain.ErrInvalidAmount
 		}
 		return 0, fmt.Errorf("update balance: %w", err)
 	}
@@ -300,8 +372,8 @@ func (r *baseRepository) UpdateBalance(ctx context.Context, id uuid.UUID, amount
 	return balance, nil
 }
 
-func (r *Repository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return r.base.UpdateBalance(ctx, id, amount)
+func (r *Repository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	return r.base.IncreaseBalance(ctx, id, amount)
 }
 
 func (r *baseRepository) accountExists(ctx context.Context, id uuid.UUID) (bool, error) {
@@ -323,7 +395,7 @@ func (r *baseRepository) accountExists(ctx context.Context, id uuid.UUID) (bool,
 	return true, nil
 }
 
-func (r *baseRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (r *baseRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	var balance int64
 
 	query := `
@@ -339,20 +411,20 @@ func (r *baseRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amou
 		if errors.Is(err, pgx.ErrNoRows) {
 			exists, existsErr := r.accountExists(ctx, id)
 			if existsErr != nil {
-				return fmt.Errorf("decrease balance: %w", existsErr)
+				return 0, fmt.Errorf("decrease balance: %w", existsErr)
 			}
 			if !exists {
-				return domain.ErrAccountNotFound
+				return 0, domain.ErrAccountNotFound
 			}
-			return domain.ErrInsufficientBalance
+			return 0, domain.ErrInsufficientBalance
 		}
-		return fmt.Errorf("decrease balance: %w", err)
+		return 0, fmt.Errorf("decrease balance: %w", err)
 	}
 
-	return nil
+	return balance, nil
 }
 
-func (r *Repository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (r *Repository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	return r.base.DecreaseBalance(ctx, id, amount)
 }
 
@@ -408,6 +480,14 @@ func (r *txRepository) CreateTransaction(ctx context.Context, tx *domain.Transac
 	return r.base.CreateTransaction(ctx, tx)
 }
 
+func (r *txRepository) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	return r.base.GetOperationByIdempotencyKey(ctx, accountID, key)
+}
+
+func (r *txRepository) CreateOperation(ctx context.Context, op *domain.Operation) error {
+	return r.base.CreateOperation(ctx, op)
+}
+
 func (r *txRepository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return r.base.ExistsByCustomerID(ctx, customerID)
 }
@@ -432,11 +512,11 @@ func (r *txRepository) GetTransactions(
 	return r.base.GetTransactions(ctx, accountID, limit, cursorTime, cursorID, from, to)
 }
 
-func (r *txRepository) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return r.base.UpdateBalance(ctx, id, amount)
+func (r *txRepository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	return r.base.IncreaseBalance(ctx, id, amount)
 }
 
-func (r *txRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (r *txRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	return r.base.DecreaseBalance(ctx, id, amount)
 }
 

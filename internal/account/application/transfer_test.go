@@ -24,6 +24,14 @@ func (m *transferAccountRepositoryMock) CreateTransaction(ctx context.Context, t
 	return nil
 }
 
+func (m *transferAccountRepositoryMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	return nil, nil
+}
+
+func (m *transferAccountRepositoryMock) CreateOperation(ctx context.Context, op *domain.Operation) error {
+	return nil
+}
+
 func (m *transferAccountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -52,12 +60,12 @@ func (m *transferAccountRepositoryMock) GetTransactions(
 	return nil, nil
 }
 
-func (m *transferAccountRepositoryMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+func (m *transferAccountRepositoryMock) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	return 0, nil
 }
 
-func (m *transferAccountRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
-	return nil
+func (m *transferAccountRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	return 0, nil
 }
 
 func (m *transferAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error) {
@@ -86,10 +94,17 @@ type transferTxMock struct {
 	lockedOrder            []uuid.UUID
 	accounts               map[uuid.UUID]*domain.Account
 	getForUpdateErrs       map[uuid.UUID]error
+	decreaseBalanceValue   int64
 	decreaseBalanceErr     error
 	updateBalanceValues    map[uuid.UUID]int64
 	updateBalanceErr       error
 	createTransactionErr   error
+	getOperationResult     *domain.Operation
+	getOperationResults    []*domain.Operation
+	getOperationErr        error
+	createOperationErr     error
+	createOperationCalls   int
+	getOperationCalls      int
 	commitErr              error
 	rollbackErr            error
 	decreaseCalls          int
@@ -108,6 +123,26 @@ func (m *transferTxMock) CreateTransaction(ctx context.Context, tx *domain.Trans
 	m.createTransactionCalls++
 	m.createdTransactions = append(m.createdTransactions, tx)
 	return m.createTransactionErr
+}
+
+func (m *transferTxMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	m.getOperationCalls++
+	if m.getOperationErr != nil {
+		return nil, m.getOperationErr
+	}
+
+	if len(m.getOperationResults) > 0 {
+		result := m.getOperationResults[0]
+		m.getOperationResults = m.getOperationResults[1:]
+		return result, nil
+	}
+
+	return m.getOperationResult, nil
+}
+
+func (m *transferTxMock) CreateOperation(ctx context.Context, op *domain.Operation) error {
+	m.createOperationCalls++
+	return m.createOperationErr
 }
 
 func (m *transferTxMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
@@ -153,7 +188,7 @@ func (m *transferTxMock) GetTransactions(
 	return nil, nil
 }
 
-func (m *transferTxMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+func (m *transferTxMock) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	m.updateCalls++
 	if m.updateBalanceErr != nil {
 		return 0, m.updateBalanceErr
@@ -164,9 +199,9 @@ func (m *transferTxMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount
 	return 0, nil
 }
 
-func (m *transferTxMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (m *transferTxMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	m.decreaseCalls++
-	return m.decreaseBalanceErr
+	return m.decreaseBalanceValue, m.decreaseBalanceErr
 }
 
 func (m *transferTxMock) BeginTx(ctx context.Context) (domain.Tx, error) {
@@ -370,7 +405,8 @@ func TestTransfer_Execute_Success(t *testing.T) {
 			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
-		updateBalanceValues: map[uuid.UUID]int64{toID: 70},
+		decreaseBalanceValue: 50,
+		updateBalanceValues:  map[uuid.UUID]int64{toID: 70},
 	}
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
@@ -442,6 +478,130 @@ func TestTransfer_Execute_Success(t *testing.T) {
 	}
 }
 
+func TestTransfer_Execute_IdempotencyKeyAlreadyProcessed(t *testing.T) {
+	fromID := uuid.New()
+	toID := uuid.New()
+	customerID := uuid.New()
+	key := "idem-key-1"
+
+	tx := &transferTxMock{
+		accounts: map[uuid.UUID]*domain.Account{
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 50},
+			toID:   {ID: toID, Status: domain.AccountActive, Balance: 70},
+		},
+		getOperationResult: &domain.Operation{
+			ID:               uuid.New(),
+			AccountID:        fromID,
+			Type:             domain.TransactionTransferOut,
+			Amount:           50,
+			RelatedAccountID: &toID,
+			IdempotencyKey:   &key,
+		},
+	}
+	repo := &transferAccountRepositoryMock{tx: tx}
+	useCase := NewTransfer(repo)
+
+	result, err := useCase.Execute(context.Background(), TransferInput{
+		User:           testCustomerUser(customerID),
+		FromAccountID:  fromID,
+		ToAccountID:    toID,
+		Amount:         50,
+		IdempotencyKey: key,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("expected result to be non-nil")
+	}
+
+	if result.FromBalance != 50 || result.ToBalance != 70 {
+		t.Fatalf("expected balances from replay to be 50 and 70, got %d and %d", result.FromBalance, result.ToBalance)
+	}
+
+	if tx.decreaseCalls != 0 || tx.updateCalls != 0 {
+		t.Fatalf("expected no balance mutation calls, got decrease=%d increase=%d", tx.decreaseCalls, tx.updateCalls)
+	}
+
+	if tx.createTransactionCalls != 0 {
+		t.Fatalf("expected no ledger writes, got %d", tx.createTransactionCalls)
+	}
+
+	if tx.createOperationCalls != 0 {
+		t.Fatalf("expected no operation insert, got %d", tx.createOperationCalls)
+	}
+
+	if tx.commitCalls != 1 {
+		t.Fatalf("expected commit once, got %d", tx.commitCalls)
+	}
+}
+
+func TestTransfer_Execute_IdempotencyConflictRollsBackDuplicateMutation(t *testing.T) {
+	fromID := uuid.New()
+	toID := uuid.New()
+	customerID := uuid.New()
+	key := "idem-key-2"
+
+	tx := &transferTxMock{
+		accounts: map[uuid.UUID]*domain.Account{
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
+			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
+		},
+		decreaseBalanceValue: 50,
+		updateBalanceValues:  map[uuid.UUID]int64{toID: 70},
+		getOperationResults: []*domain.Operation{
+			nil,
+			{
+				ID:               uuid.New(),
+				AccountID:        fromID,
+				Type:             domain.TransactionTransferOut,
+				Amount:           50,
+				RelatedAccountID: &toID,
+				IdempotencyKey:   &key,
+			},
+		},
+		createOperationErr: domain.ErrOperationAlreadyProcessed,
+	}
+	repo := &transferAccountRepositoryMock{tx: tx}
+	useCase := NewTransfer(repo)
+
+	result, err := useCase.Execute(context.Background(), TransferInput{
+		User:           testCustomerUser(customerID),
+		FromAccountID:  fromID,
+		ToAccountID:    toID,
+		Amount:         50,
+		IdempotencyKey: key,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("expected result to be non-nil")
+	}
+
+	if tx.decreaseCalls != 1 || tx.updateCalls != 1 {
+		t.Fatalf("expected attempted mutation once before conflict, got decrease=%d increase=%d", tx.decreaseCalls, tx.updateCalls)
+	}
+
+	if tx.createTransactionCalls != 2 {
+		t.Fatalf("expected two attempted ledger writes before conflict rollback, got %d", tx.createTransactionCalls)
+	}
+
+	if tx.createOperationCalls != 1 {
+		t.Fatalf("expected one operation insert attempt, got %d", tx.createOperationCalls)
+	}
+
+	if tx.rollbackCalls != 1 {
+		t.Fatalf("expected rollback once for duplicate execution, got %d", tx.rollbackCalls)
+	}
+
+	if tx.commitCalls != 0 {
+		t.Fatalf("expected no commit on duplicate execution, got %d", tx.commitCalls)
+	}
+}
+
 func TestTransfer_Execute_DebitFailure(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
@@ -482,7 +642,8 @@ func TestTransfer_Execute_CreditFailure(t *testing.T) {
 			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
-		updateBalanceErr: expectedErr,
+		decreaseBalanceValue: 50,
+		updateBalanceErr:     expectedErr,
 	}
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
@@ -524,8 +685,9 @@ func TestTransfer_Execute_CommitFailure(t *testing.T) {
 			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
-		updateBalanceValues: map[uuid.UUID]int64{toID: 70},
-		commitErr:           expectedErr,
+		decreaseBalanceValue: 50,
+		updateBalanceValues:  map[uuid.UUID]int64{toID: 70},
+		commitErr:            expectedErr,
 	}
 	repo := &transferAccountRepositoryMock{tx: tx}
 	useCase := NewTransfer(repo)
@@ -586,6 +748,7 @@ func TestTransfer_Execute_LedgerInsertFailure(t *testing.T) {
 			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
 			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
 		},
+		decreaseBalanceValue: 50,
 		updateBalanceValues:  map[uuid.UUID]int64{toID: 70},
 		createTransactionErr: expectedErr,
 	}

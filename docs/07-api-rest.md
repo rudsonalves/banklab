@@ -175,7 +175,7 @@ Success response (201):
 Possible errors:
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_DATA: missing/invalid fields
-- 409 CUSTOMER_ALREADY_EXISTS: duplicate CPF or email
+- 409 USER_ALREADY_EXISTS: duplicate CPF or email
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ## 5. Account Endpoints
@@ -292,7 +292,7 @@ Possible errors:
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 403 FORBIDDEN: access denied to account
 - 404 ACCOUNT_NOT_FOUND: account does not exist
-- 422 INSUFFICIENT_BALANCE: insufficient funds
+- 422 INSUFFICIENT_FUNDS: insufficient funds
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -336,7 +336,7 @@ Possible errors:
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
 - 403 FORBIDDEN: access denied to account
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
-- 422 INSUFFICIENT_BALANCE: source account has insufficient funds
+- 422 INSUFFICIENT_FUNDS: source account has insufficient funds
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -379,6 +379,17 @@ Success response (200):
 }
 ```
 
+When there are more results, `next_cursor` is an object — pass both fields as query params for the next page:
+
+```json
+{
+  "next_cursor": {
+    "created_at": "2026-04-02T11:59:00Z",
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  }
+}
+```
+
 Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
@@ -393,16 +404,15 @@ Common error codes currently used by handlers:
 - INVALID_REQUEST
 - INVALID_DATA
 - INVALID_AMOUNT
-- CUSTOMER_ALREADY_EXISTS
-- CUSTOMER_NOT_FOUND
 - USER_ALREADY_EXISTS
+- CUSTOMER_NOT_FOUND
 - INVALID_CREDENTIALS
 - UNAUTHORIZED
 - INVALID_TOKEN
 - FORBIDDEN
 - ACCOUNT_NOT_FOUND
 - ACCOUNT_INACTIVE
-- INSUFFICIENT_BALANCE
+- INSUFFICIENT_FUNDS
 - SAME_ACCOUNT_TRANSFER
 - INTERNAL_ERROR
 

@@ -28,6 +28,14 @@ func (m *accountRepositoryMock) CreateTransaction(ctx context.Context, tx *domai
 	return nil
 }
 
+func (m *accountRepositoryMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	return nil, nil
+}
+
+func (m *accountRepositoryMock) CreateOperation(ctx context.Context, op *domain.Operation) error {
+	return nil
+}
+
 func (m *accountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	m.existsByCustomerIDCalls++
 	return false, nil
@@ -58,12 +66,12 @@ func (m *accountRepositoryMock) GetTransactions(
 	return nil, nil
 }
 
-func (m *accountRepositoryMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+func (m *accountRepositoryMock) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	return 0, nil
 }
 
-func (m *accountRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
-	return nil
+func (m *accountRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	return 0, nil
 }
 
 func (m *accountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error) {

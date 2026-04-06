@@ -175,6 +175,7 @@ func TestWithdraw_Execute_Success(t *testing.T) {
 			Balance:    initialBalance,
 			Status:     domain.AccountActive,
 		},
+		decreaseBalanceValue: initialBalance - withdrawAmount,
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
 	useCase := NewWithdraw(repo)
@@ -237,6 +238,7 @@ func TestWithdraw_Execute_LedgerInsertFailure(t *testing.T) {
 			Balance:    200,
 			Status:     domain.AccountActive,
 		},
+		decreaseBalanceValue: 190,
 		createTransactionErr: expectedErr,
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
@@ -278,6 +280,7 @@ func TestWithdraw_Execute_AdminAllowed(t *testing.T) {
 			Balance:    100,
 			Status:     domain.AccountActive,
 		},
+		decreaseBalanceValue: 90,
 	}
 	repo := &depositAccountRepositoryMock{tx: tx}
 	useCase := NewWithdraw(repo)

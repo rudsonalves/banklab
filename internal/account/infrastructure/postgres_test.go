@@ -79,6 +79,12 @@ func (f *fakeTx) Create(ctx context.Context, account *domain.Account) error { re
 
 func (f *fakeTx) CreateTransaction(ctx context.Context, tx *domain.Transaction) error { return nil }
 
+func (f *fakeTx) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	return nil, nil
+}
+
+func (f *fakeTx) CreateOperation(ctx context.Context, op *domain.Operation) error { return nil }
+
 func (f *fakeTx) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -103,11 +109,13 @@ func (f *fakeTx) GetTransactions(
 	return nil, nil
 }
 
-func (f *fakeTx) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+func (f *fakeTx) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	return 0, nil
 }
 
-func (f *fakeTx) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error { return nil }
+func (f *fakeTx) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	return 0, nil
+}
 
 func (f *fakeTx) BeginTx(ctx context.Context) (domain.Tx, error) {
 	return nil, errors.New("nested transactions are not supported")
@@ -133,7 +141,7 @@ func TestDecreaseBalance_AccountNotFound(t *testing.T) {
 		fakeRow{err: pgx.ErrNoRows},
 	}}}
 
-	err := repo.DecreaseBalance(context.Background(), uuid.New(), 10)
+	_, err := repo.DecreaseBalance(context.Background(), uuid.New(), 10)
 	if !errors.Is(err, domain.ErrAccountNotFound) {
 		t.Fatalf("expected ErrAccountNotFound, got %v", err)
 	}
@@ -145,7 +153,7 @@ func TestDecreaseBalance_InsufficientBalance(t *testing.T) {
 		fakeRow{setInt: true, intValue: 1},
 	}}}
 
-	err := repo.DecreaseBalance(context.Background(), uuid.New(), 10)
+	_, err := repo.DecreaseBalance(context.Background(), uuid.New(), 10)
 	if !errors.Is(err, domain.ErrInsufficientBalance) {
 		t.Fatalf("expected ErrInsufficientBalance, got %v", err)
 	}
@@ -156,9 +164,12 @@ func TestDecreaseBalance_Success(t *testing.T) {
 		fakeRow{setI64: true, i64Value: 90},
 	}}}
 
-	err := repo.DecreaseBalance(context.Background(), uuid.New(), 10)
+	balance, err := repo.DecreaseBalance(context.Background(), uuid.New(), 10)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
+	}
+	if balance != 90 {
+		t.Fatalf("expected balance 90, got %d", balance)
 	}
 }
 
@@ -172,8 +183,8 @@ func TestDecreaseBalance_RepositoryAndTxRepositoryParity(t *testing.T) {
 		fakeRow{setInt: true, intValue: 1},
 	}}}}
 
-	errRepo := repo.DecreaseBalance(context.Background(), uuid.New(), 10)
-	errTx := txRepo.DecreaseBalance(context.Background(), uuid.New(), 10)
+	_, errRepo := repo.DecreaseBalance(context.Background(), uuid.New(), 10)
+	_, errTx := txRepo.DecreaseBalance(context.Background(), uuid.New(), 10)
 	if !errors.Is(errRepo, domain.ErrInsufficientBalance) {
 		t.Fatalf("expected repository error ErrInsufficientBalance, got %v", errRepo)
 	}

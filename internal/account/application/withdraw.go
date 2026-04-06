@@ -51,14 +51,15 @@ func (uc *Withdraw) Execute(ctx context.Context, input WithdrawInput) (_ *domain
 			return err
 		}
 
-		if err := tx.DecreaseBalance(ctx, input.AccountID, input.Amount); err != nil {
+		updatedBalance, err := tx.DecreaseBalance(ctx, input.AccountID, input.Amount)
+		if err != nil {
 			if errors.Is(err, domain.ErrAccountNotFound) || errors.Is(err, domain.ErrInsufficientBalance) {
 				return err
 			}
 			return fmt.Errorf("decrease balance: %w", err)
 		}
 
-		account.Balance -= input.Amount
+		account.Balance = updatedBalance
 
 		ledgerTx := domain.NewTransaction(
 			input.AccountID,
