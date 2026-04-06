@@ -51,7 +51,7 @@ func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.A
 			return err
 		}
 
-		updatedBalance, err := tx.UpdateBalance(ctx, input.AccountID, input.Amount)
+		updatedBalance, err := tx.IncreaseBalance(ctx, input.AccountID, input.Amount)
 		if err != nil {
 			if errors.Is(err, domain.ErrAccountNotFound) {
 				return err

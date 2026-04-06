@@ -1,3 +1,5 @@
+-- MIGRATION: 000002_account_transactions.up.sql
+-- This migration creates the account_transactions table, which serves as an immutable ledger of all transactions affecting
 CREATE TABLE account_transactions (
     id UUID PRIMARY KEY,
     account_id UUID NOT NULL REFERENCES accounts(id),
@@ -28,3 +30,6 @@ ON account_transactions(reference_id);
 
 CREATE INDEX idx_account_transactions_created_at
 ON account_transactions(created_at DESC);
+
+CREATE INDEX idx_account_transactions_account_created
+ON account_transactions(account_id, created_at DESC);

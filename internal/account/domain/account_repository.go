@@ -14,6 +14,9 @@ type TransactionRepository interface {
 type AccountRepository interface {
 	TransactionRepository
 
+	GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*Operation, error)
+	CreateOperation(ctx context.Context, op *Operation) error
+
 	Create(ctx context.Context, account *Account) error
 	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)
 	NextAccountNumber(ctx context.Context) (string, error)
@@ -29,11 +32,11 @@ type AccountRepository interface {
 		from *time.Time,
 		to *time.Time,
 	) ([]Transaction, error)
-	UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
+	IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
 	// DecreaseBalance performs an atomic balance decrement.
 	// It returns ErrAccountNotFound when the account does not exist and
 	// ErrInsufficientBalance when the account exists but has insufficient funds.
-	DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error
+	DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
 
 	BeginTx(ctx context.Context) (Tx, error)
 	WithTransaction(ctx context.Context, fn func(tx Tx) error) error

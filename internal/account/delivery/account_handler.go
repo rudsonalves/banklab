@@ -171,10 +171,11 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.transfer.Execute(r.Context(), application.TransferInput{
-		User:          user,
-		FromAccountID: fromAccountID,
-		ToAccountID:   toAccountID,
-		Amount:        req.Amount,
+		User:           user,
+		FromAccountID:  fromAccountID,
+		ToAccountID:    toAccountID,
+		Amount:         req.Amount,
+		IdempotencyKey: req.IdempotencyKey,
 	})
 	if err != nil {
 		log.Printf("event=transfer error=%v", err)

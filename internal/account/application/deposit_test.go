@@ -24,6 +24,14 @@ func (m *depositAccountRepositoryMock) CreateTransaction(ctx context.Context, tx
 	return nil
 }
 
+func (m *depositAccountRepositoryMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	return nil, nil
+}
+
+func (m *depositAccountRepositoryMock) CreateOperation(ctx context.Context, op *domain.Operation) error {
+	return nil
+}
+
 func (m *depositAccountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -52,12 +60,12 @@ func (m *depositAccountRepositoryMock) GetTransactions(
 	return nil, nil
 }
 
-func (m *depositAccountRepositoryMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+func (m *depositAccountRepositoryMock) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	return 0, nil
 }
 
-func (m *depositAccountRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
-	return nil
+func (m *depositAccountRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+	return 0, nil
 }
 
 func (m *depositAccountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error) {
@@ -95,6 +103,7 @@ type txMock struct {
 	getByIDErr           error
 	updateBalanceValue   int64
 	updateBalanceErr     error
+	decreaseBalanceValue int64
 	decreaseBalanceErr   error
 	createTransactionErr error
 	createdTransactions  []*domain.Transaction
@@ -110,6 +119,14 @@ func (m *txMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) 
 	m.createTransactionCalls++
 	m.createdTransactions = append(m.createdTransactions, tx)
 	return m.createTransactionErr
+}
+
+func (m *txMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+	return nil, nil
+}
+
+func (m *txMock) CreateOperation(ctx context.Context, op *domain.Operation) error {
+	return nil
 }
 
 func (m *txMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
@@ -148,14 +165,14 @@ func (m *txMock) GetTransactions(
 	return nil, nil
 }
 
-func (m *txMock) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
+func (m *txMock) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	m.updateBalanceCalls++
 	return m.updateBalanceValue, m.updateBalanceErr
 }
 
-func (m *txMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) error {
+func (m *txMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	m.decreaseBalanceCalls++
-	return m.decreaseBalanceErr
+	return m.decreaseBalanceValue, m.decreaseBalanceErr
 }
 
 func (m *txMock) BeginTx(ctx context.Context) (domain.Tx, error) {

@@ -20,8 +20,11 @@ help:
 # =========================
 # Database
 # =========================
-migration: ## Run database migrations
+migrate-up: ## Run database migrations
 	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" up
+
+migrate-down: ## Rollback last database migration
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down
 
 # =========================
 # Git
