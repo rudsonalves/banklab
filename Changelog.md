@@ -1,6 +1,99 @@
 # Changelog
 
-## 2026/04/06 — check/adjustments-04
+## 2026/04/07 — check/adjustments-06
+
+Standardizes **UUID usage across the authentication and authorization layers**, replacing string-based identifiers with strong typing, improving type safety, consistency, and alignment with the system’s domain model.
+
+### 1. Domain Model Refactor — UUID as First-Class Identifier
+
+* Replaced all `string` identifiers with `uuid.UUID` in:
+
+  * `AuthenticatedUser`
+  * `User`
+  * `TokenClaims`
+* Updated `CustomerID` to `*uuid.UUID` across domain structures
+* Eliminates implicit conversions and enforces **type-safe identity handling at the domain level**
+* Aligns with system-wide decision of UUID as canonical identifier 
+
+### 2. Repository Contract Changes
+
+* Updated `UserRepository` interface:
+
+  * `FindByID(ctx, id uuid.UUID)`
+* Refactored PostgreSQL implementation:
+
+  * removed `sql.NullString` usage
+  * introduced `nullableUUIDValue`
+  * direct scanning into `*uuid.UUID`
+* Improves correctness and removes fragile string parsing logic
+
+### 3. JWT Handling — Strong Typing and Validation
+
+* Refactored token generation:
+
+  * `UserID` now stored as UUID (`Subject`)
+  * `CustomerID` serialized only when present
+* Refactored token parsing:
+
+  * explicit UUID parsing for `sub` and `cid`
+  * validation errors for invalid UUID claims
+* Removed `parseNullableCustomerID` helper (no longer needed)
+* Middleware now directly propagates typed claims to context
+* This change significantly improves **security and correctness of authentication flow**
+
+### 4. Application Layer Adjustments
+
+* Updated use cases:
+
+  * `GetCurrentUser`
+  * `LoginUser`
+  * `RegisterUser`
+* Internal processing uses `uuid.UUID`, while outputs are converted to string:
+
+  * ensures compatibility with HTTP contract
+* Replaced empty string checks with `uuid.Nil` validation
+* Introduced consistent conversion helpers (`nullableUUIDToString`)
+
+### 5. Delivery Layer Updates
+
+* Middleware simplified:
+
+  * removed redundant parsing/validation logic
+  * relies on infrastructure-level guarantees
+* Context propagation now carries strongly typed `AuthenticatedUser`
+* Maintains API contract unchanged (string-based UUIDs in responses) 
+
+### 6. Test Suite Refactor
+
+* Updated all tests to use UUID instead of string IDs:
+
+  * application tests
+  * delivery tests
+  * infrastructure tests
+* Introduced deterministic UUIDs where necessary (`uuid.MustParse`)
+* Adjusted mocks and assertions to reflect new types
+* Removed obsolete test cases related to invalid string parsing
+
+### 7. Access Policy and Authorization Tests
+
+* Updated access control tests to use UUID-based users
+* Ensures consistency with new identity model
+* Eliminates discrepancies between test data and production behavior
+
+### Conclusion
+
+This commit delivers a **high-impact structural improvement** by enforcing UUID as the canonical identifier across the entire auth module.
+
+Key benefits:
+
+* **Type safety** (compile-time guarantees instead of runtime parsing)
+* **Improved security** (strict validation of token claims)
+* **Cleaner architecture** (domain-driven consistency across layers)
+
+From an architectural standpoint, this is a **critical refinement**, reducing ambiguity in identity handling and aligning all layers with a robust and explicit data model.
+
+
+## 2026/04/06 — check/adjustments-05
 
 Refines database migration strategy, removes legacy schema artifacts, and improves development tooling consistency. These changes align the project with a migration-first approach and reinforce separation between schema evolution and source control. 
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
@@ -28,7 +29,7 @@ func (m *loginUserRepositoryMock) FindByEmail(ctx context.Context, email string)
 	return m.findByEmailUser, nil
 }
 
-func (m *loginUserRepositoryMock) FindByID(ctx context.Context, id string) (*domain.User, error) {
+func (m *loginUserRepositoryMock) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	return nil, nil
 }
 
@@ -75,10 +76,11 @@ func (m *tokenServiceMock) ParseAccessToken(token string) (*domain.TokenClaims, 
 }
 
 func TestLoginUserUseCase_Execute_Success(t *testing.T) {
-	customerID := "customer-1"
+	customerID := uuid.New()
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           "user-1",
+			ID:           userID,
 			Email:        "user@example.com",
 			PasswordHash: "stored-hash",
 			Role:         domain.RoleCustomer,
@@ -106,8 +108,8 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected access token %q, got %q", "jwt-token", output.AccessToken)
 	}
 
-	if output.UserID != "user-1" {
-		t.Fatalf("expected user ID %q, got %q", "user-1", output.UserID)
+	if output.UserID != userID.String() {
+		t.Fatalf("expected user ID %q, got %q", userID, output.UserID)
 	}
 
 	if output.Email != "user@example.com" {
@@ -118,7 +120,7 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected role %q, got %q", domain.RoleCustomer, output.Role)
 	}
 
-	if output.CustomerID == nil || *output.CustomerID != customerID {
+	if output.CustomerID == nil || *output.CustomerID != customerID.String() {
 		t.Fatalf("expected customer ID %q, got %v", customerID, output.CustomerID)
 	}
 
@@ -146,8 +148,8 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected GenerateAccessToken to be called once, got %d", tokenService.generateCalls)
 	}
 
-	if tokenService.generateClaims.UserID != "user-1" {
-		t.Fatalf("expected token user ID %q, got %q", "user-1", tokenService.generateClaims.UserID)
+	if tokenService.generateClaims.UserID != userID {
+		t.Fatalf("expected token user ID %q, got %q", userID, tokenService.generateClaims.UserID)
 	}
 
 	if tokenService.generateClaims.Role != domain.RoleCustomer {
@@ -190,7 +192,7 @@ func TestLoginUserUseCase_Execute_UserNotFound(t *testing.T) {
 func TestLoginUserUseCase_Execute_WrongPassword(t *testing.T) {
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           "user-1",
+			ID:           uuid.New(),
 			Email:        "user@example.com",
 			PasswordHash: "stored-hash",
 			Role:         domain.RoleCustomer,
@@ -222,7 +224,7 @@ func TestLoginUserUseCase_Execute_TokenGenerationFailure(t *testing.T) {
 	expectedErr := errors.New("token unavailable")
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           "user-1",
+			ID:           uuid.New(),
 			Email:        "user@example.com",
 			PasswordHash: "stored-hash",
 			Role:         domain.RoleAdmin,

@@ -2,9 +2,9 @@ package infrastructure
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
@@ -41,7 +41,7 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 		user.Email,
 		user.PasswordHash,
 		string(user.Role),
-		nullableStringValue(user.CustomerID),
+		nullableUUIDValue(user.CustomerID),
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
@@ -78,7 +78,7 @@ func (r *PostgresUserRepository) FindByEmail(ctx context.Context, email string) 
 	return user, nil
 }
 
-func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*domain.User, error) {
+func (r *PostgresUserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	query := `
 		SELECT
 			id,
@@ -131,7 +131,7 @@ type scanner interface {
 func scanUser(s scanner) (*domain.User, error) {
 	var user domain.User
 	var role string
-	var customerID sql.NullString
+	var customerID *uuid.UUID
 
 	err := s.Scan(
 		&user.ID,
@@ -147,12 +147,17 @@ func scanUser(s scanner) (*domain.User, error) {
 	}
 
 	user.Role = domain.Role(role)
-	if customerID.Valid {
-		value := customerID.String
-		user.CustomerID = &value
-	}
+	user.CustomerID = customerID
 
 	return &user, nil
+}
+
+func nullableUUIDValue(value *uuid.UUID) any {
+	if value == nil {
+		return nil
+	}
+
+	return *value
 }
 
 func nullableStringValue(value *string) any {

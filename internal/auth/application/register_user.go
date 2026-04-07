@@ -65,7 +65,7 @@ func (uc *RegisterUserUseCase) Execute(
 
 	now := time.Now().UTC()
 	user := &domain.User{
-		ID:           uuid.NewString(),
+		ID:           uuid.New(),
 		Email:        email,
 		PasswordHash: hash,
 		Role:         domain.RoleCustomer,
@@ -79,10 +79,10 @@ func (uc *RegisterUserUseCase) Execute(
 	}
 
 	return &RegisterUserOutput{
-		ID:         user.ID,
+		ID:         user.ID.String(),
 		Email:      user.Email,
 		Role:       string(user.Role),
-		CustomerID: user.CustomerID,
+		CustomerID: nullableUUIDToString(user.CustomerID),
 	}, nil
 }
 

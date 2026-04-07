@@ -1,11 +1,15 @@
 package domain
 
-import "context"
+import (
+	"context"
+
+	"github.com/google/uuid"
+)
 
 type UserRepository interface {
 	Create(ctx context.Context, user *User) error
 	FindByEmail(ctx context.Context, email string) (*User, error)
-	FindByID(ctx context.Context, id string) (*User, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 }
 
@@ -15,9 +19,9 @@ type PasswordHasher interface {
 }
 
 type TokenClaims struct {
-	UserID     string
+	UserID     uuid.UUID
 	Role       Role
-	CustomerID *string
+	CustomerID *uuid.UUID
 }
 
 type TokenService interface {

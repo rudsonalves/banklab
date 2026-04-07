@@ -10,7 +10,7 @@ import (
 
 func testAuthenticatedRequest(req *http.Request, customerID uuid.UUID) *http.Request {
 	ctx := auth.WithAuthenticatedUser(req.Context(), auth.AuthenticatedUser{
-		UserID:     "user-1",
+		UserID:     uuid.New(),
 		Role:       authdomain.RoleCustomer,
 		CustomerID: &customerID,
 	})
@@ -20,7 +20,7 @@ func testAuthenticatedRequest(req *http.Request, customerID uuid.UUID) *http.Req
 
 func testAdminRequest(req *http.Request) *http.Request {
 	ctx := auth.WithAuthenticatedUser(req.Context(), auth.AuthenticatedUser{
-		UserID: "admin-1",
+		UserID: uuid.New(),
 		Role:   authdomain.RoleAdmin,
 	})
 

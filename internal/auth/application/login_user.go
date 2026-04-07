@@ -75,9 +75,9 @@ func (uc *LoginUserUseCase) Execute(
 
 	return &LoginUserOutput{
 		AccessToken: token,
-		UserID:      user.ID,
+		UserID:      user.ID.String(),
 		Email:       user.Email,
 		Role:        string(user.Role),
-		CustomerID:  user.CustomerID,
+		CustomerID:  nullableUUIDToString(user.CustomerID),
 	}, nil
 }

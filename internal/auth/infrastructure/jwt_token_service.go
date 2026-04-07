@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
@@ -31,11 +32,17 @@ func NewJWTTokenService(secret string, ttl time.Duration) *JWTTokenService {
 func (s *JWTTokenService) GenerateAccessToken(claims domain.TokenClaims) (string, error) {
 	now := time.Now().UTC()
 
+	var cidStr *string
+	if claims.CustomerID != nil {
+		s := claims.CustomerID.String()
+		cidStr = &s
+	}
+
 	payload := jwtClaims{
 		Role: string(claims.Role),
-		CID:  claims.CustomerID,
+		CID:  cidStr,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   claims.UserID,
+			Subject:   claims.UserID.String(),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.ttl)),
 		},
@@ -77,9 +84,23 @@ func (s *JWTTokenService) ParseAccessToken(token string) (*domain.TokenClaims, e
 		return nil, errors.New("missing role claim")
 	}
 
+	userID, err := uuid.Parse(parsedClaims.Subject)
+	if err != nil {
+		return nil, errors.New("invalid subject claim: not a valid uuid")
+	}
+
+	var customerID *uuid.UUID
+	if parsedClaims.CID != nil {
+		cid, err := uuid.Parse(*parsedClaims.CID)
+		if err != nil {
+			return nil, errors.New("invalid cid claim: not a valid uuid")
+		}
+		customerID = &cid
+	}
+
 	return &domain.TokenClaims{
-		UserID:     parsedClaims.Subject,
+		UserID:     userID,
 		Role:       domain.Role(parsedClaims.Role),
-		CustomerID: parsedClaims.CID,
+		CustomerID: customerID,
 	}, nil
 }

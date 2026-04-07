@@ -69,7 +69,7 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		email := strings.ToLower(uuid.NewString()) + "@example.com"
 
 		userA := &domain.User{
-			ID:           uuid.NewString(),
+			ID:           uuid.New(),
 			Email:        email,
 			PasswordHash: "hash-a",
 			Role:         domain.RoleCustomer,
@@ -79,7 +79,7 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		defer cleanupUserByID(t, ctx, pool, userA.ID)
 
 		userB := &domain.User{
-			ID:           uuid.NewString(),
+			ID:           uuid.New(),
 			Email:        email,
 			PasswordHash: "hash-b",
 			Role:         domain.RoleCustomer,
@@ -100,7 +100,7 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 
 	t.Run("not found returns nil", func(t *testing.T) {
 		nonExistingEmail := strings.ToLower(uuid.NewString()) + "@example.com"
-		nonExistingID := uuid.NewString()
+		nonExistingID := uuid.New()
 
 		foundByEmail, err := repo.FindByEmail(ctx, nonExistingEmail)
 		if err != nil {
@@ -181,7 +181,7 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 	}
 }
 
-func cleanupUserByID(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID string) {
+func cleanupUserByID(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID) {
 	t.Helper()
 
 	if _, err := pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID); err != nil {
@@ -191,7 +191,7 @@ func cleanupUserByID(t *testing.T, ctx context.Context, pool *pgxpool.Pool, user
 
 func testUser(now time.Time) *domain.User {
 	return &domain.User{
-		ID:           uuid.NewString(),
+		ID:           uuid.New(),
 		Email:        strings.ToLower(uuid.NewString()) + "@example.com",
 		PasswordHash: "hashed-password",
 		Role:         domain.RoleCustomer,

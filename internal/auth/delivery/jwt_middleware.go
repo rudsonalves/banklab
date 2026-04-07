@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
@@ -32,16 +31,10 @@ func (m *JWTMiddleware) RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		customerID, ok := parseNullableCustomerID(claims.CustomerID)
-		if !ok {
-			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidToken))
-			return
-		}
-
 		principal := authdomain.AuthenticatedUser{
 			UserID:     claims.UserID,
 			Role:       claims.Role,
-			CustomerID: customerID,
+			CustomerID: claims.CustomerID,
 		}
 
 		ctx := WithAuthenticatedUser(r.Context(), principal)
@@ -69,16 +62,10 @@ func (m *JWTMiddleware) OptionalAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		customerID, ok := parseNullableCustomerID(claims.CustomerID)
-		if !ok {
-			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidToken))
-			return
-		}
-
 		principal := authdomain.AuthenticatedUser{
 			UserID:     claims.UserID,
 			Role:       claims.Role,
-			CustomerID: customerID,
+			CustomerID: claims.CustomerID,
 		}
 
 		ctx := WithAuthenticatedUser(r.Context(), principal)
@@ -97,17 +84,4 @@ func bearerToken(authorization string) (string, bool) {
 	}
 
 	return parts[1], true
-}
-
-func parseNullableCustomerID(raw *string) (*uuid.UUID, bool) {
-	if raw == nil {
-		return nil, true
-	}
-
-	parsed, err := uuid.Parse(*raw)
-	if err != nil {
-		return nil, false
-	}
-
-	return &parsed, true
 }

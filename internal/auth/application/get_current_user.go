@@ -49,13 +49,13 @@ func GetAuthenticatedUser(ctx context.Context) (*AuthenticatedUser, bool) {
 
 func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOutput, error) {
 	principal, ok := GetAuthenticatedUser(ctx)
-	if !ok || principal.UserID == "" {
+	if !ok || principal.UserID == uuid.Nil {
 		return nil, domain.ErrUnauthorized
 	}
 
 	if uc.userRepo == nil {
 		return &GetCurrentUserOutput{
-			ID:         principal.UserID,
+			ID:         principal.UserID.String(),
 			Role:       string(principal.Role),
 			CustomerID: nullableUUIDToString(principal.CustomerID),
 		}, nil
@@ -70,10 +70,10 @@ func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOu
 	}
 
 	return &GetCurrentUserOutput{
-		ID:         user.ID,
+		ID:         user.ID.String(),
 		Email:      user.Email,
 		Role:       string(user.Role),
-		CustomerID: user.CustomerID,
+		CustomerID: nullableUUIDToString(user.CustomerID),
 	}, nil
 }
 

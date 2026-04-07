@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Role string
 
@@ -10,11 +14,11 @@ const (
 )
 
 type User struct {
-	ID           string
+	ID           uuid.UUID
 	Email        string
 	PasswordHash string
 	Role         Role
-	CustomerID   *string
+	CustomerID   *uuid.UUID
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

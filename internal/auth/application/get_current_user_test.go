@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type currentUserRepositoryMock struct {
 	findByIDCalls int
-	findByIDValue string
+	findByIDValue uuid.UUID
 	findByIDUser  *domain.User
 	findByIDErr   error
 }
@@ -23,7 +24,7 @@ func (m *currentUserRepositoryMock) FindByEmail(ctx context.Context, email strin
 	return nil, nil
 }
 
-func (m *currentUserRepositoryMock) FindByID(ctx context.Context, id string) (*domain.User, error) {
+func (m *currentUserRepositoryMock) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	m.findByIDCalls++
 	m.findByIDValue = id
 	if m.findByIDErr != nil {
@@ -37,10 +38,11 @@ func (m *currentUserRepositoryMock) ExistsByEmail(ctx context.Context, email str
 }
 
 func TestGetCurrentUserUseCase_Execute_Success(t *testing.T) {
-	customerID := "customer-1"
+	customerID := uuid.New()
+	testUserID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	userRepo := &currentUserRepositoryMock{
 		findByIDUser: &domain.User{
-			ID:         "user-1",
+			ID:         testUserID,
 			Email:      "user@example.com",
 			Role:       domain.RoleCustomer,
 			CustomerID: &customerID,
@@ -48,7 +50,7 @@ func TestGetCurrentUserUseCase_Execute_Success(t *testing.T) {
 	}
 	useCase := NewGetCurrentUserUseCase(userRepo)
 	ctx := WithAuthenticatedUser(context.Background(), AuthenticatedUser{
-		UserID:     "user-1",
+		UserID:     testUserID,
 		Role:       domain.RoleAdmin,
 		CustomerID: nil,
 	})
@@ -63,8 +65,8 @@ func TestGetCurrentUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatal("expected output to be non-nil")
 	}
 
-	if output.ID != "user-1" {
-		t.Fatalf("expected ID %q, got %q", "user-1", output.ID)
+	if output.ID != testUserID.String() {
+		t.Fatalf("expected ID %q, got %q", testUserID.String(), output.ID)
 	}
 
 	if output.Email != "user@example.com" {
@@ -75,7 +77,7 @@ func TestGetCurrentUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected role %q, got %q", domain.RoleCustomer, output.Role)
 	}
 
-	if output.CustomerID == nil || *output.CustomerID != customerID {
+	if output.CustomerID == nil || *output.CustomerID != customerID.String() {
 		t.Fatalf("expected customer ID %q, got %v", customerID, output.CustomerID)
 	}
 
@@ -83,8 +85,8 @@ func TestGetCurrentUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected FindByID to be called once, got %d", userRepo.findByIDCalls)
 	}
 
-	if userRepo.findByIDValue != "user-1" {
-		t.Fatalf("expected FindByID to be called with %q, got %q", "user-1", userRepo.findByIDValue)
+	if userRepo.findByIDValue != testUserID {
+		t.Fatalf("expected FindByID to be called with %q, got %q", testUserID, userRepo.findByIDValue)
 	}
 }
 
@@ -111,7 +113,7 @@ func TestGetCurrentUserUseCase_Execute_UserNotFound(t *testing.T) {
 	userRepo := &currentUserRepositoryMock{}
 	useCase := NewGetCurrentUserUseCase(userRepo)
 	ctx := WithAuthenticatedUser(context.Background(), AuthenticatedUser{
-		UserID: "user-1",
+		UserID: uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 		Role:   domain.RoleCustomer,
 	})
 
@@ -131,7 +133,7 @@ func TestGetCurrentUserUseCase_Execute_RepositoryError(t *testing.T) {
 	userRepo := &currentUserRepositoryMock{findByIDErr: expectedErr}
 	useCase := NewGetCurrentUserUseCase(userRepo)
 	ctx := WithAuthenticatedUser(context.Background(), AuthenticatedUser{
-		UserID: "user-1",
+		UserID: uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 		Role:   domain.RoleCustomer,
 	})
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
@@ -27,7 +28,7 @@ func (m *userRepositoryMock) FindByEmail(ctx context.Context, email string) (*do
 	return nil, nil
 }
 
-func (m *userRepositoryMock) FindByID(ctx context.Context, id string) (*domain.User, error) {
+func (m *userRepositoryMock) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	return nil, nil
 }
 
