@@ -98,14 +98,10 @@ func (uc *RegisterUserUseCase) Execute(
 		}
 
 		customerID := customer.ID
-		user = &domain.User{
-			ID:           uuid.New(),
-			Email:        email,
-			PasswordHash: hash,
-			Role:         domain.RoleCustomer,
-			CustomerID:   &customerID,
-			CreatedAt:    now,
-			UpdatedAt:    now,
+		var newUserErr error
+		user, newUserErr = domain.NewUser(uuid.New(), email, hash, domain.RoleCustomer, &customerID, now)
+		if newUserErr != nil {
+			return newUserErr
 		}
 
 		if err := uc.userRepo.Create(txCtx, user); err != nil {
@@ -118,8 +114,8 @@ func (uc *RegisterUserUseCase) Execute(
 		return nil, err
 	}
 
-	if user == nil || user.CustomerID == nil {
-		return nil, fmt.Errorf("register user: customer id must not be nil for role %q", domain.RoleCustomer)
+	if user == nil || (user.Role == domain.RoleCustomer && user.CustomerID == nil) {
+		return nil, domain.ErrInvalidUserState
 	}
 
 	return &RegisterUserOutput{

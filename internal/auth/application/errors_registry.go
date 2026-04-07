@@ -49,4 +49,11 @@ func RegisterErrors() {
 		"Invalid data",
 		http.StatusBadRequest,
 	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrInvalidUserState,
+		sharederrors.ErrCodeInvalidUserState,
+		"Invalid user state",
+		http.StatusInternalServerError,
+	)
 }

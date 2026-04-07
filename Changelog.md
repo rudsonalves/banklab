@@ -1,5 +1,143 @@
 # Changelog
 
+## 2026/04/07 — check/adjustments-09
+
+Introduces **consistency safeguards, authorization enforcement, and customer self-access endpoint**, along with refinements in domain invariants, JWT structure, and documentation alignment.
+
+### 1. Customer Self Endpoint (GET /customers/me)
+
+* Added new use case `GetCustomerMe` with strict validation:
+
+  * rejects nil UUID (`ErrInvalidData`)
+  * returns `ErrNotFound` when customer is absent
+* Implemented HTTP handler with:
+
+  * authentication context extraction
+  * validation of `user.CustomerID`
+  * proper error mapping (`401`, `400`, `404`)
+* Registered route:
+
+  * `GET /customers/me` (JWT required)
+* Completes the **authenticated customer profile retrieval flow** and aligns with API contract 
+
+### 2. Authorization & Ownership Enforcement
+
+* Strengthened access control across account operations:
+
+  * explicit validation of ownership (`customer_id` vs authenticated user)
+  * forbidden access now consistently returns `ErrForbidden`
+* Added test coverage for:
+
+  * withdraw denied when account belongs to another customer
+* Reinforces **application-layer authorization**, consistent with architectural guidelines 
+
+### 3. Domain Invariants — User Consistency
+
+* Introduced `domain.NewUser` constructor:
+
+  * enforces invariant: `RoleCustomer → customer_id != nil`
+* Replaced manual struct construction in register use case
+* Added defensive post-transaction validation:
+
+  * returns `ErrInvalidUserState` if invariant is violated
+* Added unit tests validating:
+
+  * invariant enforcement in constructor
+  * allowed nil `customer_id` for admin role
+* This is a **critical design improvement**, ensuring domain correctness is not bypassed
+
+### 4. Database-Level Consistency
+
+* Added migration:
+
+  * `chk_users_customer_role_consistency`
+* Enforces at DB level:
+
+  * customer users must have `customer_id`
+* Aligns persistence with domain invariants (defense in depth)
+
+### 5. Error Handling Enhancements
+
+* Introduced new domain error:
+
+  * `ErrInvalidUserState`
+* Registered shared error code:
+
+  * `INVALID_USER_STATE → 500`
+* Added `ErrNotFound` to customer domain and mapped to `404`
+* Improves **error semantics and observability of invariant violations**
+
+### 6. JWT Claims Refinement
+
+* Renamed claim:
+
+  * `cid` → `customer_id`
+* Updated parsing and validation:
+
+  * stricter UUID validation
+  * clearer error messages
+* Improves API clarity and consistency with response payloads
+
+### 7. Handler Refactor — Customer Module
+
+* Updated handler to support multiple use cases via interfaces:
+
+  * `createCustomerUseCase`
+  * `getCustomerMeUseCase`
+* Added defensive checks for nil dependencies
+* Improves extensibility and testability
+
+### 8. Application & Flow Adjustments
+
+* Register user flow updated:
+
+  * explicit validation of email/password before persistence
+  * ensures customer is created before user
+  * guarantees transactional integrity with invariant check after commit
+* Create account flow refined:
+
+  * enforces ownership via `CanAccessCustomer`
+  * rejects external `customer_id` input (must come from JWT)
+
+### 9. Documentation Updates
+
+* Updated implementation and API docs:
+
+  * added `/customers/me` endpoint
+  * clarified authentication and ownership model
+  * documented invariant rules and error codes
+  * clarified register flow (customer created automatically)
+* Added authorization model section:
+
+  * customer vs admin access rules
+  * explicit prohibition of client-provided `customer_id`
+
+### 10. Test Coverage Expansion
+
+* Added:
+
+  * `GetCustomerMe` use case tests (success, invalid input, not found)
+  * customer handler tests (auth, invalid state, not found)
+  * register user invariant tests
+  * withdraw authorization test (cross-customer forbidden)
+* Strengthens confidence in:
+
+  * authorization rules
+  * domain invariants
+  * error mappings
+
+### Conclusion
+
+This commit significantly improves the system’s **correctness guarantees and security model** by:
+
+* enforcing invariants at both domain and database levels
+* centralizing authorization logic in the application layer
+* exposing a consistent authenticated customer endpoint
+* aligning JWT, API contract, and documentation
+
+From an architectural standpoint, this represents a **maturation step toward stricter domain integrity and safer multi-tenant behavior**, reducing the risk of inconsistent states and unauthorized access.
+
+
 ## 2026/04/07 — check/adjustments-08
 
 Refactors customer lifecycle and account creation flow to be fully **authentication-driven**, introduces **transactional user registration with customer creation**, and tightens input validation across delivery and application layers.

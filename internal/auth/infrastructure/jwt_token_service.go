@@ -15,8 +15,8 @@ type JWTTokenService struct {
 }
 
 type jwtClaims struct {
-	Role string  `json:"role"`
-	CID  *string `json:"cid,omitempty"`
+	Role       string  `json:"role"`
+	CustomerID *string `json:"customer_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -39,8 +39,8 @@ func (s *JWTTokenService) GenerateAccessToken(claims domain.TokenClaims) (string
 	}
 
 	payload := jwtClaims{
-		Role: string(claims.Role),
-		CID:  cidStr,
+		Role:       string(claims.Role),
+		CustomerID: cidStr,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   claims.UserID.String(),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -90,10 +90,10 @@ func (s *JWTTokenService) ParseAccessToken(token string) (*domain.TokenClaims, e
 	}
 
 	var customerID *uuid.UUID
-	if parsedClaims.CID != nil {
-		cid, err := uuid.Parse(*parsedClaims.CID)
+	if parsedClaims.CustomerID != nil {
+		cid, err := uuid.Parse(*parsedClaims.CustomerID)
 		if err != nil {
-			return nil, errors.New("invalid cid claim: not a valid uuid")
+			return nil, errors.New("invalid customer_id claim: not a valid uuid")
 		}
 		customerID = &cid
 	}

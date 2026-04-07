@@ -16,6 +16,13 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		domain.ErrNotFound,
+		sharederrors.ErrCodeCustomerNotFound,
+		"Customer not found",
+		http.StatusNotFound,
+	)
+
+	sharederrors.RegisterDomainError(
 		domain.ErrCPFAlreadyExists,
 		sharederrors.ErrCodeUserAlreadyExists,
 		"User already exists",

@@ -9,4 +9,5 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrUnauthorized       = errors.New("unauthorized")
 	ErrInvalidToken       = errors.New("invalid token")
+	ErrInvalidUserState   = errors.New("invalid user state: customer role requires customer_id")
 )

@@ -13,6 +13,8 @@ import (
 	authDelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authInfrastructure "github.com/seu-usuario/bank-api/internal/auth/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/bootstrap"
+	customerApplication "github.com/seu-usuario/bank-api/internal/customer/application"
+	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
 	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
 	"golang.org/x/crypto/bcrypt"
@@ -46,12 +48,15 @@ func main() {
 	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
+	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)
+	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
 
 	http.HandleFunc("POST /auth/register", authHandler.Register)
 	http.HandleFunc("POST /auth/login", authHandler.Login)
 	http.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
+	http.Handle("GET /customers/me", authMiddleware.RequireAuth(http.HandlerFunc(customerHandler.Me)))
 
 	http.Handle("POST /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.CreateAccount)))
 	http.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))

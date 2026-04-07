@@ -40,8 +40,8 @@ Main entrypoint:
 - internal/database: PostgreSQL pool creation
 - internal/customer:
   - domain: customer entity, validation errors, repository contract
-  - application: create customer use case
-  - delivery: HTTP handler for customer creation
+  - application: create customer use case, get customer me use case
+  - delivery: HTTP handler for GET /customers/me
   - infrastructure: PostgreSQL repository implementation
 - internal/account:
   - domain: account and transaction entities, repository contracts, account rules
@@ -56,19 +56,24 @@ Main entrypoint:
 Process startup sequence (cmd/api/main.go):
 
 1. Create PostgreSQL pool via internal/database.NewPool
-2. Build customer repository and use case
-3. Build account repository and all account use cases
-4. Build customer and account handlers
-5. Register HTTP routes with net/http ServeMux style patterns
-6. Start server on port 8080
+2. Build auth repository and use cases (register, login, get current user)
+3. Build customer repository and use cases (get customer me)
+4. Build account repository and all account use cases
+5. Build auth, customer, and account handlers
+6. Register HTTP routes with net/http ServeMux style patterns
+7. Start server on port 8080
 
 Current route registration:
 
-- POST /accounts
-- POST /accounts/{id}/deposit
-- POST /accounts/{id}/withdraw
-- GET /accounts/{id}/statement
-- POST /accounts/transfer
+- POST /auth/register (public)
+- POST /auth/login (public)
+- GET /auth/me (JWT required)
+- GET /customers/me (JWT required)
+- POST /accounts (JWT required)
+- POST /accounts/{id}/deposit (JWT required)
+- POST /accounts/{id}/withdraw (JWT required)
+- GET /accounts/{id}/statement (JWT required)
+- POST /accounts/transfer (JWT required)
 
 ## 5. Domain Model
 
@@ -93,6 +98,7 @@ Domain errors:
 - ErrCPFAlreadyExists
 - ErrEmailAlreadyExists
 - ErrInvalidData
+- ErrNotFound
 
 ### 5.2 Account Domain
 
@@ -131,6 +137,7 @@ Account domain errors:
 - ErrSameAccountTransfer
 - ErrCustomerNotFound
 - ErrAccountInactive
+- ErrForbidden
 
 ### 5.3 Transaction Domain
 
@@ -164,11 +171,15 @@ Input:
 
 Flow:
 1. Start transaction
-2. Create Customer entity
-3. Persist customer
-4. Create User entity bound to customer_id
-5. Persist user
-6. Commit transaction
+2. Validate email format and password strength
+3. Check email uniqueness
+4. Create Customer entity and persist
+5. Create User entity via `domain.NewUser` (enforces: RoleCustomer requires non-nil customer_id)
+6. Persist user
+7. Commit transaction
+8. Post-transaction invariant check: user.CustomerID must not be nil
+
+The customer is always created before the user. If any step fails, the transaction rolls back and no partial state is persisted.
 
 ### 6.2 Create Account
 
@@ -176,13 +187,16 @@ Input:
 - authenticated user context (customer_id derived from token principal)
 
 Flow:
-1. Validate authenticated user has customer_id
-2. Ensure customer exists
-3. Generate account number using sequence
-4. Build account entity (branch currently fixed as "0001")
-5. Persist and return account
+1. Validate authenticated user has non-nil customer_id (returns ErrForbidden otherwise)
+2. Validate customer_id is not zero UUID (returns ErrForbidden)
+3. Validate user owns the customer_id via CanAccessCustomer
+4. Ensure customer exists in the database
+5. Generate account number using sequence
+6. Build account entity (branch currently fixed as "0001")
+7. Persist and return account
 
 Notes:
+- The client MUST NOT and CANNOT provide customer_id — it is ignored if sent.
 - Optional one-account-per-customer rule exists but is currently commented out.
 
 ### 6.3 Deposit
@@ -255,6 +269,17 @@ Flow:
 5. Map rows to API statement items
 6. Build next cursor if full page returned
 
+### 6.7 Get Customer Me
+
+Input:
+- authenticated user context (customer_id derived from token principal)
+
+Flow:
+1. Validate user.CustomerID is not nil (returns ErrInvalidData otherwise)
+2. Query customer by ID via repository
+3. Return nil result as ErrNotFound
+4. Return customer data
+
 ## 7. HTTP Delivery Layer
 
 ## 7.1 Account Handler Endpoints
@@ -272,7 +297,29 @@ Implemented concerns:
 - map domain errors to HTTP status and stable error codes
 - return JSON response with data/error envelope
 
-## 7.2 Response Contract
+## 7.2 Customer Handler Endpoints
+
+- Me (GET /customers/me)
+
+Implemented concerns:
+- Reads authenticated user from request context
+- Returns 401 if no user in context
+- Returns 400 if user has no customer_id
+- Calls GetCustomerMe use case
+- Maps ErrNotFound to 404
+
+## 7.3 Auth Handler Endpoints
+
+- Register (POST /auth/register)
+- Login (POST /auth/login)
+- Me (GET /auth/me)
+
+Implemented concerns:
+- Minimal delivery validation: rejects blank required fields
+- Domain/format validation delegated to application layer
+- Returns customer_id in register and login responses
+
+## 7.4 Response Contract
 
 Response envelope format:
 
@@ -360,22 +407,23 @@ Implemented tests include:
 
 Domain tests:
 - account invariants and rule methods
+- `domain.NewUser` invariant (RoleCustomer requires non-nil customer_id)
 
 Application tests:
+- register user (transactional creation, invariant enforcement)
 - create account
-- deposit
-- withdraw
-- transfer
-- get statement
+- deposit (including ownership enforcement)
+- withdraw (including ownership enforcement)
+- transfer (including source ownership enforcement)
+- get statement (including ownership enforcement)
+- access policy helpers (CanAccessCustomer, CanAccessAccount)
+- get customer me
 
 Delivery tests:
 - account handler unit tests for success and error mappings
+- auth handler unit tests
+- customer handler unit tests (GET /customers/me)
 - deposit integration test with real PostgreSQL
-
-Customer create use case and handler behavior are also covered by code-level validation and error mapping logic.
-
-Last observed command context indicated:
-- go test ./... completed successfully.
 
 ## 11. Local Run and Validation
 

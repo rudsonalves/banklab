@@ -49,14 +49,20 @@ Error:
 - Path: /auth/register
 - Auth required: no
 
+This endpoint creates a User and an associated Customer atomically in a single transaction. The Customer is created automatically — the client never needs to call a separate customer creation endpoint.
+
 Request body:
 
 ```json
 {
   "email": "user@example.com",
-  "password": "P@ssword123"
+  "password": "P@ssword123",
+  "name": "Maria Silva",
+  "cpf": "12345678901"
 }
 ```
+
+All four fields are required.
 
 Success response (201):
 
@@ -66,16 +72,19 @@ Success response (201):
     "id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
     "email": "user@example.com",
     "role": "customer",
-    "customer_id": null
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
   },
   "error": null
 }
 ```
 
+`customer_id` is always populated for users with role `customer`.
+
 Possible errors:
 - 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: invalid email or password
+- 400 INVALID_DATA: invalid email or password format
 - 409 USER_ALREADY_EXISTS: duplicate email
+- 409 (customer domain): duplicate CPF or email in customers table
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ## 3.2 Login User
@@ -102,11 +111,13 @@ Success response (200):
     "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
     "email": "user@example.com",
     "role": "customer",
-    "customer_id": null
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
   },
   "error": null
 }
 ```
+
+`customer_id` is always populated for users with role `customer`. The JWT embeds this value for use in subsequent requests.
 
 Possible errors:
 - 400 INVALID_REQUEST: invalid JSON body
@@ -143,11 +154,15 @@ Possible errors:
 
 All account routes are protected and require Authorization header with Bearer token.
 
+Ownership is enforced automatically. A customer-role user can only access accounts that belong to their own `customer_id`. Admin-role users can access any account.
+
 ## 4.1 Create Account
 
 - Method: POST
 - Path: /accounts
 - Auth required: yes
+
+The `customer_id` is derived automatically from the authenticated user's JWT token. The client MUST NOT send a `customer_id` in the request body.
 
 Request body:
 
@@ -155,7 +170,7 @@ Request body:
 {}
 ```
 
-Body can also be empty.
+Body can also be empty. Any extra fields are rejected (400 INVALID_REQUEST).
 
 Success response (201):
 
@@ -358,12 +373,60 @@ Possible errors:
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 6. Error Code Reference
+## 5. Customer Endpoints
+
+All customer routes are protected and require Authorization header with Bearer token.
+
+## 5.1 Get My Customer Profile
+
+- Method: GET
+- Path: /customers/me
+- Auth required: yes
+
+Returns the customer profile linked to the authenticated user. No path or query parameters required.
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
+    "name": "Maria Silva",
+    "cpf": "12345678901",
+    "email": "user@example.com",
+    "created_at": "2026-04-07T10:00:00Z"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: authenticated user has no associated customer (inconsistent state)
+- 404 CUSTOMER_NOT_FOUND: customer record not found
+- 500 INTERNAL_ERROR: unexpected internal error
+
+## 6. Authorization Model
+
+All account and customer operations enforce ownership based on the authenticated user's context.
+
+Rules:
+- A user with role `customer` can only access resources where `resource.customer_id == user.customer_id`
+- A user with role `admin` can access any resource
+- The `customer_id` is never accepted from the client — it is always read from the JWT token
+- Cross-customer access returns `403 FORBIDDEN`
+- Any operation where the user has no `customer_id` returns `403 FORBIDDEN` or `400 INVALID_DATA`
+
+This rule is enforced in the application layer via `CanAccessAccount` and `CanAccessCustomer` helpers, not in HTTP handlers.
+
+## 7. Error Code Reference
 
 Common error codes currently used by handlers:
 - INVALID_REQUEST
 - INVALID_DATA
 - INVALID_AMOUNT
+- INVALID_USER_STATE
 - USER_ALREADY_EXISTS
 - CUSTOMER_NOT_FOUND
 - INVALID_CREDENTIALS
@@ -376,7 +439,9 @@ Common error codes currently used by handlers:
 - SAME_ACCOUNT_TRANSFER
 - INTERNAL_ERROR
 
-## 7. Domain Notes for API Consumers
+`INVALID_USER_STATE` (HTTP 500) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
+
+## 8. Domain Notes for API Consumers
 
 - Monetary values are represented as integer cents
 - UUID is used for all resource identifiers

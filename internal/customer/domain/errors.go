@@ -11,4 +11,5 @@ var (
 	ErrEmailAlreadyExists = errors.New("email already exists")
 
 	ErrInvalidData = errors.New("invalid data")
+	ErrNotFound    = errors.New("customer not found")
 )
