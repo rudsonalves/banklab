@@ -7,15 +7,17 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 func TestJWTTokenService_GenerateAndParseAccessToken_Success(t *testing.T) {
 	service := NewJWTTokenService("test-secret", 2*time.Minute)
-	cid := "de305d54-75b4-431b-adb2-eb6b9e546014"
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000123")
+	cid := uuid.MustParse("de305d54-75b4-431b-adb2-eb6b9e546014")
 
 	token, err := service.GenerateAccessToken(domain.TokenClaims{
-		UserID:     "user-123",
+		UserID:     userID,
 		Role:       domain.RoleCustomer,
 		CustomerID: &cid,
 	})
@@ -28,8 +30,8 @@ func TestJWTTokenService_GenerateAndParseAccessToken_Success(t *testing.T) {
 		t.Fatalf("expected no error parsing token, got %v", err)
 	}
 
-	if claims.UserID != "user-123" {
-		t.Fatalf("expected user id %q, got %q", "user-123", claims.UserID)
+	if claims.UserID != userID {
+		t.Fatalf("expected user id %q, got %q", userID, claims.UserID)
 	}
 
 	if claims.Role != domain.RoleCustomer {
@@ -46,7 +48,7 @@ func TestJWTTokenService_ParseAccessToken_InvalidSignature(t *testing.T) {
 	validator := NewJWTTokenService("validator-secret", time.Minute)
 
 	token, err := issuer.GenerateAccessToken(domain.TokenClaims{
-		UserID: "user-123",
+		UserID: uuid.MustParse("00000000-0000-0000-0000-000000000123"),
 		Role:   domain.RoleCustomer,
 	})
 	if err != nil {
@@ -63,7 +65,7 @@ func TestJWTTokenService_ParseAccessToken_ExpiredToken(t *testing.T) {
 	service := NewJWTTokenService("test-secret", -1*time.Second)
 
 	token, err := service.GenerateAccessToken(domain.TokenClaims{
-		UserID: "user-123",
+		UserID: uuid.MustParse("00000000-0000-0000-0000-000000000123"),
 		Role:   domain.RoleCustomer,
 	})
 	if err != nil {

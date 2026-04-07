@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Role string
 
@@ -10,11 +14,11 @@ const (
 )
 
 type User struct {
-	ID           string
+	ID           uuid.UUID
 	Email        string
 	PasswordHash string
 	Role         Role
-	CustomerID   *string
+	CustomerID   *uuid.UUID
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -26,4 +30,21 @@ func (r Role) IsValid() bool {
 	default:
 		return false
 	}
+}
+
+// NewUser constructs a User and enforces domain invariants.
+// For RoleCustomer, customerID must be non-nil.
+func NewUser(id uuid.UUID, email, passwordHash string, role Role, customerID *uuid.UUID, now time.Time) (*User, error) {
+	if role == RoleCustomer && customerID == nil {
+		return nil, ErrInvalidUserState
+	}
+	return &User{
+		ID:           id,
+		Email:        email,
+		PasswordHash: passwordHash,
+		Role:         role,
+		CustomerID:   customerID,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}, nil
 }

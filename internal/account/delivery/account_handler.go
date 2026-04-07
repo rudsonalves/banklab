@@ -2,6 +2,8 @@ package delivery
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -22,21 +24,15 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req CreateAccountRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil && !errors.Is(err, io.EOF) {
 		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
-	customerID, err := uuid.Parse(req.CustomerID)
-	if err != nil {
-		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
-		return
-	}
-
 	input := application.CreateAccountInput{
-		User:       user,
-		CustomerID: customerID,
+		User: user,
 	}
 
 	account, err := h.createAccount.Execute(r.Context(), input)

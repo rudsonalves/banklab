@@ -8,7 +8,7 @@ import (
 
 func testCustomerUser(customerID uuid.UUID) *auth.AuthenticatedUser {
 	return &auth.AuthenticatedUser{
-		UserID:     "user-1",
+		UserID:     uuid.New(),
 		Role:       authdomain.RoleCustomer,
 		CustomerID: &customerID,
 	}
@@ -16,7 +16,7 @@ func testCustomerUser(customerID uuid.UUID) *auth.AuthenticatedUser {
 
 func testAdminUser() *auth.AuthenticatedUser {
 	return &auth.AuthenticatedUser{
-		UserID: "admin-1",
+		UserID: uuid.New(),
 		Role:   authdomain.RoleAdmin,
 	}
 }

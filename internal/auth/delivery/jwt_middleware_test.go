@@ -34,12 +34,12 @@ func (m *tokenServiceMock) ParseAccessToken(token string) (*domain.TokenClaims, 
 
 func TestJWTMiddleware_RequireAuth_ValidToken(t *testing.T) {
 	customerID := uuid.New()
-	cid := customerID.String()
+	userUUID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	tokenService := &tokenServiceMock{
 		claims: &domain.TokenClaims{
-			UserID:     "user-1",
+			UserID:     userUUID,
 			Role:       domain.RoleCustomer,
-			CustomerID: &cid,
+			CustomerID: &customerID,
 		},
 	}
 	middleware := NewJWTMiddleware(tokenService)
@@ -71,8 +71,8 @@ func TestJWTMiddleware_RequireAuth_ValidToken(t *testing.T) {
 		t.Fatalf("expected token %q, got %q", "valid-token", tokenService.token)
 	}
 
-	if principal == nil || principal.UserID != "user-1" {
-		t.Fatalf("expected principal user id %q, got %#v", "user-1", principal)
+	if principal == nil || principal.UserID != userUUID {
+		t.Fatalf("expected principal user id %q, got %#v", userUUID, principal)
 	}
 
 	if principal.Role != domain.RoleCustomer {
@@ -82,27 +82,6 @@ func TestJWTMiddleware_RequireAuth_ValidToken(t *testing.T) {
 	if principal.CustomerID == nil || *principal.CustomerID != customerID {
 		t.Fatalf("expected customer id %q, got %#v", customerID, principal.CustomerID)
 	}
-}
-
-func TestJWTMiddleware_RequireAuth_InvalidCustomerIDClaim(t *testing.T) {
-	badCID := "not-a-uuid"
-	tokenService := &tokenServiceMock{
-		claims: &domain.TokenClaims{
-			UserID:     "user-1",
-			Role:       domain.RoleCustomer,
-			CustomerID: &badCID,
-		},
-	}
-	middleware := NewJWTMiddleware(tokenService)
-	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
-	req.Header.Set("Authorization", "Bearer valid-token")
-	rec := httptest.NewRecorder()
-
-	middleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatal("expected next handler not to be called")
-	})).ServeHTTP(rec, req)
-
-	assertAuthErrorCode(t, rec, http.StatusUnauthorized, "INVALID_TOKEN")
 }
 
 func TestJWTMiddleware_RequireAuth_MissingHeader(t *testing.T) {

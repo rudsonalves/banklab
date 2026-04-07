@@ -8,33 +8,47 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	customerdomain "github.com/seu-usuario/bank-api/internal/customer/domain"
 )
 
 type RegisterUserUseCase struct {
-	userRepo domain.UserRepository
-	hasher   domain.PasswordHasher
+	userRepo     domain.UserRepository
+	txUserRepo   userTransactionRepository
+	customerRepo customerdomain.CustomerRepository
+	hasher       domain.PasswordHasher
+}
+
+type userTransactionRepository interface {
+	WithTransaction(ctx context.Context, fn func(txCtx context.Context) error) error
 }
 
 func NewRegisterUserUseCase(
 	userRepo domain.UserRepository,
+	customerRepo customerdomain.CustomerRepository,
 	hasher domain.PasswordHasher,
 ) *RegisterUserUseCase {
+	txUserRepo, _ := userRepo.(userTransactionRepository)
+
 	return &RegisterUserUseCase{
-		userRepo: userRepo,
-		hasher:   hasher,
+		userRepo:     userRepo,
+		txUserRepo:   txUserRepo,
+		customerRepo: customerRepo,
+		hasher:       hasher,
 	}
 }
 
 type RegisterUserInput struct {
 	Email    string
 	Password string
+	Name     string
+	CPF      string
 }
 
 type RegisterUserOutput struct {
-	ID         string
+	ID         uuid.UUID
 	Email      string
 	Role       string
-	CustomerID *string
+	CustomerID *uuid.UUID
 }
 
 func (uc *RegisterUserUseCase) Execute(
@@ -50,32 +64,58 @@ func (uc *RegisterUserUseCase) Execute(
 		return nil, domain.ErrInvalidPassword
 	}
 
-	exists, err := uc.userRepo.ExistsByEmail(ctx, email)
+	if uc.txUserRepo == nil {
+		return nil, fmt.Errorf("register user: user repository does not support transactions")
+	}
+
+	var user *domain.User
+
+	err := uc.txUserRepo.WithTransaction(ctx, func(txCtx context.Context) error {
+		exists, err := uc.userRepo.ExistsByEmail(txCtx, email)
+		if err != nil {
+			return fmt.Errorf("check email uniqueness: %w", err)
+		}
+		if exists {
+			return domain.ErrEmailAlreadyExists
+		}
+
+		now := time.Now().UTC()
+		customer := &customerdomain.Customer{
+			ID:        uuid.New(),
+			Name:      strings.TrimSpace(input.Name),
+			CPF:       strings.TrimSpace(input.CPF),
+			Email:     email,
+			CreatedAt: now,
+		}
+
+		if err := uc.customerRepo.Create(txCtx, customer); err != nil {
+			return fmt.Errorf("create customer: %w", err)
+		}
+
+		hash, err := uc.hasher.Hash(input.Password)
+		if err != nil {
+			return fmt.Errorf("hash password: %w", err)
+		}
+
+		customerID := customer.ID
+		var newUserErr error
+		user, newUserErr = domain.NewUser(uuid.New(), email, hash, domain.RoleCustomer, &customerID, now)
+		if newUserErr != nil {
+			return newUserErr
+		}
+
+		if err := uc.userRepo.Create(txCtx, user); err != nil {
+			return fmt.Errorf("create user: %w", err)
+		}
+
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("check email uniqueness: %w", err)
-	}
-	if exists {
-		return nil, domain.ErrEmailAlreadyExists
+		return nil, err
 	}
 
-	hash, err := uc.hasher.Hash(input.Password)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-
-	now := time.Now().UTC()
-	user := &domain.User{
-		ID:           uuid.NewString(),
-		Email:        email,
-		PasswordHash: hash,
-		Role:         domain.RoleCustomer,
-		CustomerID:   nil,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-
-	if err := uc.userRepo.Create(ctx, user); err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
+	if user == nil || (user.Role == domain.RoleCustomer && user.CustomerID == nil) {
+		return nil, domain.ErrInvalidUserState
 	}
 
 	return &RegisterUserOutput{

@@ -303,3 +303,32 @@ func TestWithdraw_Execute_AdminAllowed(t *testing.T) {
 		t.Fatalf("expected DecreaseBalance to be called once, got %d calls", tx.decreaseBalanceCalls)
 	}
 }
+
+func TestWithdraw_Execute_ForbiddenForDifferentCustomer(t *testing.T) {
+	accountID := uuid.New()
+	accountCustomerID := uuid.New() // different customer owns this account
+	tx := &txMock{
+		account: &domain.Account{
+			ID:         accountID,
+			CustomerID: accountCustomerID,
+			Balance:    100,
+			Status:     domain.AccountActive,
+		},
+	}
+	repo := &depositAccountRepositoryMock{tx: tx}
+	useCase := NewWithdraw(repo)
+
+	account, err := useCase.Execute(context.Background(), WithdrawInput{
+		User:      testCustomerUser(uuid.New()), // different customer
+		AccountID: accountID,
+		Amount:    10,
+	})
+
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
+	}
+
+	if account != nil {
+		t.Fatalf("expected account to be nil, got %+v", account)
+	}
+}

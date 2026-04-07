@@ -1,6 +1,433 @@
 # Changelog
 
-## 2026/04/06 — check/adjustments-04
+## 2026/04/07 — check/adjustments-09
+
+Introduces **consistency safeguards, authorization enforcement, and customer self-access endpoint**, along with refinements in domain invariants, JWT structure, and documentation alignment.
+
+### 1. Customer Self Endpoint (GET /customers/me)
+
+* Added new use case `GetCustomerMe` with strict validation:
+
+  * rejects nil UUID (`ErrInvalidData`)
+  * returns `ErrNotFound` when customer is absent
+* Implemented HTTP handler with:
+
+  * authentication context extraction
+  * validation of `user.CustomerID`
+  * proper error mapping (`401`, `400`, `404`)
+* Registered route:
+
+  * `GET /customers/me` (JWT required)
+* Completes the **authenticated customer profile retrieval flow** and aligns with API contract 
+
+### 2. Authorization & Ownership Enforcement
+
+* Strengthened access control across account operations:
+
+  * explicit validation of ownership (`customer_id` vs authenticated user)
+  * forbidden access now consistently returns `ErrForbidden`
+* Added test coverage for:
+
+  * withdraw denied when account belongs to another customer
+* Reinforces **application-layer authorization**, consistent with architectural guidelines 
+
+### 3. Domain Invariants — User Consistency
+
+* Introduced `domain.NewUser` constructor:
+
+  * enforces invariant: `RoleCustomer → customer_id != nil`
+* Replaced manual struct construction in register use case
+* Added defensive post-transaction validation:
+
+  * returns `ErrInvalidUserState` if invariant is violated
+* Added unit tests validating:
+
+  * invariant enforcement in constructor
+  * allowed nil `customer_id` for admin role
+* This is a **critical design improvement**, ensuring domain correctness is not bypassed
+
+### 4. Database-Level Consistency
+
+* Added migration:
+
+  * `chk_users_customer_role_consistency`
+* Enforces at DB level:
+
+  * customer users must have `customer_id`
+* Aligns persistence with domain invariants (defense in depth)
+
+### 5. Error Handling Enhancements
+
+* Introduced new domain error:
+
+  * `ErrInvalidUserState`
+* Registered shared error code:
+
+  * `INVALID_USER_STATE → 500`
+* Added `ErrNotFound` to customer domain and mapped to `404`
+* Improves **error semantics and observability of invariant violations**
+
+### 6. JWT Claims Refinement
+
+* Renamed claim:
+
+  * `cid` → `customer_id`
+* Updated parsing and validation:
+
+  * stricter UUID validation
+  * clearer error messages
+* Improves API clarity and consistency with response payloads
+
+### 7. Handler Refactor — Customer Module
+
+* Updated handler to support multiple use cases via interfaces:
+
+  * `createCustomerUseCase`
+  * `getCustomerMeUseCase`
+* Added defensive checks for nil dependencies
+* Improves extensibility and testability
+
+### 8. Application & Flow Adjustments
+
+* Register user flow updated:
+
+  * explicit validation of email/password before persistence
+  * ensures customer is created before user
+  * guarantees transactional integrity with invariant check after commit
+* Create account flow refined:
+
+  * enforces ownership via `CanAccessCustomer`
+  * rejects external `customer_id` input (must come from JWT)
+
+### 9. Documentation Updates
+
+* Updated implementation and API docs:
+
+  * added `/customers/me` endpoint
+  * clarified authentication and ownership model
+  * documented invariant rules and error codes
+  * clarified register flow (customer created automatically)
+* Added authorization model section:
+
+  * customer vs admin access rules
+  * explicit prohibition of client-provided `customer_id`
+
+### 10. Test Coverage Expansion
+
+* Added:
+
+  * `GetCustomerMe` use case tests (success, invalid input, not found)
+  * customer handler tests (auth, invalid state, not found)
+  * register user invariant tests
+  * withdraw authorization test (cross-customer forbidden)
+* Strengthens confidence in:
+
+  * authorization rules
+  * domain invariants
+  * error mappings
+
+### Conclusion
+
+This commit significantly improves the system’s **correctness guarantees and security model** by:
+
+* enforcing invariants at both domain and database levels
+* centralizing authorization logic in the application layer
+* exposing a consistent authenticated customer endpoint
+* aligning JWT, API contract, and documentation
+
+From an architectural standpoint, this represents a **maturation step toward stricter domain integrity and safer multi-tenant behavior**, reducing the risk of inconsistent states and unauthorized access.
+
+
+## 2026/04/07 — check/adjustments-08
+
+Refactors customer lifecycle and account creation flow to be fully **authentication-driven**, introduces **transactional user registration with customer creation**, and tightens input validation across delivery and application layers.
+
+### 1. Removal of Public Customer Creation Endpoint
+
+* Removed `/customers` endpoint and related wiring from `main.go`
+* Eliminated direct customer creation from delivery layer
+* Documentation updated accordingly to reflect that customer creation is no longer public
+* Aligns API surface with authentication-centric flow, reducing exposure of domain operations 
+
+### 2. Authentication-Centric Customer Creation
+
+* `RegisterUserUseCase` now:
+
+  * accepts `name` and `cpf`
+  * creates **Customer + User atomically** within a transaction
+* Introduced transactional contract:
+
+  * `WithTransaction` in user repository
+  * ensures strong consistency between user and customer entities
+* Enforced invariant:
+
+  * all users with role `customer` must have a non-null `customer_id`
+* Improved failure handling:
+
+  * rollback on any step (email check, customer creation, hashing, user persistence)
+
+### 3. Transaction Infrastructure
+
+* Added `database.ContextWithTx` and `TxFromContext`
+* Repositories updated to:
+
+  * transparently use transaction when present in context
+  * fallback to connection pool otherwise
+* Applied to:
+
+  * user repository
+  * customer repository
+* This design preserves clean architecture boundaries while enabling application-level transaction orchestration 
+
+### 4. Account Creation Flow Simplification
+
+* Removed `customer_id` from request and use case input
+* `CreateAccount` now derives `customer_id` exclusively from authenticated user
+* Enforced stricter authorization:
+
+  * missing or nil `CustomerID` → `ErrForbidden`
+  * zero UUID → `ErrForbidden`
+* Eliminates risk of cross-customer account creation via crafted requests
+
+### 5. Delivery Layer Hardening
+
+* Account handler:
+
+  * disallows unknown JSON fields (`DisallowUnknownFields`)
+  * accepts empty body for account creation
+* Auth handler:
+
+  * validates required fields (`email`, `password`, `name`, `cpf`)
+  * trims input before processing
+  * rejects legacy/partial payloads
+* Login handler:
+
+  * now also rejects unknown fields
+* Ensures stricter API contracts and reduces ambiguity in request parsing
+
+### 6. API Contract Adjustments
+
+* `/accounts` creation:
+
+  * no longer requires body
+  * customer context derived from JWT
+* `/auth/register`:
+
+  * now requires `name` and `cpf`
+  * returns `customer_id` in response
+* Error semantics updated:
+
+  * shift from `INVALID_DATA` to `INVALID_REQUEST` for malformed payloads
+
+### 7. Test Suite Enhancements
+
+* Updated account tests:
+
+  * removed dependency on explicit `customer_id`
+  * added coverage for forbidden scenarios (nil user, nil/zero customer ID)
+* Extended auth tests:
+
+  * validates transactional behavior (`WithTransaction`)
+  * ensures customer creation precedes user creation
+  * verifies rollback scenarios (hash failure, customer persistence error)
+* Handler tests:
+
+  * enforce strict payload validation
+  * confirm rejection of unknown/legacy fields
+  * validate empty body handling for account creation
+
+### 8. Architectural Impact
+
+This change reinforces a **clear separation of responsibilities**:
+
+* Customer lifecycle is now fully encapsulated within authentication
+* Application layer owns transactional consistency
+* Delivery layer enforces strict input contracts
+* Infrastructure provides transparent transaction propagation
+
+From a design standpoint, this is a significant improvement: it removes redundant entry points, eliminates potential authorization bypass vectors, and aligns the system with a **cohesive identity-driven domain model**, which is critical for financial systems.
+
+
+## 2026/04/07 — check/adjustments-07
+
+Refactors authentication and user-related flows to **standardize UUID usage across all layers**, eliminating string-based identifiers and improving type safety, consistency, and alignment with domain modeling.
+
+### 1. Application Layer — UUID Normalization
+
+* Replaced all `string`-based identifiers with `uuid.UUID`:
+
+  * `GetCurrentUserOutput.ID`
+  * `LoginUserOutput.UserID`
+  * `RegisterUserOutput.ID`
+* Updated `CustomerID` from `*string` to `*uuid.UUID` across all outputs
+* Removed `nullableUUIDToString`, eliminating unnecessary conversions
+* Simplified data flow by preserving native types from domain to delivery
+
+This change significantly improves correctness by avoiding implicit serialization/deserialization and reducing potential formatting inconsistencies.
+
+### 2. Authentication Use Cases
+
+* `GetCurrentUser`:
+
+  * now returns native UUIDs directly from both principal and repository
+* `LoginUser`:
+
+  * propagates `user.ID` and `CustomerID` as UUIDs without conversion
+* `RegisterUser`:
+
+  * returns strongly typed identifiers instead of string representations
+
+These adjustments align application contracts with domain entities, reinforcing type integrity.
+
+### 3. Delivery Layer — HTTP Contract Adaptation
+
+* Updated response DTOs:
+
+  * `userData`
+  * `loginData`
+* Fields now use:
+
+  * `uuid.UUID` for required identifiers
+  * `*uuid.UUID` with `omitempty` for optional fields
+* Maintains compatibility with REST contract, where UUIDs are serialized as strings in JSON 
+
+From an architectural standpoint, this is the correct approach: **strong typing internally, serialization at the boundary**.
+
+### 4. Test Suite Adjustments
+
+* Updated all tests to reflect UUID usage:
+
+  * removed `.String()` comparisons
+  * direct equality checks with `uuid.UUID`
+  * validation of `uuid.Nil` instead of empty string
+* Handler tests adjusted to validate JSON output (string) vs internal UUID representation
+
+This ensures consistency between internal types and external API behavior.
+
+### 5. Domain Layer — Repository Contracts
+
+* Added explicit documentation to `UserRepository` methods:
+
+  * clarifies that full entities (including optional `CustomerID`) are returned
+* Improves clarity of repository responsibilities and reduces ambiguity in use cases
+
+### 6. Customer Module — Contract Refinement
+
+* Introduced `CustomerRepository` as the **canonical interface**:
+
+  * `Create`
+  * `GetByID`
+* Preserved legacy `Repository` interface for backward compatibility
+* This is a subtle but important step toward **cleaner module boundaries and explicit contracts**, aligned with the modular monolith architecture 
+
+### Conclusion
+
+This commit delivers a **structural improvement in type safety and architectural consistency**, replacing loosely typed identifiers with native UUIDs across the system.
+
+Key benefits:
+
+* elimination of redundant conversions
+* reduced risk of data inconsistencies
+* stronger alignment between domain, application, and delivery layers
+* cleaner and more maintainable contracts
+
+From a design perspective, this is a **high-quality refinement**, reinforcing the principle that **domain types should flow unaltered until the system boundary (HTTP serialization)**.
+
+
+## 2026/04/07 — check/adjustments-06
+
+Standardizes **UUID usage across the authentication and authorization layers**, replacing string-based identifiers with strong typing, improving type safety, consistency, and alignment with the system’s domain model.
+
+### 1. Domain Model Refactor — UUID as First-Class Identifier
+
+* Replaced all `string` identifiers with `uuid.UUID` in:
+
+  * `AuthenticatedUser`
+  * `User`
+  * `TokenClaims`
+* Updated `CustomerID` to `*uuid.UUID` across domain structures
+* Eliminates implicit conversions and enforces **type-safe identity handling at the domain level**
+* Aligns with system-wide decision of UUID as canonical identifier 
+
+### 2. Repository Contract Changes
+
+* Updated `UserRepository` interface:
+
+  * `FindByID(ctx, id uuid.UUID)`
+* Refactored PostgreSQL implementation:
+
+  * removed `sql.NullString` usage
+  * introduced `nullableUUIDValue`
+  * direct scanning into `*uuid.UUID`
+* Improves correctness and removes fragile string parsing logic
+
+### 3. JWT Handling — Strong Typing and Validation
+
+* Refactored token generation:
+
+  * `UserID` now stored as UUID (`Subject`)
+  * `CustomerID` serialized only when present
+* Refactored token parsing:
+
+  * explicit UUID parsing for `sub` and `cid`
+  * validation errors for invalid UUID claims
+* Removed `parseNullableCustomerID` helper (no longer needed)
+* Middleware now directly propagates typed claims to context
+* This change significantly improves **security and correctness of authentication flow**
+
+### 4. Application Layer Adjustments
+
+* Updated use cases:
+
+  * `GetCurrentUser`
+  * `LoginUser`
+  * `RegisterUser`
+* Internal processing uses `uuid.UUID`, while outputs are converted to string:
+
+  * ensures compatibility with HTTP contract
+* Replaced empty string checks with `uuid.Nil` validation
+* Introduced consistent conversion helpers (`nullableUUIDToString`)
+
+### 5. Delivery Layer Updates
+
+* Middleware simplified:
+
+  * removed redundant parsing/validation logic
+  * relies on infrastructure-level guarantees
+* Context propagation now carries strongly typed `AuthenticatedUser`
+* Maintains API contract unchanged (string-based UUIDs in responses) 
+
+### 6. Test Suite Refactor
+
+* Updated all tests to use UUID instead of string IDs:
+
+  * application tests
+  * delivery tests
+  * infrastructure tests
+* Introduced deterministic UUIDs where necessary (`uuid.MustParse`)
+* Adjusted mocks and assertions to reflect new types
+* Removed obsolete test cases related to invalid string parsing
+
+### 7. Access Policy and Authorization Tests
+
+* Updated access control tests to use UUID-based users
+* Ensures consistency with new identity model
+* Eliminates discrepancies between test data and production behavior
+
+### Conclusion
+
+This commit delivers a **high-impact structural improvement** by enforcing UUID as the canonical identifier across the entire auth module.
+
+Key benefits:
+
+* **Type safety** (compile-time guarantees instead of runtime parsing)
+* **Improved security** (strict validation of token claims)
+* **Cleaner architecture** (domain-driven consistency across layers)
+
+From an architectural standpoint, this is a **critical refinement**, reducing ambiguity in identity handling and aligning all layers with a robust and explicit data model.
+
+
+## 2026/04/06 — check/adjustments-05
 
 Refines database migration strategy, removes legacy schema artifacts, and improves development tooling consistency. These changes align the project with a migration-first approach and reinforce separation between schema evolution and source control. 
 

@@ -39,7 +39,7 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /accounts/{id}/deposit", func(w http.ResponseWriter, r *http.Request) {
 		ctx := auth.WithAuthenticatedUser(r.Context(), auth.AuthenticatedUser{
-			UserID:     "user-1",
+			UserID:     uuid.New(),
 			Role:       authdomain.RoleCustomer,
 			CustomerID: &customerID,
 		})

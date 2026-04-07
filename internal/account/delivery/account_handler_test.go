@@ -107,7 +107,7 @@ func TestHandler_CreateAccount_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestHandler_CreateAccount_InvalidCustomerID(t *testing.T) {
+func TestHandler_CreateAccount_RejectsUnknownField(t *testing.T) {
 	uc := &createAccountUseCaseMock{}
 	h := &Handler{createAccount: uc}
 	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{"customer_id":"invalid-uuid"}`))
@@ -130,8 +130,8 @@ func TestHandler_CreateAccount_InvalidCustomerID(t *testing.T) {
 		t.Fatalf("failed to decode response body: %v", err)
 	}
 
-	if got.Error.Code != "INVALID_DATA" {
-		t.Fatalf("expected error code %q, got %q", "INVALID_DATA", got.Error.Code)
+	if got.Error.Code != "INVALID_REQUEST" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_REQUEST", got.Error.Code)
 	}
 
 	if uc.executeCalls != 0 {
@@ -150,7 +150,7 @@ func TestHandler_CreateAccount_CustomerNotFound(t *testing.T) {
 	}
 	h := &Handler{createAccount: uc}
 	customerID := uuid.New()
-	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{"customer_id":"`+customerID.String()+`"}`))
+	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{}`))
 	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
@@ -188,9 +188,6 @@ func TestHandler_CreateAccount_Success(t *testing.T) {
 
 	uc := &createAccountUseCaseMock{
 		executeFn: func(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
-			if input.CustomerID != inputCustomerID {
-				return nil, errors.New("unexpected customer id")
-			}
 			if input.User == nil || input.User.CustomerID == nil || *input.User.CustomerID != inputCustomerID {
 				return nil, errors.New("unexpected user")
 			}
@@ -198,7 +195,7 @@ func TestHandler_CreateAccount_Success(t *testing.T) {
 		},
 	}
 	h := &Handler{createAccount: uc}
-	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{"customer_id":"`+inputCustomerID.String()+`"}`))
+	req := httptest.NewRequest(http.MethodPost, "/accounts", strings.NewReader(`{}`))
 	req = testAuthenticatedRequest(req, inputCustomerID)
 	rec := httptest.NewRecorder()
 
@@ -246,6 +243,37 @@ func TestHandler_CreateAccount_Success(t *testing.T) {
 
 	if got.Data.Status != string(returnedAccount.Status) {
 		t.Fatalf("expected status %q, got %q", string(returnedAccount.Status), got.Data.Status)
+	}
+}
+
+func TestHandler_CreateAccount_SuccessWithEmptyBody(t *testing.T) {
+	inputCustomerID := uuid.New()
+	returnedAccount := &domain.Account{
+		ID:         uuid.New(),
+		CustomerID: inputCustomerID,
+		Number:     "12345678",
+		Branch:     "0001",
+		Balance:    0,
+		Status:     domain.AccountActive,
+	}
+
+	uc := &createAccountUseCaseMock{
+		executeFn: func(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
+			if input.User == nil || input.User.CustomerID == nil || *input.User.CustomerID != inputCustomerID {
+				return nil, errors.New("unexpected user")
+			}
+			return returnedAccount, nil
+		},
+	}
+	h := &Handler{createAccount: uc}
+	req := httptest.NewRequest(http.MethodPost, "/accounts", nil)
+	req = testAuthenticatedRequest(req, inputCustomerID)
+	rec := httptest.NewRecorder()
+
+	h.CreateAccount(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, rec.Code)
 	}
 }
 

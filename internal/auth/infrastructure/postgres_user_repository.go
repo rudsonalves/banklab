@@ -2,22 +2,38 @@ package infrastructure
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	"github.com/seu-usuario/bank-api/internal/database"
 )
 
 type PostgresUserRepository struct {
 	db *pgxpool.Pool
 }
 
+type dbExecutor interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
 var _ domain.UserRepository = (*PostgresUserRepository)(nil)
 
 func NewPostgresUserRepository(db *pgxpool.Pool) *PostgresUserRepository {
 	return &PostgresUserRepository{db: db}
+}
+
+func (r *PostgresUserRepository) executor(ctx context.Context) dbExecutor {
+	if tx, ok := database.TxFromContext(ctx); ok {
+		return tx
+	}
+
+	return r.db
 }
 
 func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) error {
@@ -34,14 +50,14 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
-	_, err := r.db.Exec(
+	_, err := r.executor(ctx).Exec(
 		ctx,
 		query,
 		user.ID,
 		user.Email,
 		user.PasswordHash,
 		string(user.Role),
-		nullableStringValue(user.CustomerID),
+		nullableUUIDValue(user.CustomerID),
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
@@ -66,7 +82,7 @@ func (r *PostgresUserRepository) FindByEmail(ctx context.Context, email string) 
 		WHERE email = $1
 	`
 
-	row := r.db.QueryRow(ctx, query, email)
+	row := r.executor(ctx).QueryRow(ctx, query, email)
 	user, err := scanUser(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -78,7 +94,7 @@ func (r *PostgresUserRepository) FindByEmail(ctx context.Context, email string) 
 	return user, nil
 }
 
-func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*domain.User, error) {
+func (r *PostgresUserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	query := `
 		SELECT
 			id,
@@ -92,7 +108,7 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*doma
 		WHERE id = $1
 	`
 
-	row := r.db.QueryRow(ctx, query, id)
+	row := r.executor(ctx).QueryRow(ctx, query, id)
 	user, err := scanUser(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -113,7 +129,7 @@ func (r *PostgresUserRepository) ExistsByEmail(ctx context.Context, email string
 	`
 
 	var exists int
-	err := r.db.QueryRow(ctx, query, email).Scan(&exists)
+	err := r.executor(ctx).QueryRow(ctx, query, email).Scan(&exists)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
@@ -124,6 +140,30 @@ func (r *PostgresUserRepository) ExistsByEmail(ctx context.Context, email string
 	return true, nil
 }
 
+func (r *PostgresUserRepository) WithTransaction(ctx context.Context, fn func(txCtx context.Context) error) error {
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin user transaction: %w", err)
+	}
+
+	txCtx := database.ContextWithTx(ctx, tx)
+	if err := fn(txCtx); err != nil {
+		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			return fmt.Errorf("rollback user transaction after callback error: %v (original: %w)", rollbackErr, err)
+		}
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			return fmt.Errorf("rollback user transaction after commit error: %v (commit: %w)", rollbackErr, err)
+		}
+		return fmt.Errorf("commit user transaction: %w", err)
+	}
+
+	return nil
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }
@@ -131,7 +171,7 @@ type scanner interface {
 func scanUser(s scanner) (*domain.User, error) {
 	var user domain.User
 	var role string
-	var customerID sql.NullString
+	var customerID *uuid.UUID
 
 	err := s.Scan(
 		&user.ID,
@@ -147,12 +187,17 @@ func scanUser(s scanner) (*domain.User, error) {
 	}
 
 	user.Role = domain.Role(role)
-	if customerID.Valid {
-		value := customerID.String
-		user.CustomerID = &value
-	}
+	user.CustomerID = customerID
 
 	return &user, nil
+}
+
+func nullableUUIDValue(value *uuid.UUID) any {
+	if value == nil {
+		return nil
+	}
+
+	return *value
 }
 
 func nullableStringValue(value *string) any {

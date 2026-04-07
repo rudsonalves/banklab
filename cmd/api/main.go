@@ -28,8 +28,6 @@ func main() {
 	log.Println("DB connected")
 
 	customerRepo := customerInfrastructure.New(db)
-	customerUC := customerApplication.NewCreateCustomer(customerRepo)
-	customerHandler := customerDelivery.New(customerUC)
 
 	accountRepo := accountInfrastructure.New(db)
 	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo)
@@ -47,17 +45,18 @@ func main() {
 	}
 	tokenService := authInfrastructure.NewJWTTokenService(jwtSecret, 15*time.Minute)
 
-	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, hasher)
+	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
+	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)
+	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
-
-	http.HandleFunc("POST /customers", customerHandler.Create)
 
 	http.HandleFunc("POST /auth/register", authHandler.Register)
 	http.HandleFunc("POST /auth/login", authHandler.Login)
 	http.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
+	http.Handle("GET /customers/me", authMiddleware.RequireAuth(http.HandlerFunc(customerHandler.Me)))
 
 	http.Handle("POST /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.CreateAccount)))
 	http.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))

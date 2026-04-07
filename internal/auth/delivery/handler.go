@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
@@ -32,6 +34,8 @@ type Handler struct {
 type registerUserRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Name     string `json:"name"`
+	CPF      string `json:"cpf"`
 }
 
 type loginUserRequest struct {
@@ -40,18 +44,18 @@ type loginUserRequest struct {
 }
 
 type userData struct {
-	ID         string  `json:"id"`
-	Email      string  `json:"email"`
-	Role       string  `json:"role"`
-	CustomerID *string `json:"customer_id"`
+	ID         uuid.UUID  `json:"id"`
+	Email      string     `json:"email"`
+	Role       string     `json:"role"`
+	CustomerID *uuid.UUID `json:"customer_id,omitempty"`
 }
 
 type loginData struct {
-	AccessToken string  `json:"access_token"`
-	UserID      string  `json:"user_id"`
-	Email       string  `json:"email"`
-	Role        string  `json:"role"`
-	CustomerID  *string `json:"customer_id"`
+	AccessToken string     `json:"access_token"`
+	UserID      uuid.UUID  `json:"user_id"`
+	Email       string     `json:"email"`
+	Role        string     `json:"role"`
+	CustomerID  *uuid.UUID `json:"customer_id,omitempty"`
 }
 
 func New(
@@ -78,13 +82,25 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !isValidRegisterRequest(req) {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
 	output, err := h.registerUser.Execute(r.Context(), application.RegisterUserInput{
-		Email:    req.Email,
-		Password: req.Password,
+		Email:    strings.TrimSpace(req.Email),
+		Password: strings.TrimSpace(req.Password),
+		Name:     strings.TrimSpace(req.Name),
+		CPF:      strings.TrimSpace(req.CPF),
 	})
 	if err != nil {
 		log.Printf("event=register_user error=%v", err)
 		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	if output == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
@@ -96,6 +112,19 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func isValidRegisterRequest(req registerUserRequest) bool {
+	email := strings.TrimSpace(req.Email)
+	password := strings.TrimSpace(req.Password)
+	name := strings.TrimSpace(req.Name)
+	cpf := strings.TrimSpace(req.CPF)
+
+	if email == "" || password == "" || name == "" || cpf == "" {
+		return false
+	}
+
+	return true
+}
+
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.loginUser == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -103,7 +132,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req loginUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}

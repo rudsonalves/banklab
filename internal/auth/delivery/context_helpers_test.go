@@ -11,8 +11,9 @@ import (
 
 func TestGetAuthenticatedUser_ContextContainsUser(t *testing.T) {
 	customerID := uuid.New()
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 	ctx := application.WithAuthenticatedUser(context.Background(), application.AuthenticatedUser{
-		UserID:     "user-1",
+		UserID:     userID,
 		Role:       domain.RoleCustomer,
 		CustomerID: &customerID,
 	})
@@ -22,8 +23,8 @@ func TestGetAuthenticatedUser_ContextContainsUser(t *testing.T) {
 		t.Fatal("expected authenticated user in context")
 	}
 
-	if user == nil || user.UserID != "user-1" {
-		t.Fatalf("expected user id %q, got %#v", "user-1", user)
+	if user == nil || user.UserID != userID {
+		t.Fatalf("expected user id %q, got %#v", userID, user)
 	}
 }
 
