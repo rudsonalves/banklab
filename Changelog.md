@@ -1,5 +1,115 @@
 # Changelog
 
+## 2026/04/07 — check/adjustments-08
+
+Refactors customer lifecycle and account creation flow to be fully **authentication-driven**, introduces **transactional user registration with customer creation**, and tightens input validation across delivery and application layers.
+
+### 1. Removal of Public Customer Creation Endpoint
+
+* Removed `/customers` endpoint and related wiring from `main.go`
+* Eliminated direct customer creation from delivery layer
+* Documentation updated accordingly to reflect that customer creation is no longer public
+* Aligns API surface with authentication-centric flow, reducing exposure of domain operations 
+
+### 2. Authentication-Centric Customer Creation
+
+* `RegisterUserUseCase` now:
+
+  * accepts `name` and `cpf`
+  * creates **Customer + User atomically** within a transaction
+* Introduced transactional contract:
+
+  * `WithTransaction` in user repository
+  * ensures strong consistency between user and customer entities
+* Enforced invariant:
+
+  * all users with role `customer` must have a non-null `customer_id`
+* Improved failure handling:
+
+  * rollback on any step (email check, customer creation, hashing, user persistence)
+
+### 3. Transaction Infrastructure
+
+* Added `database.ContextWithTx` and `TxFromContext`
+* Repositories updated to:
+
+  * transparently use transaction when present in context
+  * fallback to connection pool otherwise
+* Applied to:
+
+  * user repository
+  * customer repository
+* This design preserves clean architecture boundaries while enabling application-level transaction orchestration 
+
+### 4. Account Creation Flow Simplification
+
+* Removed `customer_id` from request and use case input
+* `CreateAccount` now derives `customer_id` exclusively from authenticated user
+* Enforced stricter authorization:
+
+  * missing or nil `CustomerID` → `ErrForbidden`
+  * zero UUID → `ErrForbidden`
+* Eliminates risk of cross-customer account creation via crafted requests
+
+### 5. Delivery Layer Hardening
+
+* Account handler:
+
+  * disallows unknown JSON fields (`DisallowUnknownFields`)
+  * accepts empty body for account creation
+* Auth handler:
+
+  * validates required fields (`email`, `password`, `name`, `cpf`)
+  * trims input before processing
+  * rejects legacy/partial payloads
+* Login handler:
+
+  * now also rejects unknown fields
+* Ensures stricter API contracts and reduces ambiguity in request parsing
+
+### 6. API Contract Adjustments
+
+* `/accounts` creation:
+
+  * no longer requires body
+  * customer context derived from JWT
+* `/auth/register`:
+
+  * now requires `name` and `cpf`
+  * returns `customer_id` in response
+* Error semantics updated:
+
+  * shift from `INVALID_DATA` to `INVALID_REQUEST` for malformed payloads
+
+### 7. Test Suite Enhancements
+
+* Updated account tests:
+
+  * removed dependency on explicit `customer_id`
+  * added coverage for forbidden scenarios (nil user, nil/zero customer ID)
+* Extended auth tests:
+
+  * validates transactional behavior (`WithTransaction`)
+  * ensures customer creation precedes user creation
+  * verifies rollback scenarios (hash failure, customer persistence error)
+* Handler tests:
+
+  * enforce strict payload validation
+  * confirm rejection of unknown/legacy fields
+  * validate empty body handling for account creation
+
+### 8. Architectural Impact
+
+This change reinforces a **clear separation of responsibilities**:
+
+* Customer lifecycle is now fully encapsulated within authentication
+* Application layer owns transactional consistency
+* Delivery layer enforces strict input contracts
+* Infrastructure provides transparent transaction propagation
+
+From a design standpoint, this is a significant improvement: it removes redundant entry points, eliminates potential authorization bypass vectors, and aligns the system with a **cohesive identity-driven domain model**, which is critical for financial systems.
+
+
 ## 2026/04/07 — check/adjustments-07
 
 Refactors authentication and user-related flows to **standardize UUID usage across all layers**, eliminating string-based identifiers and improving type safety, consistency, and alignment with domain modeling.

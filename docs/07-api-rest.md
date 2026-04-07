@@ -139,50 +139,11 @@ Possible errors:
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 4. Customer Endpoint
-
-## 4.1 Create Customer
-
-- Method: POST
-- Path: /customers
-- Auth required: no
-
-Request body:
-
-```json
-{
-  "name": "Maria Silva",
-  "cpf": "12345678901",
-  "email": "maria@example.com"
-}
-```
-
-Success response (201):
-
-```json
-{
-  "data": {
-    "id": "f992f5f5-c4c5-4e25-95b8-3f3f1ee4ae39",
-    "name": "Maria Silva",
-    "cpf": "12345678901",
-    "email": "maria@example.com",
-    "created_at": "2026-04-02T12:00:00Z"
-  },
-  "error": null
-}
-```
-
-Possible errors:
-- 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: missing/invalid fields
-- 409 USER_ALREADY_EXISTS: duplicate CPF or email
-- 500 INTERNAL_ERROR: unexpected internal error
-
-## 5. Account Endpoints
+## 4. Account Endpoints
 
 All account routes are protected and require Authorization header with Bearer token.
 
-## 5.1 Create Account
+## 4.1 Create Account
 
 - Method: POST
 - Path: /accounts
@@ -191,10 +152,10 @@ All account routes are protected and require Authorization header with Bearer to
 Request body:
 
 ```json
-{
-  "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
-}
+{}
 ```
+
+Body can also be empty.
 
 Success response (201):
 
@@ -216,12 +177,11 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: customer_id invalid
 - 403 FORBIDDEN: access denied to account
 - 404 CUSTOMER_NOT_FOUND: customer does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 5.2 Deposit
+## 4.2 Deposit
 
 - Method: POST
 - Path: /accounts/{id}/deposit
@@ -258,7 +218,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 5.3 Withdraw
+## 4.3 Withdraw
 
 - Method: POST
 - Path: /accounts/{id}/withdraw
@@ -296,7 +256,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 5.4 Transfer
+## 4.4 Transfer
 
 - Method: POST
 - Path: /accounts/transfer
@@ -340,7 +300,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 5.5 Get Statement
+## 4.5 Get Statement
 
 - Method: GET
 - Path: /accounts/{id}/statement

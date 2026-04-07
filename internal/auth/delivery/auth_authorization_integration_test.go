@@ -21,6 +21,7 @@ import (
 	authdelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	authinfrastructure "github.com/seu-usuario/bank-api/internal/auth/infrastructure"
+	customerinfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -41,6 +42,8 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 		registerResp := performJSONRequest(t, server.URL+"/auth/register", http.MethodPost, map[string]any{
 			"email":    email,
 			"password": password,
+			"name":     "Integration User",
+			"cpf":      fmt.Sprintf("%011d", time.Now().UnixNano()%100000000000),
 		}, "")
 		if registerResp.StatusCode != http.StatusCreated {
 			t.Fatalf("expected register status %d, got %d", http.StatusCreated, registerResp.StatusCode)
@@ -209,10 +212,11 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	t.Helper()
 
 	userRepo := authinfrastructure.NewPostgresUserRepository(pool)
+	customerRepo := customerinfrastructure.New(pool)
 	hasher := authinfrastructure.NewBcryptPasswordHasher(bcrypt.MinCost)
 	tokenService := authinfrastructure.NewJWTTokenService("integration-secret", 20*time.Minute)
 
-	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, hasher)
+	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
 	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, hasher, tokenService)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
 	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)

@@ -13,8 +13,6 @@ import (
 	authDelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authInfrastructure "github.com/seu-usuario/bank-api/internal/auth/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/bootstrap"
-	customerApplication "github.com/seu-usuario/bank-api/internal/customer/application"
-	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
 	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
 	"golang.org/x/crypto/bcrypt"
@@ -28,8 +26,6 @@ func main() {
 	log.Println("DB connected")
 
 	customerRepo := customerInfrastructure.New(db)
-	customerUC := customerApplication.NewCreateCustomer(customerRepo)
-	customerHandler := customerDelivery.New(customerUC)
 
 	accountRepo := accountInfrastructure.New(db)
 	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo)
@@ -47,13 +43,11 @@ func main() {
 	}
 	tokenService := authInfrastructure.NewJWTTokenService(jwtSecret, 15*time.Minute)
 
-	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, hasher)
+	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)
 	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
-
-	http.HandleFunc("POST /customers", customerHandler.Create)
 
 	http.HandleFunc("POST /auth/register", authHandler.Register)
 	http.HandleFunc("POST /auth/login", authHandler.Login)

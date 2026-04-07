@@ -52,15 +52,17 @@ func (m *getCurrentUserUseCaseMock) Execute(ctx context.Context) (*application.G
 
 func TestHandler_Register_Success(t *testing.T) {
 	userID := uuid.New()
+	customerID := uuid.New()
 	registerUC := &registerUserUseCaseMock{
 		output: &application.RegisterUserOutput{
-			ID:    userID,
-			Email: "user@example.com",
-			Role:  "customer",
+			ID:         userID,
+			Email:      "user@example.com",
+			Role:       "customer",
+			CustomerID: &customerID,
 		},
 	}
 	handler := New(registerUC, nil, nil)
-	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
 	handler.Register(rec, req)
@@ -77,11 +79,20 @@ func TestHandler_Register_Success(t *testing.T) {
 		t.Fatalf("expected email %q, got %q", "user@example.com", registerUC.input.Email)
 	}
 
+	if registerUC.input.Name != "Maria Silva" {
+		t.Fatalf("expected name %q, got %q", "Maria Silva", registerUC.input.Name)
+	}
+
+	if registerUC.input.CPF != "12345678901" {
+		t.Fatalf("expected cpf %q, got %q", "12345678901", registerUC.input.CPF)
+	}
+
 	var got struct {
 		Data struct {
-			ID    string `json:"id"`
-			Email string `json:"email"`
-			Role  string `json:"role"`
+			ID         string `json:"id"`
+			Email      string `json:"email"`
+			Role       string `json:"role"`
+			CustomerID string `json:"customer_id"`
 		} `json:"data"`
 		Error any `json:"error"`
 	}
@@ -94,6 +105,10 @@ func TestHandler_Register_Success(t *testing.T) {
 		t.Fatalf("expected id %q, got %q", userID.String(), got.Data.ID)
 	}
 
+	if got.Data.CustomerID != customerID.String() {
+		t.Fatalf("expected customer_id %q, got %q", customerID.String(), got.Data.CustomerID)
+	}
+
 	if got.Error != nil {
 		t.Fatalf("expected nil error, got %#v", got.Error)
 	}
@@ -102,7 +117,7 @@ func TestHandler_Register_Success(t *testing.T) {
 func TestHandler_Register_UserAlreadyExists(t *testing.T) {
 	registerUC := &registerUserUseCaseMock{err: domain.ErrEmailAlreadyExists}
 	handler := New(registerUC, nil, nil)
-	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
 	handler.Register(rec, req)
@@ -128,6 +143,59 @@ func TestHandler_Register_UserAlreadyExists(t *testing.T) {
 
 	if got.Error.Code != "USER_ALREADY_EXISTS" {
 		t.Fatalf("expected error code %q, got %q", "USER_ALREADY_EXISTS", got.Error.Code)
+	}
+}
+
+func TestHandler_Register_InvalidInput(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "legacy payload is rejected",
+			body: `{"email":"user@example.com","password":"password123"}`,
+		},
+		{
+			name: "empty password",
+			body: `{"email":"user@example.com","password":"   ","name":"Maria Silva","cpf":"12345678901"}`,
+		},
+		{
+			name: "empty name",
+			body: `{"email":"user@example.com","password":"password123","name":"   ","cpf":"12345678901"}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			registerUC := &registerUserUseCaseMock{}
+			handler := New(registerUC, nil, nil)
+			req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(tc.body))
+			rec := httptest.NewRecorder()
+
+			handler.Register(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+			}
+
+			if registerUC.called {
+				t.Fatal("expected use case not to be called")
+			}
+
+			var got struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+
+			if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+				t.Fatalf("failed to decode response body: %v", err)
+			}
+
+			if got.Error.Code != "INVALID_REQUEST" {
+				t.Fatalf("expected error code %q, got %q", "INVALID_REQUEST", got.Error.Code)
+			}
+		})
 	}
 }
 

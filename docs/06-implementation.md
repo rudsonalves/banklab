@@ -64,7 +64,6 @@ Process startup sequence (cmd/api/main.go):
 
 Current route registration:
 
-- POST /customers
 - POST /accounts
 - POST /accounts/{id}/deposit
 - POST /accounts/{id}/withdraw
@@ -155,28 +154,29 @@ Factory behavior:
 
 ## 6. Application Use Cases
 
-### 6.1 Create Customer
+### 6.1 Register User (Auth)
 
 Input:
+- email
+- password
 - name
 - cpf
-- email
 
 Flow:
-1. Build entity via domain.NewCustomer
-2. Persist using customer repository
-3. Return created customer
-
-Notes:
-- Infrastructure maps unique constraint violations to domain duplicate errors.
+1. Start transaction
+2. Create Customer entity
+3. Persist customer
+4. Create User entity bound to customer_id
+5. Persist user
+6. Commit transaction
 
 ### 6.2 Create Account
 
 Input:
-- customer_id
+- authenticated user context (customer_id derived from token principal)
 
 Flow:
-1. Validate customer ID
+1. Validate authenticated user has customer_id
 2. Ensure customer exists
 3. Generate account number using sequence
 4. Build account entity (branch currently fixed as "0001")
@@ -272,17 +272,7 @@ Implemented concerns:
 - map domain errors to HTTP status and stable error codes
 - return JSON response with data/error envelope
 
-## 7.2 Customer Handler Endpoint
-
-- Create customer endpoint at POST /customers
-
-Implemented concerns:
-- body decoding into application input
-- field-level validation mapping for required name/cpf/email
-- duplicate cpf/email conflict mapping
-- consistent envelope response
-
-## 7.3 Response Contract
+## 7.2 Response Contract
 
 Response envelope format:
 

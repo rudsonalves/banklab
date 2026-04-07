@@ -25,20 +25,24 @@ func NewCreateAccount(
 }
 
 type CreateAccountInput struct {
-	User       *authdomain.AuthenticatedUser
-	CustomerID uuid.UUID
+	User *authdomain.AuthenticatedUser
 }
 
 func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) (*domain.Account, error) {
-	if input.CustomerID == uuid.Nil {
-		return nil, domain.ErrInvalidData
-	}
-
-	if !CanAccessCustomer(input.User, input.CustomerID) {
+	if input.User == nil || input.User.CustomerID == nil {
 		return nil, domain.ErrForbidden
 	}
 
-	exists, err := uc.customerRepo.Exists(ctx, input.CustomerID)
+	customerID := *input.User.CustomerID
+	if customerID == uuid.Nil {
+		return nil, domain.ErrForbidden
+	}
+
+	if !CanAccessCustomer(input.User, customerID) {
+		return nil, domain.ErrForbidden
+	}
+
+	exists, err := uc.customerRepo.Exists(ctx, customerID)
 	if err != nil {
 		return nil, fmt.Errorf("check customer existence: %w", err)
 	}
@@ -49,7 +53,7 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 	// Optional business rule: one account per customer
 	// Uncomment if needed
 	/*
-		exists, err = uc.accountRepo.ExistsByCustomerID(ctx, input.CustomerID)
+			exists, err = uc.accountRepo.ExistsByCustomerID(ctx, customerID)
 		if err != nil {
 			return nil, fmt.Errorf("check account existence: %w", err)
 		}
@@ -64,7 +68,7 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 	}
 	branch := generateBranch()
 
-	account, err := domain.NewAccount(input.CustomerID, number, branch)
+	account, err := domain.NewAccount(customerID, number, branch)
 	if err != nil {
 		return nil, err
 	}

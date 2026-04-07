@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
@@ -33,6 +34,8 @@ type Handler struct {
 type registerUserRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Name     string `json:"name"`
+	CPF      string `json:"cpf"`
 }
 
 type loginUserRequest struct {
@@ -79,13 +82,25 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !isValidRegisterRequest(req) {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
 	output, err := h.registerUser.Execute(r.Context(), application.RegisterUserInput{
-		Email:    req.Email,
-		Password: req.Password,
+		Email:    strings.TrimSpace(req.Email),
+		Password: strings.TrimSpace(req.Password),
+		Name:     strings.TrimSpace(req.Name),
+		CPF:      strings.TrimSpace(req.CPF),
 	})
 	if err != nil {
 		log.Printf("event=register_user error=%v", err)
 		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	if output == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 
@@ -97,6 +112,19 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func isValidRegisterRequest(req registerUserRequest) bool {
+	email := strings.TrimSpace(req.Email)
+	password := strings.TrimSpace(req.Password)
+	name := strings.TrimSpace(req.Name)
+	cpf := strings.TrimSpace(req.CPF)
+
+	if email == "" || password == "" || name == "" || cpf == "" {
+		return false
+	}
+
+	return true
+}
+
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.loginUser == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -104,7 +132,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req loginUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
