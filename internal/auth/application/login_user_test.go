@@ -108,7 +108,7 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected access token %q, got %q", "jwt-token", output.AccessToken)
 	}
 
-	if output.UserID != userID.String() {
+	if output.UserID != userID {
 		t.Fatalf("expected user ID %q, got %q", userID, output.UserID)
 	}
 
@@ -120,7 +120,7 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected role %q, got %q", domain.RoleCustomer, output.Role)
 	}
 
-	if output.CustomerID == nil || *output.CustomerID != customerID.String() {
+	if output.CustomerID == nil || *output.CustomerID != customerID {
 		t.Fatalf("expected customer ID %q, got %v", customerID, output.CustomerID)
 	}
 

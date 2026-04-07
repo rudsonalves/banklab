@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
@@ -40,18 +41,18 @@ type loginUserRequest struct {
 }
 
 type userData struct {
-	ID         string  `json:"id"`
-	Email      string  `json:"email"`
-	Role       string  `json:"role"`
-	CustomerID *string `json:"customer_id"`
+	ID         uuid.UUID  `json:"id"`
+	Email      string     `json:"email"`
+	Role       string     `json:"role"`
+	CustomerID *uuid.UUID `json:"customer_id,omitempty"`
 }
 
 type loginData struct {
-	AccessToken string  `json:"access_token"`
-	UserID      string  `json:"user_id"`
-	Email       string  `json:"email"`
-	Role        string  `json:"role"`
-	CustomerID  *string `json:"customer_id"`
+	AccessToken string     `json:"access_token"`
+	UserID      uuid.UUID  `json:"user_id"`
+	Email       string     `json:"email"`
+	Role        string     `json:"role"`
+	CustomerID  *uuid.UUID `json:"customer_id,omitempty"`
 }
 
 func New(

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
@@ -50,9 +51,10 @@ func (m *getCurrentUserUseCaseMock) Execute(ctx context.Context) (*application.G
 }
 
 func TestHandler_Register_Success(t *testing.T) {
+	userID := uuid.New()
 	registerUC := &registerUserUseCaseMock{
 		output: &application.RegisterUserOutput{
-			ID:    "user-1",
+			ID:    userID,
 			Email: "user@example.com",
 			Role:  "customer",
 		},
@@ -88,8 +90,8 @@ func TestHandler_Register_Success(t *testing.T) {
 		t.Fatalf("failed to decode response body: %v", err)
 	}
 
-	if got.Data.ID != "user-1" {
-		t.Fatalf("expected id %q, got %q", "user-1", got.Data.ID)
+	if got.Data.ID != userID.String() {
+		t.Fatalf("expected id %q, got %q", userID.String(), got.Data.ID)
 	}
 
 	if got.Error != nil {

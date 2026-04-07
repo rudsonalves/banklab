@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
@@ -33,10 +34,10 @@ type LoginUserInput struct {
 
 type LoginUserOutput struct {
 	AccessToken string
-	UserID      string
+	UserID      uuid.UUID
 	Email       string
 	Role        string
-	CustomerID  *string
+	CustomerID  *uuid.UUID
 }
 
 func (uc *LoginUserUseCase) Execute(
@@ -75,9 +76,9 @@ func (uc *LoginUserUseCase) Execute(
 
 	return &LoginUserOutput{
 		AccessToken: token,
-		UserID:      user.ID.String(),
+		UserID:      user.ID,
 		Email:       user.Email,
 		Role:        string(user.Role),
-		CustomerID:  nullableUUIDToString(user.CustomerID),
+		CustomerID:  user.CustomerID,
 	}, nil
 }

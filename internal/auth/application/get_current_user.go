@@ -23,10 +23,10 @@ func NewGetCurrentUserUseCase(userRepo domain.UserRepository) *GetCurrentUserUse
 }
 
 type GetCurrentUserOutput struct {
-	ID         string
+	ID         uuid.UUID
 	Email      string
 	Role       string
-	CustomerID *string
+	CustomerID *uuid.UUID
 }
 
 func WithAuthenticatedUser(ctx context.Context, user AuthenticatedUser) context.Context {
@@ -55,9 +55,9 @@ func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOu
 
 	if uc.userRepo == nil {
 		return &GetCurrentUserOutput{
-			ID:         principal.UserID.String(),
+			ID:         principal.UserID,
 			Role:       string(principal.Role),
-			CustomerID: nullableUUIDToString(principal.CustomerID),
+			CustomerID: principal.CustomerID,
 		}, nil
 	}
 
@@ -70,18 +70,9 @@ func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOu
 	}
 
 	return &GetCurrentUserOutput{
-		ID:         user.ID.String(),
+		ID:         user.ID,
 		Email:      user.Email,
 		Role:       string(user.Role),
-		CustomerID: nullableUUIDToString(user.CustomerID),
+		CustomerID: user.CustomerID,
 	}, nil
-}
-
-func nullableUUIDToString(value *uuid.UUID) *string {
-	if value == nil {
-		return nil
-	}
-
-	s := value.String()
-	return &s
 }

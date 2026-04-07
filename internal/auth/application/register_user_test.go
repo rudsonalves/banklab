@@ -73,7 +73,7 @@ func TestRegisterUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatal("expected output to be non-nil")
 	}
 
-	if output.ID == "" {
+	if output.ID == uuid.Nil {
 		t.Fatal("expected output ID to be set")
 	}
 

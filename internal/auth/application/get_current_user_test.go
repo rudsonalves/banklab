@@ -65,8 +65,8 @@ func TestGetCurrentUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatal("expected output to be non-nil")
 	}
 
-	if output.ID != testUserID.String() {
-		t.Fatalf("expected ID %q, got %q", testUserID.String(), output.ID)
+	if output.ID != testUserID {
+		t.Fatalf("expected ID %q, got %q", testUserID, output.ID)
 	}
 
 	if output.Email != "user@example.com" {
@@ -77,7 +77,7 @@ func TestGetCurrentUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected role %q, got %q", domain.RoleCustomer, output.Role)
 	}
 
-	if output.CustomerID == nil || *output.CustomerID != customerID.String() {
+	if output.CustomerID == nil || *output.CustomerID != customerID {
 		t.Fatalf("expected customer ID %q, got %v", customerID, output.CustomerID)
 	}
 

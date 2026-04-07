@@ -1,5 +1,91 @@
 # Changelog
 
+## 2026/04/07 — check/adjustments-07
+
+Refactors authentication and user-related flows to **standardize UUID usage across all layers**, eliminating string-based identifiers and improving type safety, consistency, and alignment with domain modeling.
+
+### 1. Application Layer — UUID Normalization
+
+* Replaced all `string`-based identifiers with `uuid.UUID`:
+
+  * `GetCurrentUserOutput.ID`
+  * `LoginUserOutput.UserID`
+  * `RegisterUserOutput.ID`
+* Updated `CustomerID` from `*string` to `*uuid.UUID` across all outputs
+* Removed `nullableUUIDToString`, eliminating unnecessary conversions
+* Simplified data flow by preserving native types from domain to delivery
+
+This change significantly improves correctness by avoiding implicit serialization/deserialization and reducing potential formatting inconsistencies.
+
+### 2. Authentication Use Cases
+
+* `GetCurrentUser`:
+
+  * now returns native UUIDs directly from both principal and repository
+* `LoginUser`:
+
+  * propagates `user.ID` and `CustomerID` as UUIDs without conversion
+* `RegisterUser`:
+
+  * returns strongly typed identifiers instead of string representations
+
+These adjustments align application contracts with domain entities, reinforcing type integrity.
+
+### 3. Delivery Layer — HTTP Contract Adaptation
+
+* Updated response DTOs:
+
+  * `userData`
+  * `loginData`
+* Fields now use:
+
+  * `uuid.UUID` for required identifiers
+  * `*uuid.UUID` with `omitempty` for optional fields
+* Maintains compatibility with REST contract, where UUIDs are serialized as strings in JSON 
+
+From an architectural standpoint, this is the correct approach: **strong typing internally, serialization at the boundary**.
+
+### 4. Test Suite Adjustments
+
+* Updated all tests to reflect UUID usage:
+
+  * removed `.String()` comparisons
+  * direct equality checks with `uuid.UUID`
+  * validation of `uuid.Nil` instead of empty string
+* Handler tests adjusted to validate JSON output (string) vs internal UUID representation
+
+This ensures consistency between internal types and external API behavior.
+
+### 5. Domain Layer — Repository Contracts
+
+* Added explicit documentation to `UserRepository` methods:
+
+  * clarifies that full entities (including optional `CustomerID`) are returned
+* Improves clarity of repository responsibilities and reduces ambiguity in use cases
+
+### 6. Customer Module — Contract Refinement
+
+* Introduced `CustomerRepository` as the **canonical interface**:
+
+  * `Create`
+  * `GetByID`
+* Preserved legacy `Repository` interface for backward compatibility
+* This is a subtle but important step toward **cleaner module boundaries and explicit contracts**, aligned with the modular monolith architecture 
+
+### Conclusion
+
+This commit delivers a **structural improvement in type safety and architectural consistency**, replacing loosely typed identifiers with native UUIDs across the system.
+
+Key benefits:
+
+* elimination of redundant conversions
+* reduced risk of data inconsistencies
+* stronger alignment between domain, application, and delivery layers
+* cleaner and more maintainable contracts
+
+From a design perspective, this is a **high-quality refinement**, reinforcing the principle that **domain types should flow unaltered until the system boundary (HTTP serialization)**.
+
+
 ## 2026/04/07 — check/adjustments-06
 
 Standardizes **UUID usage across the authentication and authorization layers**, replacing string-based identifiers with strong typing, improving type safety, consistency, and alignment with the system’s domain model.

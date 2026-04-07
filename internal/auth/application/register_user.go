@@ -31,10 +31,10 @@ type RegisterUserInput struct {
 }
 
 type RegisterUserOutput struct {
-	ID         string
+	ID         uuid.UUID
 	Email      string
 	Role       string
-	CustomerID *string
+	CustomerID *uuid.UUID
 }
 
 func (uc *RegisterUserUseCase) Execute(
@@ -79,10 +79,10 @@ func (uc *RegisterUserUseCase) Execute(
 	}
 
 	return &RegisterUserOutput{
-		ID:         user.ID.String(),
+		ID:         user.ID,
 		Email:      user.Email,
 		Role:       string(user.Role),
-		CustomerID: nullableUUIDToString(user.CustomerID),
+		CustomerID: user.CustomerID,
 	}, nil
 }
 
