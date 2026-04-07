@@ -403,7 +403,7 @@ Success response (200):
 Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: authenticated user has no associated customer (inconsistent state)
+- 409 INVALID_USER_STATE: authenticated user has no associated customer (inconsistent state)
 - 404 CUSTOMER_NOT_FOUND: customer record not found
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -416,7 +416,7 @@ Rules:
 - A user with role `admin` can access any resource
 - The `customer_id` is never accepted from the client — it is always read from the JWT token
 - Cross-customer access returns `403 FORBIDDEN`
-- Any operation where the user has no `customer_id` returns `403 FORBIDDEN` or `400 INVALID_DATA`
+- Any operation where the user has no `customer_id` returns `409 INVALID_USER_STATE`
 
 This rule is enforced in the application layer via `CanAccessAccount` and `CanAccessCustomer` helpers, not in HTTP handlers.
 
@@ -439,7 +439,7 @@ Common error codes currently used by handlers:
 - SAME_ACCOUNT_TRANSFER
 - INTERNAL_ERROR
 
-`INVALID_USER_STATE` (HTTP 500) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
+`INVALID_USER_STATE` (HTTP 409) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
 
 ## 8. Domain Notes for API Consumers
 

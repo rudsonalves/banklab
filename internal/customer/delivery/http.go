@@ -88,7 +88,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if user.CustomerID == nil {
-		sharedhttp.WriteError(w, sharederrors.MapError(customerdomain.ErrInvalidData))
+		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidUserState))
 		return
 	}
 
