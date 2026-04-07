@@ -1,5 +1,76 @@
 # Changelog
 
+## 2026/04/07 — check/adjustments-10
+
+Refines error semantics for invalid user state, aligning domain, delivery, and documentation to correctly represent invariant violations as a conflict scenario instead of an internal server error.
+
+### 1. Error Semantics Adjustment
+
+* Updated `INVALID_USER_STATE` HTTP mapping:
+
+  * from `500 Internal Server Error`
+  * to `409 Conflict`
+* Reflects that this condition represents a **business invariant violation**, not an unexpected failure
+* Improves API correctness and aligns with REST semantics
+
+### 2. Auth Application — Error Registry
+
+* Updated error registration in `errors_registry.go`:
+
+  * `ErrInvalidUserState` now maps to `http.StatusConflict`
+* Ensures consistent propagation of the new status across all layers
+
+### 3. Customer Delivery Layer
+
+* Updated `/customers/me` handler:
+
+  * replaced `ErrInvalidData` with `ErrInvalidUserState` when `customer_id` is missing
+* Correctly distinguishes:
+
+  * invalid input (client responsibility)
+  * invalid system state (invariant violation)
+
+### 4. Customer Handler Tests
+
+* Updated test expectations:
+
+  * HTTP status changed from `400` to `409`
+  * now validates returned error code `INVALID_USER_STATE`
+* Strengthens contract validation for error responses
+
+### 5. API Documentation Updates
+
+* Updated REST documentation to reflect new semantics:
+
+  * replaced `400 INVALID_DATA` with `409 INVALID_USER_STATE` for missing `customer_id`
+  * clarified that this scenario represents an inconsistent system state
+* Adjusted authorization rules:
+
+  * operations without `customer_id` now consistently return `409`
+* Updated error code reference:
+
+  * `INVALID_USER_STATE` now documented as `409` instead of `500` 
+
+### 6. Changelog Update
+
+* Updated changelog entry:
+
+  * reflects new HTTP status (`409`) for `INVALID_USER_STATE`
+* Improves historical traceability of API behavior changes
+
+### Conclusion
+
+This commit improves the **semantic precision of error handling** across the system by reclassifying invariant violations as conflicts.
+
+The change enhances:
+
+* API consistency
+* observability of invalid states
+* alignment between domain rules and HTTP contract
+
+Overall, this is a small but important correction that strengthens the reliability and clarity of the system’s error model.
+
+
 ## 2026/04/07 — check/adjustments-09
 
 Introduces **consistency safeguards, authorization enforcement, and customer self-access endpoint**, along with refinements in domain invariants, JWT structure, and documentation alignment.
@@ -63,7 +134,7 @@ Introduces **consistency safeguards, authorization enforcement, and customer sel
   * `ErrInvalidUserState`
 * Registered shared error code:
 
-  * `INVALID_USER_STATE → 500`
+  * `INVALID_USER_STATE → 409`
 * Added `ErrNotFound` to customer domain and mapped to `404`
 * Improves **error semantics and observability of invariant violations**
 

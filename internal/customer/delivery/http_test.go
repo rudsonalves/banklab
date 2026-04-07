@@ -109,8 +109,20 @@ func TestHandler_Me_InvalidStateWhenCustomerIDMissing(t *testing.T) {
 
 	h.Me(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Error.Code != "INVALID_USER_STATE" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_USER_STATE", got.Error.Code)
 	}
 }
 

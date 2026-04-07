@@ -54,6 +54,6 @@ func RegisterErrors() {
 		domain.ErrInvalidUserState,
 		sharederrors.ErrCodeInvalidUserState,
 		"Invalid user state",
-		http.StatusInternalServerError,
+		http.StatusConflict,
 	)
 }
