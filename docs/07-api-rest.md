@@ -35,8 +35,61 @@ Error:
   "data": null,
   "error": {
     "code": "ERROR_CODE",
-    "message": "human readable message",
-    "details": {}
+    "message": "human readable message"
+  }
+}
+```
+
+Notes:
+- Current implementation returns `error.code` and `error.message`.
+- `error.details` is not currently populated by handlers.
+
+## 2.1 Error Payload Examples (Standard)
+
+Example - 400 INVALID_REQUEST:
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request body"
+  }
+}
+```
+
+Example - 401 UNAUTHORIZED:
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+Example - 401 INVALID_TOKEN:
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_TOKEN",
+    "message": "Invalid token"
+  }
+}
+```
+
+Example - 500 INTERNAL_ERROR:
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "Internal server error"
   }
 }
 ```
@@ -447,3 +500,235 @@ Common error codes currently used by handlers:
 - UUID is used for all resource identifiers
 - Financial operations are synchronous and strongly consistent
 - Transfer operation is atomic: debit and credit are committed together
+
+## 9. Error Scenarios by Endpoint (with Payload)
+
+This section lists common error situations and the expected payload shape.
+
+### 9.1 POST /auth/register
+
+Scenario: malformed JSON
+- Status: 400
+- Code: INVALID_REQUEST
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request body"
+  }
+}
+```
+
+Scenario: duplicate email/CPF
+- Status: 409
+- Code: USER_ALREADY_EXISTS
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "USER_ALREADY_EXISTS",
+    "message": "User already exists"
+  }
+}
+```
+
+### 9.2 POST /auth/login
+
+Scenario: invalid credentials
+- Status: 401
+- Code: INVALID_CREDENTIALS
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Invalid credentials"
+  }
+}
+```
+
+### 9.3 GET /auth/me
+
+Scenario: missing/invalid authentication
+- Status: 401
+- Code: UNAUTHORIZED or INVALID_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+### 9.4 POST /accounts
+
+Scenario: authenticated user cannot create account for requested context
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied to account"
+  }
+}
+```
+
+Scenario: customer does not exist
+- Status: 404
+- Code: CUSTOMER_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "CUSTOMER_NOT_FOUND",
+    "message": "Customer not found"
+  }
+}
+```
+
+### 9.5 POST /accounts/{id}/deposit
+
+Scenario: invalid amount
+- Status: 400
+- Code: INVALID_AMOUNT
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_AMOUNT",
+    "message": "Invalid amount"
+  }
+}
+```
+
+Scenario: account not found
+- Status: 404
+- Code: ACCOUNT_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_NOT_FOUND",
+    "message": "Account not found"
+  }
+}
+```
+
+Scenario: account inactive
+- Status: 422
+- Code: ACCOUNT_INACTIVE
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_INACTIVE",
+    "message": "Account is not active"
+  }
+}
+```
+
+### 9.6 POST /accounts/{id}/withdraw
+
+Scenario: insufficient funds
+- Status: 422
+- Code: INSUFFICIENT_FUNDS
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INSUFFICIENT_FUNDS",
+    "message": "Insufficient balance"
+  }
+}
+```
+
+### 9.7 POST /accounts/transfer
+
+Scenario: source and destination are the same
+- Status: 400
+- Code: SAME_ACCOUNT_TRANSFER
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "SAME_ACCOUNT_TRANSFER",
+    "message": "Source and destination accounts must be different"
+  }
+}
+```
+
+Scenario: access denied to source account
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied to account"
+  }
+}
+```
+
+### 9.8 GET /accounts/{id}/statement
+
+Scenario: invalid query/path data
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+### 9.9 GET /customers/me
+
+Scenario: user has inconsistent state (customer role without customer_id)
+- Status: 409
+- Code: INVALID_USER_STATE
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_USER_STATE",
+    "message": "Invalid user state"
+  }
+}
+```
+
+Scenario: customer not found
+- Status: 404
+- Code: CUSTOMER_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "CUSTOMER_NOT_FOUND",
+    "message": "Customer not found"
+  }
+}
+```

@@ -1,5 +1,74 @@
 # Changelog
 
+## 2026/04/08 — doc/adjustments-02
+
+Refines project documentation, improves architectural positioning of the mobile client, and aligns iOS build configuration with CocoaPods integration. Also simplifies initial UI structure in Flutter.
+
+### 1. README Restructuring and Positioning
+
+* Rewrote project description to better reflect **BankFlow as a validation client**, not a feature-driven product
+* Clarified the role of the mobile application as part of a **broader system design exercise**, emphasizing end-to-end validation
+* Reorganized sections:
+
+  * Purpose → now focused on system-level concerns (consistency, contracts, transaction safety)
+  * Scope → clarified supported features and pagination strategy
+  * Architectural Role → explicitly defines the app as a **backend validation layer**
+* Removed indirect references and replaced with explicit, self-contained explanations aligned with the system architecture principles 
+
+### 2. Architectural Consistency Improvements
+
+* Documentation now reflects:
+
+  * separation between UI, state, and business logic
+  * predictable data flow and failure handling
+* Better alignment with backend architecture concepts such as:
+
+  * layered responsibilities
+  * transactional guarantees
+  * contract-driven design 
+
+### 3. iOS Build System Integration (CocoaPods)
+
+* Added `Podfile.lock` to ensure dependency reproducibility
+* Integrated CocoaPods into Xcode project:
+
+  * added `Pods` group and related xcconfig files
+  * linked `Pods_Runner.framework` and `Pods_RunnerTests.framework`
+  * introduced build phases:
+
+    * `[CP] Check Pods Manifest.lock`
+    * `[CP] Embed Pods Frameworks`
+* Updated workspace to include `Pods.xcodeproj`
+* This change improves **build determinism and environment consistency**, particularly relevant for plugins like secure storage
+
+### 4. Flutter UI Simplification
+
+* Simplified `HomePage`:
+
+  * removed unused state (`_counter`) and increment logic
+  * removed floating action button
+  * eliminated unnecessary constructor parameter (`title`)
+* Updated `MainApp`:
+
+  * adjusted `HomePage` instantiation to match new signature
+* Results in a **cleaner baseline UI**, better aligned with the project’s architectural focus rather than demo artifacts
+
+### 5. Documentation Tone and Intent
+
+* Shifted messaging from “learning/demo app” to **engineering-focused system validation tool**
+* Explicitly states constraints:
+
+  * limited features by design
+  * emphasis on correctness and consistency over completeness
+* Improves coherence between documentation and actual system goals, particularly regarding API contract validation 
+
+### Conclusion
+
+This commit significantly improves **documentation clarity and architectural alignment**, while also stabilizing the iOS build pipeline and removing non-essential UI artifacts.
+
+From a technical standpoint, the most relevant gain is the **clear positioning of the mobile app as part of a controlled system validation strategy**, which strengthens the coherence between frontend behavior and backend guarantees.
+
+
 ## 2026/04/08 — doc/adjustments-01
 
 Refines developer experience and documentation clarity by improving build workflow, standardizing local development instructions, and organizing project documentation into a structured and navigable format.
