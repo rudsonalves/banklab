@@ -1,0 +1,13 @@
+# Go
+api/bin/
+api/tmp/
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# General
+.DS_Store
+.env

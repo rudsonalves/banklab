@@ -82,3 +82,24 @@ pull: ## Pull current branch or specified branch (make pull branch=xxx)
 
 gitlog: ## Show git log in one line format
 	git log --oneline
+
+# =========================
+# Docker
+# =========================
+docker-up: ## Start Docker containers in detached mode
+	docker compose up -d
+
+docker-down: ## Stop and remove Docker containers
+	docker compose down
+
+docker-logs: ## Follow Docker container logs
+	docker compose logs -f
+
+# =========================
+# Flutter specific
+# =========================
+flutter-clean: ## Clean Flutter build and get dependencies
+	cd mobile && flutter clean && flutter pub get
+
+flutter-build: ## Build Flutter app for release
+	cd mobile && flutter build apk --release

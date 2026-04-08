@@ -103,8 +103,8 @@ Protected routes require JWT authentication.
 **Start database:**
 
 ```
-docker compose up -d
-make migrate-up
+make docker-up
+make api-migrate-up
 ```
 
 This starts PostgreSQL 16 in a container and runs all pending database migrations.
@@ -112,7 +112,7 @@ This starts PostgreSQL 16 in a container and runs all pending database migration
 **Run tests:**
 
 ```
-make tests
+make api-test
 ```
 
 Runs all tests with coverage report.
@@ -120,12 +120,12 @@ Runs all tests with coverage report.
 **Build and run API:**
 
 ```
-make build
+make api-build
 export JWT_SECRET=dev-change-me
-./build/bank-api
+./api/build/bank-api
 ```
 
-Compiles the binary into the `build/` directory and runs the server on `http://localhost:8080`.
+Compiles the binary into the `api/build/` directory and runs the server on `http://localhost:8080`.
 
 ## Project Structure
 
@@ -139,17 +139,17 @@ Compiles the binary into the `build/` directory and runs the server on `http://l
 
 ## Documentation
 
-Detailed design decisions are documented in `docs/`:
+Detailed design decisions are documented in `../docs/api/`:
 
-- [Architecture](docs/00-arquitetura.md)
-- [Domain Model](docs/01-modelo_de_dominio.md)
-- [Use Case Flows](docs/02-fluxos_de_caso_de_uso.md)
-- [Data Model](docs/03-modelo_de_dados.md)
-- [Consistency and Concurrency Strategy](docs/04-estrategia_de_consistencia_e_concorrencia.md)
-- [Error Handling](docs/05-padrao_de_erros_e_respostas.md)
-- [Implementation Details](docs/06-implementation.md)
-- [API REST Design](docs/07-api-rest.md)
-- [Authentication and Authorization](docs/08-auth_implementation.md)
+- [Architecture](../docs/api/00-arquitetura.md)
+- [Domain Model](../docs/api/01-modelo_de_dominio.md)
+- [Use Case Flows](../docs/api/02-fluxos_de_caso_de_uso.md)
+- [Data Model](../docs/api/03-modelo_de_dados.md)
+- [Consistency and Concurrency Strategy](../docs/api/04-estrategia_de_consistencia_e_concorrencia.md)
+- [Error Handling](../docs/api/05-padrao_de_erros_e_respostas.md)
+- [Implementation Details](../docs/api/06-implementation.md)
+- [API REST Design](../docs/api/07-api-rest.md)
+- [Authentication and Authorization](../docs/api/08-auth_implementation.md)
 
 ## Future Work
 
