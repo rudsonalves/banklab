@@ -1,41 +1,71 @@
 # Bank API
 
-Bank API is a modular Go service that implements a simplified banking core with strong transactional consistency.
+Bank API is a modular Go service that implements a simplified banking core, designed with a strong emphasis on transactional consistency and system correctness.
 
-It provides:
+Rather than a feature-complete product, this project serves as an engineering-focused environment to explore backend design decisions in financial systems.
+
+## Purpose
+
+This project is part of a broader effort to build and validate a complete system (backend + mobile client), focusing on:
+
+- correctness of financial operations
+- consistency guarantees under concurrent access
+- clear API contracts between backend and client
+- explicit modeling of business rules and invariants
+
+## Core Capabilities
+
 - customer creation
-- user registration and login (JWT)
-- account creation
-- deposit, withdraw, and transfer operations
-- account statement with pagination and filters
-- authentication and account ownership authorization
+- user registration and authentication (JWT)
+- account creation and ownership enforcement
+- financial operations (deposit, withdraw, transfer)
+- account statement with pagination and filtering
 
-The project is organized as a layered modular monolith, with clear separation between HTTP delivery, application use cases, domain rules, and PostgreSQL infrastructure.
+## Architectural Approach
 
-## Main Goals
+The system follows a layered modular monolith structure:
 
-- keep financial operations correct and predictable
-- guarantee ledger traceability for balance changes
-- enforce business invariants at domain and application levels
-- support safe concurrent operations through database transactions and row locking
+- Delivery (HTTP layer)
+- Application (use cases and transaction orchestration)
+- Domain (business rules and invariants)
+- Infrastructure (PostgreSQL and repositories)
 
-## Architecture
+Dependency direction:
 
-Current dependency direction:
+- Delivery → Application → Domain  
+- Infrastructure → Domain  
 
-- Delivery -> Application -> Domain
-- Infrastructure -> Domain
+This structure is intentionally enforced to keep business logic isolated and predictable.
 
-Entrypoint:
-- cmd/api/main.go
+## Design Focus
 
-Main modules:
-- internal/customer
-- internal/account
-- internal/auth
-- internal/database
+### Transactional Consistency
 
-## Stack
+Financial operations are treated as critical sections:
+
+- all balance-changing operations run inside explicit database transactions
+- row-level locking (`SELECT FOR UPDATE`) is used to prevent race conditions
+- deterministic lock ordering is applied in transfers to reduce deadlock risk
+
+### Ledger Integrity
+
+- all balance changes are recorded as immutable ledger entries
+- account balance is derived from controlled updates, not arbitrary mutations
+- operations are designed to be traceable and auditable
+
+### Domain Invariants
+
+- business rules are enforced at domain and application levels
+- invalid state transitions are rejected early
+- consistency is prioritized over convenience
+
+### API Design
+
+- consistent response envelope (`data` / `error`)
+- explicit error codes and messages
+- endpoints designed to reflect real-world operations rather than CRUD abstractions
+
+## Technology Stack
 
 - Go 1.26.1
 - PostgreSQL 16
@@ -44,79 +74,30 @@ Main modules:
 
 ## Implemented Endpoints
 
+Authentication:
 - POST /auth/register
 - POST /auth/login
 - GET /auth/me
+
+Customer:
 - POST /customers
+
+Accounts:
 - POST /accounts
 - POST /accounts/{id}/deposit
 - POST /accounts/{id}/withdraw
 - POST /accounts/transfer
 - GET /accounts/{id}/statement
 
-Protected routes (JWT required):
-- GET /auth/me
-- /accounts/*
+Protected routes require JWT authentication.
 
-## Response Pattern
+## Persistence Model
 
-All endpoints use a consistent envelope:
-
-- success: data populated and error null
-- failure: data null and error populated with code/message/details
-
-## Persistence and Consistency
-
-- relational model in PostgreSQL
-- account balances stored in cents using BIGINT
-- ledger entries persisted in account_transactions
-- explicit transactions for all balance-changing operations
-- SELECT FOR UPDATE for critical row locking
-- deterministic lock ordering in transfer to reduce deadlock risk
+- relational schema in PostgreSQL
+- balances stored in minor units (BIGINT)
+- ledger entries stored in `account_transactions`
+- explicit transaction boundaries for all critical operations
 
 ## Local Development
 
-1. Start PostgreSQL
-
-	docker compose up -d
-
-2. Run tests
-
-	go test ./...
-
-3. Run API
-
-	export JWT_SECRET=dev-change-me
-	go run ./cmd/api
-
-Server default address:
-- http://localhost:8080
-
-## Project Structure
-
-- cmd/api: process bootstrap and route registration
-- internal/customer: customer domain, use case, HTTP, repository
-- internal/account: account and ledger domain, use cases, HTTP, repository
-- internal/auth: auth domain, use cases, middleware, and repository
-- internal/database: DB pool creation
-- db: SQL schema
-- migrations: schema evolution files
-- docs: architecture and technical documentation
-
-## Documentation
-
-- docs/00-arquitetura.md
-- docs/01-modelo_de_dominio.md
-- docs/02-fluxos_de_caso_de_uso.md
-- docs/03-modelo_de_dados.md
-- docs/04-estrategia_de_consistencia_e_concorrencia.md
-- docs/05-padrao_de_erros_e_respostas.md
-- docs/06-implementation.md
-- docs/07-api-rest.md
-- docs/08-auth_implementation.md
-
-## Current Notes
-
-- README now summarizes the implemented system and operational flow.
-- Connection string is currently hard-coded in internal/database/db.go.
-- One-account-per-customer rule exists as optional logic scaffold in create account use case.
+Start database:
