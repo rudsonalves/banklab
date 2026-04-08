@@ -1,4 +1,4 @@
-.PHONY: help migration commit diff push pull
+.PHONY: help migration commit diff push pull test test-unit
 
 # =========================
 # Variables
@@ -46,3 +46,12 @@ pull: ## Pull current branch or specified branch (make pull branch=xxx)
 
 gitlog: ## Show git log in one line format
 	git log --oneline
+
+# =========================
+# Tests
+# =========================
+test: ## Run all tests
+	flutter test
+
+test-unit: ## Run unit tests
+	flutter test test/core

@@ -2,8 +2,8 @@ import 'dart:developer';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '/core/exceptions/store_exception.dart';
 import '/core/result/result.dart';
+import '../../extensions/storage_app_error.dart';
 import 'local_secure_storage.dart';
 
 class FlutterSecureStorageLocalStorage implements LocalSecureStorage {
@@ -32,7 +32,12 @@ class FlutterSecureStorageLocalStorage implements LocalSecureStorage {
       return Success(unit);
     } catch (err) {
       log('[delete]: $err');
-      return Failure(err is Exception ? err : Exception(err.toString()));
+      return Failure(
+        StorageAppError.storage(
+          message: 'Failed to delete key: $key',
+          details: err,
+        ),
+      );
     }
   }
 
@@ -43,7 +48,12 @@ class FlutterSecureStorageLocalStorage implements LocalSecureStorage {
       return Success(unit);
     } catch (err) {
       log('[deleteAll]: $err');
-      return Failure(err is Exception ? err : Exception(err.toString()));
+      return Failure(
+        StorageAppError.storage(
+          message: 'Failed to delete all keys',
+          details: err,
+        ),
+      );
     }
   }
 
@@ -52,12 +62,17 @@ class FlutterSecureStorageLocalStorage implements LocalSecureStorage {
     try {
       final value = await storage.read(key: key);
       if (value == null) {
-        return Failure(StorageNotFoundException(key));
+        return Failure(StorageAppError.notFound(key));
       }
       return Success(value);
     } catch (err) {
       log('[read]: $err');
-      return Failure(err is Exception ? err : Exception(err.toString()));
+      return Failure(
+        StorageAppError.storage(
+          message: 'Failed to read key: $key',
+          details: err,
+        ),
+      );
     }
   }
 
@@ -68,7 +83,12 @@ class FlutterSecureStorageLocalStorage implements LocalSecureStorage {
       return Success(unit);
     } catch (err) {
       log('[write]: $err');
-      return Failure(err is Exception ? err : Exception(err.toString()));
+      return Failure(
+        StorageAppError.storage(
+          message: 'Failed to write key: $key',
+          details: err,
+        ),
+      );
     }
   }
 }

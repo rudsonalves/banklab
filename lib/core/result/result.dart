@@ -1,10 +1,9 @@
+import 'errors/app_error.dart';
+
+export 'errors/app_error.dart';
+export 'unit.dart';
+
 typedef AsyncResult<T extends Object> = Future<Result<T>>;
-
-final class Unit {
-  const Unit._();
-}
-
-const unit = Unit._();
 
 sealed class Result<T extends Object> {
   const Result();
@@ -13,21 +12,21 @@ sealed class Result<T extends Object> {
   bool get isFailure => this is Failure<T>;
 
   const factory Result.success(T value) = Success<T>;
-  const factory Result.failure(Exception error) = Failure<T>;
+  const factory Result.failure(AppError error) = Failure<T>;
 
   T? get value => switch (this) {
     Success(:final value) => value,
     _ => null,
   };
 
-  Exception? get error => switch (this) {
+  AppError? get error => switch (this) {
     Failure(:final error) => error,
     _ => null,
   };
 
   R fold<R>({
     required R Function(T value) onSuccess,
-    required R Function(Exception error) onFailure,
+    required R Function(AppError error) onFailure,
   }) {
     return switch (this) {
       Success(:final value) => onSuccess(value),
@@ -46,10 +45,10 @@ final class Success<T extends Object> extends Result<T> {
 }
 
 final class Failure<T extends Object> extends Result<T> {
-  final Exception _error;
+  final AppError _error;
 
   @override
-  Exception get error => _error;
+  AppError get error => _error;
 
   const Failure(this._error);
 }

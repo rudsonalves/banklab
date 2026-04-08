@@ -1,8 +1,8 @@
 // Contract
 export 'client/rest_client.dart';
-export 'client/rest_client_exception.dart';
 export 'client/rest_client_request.dart';
 export 'client/rest_client_response.dart';
+export 'dio/dio_error_mapper.dart';
 // Implementation
 export 'dio/dio_factory.dart';
 export 'dio/dio_rest_client.dart';

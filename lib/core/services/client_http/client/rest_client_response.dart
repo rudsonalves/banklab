@@ -23,4 +23,8 @@ class RestClientResponse {
       statusMessage: statusMessage ?? this.statusMessage,
     );
   }
+
+  T parse<T>(T Function(dynamic json) fromJson) {
+    return fromJson(data);
+  }
 }

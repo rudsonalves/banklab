@@ -2,9 +2,9 @@ import 'package:dio/dio.dart';
 
 import '/core/result/result.dart';
 import '../client/rest_client.dart';
-import '../client/rest_client_exception.dart';
 import '../client/rest_client_request.dart';
 import '../client/rest_client_response.dart';
+import 'dio_error_mapper.dart';
 
 class DioRestClient implements RestClient {
   final Dio _dio;
@@ -83,29 +83,15 @@ class DioRestClient implements RestClient {
     try {
       final response = await call();
 
-      return Success(
+      return Result.success(
         RestClientResponse(
           data: response.data,
           statusCode: response.statusCode,
           statusMessage: response.statusMessage,
         ),
       );
-    } on DioException catch (err) {
-      final response = err.response;
-
-      return Failure(
-        RestClientException(
-          message: err.message ?? 'HTTP error',
-          statusCode: response?.statusCode,
-          data: response?.data,
-        ),
-      );
-    } catch (err) {
-      return Failure(
-        RestClientException(
-          message: err.toString(),
-        ),
-      );
+    } catch (err, stack) {
+      return Result.failure(mapHttpError(err, stack));
     }
   }
 }
