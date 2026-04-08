@@ -16,7 +16,7 @@ void main() {
         late RequestOptions capturedOptions;
 
         final dio = Dio();
-        dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, __) async {
+        dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, _) async {
           capturedOptions = options;
 
           return ResponseBody.fromString(
@@ -54,7 +54,7 @@ void main() {
       late RequestOptions capturedOptions;
 
       final dio = Dio();
-      dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, __) async {
+      dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, _) async {
         capturedOptions = options;
 
         return ResponseBody.fromString(
@@ -92,7 +92,7 @@ void main() {
       late RequestOptions capturedOptions;
 
       final dio = Dio();
-      dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, __) async {
+      dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, _) async {
         capturedOptions = options;
 
         return ResponseBody.fromString(
@@ -117,7 +117,7 @@ void main() {
       'should map DioException to Failure with AppError',
       () async {
         final dio = Dio();
-        dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, __) async {
+        dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, _) async {
           throw DioException(
             requestOptions: options,
             type: DioExceptionType.badResponse,
@@ -149,7 +149,7 @@ void main() {
       'should map connectionError to network error',
       () async {
         final dio = Dio();
-        dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, __) async {
+        dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, _) async {
           throw DioException(
             requestOptions: options,
             type: DioExceptionType.connectionError,

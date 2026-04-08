@@ -1,5 +1,123 @@
 # Changelog
 
+## 2026/04/08 — doc/adjustments-03
+
+Introduces the **initial authentication and profile integration on the client side**, along with API standardization, domain modeling, and utility improvements. The changes align the Flutter application with the backend REST contract and reinforce consistency in error handling and data parsing.
+
+### 1. Core Utilities and Error Handling
+
+* Added `DateTimeExtensions`:
+
+  * localized date formatting using `intl`
+  * safe parsing via `parseOrNull`
+* Introduced new error code:
+
+  * `parsingError` to explicitly represent serialization/deserialization failures
+* This is a relevant improvement, as it separates **transport errors from data integrity issues**, increasing observability and debuggability
+
+### 2. API Layer — Authentication Module
+
+* Implemented `AuthApi` with endpoints:
+
+  * `POST /auth/register`
+  * `POST /auth/login`
+  * `GET /profile/me`
+* Standardized API consumption using `ApiEnvelope<T>`:
+
+  * consistent handling of `data` and `error` fields
+  * explicit validation of null payloads
+* Introduced structured error mapping:
+
+  * HTTP-level errors → `AppErrorCode.httpError`
+  * parsing failures → `AppErrorCode.parsingError`
+* This design is strongly aligned with the backend contract defined in , ensuring consistency between client and server
+
+### 3. DTOs and Serialization
+
+* Added request/response DTOs:
+
+  * `LoginRequestDto`
+  * `RegisterRequestDto`
+  * `RegisterResponseDto`
+* Clear separation between transport models and domain models
+* Mapping strategy ensures:
+
+  * strong typing
+  * controlled transformation boundaries
+
+### 4. API Envelope Standardization
+
+* Introduced:
+
+  * `ApiEnvelope<T>`
+  * `ApiError`
+* Centralizes response parsing logic according to backend specification
+* Eliminates duplication across API calls and enforces a single response contract
+
+### 5. Domain Layer — Authentication Models
+
+* Introduced domain entities:
+
+  * `AuthUser` (sealed abstraction)
+  * `LoggedUser`
+  * `NotLoggedUser`
+  * `UserProfile`
+* Added `UserRole` enum with safe parsing (`byName`)
+* Domain modeling reflects backend payload structure and invariants
+* Notably, `UserProfile` integrates date parsing via shared extension, improving consistency
+
+### 6. UI Layer — Registration Scaffold
+
+* Added initial structure for:
+
+  * `RegisterPage`
+  * `RegisterViewmodel`
+* Current implementation is a placeholder, but establishes:
+
+  * separation between view and state logic
+  * preparation for MVVM-style composition
+
+### 7. Dependency Management
+
+* Promoted `uuid` to a direct dependency
+* Suggests upcoming usage for:
+
+  * client-side identifiers
+  * correlation or request tracing
+
+### 8. Test Adjustments
+
+* Minor refactor in Dio test adapter signatures:
+
+  * removed unused parameters (`__`)
+* Improves code clarity and consistency with Dart conventions
+
+### 9. Architectural Alignment
+
+The changes respect the layered architecture principles described in :
+
+* API layer acts as **infrastructure integration**
+* domain models remain isolated from transport concerns
+* UI layer depends on abstractions rather than concrete implementations
+
+This reinforces:
+
+* low coupling
+* clear separation of concerns
+* improved testability
+
+### Conclusion
+
+This commit establishes a **solid foundation for authentication on the client**, with emphasis on:
+
+* standardized API communication via envelope pattern
+* explicit and granular error handling
+* clear separation between DTOs and domain models
+* preparation for scalable UI architecture
+
+From a technical perspective, the most valuable aspect is the **formalization of the API contract consumption**, which significantly reduces ambiguity and future integration errors.
+
+
 ## 2026/04/08 — feat/http-core-module-02
 
 Refines the initial Flutter client shell to better support the project’s role as a controlled integration surface for the banking API, while also bringing the iOS workspace into a consistent CocoaPods-managed state. This change improves the project presentation, removes demo-oriented UI leftovers, and prepares the mobile layer for a cleaner HTTP core evolution aligned with the backend architecture and REST contract. 
