@@ -101,3 +101,61 @@ Protected routes require JWT authentication.
 ## Local Development
 
 Start database:
+
+```
+docker compose up -d
+```
+
+Run tests:
+
+```
+go test ./...
+```
+
+Run API:
+```
+export JWT_SECRET=dev-change-me
+go run ./cmd/api
+```
+
+Server:
+- http://localhost:8080
+
+## Project Structure
+
+- cmd/api: application bootstrap and route registration
+- internal/customer: customer module (domain, application, delivery, infra)
+- internal/account: account and transaction logic
+- internal/auth: authentication and authorization
+- internal/database: database initialization
+- migrations: schema evolution
+- docs: architectural and technical documentation
+
+## Documentation
+
+Detailed design decisions are documented in:
+
+- architecture
+- domain model
+- use case flows
+- data model
+- consistency and concurrency strategy
+- API design
+- authentication and authorization
+
+## Future Work
+
+Planned extensions include:
+
+- Zero Trust Architecture (context-aware request validation)
+- transaction-level authorization (transaction password / step-up auth)
+- onboarding flows aligned with financial systems
+- improved observability and audit capabilities
+
+## Notes
+
+- this project prioritizes correctness and design clarity over feature breadth
+- it is intended as an engineering exploration, not a production-ready system
+
+
+Aqui você já está jogando em nível competitivo real.
