@@ -1,5 +1,79 @@
 # Changelog
 
+## 2026/04/08 — doc/adjustments-01
+
+Refines developer experience and documentation clarity by improving build workflow, standardizing local development instructions, and organizing project documentation into a structured and navigable format.
+
+### 1. Build Process Standardization
+
+* Added `make build` target to the Makefile:
+
+  * compiles the application into `build/bank-api`
+* Establishes a consistent and reproducible build step
+* Eliminates reliance on `go run` for local execution, aligning with more production-like workflows
+
+### 2. Local Development Improvements
+
+* Updated setup instructions to include:
+
+  * database startup via `docker compose`
+  * execution of migrations using `make migrate-up`
+
+* Replaced raw test command with `make tests`
+
+  * promotes consistency with Makefile-driven workflows
+  * enables centralized control of test flags (e.g., coverage)
+
+* Improved API execution flow:
+
+  * explicit build step followed by binary execution
+  * environment variable (`JWT_SECRET`) clearly defined before runtime
+
+### 3. README Clarity and Structure
+
+* Reformatted sections for better readability:
+
+  * emphasized steps using clear headings
+  * added contextual explanations for each command
+* Removed ambiguous or informal phrasing
+* Improved onboarding experience for new developers by making setup deterministic and self-explanatory
+
+### 4. Documentation Organization
+
+* Replaced generic documentation list with explicit links to files inside `docs/`:
+
+  * Architecture
+  * Domain Model
+  * Use Cases
+  * Data Model
+  * Consistency and Concurrency
+  * Error Handling
+  * Implementation Details
+  * API Design
+  * Authentication
+
+* This change significantly improves discoverability and reinforces the system’s architectural transparency
+
+* The structure aligns with the layered architecture and design principles described in 
+
+### 5. API Documentation Alignment
+
+* README now directly references the REST API specification
+* Ensures consistency between implementation and documented contract, as defined in 
+* Strengthens the role of documentation as a reliable source of truth for consumers
+
+### 6. Content Cleanup
+
+* Removed non-technical and informal commentary from README
+* Maintains a professional and engineering-focused tone across the project documentation
+
+### Conclusion
+
+This commit does not introduce functional changes but delivers a **meaningful improvement in developer experience and documentation quality**.
+
+From an engineering perspective, the most relevant gain is the **standardization of workflows (build, test, run)** combined with a **well-structured documentation index**, which collectively reduce onboarding friction and improve long-term maintainability.
+
+
 ## 2026/04/07 — check/adjustments-10
 
 Refines error semantics for invalid user state, aligning domain, delivery, and documentation to correctly represent invariant violations as a conflict scenario instead of an internal server error.

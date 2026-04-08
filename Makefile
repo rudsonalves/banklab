@@ -18,6 +18,12 @@ help:
 	@echo ""
 
 # =========================
+# Build
+# =========================
+build: ## Build binary into build/ directory
+	go build -o build/bank-api ./cmd/api
+
+# =========================
 # Database
 # =========================
 migrate-up: ## Run database migrations

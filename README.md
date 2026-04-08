@@ -100,26 +100,32 @@ Protected routes require JWT authentication.
 
 ## Local Development
 
-Start database:
+**Start database:**
 
 ```
 docker compose up -d
+make migrate-up
 ```
 
-Run tests:
+This starts PostgreSQL 16 in a container and runs all pending database migrations.
+
+**Run tests:**
 
 ```
-go test ./...
+make tests
 ```
 
-Run API:
+Runs all tests with coverage report.
+
+**Build and run API:**
+
 ```
+make build
 export JWT_SECRET=dev-change-me
-go run ./cmd/api
+./build/bank-api
 ```
 
-Server:
-- http://localhost:8080
+Compiles the binary into the `build/` directory and runs the server on `http://localhost:8080`.
 
 ## Project Structure
 
@@ -133,15 +139,17 @@ Server:
 
 ## Documentation
 
-Detailed design decisions are documented in:
+Detailed design decisions are documented in `docs/`:
 
-- architecture
-- domain model
-- use case flows
-- data model
-- consistency and concurrency strategy
-- API design
-- authentication and authorization
+- [Architecture](docs/00-arquitetura.md)
+- [Domain Model](docs/01-modelo_de_dominio.md)
+- [Use Case Flows](docs/02-fluxos_de_caso_de_uso.md)
+- [Data Model](docs/03-modelo_de_dados.md)
+- [Consistency and Concurrency Strategy](docs/04-estrategia_de_consistencia_e_concorrencia.md)
+- [Error Handling](docs/05-padrao_de_erros_e_respostas.md)
+- [Implementation Details](docs/06-implementation.md)
+- [API REST Design](docs/07-api-rest.md)
+- [Authentication and Authorization](docs/08-auth_implementation.md)
 
 ## Future Work
 
@@ -156,6 +164,3 @@ Planned extensions include:
 
 - this project prioritizes correctness and design clarity over feature breadth
 - it is intended as an engineering exploration, not a production-ready system
-
-
-Aqui você já está jogando em nível competitivo real.
