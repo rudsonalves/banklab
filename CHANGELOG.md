@@ -1,3 +1,226 @@
+# Changelog
+
+## 2026/04/09 — infra/di-and-env-setup-01
+
+Establishes the **foundational infrastructure layer for dependency injection and environment configuration** in the Flutter client, aligning the mobile architecture with a modular, scalable structure and enabling controlled environment-based execution.
+
+### 1. Development Environment Configuration
+
+* Added `.vscode/launch.json` with predefined run configurations:
+
+  * Dev, Staging, Prod
+  * Integration test profile (Dev)
+* Each configuration uses `--dart-define-from-file`, enabling **externalized environment configuration**
+* Introduced `.env` file strategy (`dev.env`, `staging.env`, `prod.env`) and ensured they are ignored via `.gitignore`
+* This approach is technically sound and aligns with production-grade practices for **environment isolation and reproducibility**
+
+### 2. Dependency Injection Setup
+
+* Introduced centralized DI configuration via `dependencies.dart`
+* Adopted `AutoInjector` as DI container
+* Implemented idempotent initialization (`_initialized` guard)
+* Structured registration into modular layers:
+
+  * `CoreServices`
+  * `Services`
+  * `Data`
+* This is a **critical architectural improvement**, bringing the mobile project closer to the same separation principles already present in the backend 
+
+### 3. Core Services Layer
+
+* Added `CoreServices` module:
+
+  * Registers `FlutterSecureStorage`
+  * Configures `RestClient` via `DioFactory`
+* Environment-driven configuration:
+
+  * `baseUrl` via `EnviromentKey`
+  * timeouts defined explicitly
+* This enforces **centralized HTTP client configuration**, avoiding scattered setup across the codebase
+
+### 4. Environment Abstraction
+
+* Introduced `EnviromentKey`:
+
+  * Maps compile-time variables using `String.fromEnvironment` and `int.fromEnvironment`
+* Supports:
+
+  * base URL
+  * timeouts
+  * app mode
+  * access token (for internal usage)
+* This design is particularly robust, as it avoids runtime parsing and ensures **compile-time guarantees**
+
+### 5. Data Layer Composition
+
+* Introduced `Data` module for DI registration:
+
+  * `LocalSecureStorage` abstraction
+  * `AuthRepository` implementation
+* Proper dependency chaining:
+
+  * Repository depends on API + storage
+* This reinforces the **Repository as SSOT pattern**, consistent with your architectural direction
+
+### 6. Services Layer Refactor
+
+* Introduced `Services` module:
+
+  * Registers `AuthApi` with injected `RestClient`
+* Removed legacy empty `services.dart`
+* Clean separation between:
+
+  * core infrastructure (HTTP, storage)
+  * feature services (API layer)
+
+### 7. Authentication Repository Implementation
+
+* Added `AuthRepository` contract and `AuthRepositoryImpl`
+* Responsibilities:
+
+  * manage authentication state (`currentUser`, `isLoggedIn`)
+  * persist access token
+  * handle login, logout, register, and profile
+* Introduced explicit unauthenticated handling:
+
+  * new `AppErrorCode.unauthenticated`
+* This is a **well-structured implementation**, with clear boundaries between:
+
+  * API (remote)
+  * storage (local)
+  * state (in-memory)
+
+### 8. Storage and Auth Adjustments
+
+* Renamed `authToken` → `accessToken` for semantic clarity
+* Updated `AuthInterceptor` to use new key consistently
+* Improved session lifecycle:
+
+  * proper token write on login
+  * cleanup on logout and refresh failure
+* These changes reduce ambiguity and improve long-term maintainability
+
+### 9. Application Bootstrap
+
+* Updated `main.dart`:
+
+  * introduced `setupDependencies()` before `runApp`
+* Ensures all dependencies are resolved prior to UI initialization
+* Aligns with proper application lifecycle control
+
+### 10. Minor Improvements
+
+* Adjusted imports in `AuthApi`
+* Improved test launch configuration for integration tests
+* Small consistency fixes across modules
+
+### Conclusion
+
+This commit introduces a **structural turning point in the mobile application architecture**.
+
+Key gains:
+
+* centralized dependency management
+* environment-driven configuration
+* clear separation of layers (core, services, data)
+* improved authentication flow consistency
+
+From an architectural perspective, this is a **necessary and well-executed foundation**, enabling the project to scale without accumulating coupling or configuration debt.
+
+
+## 2026/04/09 — theme/composition-01
+
+Introduces a structured **theme composition system** for the Flutter application, including dynamic theme resolution, Material 3 integration, custom typography, and improvements in developer tooling via Makefile refinements.
+
+### 1. Theme Composition Architecture
+
+* Refactored `MainApp` from `StatelessWidget` to `StatefulWidget` to support context-dependent initialization
+* Introduced controlled theme composition flow:
+
+  * resolve system brightness (`platformBrightness`)
+  * select base theme (`light` / `dark`)
+  * apply app-level overrides via `_buildAppTheme`
+* Encapsulates theme creation logic, improving cohesion and avoiding scattered configuration across widgets
+* This approach is conceptually aligned with layered responsibility principles, where configuration is centralized and isolated 
+
+### 2. Material Theme Abstraction
+
+* Added `MaterialTheme` class:
+
+  * centralizes all `ColorScheme` definitions
+  * supports multiple variants:
+
+    * light / dark
+    * medium contrast
+    * high contrast
+* Provides factory methods:
+
+  * `light()`, `dark()`, and contrast variations
+* Uses Material 3 (`useMaterial3: true`)
+* Ensures consistency and scalability of design tokens across the application
+* This is a **notable improvement in design maturity**, replacing ad-hoc theming with a reusable and extensible system
+
+### 3. Typography System with Google Fonts
+
+* Introduced `createTextTheme` helper:
+
+  * composes two font families:
+
+    * body font (Quicksand)
+    * display font (EB Garamond)
+* Uses `google_fonts` package for runtime font resolution
+* Merges text styles to preserve semantic roles (`body`, `label`, etc.)
+* Enables consistent typography without coupling UI components to font configuration
+
+### 4. Dynamic Theme Initialization
+
+* Theme is initialized in `didChangeDependencies`:
+
+  * ensures access to `BuildContext`
+  * avoids unnecessary recomputation
+* Separation between:
+
+  * theme construction (`MaterialTheme`)
+  * runtime selection (`brightness`)
+  * UI overrides (`AppBarTheme`)
+* Improves maintainability and testability of UI configuration
+
+### 5. UI Adjustments
+
+* Updated `AppBar` styling:
+
+  * uses `primaryContainer` and `onPrimaryContainer`
+  * enforces semi-bold title (`FontWeight.w600`)
+* Minor text change in HomePage:
+
+  * "Home Page" → "Type Home Page"
+
+### 6. Dependency Updates
+
+* Added `google_fonts` dependency for typography support
+* Introduced transitive dependency `http` (via ecosystem resolution)
+
+### 7. Makefile Improvements
+
+* Added `tests` target:
+
+  * aggregates `api-test` and `mobile-test`
+* Renamed Flutter commands for consistency and ergonomics:
+
+  * `flutter-clean` → `fclean`
+  * `flutter-build` → `fbuild`
+* Added new utility:
+
+  * `fadd pkg=<name>` to simplify dependency installation
+* Improves developer experience and standardizes command usage across environments
+
+### Conclusion
+
+This commit establishes a **robust and scalable theming foundation**, transitioning from a basic configuration to a **composable design system** with clear separation of concerns.
+
+From a technical standpoint, the introduction of a dedicated theme layer combined with dynamic resolution and Material 3 alignment significantly improves maintainability, consistency, and long-term extensibility of the UI layer.
+
+
 ## 2026/04/08 — main
 
 Restructures the repository into a cohesive **monorepo architecture**, consolidating backend, mobile, infrastructure, and documentation while improving developer experience, build orchestration, and project clarity.

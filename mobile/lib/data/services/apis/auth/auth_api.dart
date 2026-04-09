@@ -1,11 +1,10 @@
 import 'dart:developer';
 
-import 'package:bankflow/domain/auth/models/user_profile.dart';
-
 import '/core/result/result.dart';
 import '/core/services/client_http/client_http.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/domain/auth/models/auth_user.dart';
+import '/domain/auth/models/user_profile.dart';
 import '../core/api_envelope.dart';
 import 'dtos/register_request_dto.dart';
 import 'dtos/register_response_dto.dart';
