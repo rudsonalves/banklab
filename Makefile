@@ -52,6 +52,9 @@ mobile-test: ## Run all mobile tests
 mobile-test-unit: ## Run mobile unit tests
 	cd mobile && flutter test test/core
 
+tests: ## Run all tests
+	make api-test mobile-test
+
 # =========================
 # Git
 # =========================
@@ -98,8 +101,11 @@ docker-logs: ## Follow Docker container logs
 # =========================
 # Flutter specific
 # =========================
-flutter-clean: ## Clean Flutter build and get dependencies
+fclean: ## Clean Flutter build and get dependencies
 	cd mobile && flutter clean && flutter pub get
 
-flutter-build: ## Build Flutter app for release
+fbuild: ## Build Flutter app for release
 	cd mobile && flutter build apk --release
+
+fadd: ## Add a Flutter package (make fadd pkg=package_name)
+	cd mobile && flutter pub add $(pkg)
