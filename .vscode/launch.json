@@ -1,0 +1,45 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Dev",
+            "type": "dart",
+            "request": "launch",
+            "cwd": "mobile",
+            "program": "lib/main.dart",
+            "toolArgs": [
+                "--dart-define-from-file=dev.env"
+            ]
+        },
+        {
+            "name": "Staging",
+            "type": "dart",
+            "request": "launch",
+            "cwd": "mobile",
+            "program": "lib/main.dart",
+            "toolArgs": [
+                "--dart-define-from-file=staging.env"
+            ]
+        },
+        {
+            "name": "Prod",
+            "type": "dart",
+            "request": "launch",
+            "cwd": "mobile",
+            "program": "lib/main.dart",
+            "toolArgs": [
+                "--dart-define-from-file=prod.env"
+            ]
+        },
+        {
+            "name": "Integration Tests (Dev)",
+            "type": "dart",
+            "request": "launch",
+            "cwd": "mobile",
+            "program": "test/data/services/api/user_registration_api_integration_test.dart",
+            "toolArgs": [
+                "--dart-define-from-file=dev.env"
+            ]
+        }
+    ]
+}

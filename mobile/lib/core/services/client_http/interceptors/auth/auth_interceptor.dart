@@ -59,7 +59,7 @@ class AuthInterceptor extends Interceptor {
       return handler.next(options);
     }
 
-    final tokenResult = await _secureStorage.read(StorageKeys.authToken);
+    final tokenResult = await _secureStorage.read(StorageKeys.accessToken);
 
     tokenResult.fold(
       onSuccess: (token) {
@@ -121,7 +121,7 @@ class AuthInterceptor extends Interceptor {
         throw Exception('Invalid refresh response');
       }
 
-      await _secureStorage.write(StorageKeys.authToken, newAccessToken);
+      await _secureStorage.write(StorageKeys.accessToken, newAccessToken);
 
       if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
         await _secureStorage.write(StorageKeys.refreshToken, newRefreshToken);
@@ -161,7 +161,7 @@ class AuthInterceptor extends Interceptor {
   }
 
   Future<void> _clearSession() async {
-    await _secureStorage.delete(StorageKeys.authToken);
+    await _secureStorage.delete(StorageKeys.accessToken);
     await _secureStorage.delete(StorageKeys.refreshToken);
   }
 }

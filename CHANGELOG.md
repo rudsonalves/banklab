@@ -1,5 +1,133 @@
 # Changelog
 
+## 2026/04/09 — infra/di-and-env-setup-01
+
+Establishes the **foundational infrastructure layer for dependency injection and environment configuration** in the Flutter client, aligning the mobile architecture with a modular, scalable structure and enabling controlled environment-based execution.
+
+### 1. Development Environment Configuration
+
+* Added `.vscode/launch.json` with predefined run configurations:
+
+  * Dev, Staging, Prod
+  * Integration test profile (Dev)
+* Each configuration uses `--dart-define-from-file`, enabling **externalized environment configuration**
+* Introduced `.env` file strategy (`dev.env`, `staging.env`, `prod.env`) and ensured they are ignored via `.gitignore`
+* This approach is technically sound and aligns with production-grade practices for **environment isolation and reproducibility**
+
+### 2. Dependency Injection Setup
+
+* Introduced centralized DI configuration via `dependencies.dart`
+* Adopted `AutoInjector` as DI container
+* Implemented idempotent initialization (`_initialized` guard)
+* Structured registration into modular layers:
+
+  * `CoreServices`
+  * `Services`
+  * `Data`
+* This is a **critical architectural improvement**, bringing the mobile project closer to the same separation principles already present in the backend 
+
+### 3. Core Services Layer
+
+* Added `CoreServices` module:
+
+  * Registers `FlutterSecureStorage`
+  * Configures `RestClient` via `DioFactory`
+* Environment-driven configuration:
+
+  * `baseUrl` via `EnviromentKey`
+  * timeouts defined explicitly
+* This enforces **centralized HTTP client configuration**, avoiding scattered setup across the codebase
+
+### 4. Environment Abstraction
+
+* Introduced `EnviromentKey`:
+
+  * Maps compile-time variables using `String.fromEnvironment` and `int.fromEnvironment`
+* Supports:
+
+  * base URL
+  * timeouts
+  * app mode
+  * access token (for internal usage)
+* This design is particularly robust, as it avoids runtime parsing and ensures **compile-time guarantees**
+
+### 5. Data Layer Composition
+
+* Introduced `Data` module for DI registration:
+
+  * `LocalSecureStorage` abstraction
+  * `AuthRepository` implementation
+* Proper dependency chaining:
+
+  * Repository depends on API + storage
+* This reinforces the **Repository as SSOT pattern**, consistent with your architectural direction
+
+### 6. Services Layer Refactor
+
+* Introduced `Services` module:
+
+  * Registers `AuthApi` with injected `RestClient`
+* Removed legacy empty `services.dart`
+* Clean separation between:
+
+  * core infrastructure (HTTP, storage)
+  * feature services (API layer)
+
+### 7. Authentication Repository Implementation
+
+* Added `AuthRepository` contract and `AuthRepositoryImpl`
+* Responsibilities:
+
+  * manage authentication state (`currentUser`, `isLoggedIn`)
+  * persist access token
+  * handle login, logout, register, and profile
+* Introduced explicit unauthenticated handling:
+
+  * new `AppErrorCode.unauthenticated`
+* This is a **well-structured implementation**, with clear boundaries between:
+
+  * API (remote)
+  * storage (local)
+  * state (in-memory)
+
+### 8. Storage and Auth Adjustments
+
+* Renamed `authToken` → `accessToken` for semantic clarity
+* Updated `AuthInterceptor` to use new key consistently
+* Improved session lifecycle:
+
+  * proper token write on login
+  * cleanup on logout and refresh failure
+* These changes reduce ambiguity and improve long-term maintainability
+
+### 9. Application Bootstrap
+
+* Updated `main.dart`:
+
+  * introduced `setupDependencies()` before `runApp`
+* Ensures all dependencies are resolved prior to UI initialization
+* Aligns with proper application lifecycle control
+
+### 10. Minor Improvements
+
+* Adjusted imports in `AuthApi`
+* Improved test launch configuration for integration tests
+* Small consistency fixes across modules
+
+### Conclusion
+
+This commit introduces a **structural turning point in the mobile application architecture**.
+
+Key gains:
+
+* centralized dependency management
+* environment-driven configuration
+* clear separation of layers (core, services, data)
+* improved authentication flow consistency
+
+From an architectural perspective, this is a **necessary and well-executed foundation**, enabling the project to scale without accumulating coupling or configuration debt.
+
+
 ## 2026/04/09 — theme/composition-01
 
 Introduces a structured **theme composition system** for the Flutter application, including dynamic theme resolution, Material 3 integration, custom typography, and improvements in developer tooling via Makefile refinements.

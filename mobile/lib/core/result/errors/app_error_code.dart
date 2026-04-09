@@ -5,6 +5,7 @@ enum AppErrorCode {
   timeout,
   networkError,
   parsingError,
+  unauthenticated,
 
   // Storage
   storageError,
