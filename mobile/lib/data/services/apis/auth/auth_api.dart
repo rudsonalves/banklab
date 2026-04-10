@@ -106,6 +106,7 @@ class AuthApi {
     }
   }
 
+  // Remove this to a profile API service.
   AsyncResult<UserProfile> getProfile() async {
     final response = await _client.get(
       RestClientRequest(

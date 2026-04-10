@@ -1,5 +1,122 @@
 # Changelog
 
+## 2026/04/10 — infra/routing-01
+
+Introduces a **structured routing architecture using GoRouter**, along with UI composition, dependency injection integration, and initial authentication flows. This commit establishes a clear separation of routing concerns aligned with a modular layered approach 
+
+### 1. Routing Architecture Refactor
+
+* Replaced monolithic route definition with **modular route groups**:
+
+  * `authRoutes()`
+  * `homeRoutes()`
+* Router now composes routes using spread operators, improving scalability and readability
+* Updated `initialLocation` to use `HomeRoutes.home.path`, removing reliance on generic enums
+
+### 2. Route Definition Strategy
+
+* Replaced generic `Routes` enum with **domain-oriented route enums**:
+
+  * `AuthRoutes`
+  * `HomeRoutes`
+* Each enum encapsulates its own path, improving cohesion and reducing accidental coupling
+* Introduced dedicated route files:
+
+  * `routes/auth_routes.dart`
+  * `routes/home_routes.dart`
+
+Opinion: This is a strong architectural move. It prevents the typical “god enum” anti-pattern and aligns routing with feature boundaries.
+
+### 3. GoRouter Integration
+
+* Migrated from `MaterialApp` to `MaterialApp.router`
+* Centralized router creation via `router()` factory
+* Added `ExtraCodec` support for serialization:
+
+  * now explicitly supports `null` values
+  * prevents runtime failures when passing optional navigation data
+
+### 4. Dependency Injection Integration
+
+* Introduced `Uis.add(injector)` into dependency setup
+* ViewModels are now resolved directly in route builders via injector:
+
+  * `LoginViewModel`
+  * `RegisterViewmodel`
+  * `HomeViewmodel`
+* Removed redundant LocalSecureStorage registration from `Data` layer, keeping DI responsibilities better distributed
+
+Opinion: Injecting ViewModels at the routing boundary is a pragmatic choice. It keeps UI decoupled while avoiding premature abstraction layers.
+
+### 5. Application Entry Point Refactor
+
+* Renamed `MainApp` to `AppWidget`
+* Moved it into `/uis`, reinforcing UI ownership
+* Introduced internal router instance (`GoRouter`) inside the widget
+* Replaced `home:` with `routerConfig`, aligning app initialization with navigation system
+
+### 6. Authentication UI Implementation
+
+#### Login Flow
+
+* Implemented full `LoginPage`:
+
+  * form validation (email/password)
+  * loading state via `Command`
+  * success/failure feedback using `SnackBar`
+* Navigation:
+
+  * success → `HomeRoutes.home`
+  * register link → `AuthRoutes.register`
+
+#### Register Flow
+
+* Replaced placeholder with full implementation:
+
+  * fields: name, email, cpf, password
+  * validation rules for each field
+  * command-based execution
+* Navigation:
+
+  * success → `AuthRoutes.login`
+
+### 7. ViewModel Layer Introduction
+
+* Added ViewModels:
+
+  * `LoginViewModel`
+  * `RegisterViewmodel`
+  * `HomeViewmodel`
+* Standardized usage of `Command1` for async actions
+* Established consistent interaction pattern:
+
+  * UI observes command state
+  * ViewModel delegates to repository
+
+### 8. UI Composition Adjustments
+
+* `HomePage` now receives `HomeViewmodel` via constructor
+* Ensures consistency with DI-driven UI pattern
+* Created centralized `uis.dart` for ViewModel registration
+
+### 9. Codebase Cleanup and Direction
+
+* Removed unused imports and redundant DI registrations
+* Added note to relocate `getProfile` from `AuthApi` to a future profile service
+* Introduced (commented) navigation extension for future evaluation
+
+### Conclusion
+
+This commit represents a **foundational shift in navigation and UI architecture**, achieving:
+
+* modular routing aligned with feature boundaries
+* clean integration between routing and dependency injection
+* consistent ViewModel-driven UI pattern
+* scalable structure for future expansion (auth, home, and beyond)
+
+From an architectural standpoint, this is a well-directed evolution. The system moves closer to a **feature-oriented modular design**, reducing global coupling and improving long-term maintainability.
+
+
 ## 2026/04/10 — infra/http-client-setup-01
 
 Establishes a **centralized and environment-driven HTTP client configuration**, removing runtime mutation patterns and aligning the mobile client with a more deterministic and infrastructure-oriented design.

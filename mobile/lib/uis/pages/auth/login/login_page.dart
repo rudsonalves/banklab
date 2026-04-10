@@ -1,27 +1,25 @@
+import 'package:bankflow/core/routing/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '/core/routing/routes.dart';
-import '/data/services/apis/auth/dtos/register_request_dto.dart';
-import '/uis/pages/auth/register/viewmodel/register_viewmodel.dart';
+import '/data/services/apis/auth/dtos/login_request_dto.dart';
+import 'viewmodel/login_viewmodel.dart';
 
-class RegisterPage extends StatefulWidget {
-  final RegisterViewmodel viewmodel;
+class LoginPage extends StatefulWidget {
+  final LoginViewModel viewModel;
 
-  const RegisterPage({
+  const LoginPage({
     super.key,
-    required this.viewmodel,
+    required this.viewModel,
   });
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _cpfController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
@@ -29,15 +27,13 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-    widget.viewmodel.register.addListener(_onRegisterCommandChanged);
+    widget.viewModel.login.addListener(_onLoginCommandChanged);
   }
 
   @override
   void dispose() {
-    widget.viewmodel.register.removeListener(_onRegisterCommandChanged);
-    _nameController.dispose();
+    widget.viewModel.login.removeListener(_onLoginCommandChanged);
     _emailController.dispose();
-    _cpfController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -54,9 +50,9 @@ class _RegisterPageState extends State<RegisterPage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: AnimatedBuilder(
-                animation: widget.viewmodel.register,
+                animation: widget.viewModel.login,
                 builder: (context, _) {
-                  final isRunning = widget.viewmodel.register.isRunning;
+                  final isRunning = widget.viewModel.login.isRunning;
 
                   return Form(
                     key: _formKey,
@@ -65,13 +61,13 @@ class _RegisterPageState extends State<RegisterPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Criar conta',
+                          'Entrar',
                           style: Theme.of(context).textTheme.headlineMedium,
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Cadastre-se para começar a usar o BankFlow.',
+                          'Acesse sua conta para continuar no BankFlow.',
                           style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
@@ -79,18 +75,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 28),
-                        TextFormField(
-                          controller: _nameController,
-                          textCapitalization: TextCapitalization.words,
-                          enabled: !isRunning,
-                          decoration: const InputDecoration(
-                            labelText: 'Nome completo',
-                            hintText: 'Seu nome completo',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                          validator: _nameValidator,
-                        ),
-                        const SizedBox(height: 16),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -105,22 +89,10 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
-                          controller: _cpfController,
-                          keyboardType: TextInputType.number,
-                          enabled: !isRunning,
-                          decoration: const InputDecoration(
-                            labelText: 'CPF',
-                            hintText: '00000000000',
-                            prefixIcon: Icon(Icons.badge_outlined),
-                          ),
-                          validator: _cpfValidator,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           enabled: !isRunning,
-                          autofillHints: const [AutofillHints.newPassword],
+                          autofillHints: const [AutofillHints.password],
                           decoration: InputDecoration(
                             labelText: 'Senha',
                             prefixIcon: const Icon(Icons.lock_outline),
@@ -153,7 +125,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text('Cadastrar'),
+                              : const Text('Entrar'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: isRunning
+                              ? null
+                              : () => context.goNamed(AuthRoutes.register.name),
+                          child: const Text('Nao tem conta? Cadastre-se'),
                         ),
                       ],
                     ),
@@ -165,15 +144,6 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
       ),
     );
-  }
-
-  String? _nameValidator(String? value) {
-    final name = (value ?? '').trim();
-    if (name.isEmpty) return 'Informe o nome completo.';
-    if (name.length < 3) {
-      return 'Informe um nome valido.';
-    }
-    return null;
   }
 
   String? _emailValidator(String? value) {
@@ -190,15 +160,6 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  String? _cpfValidator(String? value) {
-    final cpf = (value ?? '').replaceAll(RegExp(r'\D'), '');
-    if (cpf.isEmpty) return 'Informe o CPF.';
-    if (cpf.length != 11) {
-      return 'O CPF deve ter 11 digitos.';
-    }
-    return null;
-  }
-
   String? _passwordValidator(String? value) {
     final password = value ?? '';
     if (password.isEmpty) return 'Informe a senha.';
@@ -208,12 +169,12 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  void _onRegisterCommandChanged() {
-    final registerCommand = widget.viewmodel.register;
-    if (!mounted || registerCommand.isRunning) return;
+  void _onLoginCommandChanged() {
+    final loginCommand = widget.viewModel.login;
+    if (!mounted || loginCommand.isRunning) return;
 
-    if (registerCommand.isFailure) {
-      final message = registerCommand.error?.message ?? 'Falha ao cadastrar.';
+    if (loginCommand.isFailure) {
+      final message = loginCommand.error?.message ?? 'Falha ao autenticar.';
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -225,12 +186,12 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    if (registerCommand.isSuccess) {
+    if (loginCommand.isSuccess) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           const SnackBar(
-            content: Text('Cadastro realizado com sucesso.'),
+            content: Text('Login realizado com sucesso.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -243,18 +204,16 @@ class _RegisterPageState extends State<RegisterPage> {
 
     FocusScope.of(context).unfocus();
 
-    await widget.viewmodel.register.execute(
-      RegisterRequestDto(
-        name: _nameController.text.trim(),
+    await widget.viewModel.login.execute(
+      LoginRequestDto(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        cpf: _cpfController.text.replaceAll(RegExp(r'\D'), ''),
       ),
     );
 
-    final result = widget.viewmodel.register.result!;
+    final result = widget.viewModel.login.result!;
     if (result.isFailure) {
-      final message = result.error?.message ?? 'Falha ao cadastrar.';
+      final message = result.error?.message ?? 'Falha ao autenticar.';
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -268,6 +227,6 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     if (!mounted) return;
-    context.goNamed(AuthRoutes.login.name);
+    context.goNamed(HomeRoutes.home.name);
   }
 }
