@@ -36,6 +36,13 @@ class _ExtraEncoder extends Converter<Object?, String> {
       });
     }
 
+    if (extra == null) {
+      return jsonEncode({
+        'type': 'primitive',
+        'data': null,
+      });
+    }
+
     throw UnsupportedError('Unsupported type: ${extra.runtimeType}');
   }
 }

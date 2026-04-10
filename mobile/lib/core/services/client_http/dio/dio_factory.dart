@@ -1,30 +1,28 @@
 import 'package:dio/dio.dart';
 
-import '../client/rest_client.dart';
-import 'dio_rest_client.dart';
+import '/core/config/app_env.dart';
 
 class DioFactory {
-  static RestClient create({
-    required String baseUrl,
-    Duration connectTimeout = const Duration(seconds: 10),
-    Duration receiveTimeout = const Duration(seconds: 10),
+  static Dio create({
+    Map<String, String>? defaultHeaders,
     List<Interceptor> interceptors = const [],
   }) {
     final dio = Dio(
       BaseOptions(
-        baseUrl: baseUrl,
-        connectTimeout: connectTimeout,
-        receiveTimeout: receiveTimeout,
-        headers: const {
+        baseUrl: AppEnv.baseUrl,
+        connectTimeout: Duration(milliseconds: AppEnv.connectTimeout),
+        receiveTimeout: Duration(milliseconds: AppEnv.receiveTimeout),
+        headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
+          ...?defaultHeaders,
         },
       ),
     );
 
     _registerInterceptors(dio, interceptors);
 
-    return DioRestClient(dio: dio);
+    return dio;
   }
 
   static void _registerInterceptors(
@@ -40,11 +38,11 @@ class DioFactory {
     Dio dio,
     Interceptor interceptor,
   ) {
-    final alreadyRegistered = dio.interceptors.any(
-      (existing) => existing.runtimeType == interceptor.runtimeType,
+    final exists = dio.interceptors.any(
+      (i) => i.runtimeType == interceptor.runtimeType,
     );
 
-    if (!alreadyRegistered) {
+    if (!exists) {
       dio.interceptors.add(interceptor);
     }
   }

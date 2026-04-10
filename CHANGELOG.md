@@ -1,5 +1,300 @@
 # Changelog
 
+## 2026/04/10 — infra/layout-01
+
+Introduces a **UI layout standardization layer** for the Flutter application, centralizing structural concerns and improving consistency across authentication screens, while also refining routing behavior and state handling patterns.
+
+### 1. Routing Adjustment
+
+* Updated initial route:
+
+  * from `HomeRoutes.home` to `AuthRoutes.login`
+* Aligns application startup with authentication flow, enforcing a more realistic entry point for protected systems
+* This change is consistent with the backend contract where authentication precedes access to account resources 
+
+---
+
+### 2. Introduction of SafeScaffold
+
+* Added new base component: `SafeScaffold`
+* Encapsulates:
+
+  * `SafeArea` handling for body and bottom navigation
+  * consistent horizontal constraints (`maxWidth: 460`)
+  * standardized padding for bottom actions
+* Provides a **reusable layout abstraction**, reducing duplication and enforcing UI consistency
+* Conceptually aligns with separation of responsibilities seen in the backend architecture, isolating structural concerns from business/UI logic 
+
+---
+
+### 3. Login Page Refactor
+
+* Migrated from `Scaffold` to `SafeScaffold`
+* Introduced `AppBar` for clearer navigation structure
+* Refactored state handling:
+
+  * replaced `setState` with `ValueNotifier<bool>` for password visibility
+* Improved layout:
+
+  * consistent spacing using `Column.spacing`
+  * moved primary action to `bottomNavigationBar`
+  * added `GestureDetector` to dismiss keyboard
+* Decoupled navigation logic into dedicated methods (`_navToRegister`)
+* Replaced direct widget access with local `_viewModel` reference for better readability and lifecycle control
+
+---
+
+### 4. Register Page Refactor
+
+* Applied same structural pattern as Login:
+
+  * `SafeScaffold`
+  * `AppBar`
+  * bottom action bar for primary CTA
+* Introduced local `_viewmodel` reference
+* Improved layout consistency:
+
+  * removed redundant spacing widgets
+  * standardized vertical rhythm using `spacing`
+* Added explicit navigation method (`_navToLogin`)
+* Ensures both auth screens follow the same **visual and interaction contract**
+
+---
+
+### 5. UI Behavior Improvements
+
+* Centralized primary actions (Entrar / Cadastrar) in bottom area:
+
+  * improves ergonomics on mobile devices
+  * creates a consistent interaction pattern
+* Added loading state handling directly in action buttons
+* Improved keyboard UX with tap-to-dismiss behavior
+
+---
+
+### 6. Architectural Considerations
+
+This change is subtle but important from a design perspective:
+
+* Introduces a **UI composition layer**, analogous to how backend layers isolate responsibilities
+* Reduces duplication while preserving flexibility
+* Moves toward a **design system mindset**, even without formalizing one yet
+
+A critical observation:
+this abstraction is well-scoped. It does not attempt to generalize business logic or navigation, only layout concerns. This is a good boundary and avoids premature over-engineering.
+
+---
+
+### Conclusion
+
+This commit establishes a **foundation for consistent UI composition**, improving maintainability, readability, and user experience.
+
+The introduction of `SafeScaffold` combined with the refactoring of authentication screens represents a **clear step toward a scalable UI architecture**, mirroring the layered discipline already present in the backend.
+
+
+## 2026/04/10 — infra/routing-01
+
+Introduces a **structured routing architecture using GoRouter**, along with UI composition, dependency injection integration, and initial authentication flows. This commit establishes a clear separation of routing concerns aligned with a modular layered approach 
+
+### 1. Routing Architecture Refactor
+
+* Replaced monolithic route definition with **modular route groups**:
+
+  * `authRoutes()`
+  * `homeRoutes()`
+* Router now composes routes using spread operators, improving scalability and readability
+* Updated `initialLocation` to use `HomeRoutes.home.path`, removing reliance on generic enums
+
+### 2. Route Definition Strategy
+
+* Replaced generic `Routes` enum with **domain-oriented route enums**:
+
+  * `AuthRoutes`
+  * `HomeRoutes`
+* Each enum encapsulates its own path, improving cohesion and reducing accidental coupling
+* Introduced dedicated route files:
+
+  * `routes/auth_routes.dart`
+  * `routes/home_routes.dart`
+
+Opinion: This is a strong architectural move. It prevents the typical “god enum” anti-pattern and aligns routing with feature boundaries.
+
+### 3. GoRouter Integration
+
+* Migrated from `MaterialApp` to `MaterialApp.router`
+* Centralized router creation via `router()` factory
+* Added `ExtraCodec` support for serialization:
+
+  * now explicitly supports `null` values
+  * prevents runtime failures when passing optional navigation data
+
+### 4. Dependency Injection Integration
+
+* Introduced `Uis.add(injector)` into dependency setup
+* ViewModels are now resolved directly in route builders via injector:
+
+  * `LoginViewModel`
+  * `RegisterViewmodel`
+  * `HomeViewmodel`
+* Removed redundant LocalSecureStorage registration from `Data` layer, keeping DI responsibilities better distributed
+
+Opinion: Injecting ViewModels at the routing boundary is a pragmatic choice. It keeps UI decoupled while avoiding premature abstraction layers.
+
+### 5. Application Entry Point Refactor
+
+* Renamed `MainApp` to `AppWidget`
+* Moved it into `/uis`, reinforcing UI ownership
+* Introduced internal router instance (`GoRouter`) inside the widget
+* Replaced `home:` with `routerConfig`, aligning app initialization with navigation system
+
+### 6. Authentication UI Implementation
+
+#### Login Flow
+
+* Implemented full `LoginPage`:
+
+  * form validation (email/password)
+  * loading state via `Command`
+  * success/failure feedback using `SnackBar`
+* Navigation:
+
+  * success → `HomeRoutes.home`
+  * register link → `AuthRoutes.register`
+
+#### Register Flow
+
+* Replaced placeholder with full implementation:
+
+  * fields: name, email, cpf, password
+  * validation rules for each field
+  * command-based execution
+* Navigation:
+
+  * success → `AuthRoutes.login`
+
+### 7. ViewModel Layer Introduction
+
+* Added ViewModels:
+
+  * `LoginViewModel`
+  * `RegisterViewmodel`
+  * `HomeViewmodel`
+* Standardized usage of `Command1` for async actions
+* Established consistent interaction pattern:
+
+  * UI observes command state
+  * ViewModel delegates to repository
+
+### 8. UI Composition Adjustments
+
+* `HomePage` now receives `HomeViewmodel` via constructor
+* Ensures consistency with DI-driven UI pattern
+* Created centralized `uis.dart` for ViewModel registration
+
+### 9. Codebase Cleanup and Direction
+
+* Removed unused imports and redundant DI registrations
+* Added note to relocate `getProfile` from `AuthApi` to a future profile service
+* Introduced (commented) navigation extension for future evaluation
+
+### Conclusion
+
+This commit represents a **foundational shift in navigation and UI architecture**, achieving:
+
+* modular routing aligned with feature boundaries
+* clean integration between routing and dependency injection
+* consistent ViewModel-driven UI pattern
+* scalable structure for future expansion (auth, home, and beyond)
+
+From an architectural standpoint, this is a well-directed evolution. The system moves closer to a **feature-oriented modular design**, reducing global coupling and improving long-term maintainability.
+
+
+## 2026/04/10 — infra/http-client-setup-01
+
+Establishes a **centralized and environment-driven HTTP client configuration**, removing runtime mutation patterns and aligning the mobile client with a more deterministic and infrastructure-oriented design.
+
+### 1. Environment Configuration Refactor
+
+* Introduced `AppEnv` as the single source of truth for runtime configuration:
+
+  * `baseUrl` with strict validation (non-empty and valid URI)
+  * `connectTimeout` and `receiveTimeout` via compile-time environment variables
+  * `AppMode` enum with explicit parsing and validation
+* Removed legacy `EnviromentKey`, eliminating loosely validated configuration access
+* This change enforces **fail-fast behavior**, which is a critical improvement for reliability in distributed systems
+
+### 2. HTTP Client Design Simplification
+
+* Removed `setBaseUrl` from `RestClient` interface and its implementation
+* Eliminated runtime base URL mutation across the application layer
+* All configuration is now resolved at instantiation time via `DioFactory`
+* This is a **significant architectural improvement**, as it:
+
+  * removes hidden side effects
+  * avoids per-request configuration inconsistencies
+  * enforces immutability of infrastructure concerns
+
+### 3. DioFactory Redesign
+
+* Refactored `DioFactory` to return a configured `Dio` instance instead of `RestClient`
+* Integrated `AppEnv` directly into `BaseOptions`:
+
+  * `baseUrl`
+  * timeouts
+  * default headers
+* Added support for optional `defaultHeaders`
+* Improved interceptor registration:
+
+  * avoids duplicate interceptor instances using type comparison
+* This aligns the HTTP client with an **infrastructure-first responsibility model**, consistent with layered architecture principles 
+
+### 4. Dependency Injection Restructuring
+
+* Reorganized `CoreServices` with explicit layering:
+
+  1. `FlutterSecureStorage`
+  2. `LocalSecureStorage` abstraction
+  3. base `Dio` instance
+  4. `AuthInterceptor` with isolated configuration
+  5. `RestClient` composed from `Dio`
+* Notable design decision:
+
+  * `AuthInterceptor` uses a dedicated `Dio` instance to avoid recursive interception
+* This setup improves:
+
+  * testability
+  * separation of concerns
+  * predictability of request flow
+
+### 5. API Layer Cleanup
+
+* Removed manual base URL overrides from `AuthApi`
+* All endpoints now rely on centralized configuration
+* This eliminates duplication and prevents divergence across API calls
+* Aligns the client with a **contract-driven API consumption model** 
+
+### 6. Interceptor Behavior Clarification
+
+* Updated `AuthInterceptor` comment to explicitly document behavior:
+
+  * skips token injection when `Authorization` header is already present
+* Improves readability and reduces ambiguity in request handling
+
+### 7. Test Adjustments
+
+* Updated `DioRestClient` tests:
+
+  * removed dependency on `setBaseUrl`
+  * now validate behavior based on `Dio` configuration
+* Ensures tests reflect the new immutable configuration model
+
+### Conclusion
+
+This commit represents a **structural upgrade of the HTTP client layer**, shifting from mutable, scattered configuration to a **centralized, deterministic, and environment-driven approach**.
+
+From an architectural standpoint, the most relevant gain is the clear separation between **application logic and infrastructure concerns**, reinforcing the principles of layered architecture and significantly reducing the risk of inconsistent network behavior across the application.
+
+
 ## 2026/04/09 — infra/di-and-env-setup-01
 
 Establishes the **foundational infrastructure layer for dependency injection and environment configuration** in the Flutter client, aligning the mobile architecture with a modular, scalable structure and enabling controlled environment-based execution.

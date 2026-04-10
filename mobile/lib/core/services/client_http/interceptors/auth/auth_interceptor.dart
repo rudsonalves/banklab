@@ -54,7 +54,7 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // evita sobrescrever header manual
+    // If the request already has an Authorization header, skip adding the token
     if (options.headers.containsKey('Authorization')) {
       return handler.next(options);
     }

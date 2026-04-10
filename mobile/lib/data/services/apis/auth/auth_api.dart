@@ -15,8 +15,6 @@ class AuthApi {
   AuthApi(this._client);
 
   AsyncResult<Unit> register(RegisterRequestDto dto) async {
-    _client.setBaseUrl('http://localhost:3000/api/v1');
-
     final response = await _client.post(
       RestClientRequest(
         path: '/auth/register',
@@ -63,8 +61,6 @@ class AuthApi {
   }
 
   AsyncResult<LoggedUser> login(LoginRequestDto dto) async {
-    _client.setBaseUrl('http://localhost:3000/api/v1');
-
     final response = await _client.post(
       RestClientRequest(
         path: '/auth/login',
@@ -110,9 +106,8 @@ class AuthApi {
     }
   }
 
+  // Remove this to a profile API service.
   AsyncResult<UserProfile> getProfile() async {
-    _client.setBaseUrl('http://localhost:3000/api/v1');
-
     final response = await _client.get(
       RestClientRequest(
         path: 'profile/me',

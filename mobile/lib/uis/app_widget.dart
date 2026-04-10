@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '/core/routing/router.dart';
 import '/uis/core/themes/material_theme.dart';
 import '/uis/core/themes/text_theme.dart';
-import 'uis/pages/home/home_page.dart';
 
-class MainApp extends StatefulWidget {
-  const MainApp({super.key});
+class AppWidget extends StatefulWidget {
+  const AppWidget({super.key});
 
   @override
-  State<MainApp> createState() => _MainAppState();
+  State<AppWidget> createState() => _AppWidgetState();
 }
 
-class _MainAppState extends State<MainApp> {
+class _AppWidgetState extends State<AppWidget> {
   late final MaterialTheme _materialTheme;
+  final GoRouter _router = router();
 
   @override
   void didChangeDependencies() {
@@ -31,10 +33,10 @@ class _MainAppState extends State<MainApp> {
     final baseTheme = _resolveBaseTheme(brightness);
     final theme = _buildAppTheme(baseTheme);
 
-    return MaterialApp(
+    return MaterialApp.router(
       theme: theme,
       debugShowCheckedModeBanner: false,
-      home: const HomePage(),
+      routerConfig: _router,
     );
   }
 

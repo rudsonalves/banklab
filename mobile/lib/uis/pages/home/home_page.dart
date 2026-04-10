@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'viewmodel/home_viewmodel.dart';
+
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final HomeViewmodel viewModel;
+
+  const HomePage({super.key, required this.viewModel});
 
   @override
   State<HomePage> createState() => _HomePageState();
