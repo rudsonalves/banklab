@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/register_request_dto.dart';
+import '/uis/core/base/safe_scaffold.dart';
 import '/uis/pages/auth/register/viewmodel/register_viewmodel.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -18,6 +19,8 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  late final RegisterViewmodel _viewmodel;
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -28,13 +31,15 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void initState() {
+    _viewmodel = widget.viewmodel;
+    _viewmodel.register.addListener(_onRegisterCommandChanged);
+
     super.initState();
-    widget.viewmodel.register.addListener(_onRegisterCommandChanged);
   }
 
   @override
   void dispose() {
-    widget.viewmodel.register.removeListener(_onRegisterCommandChanged);
+    _viewmodel.register.removeListener(_onRegisterCommandChanged);
     _nameController.dispose();
     _emailController.dispose();
     _cpfController.dispose();
@@ -46,30 +51,29 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      body: SafeArea(
+    return SafeScaffold(
+      appBar: AppBar(
+        title: const Text('Criar conta'),
+      ),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: AnimatedBuilder(
-                animation: widget.viewmodel.register,
+                animation: _viewmodel.register,
                 builder: (context, _) {
-                  final isRunning = widget.viewmodel.register.isRunning;
+                  final isRunning = _viewmodel.register.isRunning;
 
                   return Form(
                     key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
+                      spacing: 16,
                       children: [
-                        Text(
-                          'Criar conta',
-                          style: Theme.of(context).textTheme.headlineMedium,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
                         Text(
                           'Cadastre-se para começar a usar o BankFlow.',
                           style: Theme.of(context).textTheme.bodyLarge
@@ -78,7 +82,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _nameController,
                           textCapitalization: TextCapitalization.words,
@@ -90,7 +94,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           validator: _nameValidator,
                         ),
-                        const SizedBox(height: 16),
+
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -103,7 +107,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           validator: _emailValidator,
                         ),
-                        const SizedBox(height: 16),
+
                         TextFormField(
                           controller: _cpfController,
                           keyboardType: TextInputType.number,
@@ -115,7 +119,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           validator: _cpfValidator,
                         ),
-                        const SizedBox(height: 16),
+
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
@@ -142,18 +146,14 @@ class _RegisterPageState extends State<RegisterPage> {
                           validator: _passwordValidator,
                           onFieldSubmitted: (_) => _submit(),
                         ),
-                        const SizedBox(height: 24),
-                        FilledButton(
-                          onPressed: isRunning ? null : _submit,
-                          child: isRunning
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text('Cadastrar'),
+
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: isRunning ? null : _navToLogin,
+                            child: const Text('Já tem conta? Faça login'),
+                          ),
                         ),
                       ],
                     ),
@@ -164,7 +164,30 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       ),
+      bottomNavigationBar: AnimatedBuilder(
+        animation: _viewmodel.register,
+        builder: (context, _) {
+          final isRunning = _viewmodel.register.isRunning;
+
+          return FilledButton(
+            onPressed: isRunning ? null : _submit,
+            child: isRunning
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text('Cadastrar'),
+          );
+        },
+      ),
     );
+  }
+
+  void _navToLogin() {
+    context.goNamed(AuthRoutes.login.name);
   }
 
   String? _nameValidator(String? value) {
@@ -209,7 +232,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _onRegisterCommandChanged() {
-    final registerCommand = widget.viewmodel.register;
+    final registerCommand = _viewmodel.register;
     if (!mounted || registerCommand.isRunning) return;
 
     if (registerCommand.isFailure) {
@@ -243,7 +266,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     FocusScope.of(context).unfocus();
 
-    await widget.viewmodel.register.execute(
+    await _viewmodel.register.execute(
       RegisterRequestDto(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
@@ -252,7 +275,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
 
-    final result = widget.viewmodel.register.result!;
+    final result = _viewmodel.register.result!;
     if (result.isFailure) {
       final message = result.error?.message ?? 'Falha ao cadastrar.';
       if (!mounted) return;

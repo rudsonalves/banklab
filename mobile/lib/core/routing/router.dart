@@ -7,7 +7,7 @@ import 'routes/auth_routes.dart';
 import 'routes/home_routes.dart';
 
 GoRouter router() => GoRouter(
-  initialLocation: HomeRoutes.home.path,
+  initialLocation: AuthRoutes.login.path,
   debugLogDiagnostics: kDebugMode,
   extraCodec: const ExtraCodec(),
   routes: [

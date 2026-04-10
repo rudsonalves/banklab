@@ -1,8 +1,9 @@
-import 'package:bankflow/core/routing/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
+import '/uis/core/base/safe_scaffold.dart';
 import 'viewmodel/login_viewmodel.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,23 +19,30 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  late final LoginViewModel _viewModel;
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  bool _obscurePassword = true;
+  final ValueNotifier<bool> _obscurePassword = ValueNotifier<bool>(true);
 
   @override
   void initState() {
+    _viewModel = widget.viewModel;
+    _viewModel.login.addListener(_onLoginCommandChanged);
+
     super.initState();
-    widget.viewModel.login.addListener(_onLoginCommandChanged);
   }
 
   @override
   void dispose() {
-    widget.viewModel.login.removeListener(_onLoginCommandChanged);
+    _viewModel.login.removeListener(_onLoginCommandChanged);
+
     _emailController.dispose();
     _passwordController.dispose();
+    _obscurePassword.dispose();
+
     super.dispose();
   }
 
@@ -42,30 +50,29 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      body: SafeArea(
+    return SafeScaffold(
+      appBar: AppBar(
+        title: const Text('Entrar'),
+      ),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
               child: AnimatedBuilder(
-                animation: widget.viewModel.login,
+                animation: _viewModel.login,
                 builder: (context, _) {
-                  final isRunning = widget.viewModel.login.isRunning;
+                  final isRunning = _viewModel.login.isRunning;
 
                   return Form(
                     key: _formKey,
                     child: Column(
+                      spacing: 16,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Entrar',
-                          style: Theme.of(context).textTheme.headlineMedium,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
                         Text(
                           'Acesse sua conta para continuar no BankFlow.',
                           style: Theme.of(context).textTheme.bodyLarge
@@ -74,7 +81,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 12),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -87,52 +94,42 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           validator: _emailValidator,
                         ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          enabled: !isRunning,
-                          autofillHints: const [AutofillHints.password],
-                          decoration: InputDecoration(
-                            labelText: 'Senha',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              onPressed: isRunning
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                            ),
-                          ),
-                          validator: _passwordValidator,
-                          onFieldSubmitted: (_) => _submit(),
-                        ),
-                        const SizedBox(height: 24),
-                        FilledButton(
-                          onPressed: isRunning ? null : _submit,
-                          child: isRunning
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _obscurePassword,
+                          builder: (context, value, child) {
+                            return TextFormField(
+                              controller: _passwordController,
+                              obscureText: value,
+                              enabled: !isRunning,
+                              autofillHints: const [AutofillHints.password],
+                              decoration: InputDecoration(
+                                labelText: 'Senha',
+                                prefixIcon: const Icon(Icons.lock_outline),
+                                suffixIcon: IconButton(
+                                  onPressed: isRunning
+                                      ? null
+                                      : _obscurePasswordListener,
+                                  icon: Icon(
+                                    value
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
                                   ),
-                                )
-                              : const Text('Entrar'),
+                                ),
+                              ),
+                              validator: _passwordValidator,
+                              onFieldSubmitted: (_) => _submit(),
+                            );
+                          },
                         ),
-                        const SizedBox(height: 12),
-                        TextButton(
-                          onPressed: isRunning
-                              ? null
-                              : () => context.goNamed(AuthRoutes.register.name),
-                          child: const Text('Nao tem conta? Cadastre-se'),
+
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: isRunning ? null : _navToRegister,
+                            child: const Text('Não tem conta? Cadastre-se'),
+                          ),
                         ),
                       ],
                     ),
@@ -143,7 +140,35 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+
+      bottomNavigationBar: AnimatedBuilder(
+        animation: _viewModel.login,
+        builder: (context, _) {
+          final isRunning = _viewModel.login.isRunning;
+
+          return FilledButton(
+            onPressed: isRunning ? null : _submit,
+            child: isRunning
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text('Entrar'),
+          );
+        },
+      ),
     );
+  }
+
+  void _navToRegister() {
+    context.goNamed(AuthRoutes.register.name);
+  }
+
+  void _obscurePasswordListener() {
+    _obscurePassword.value = !_obscurePassword.value;
   }
 
   String? _emailValidator(String? value) {
@@ -170,7 +195,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _onLoginCommandChanged() {
-    final loginCommand = widget.viewModel.login;
+    final loginCommand = _viewModel.login;
     if (!mounted || loginCommand.isRunning) return;
 
     if (loginCommand.isFailure) {
@@ -204,14 +229,14 @@ class _LoginPageState extends State<LoginPage> {
 
     FocusScope.of(context).unfocus();
 
-    await widget.viewModel.login.execute(
+    await _viewModel.login.execute(
       LoginRequestDto(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       ),
     );
 
-    final result = widget.viewModel.login.result!;
+    final result = _viewModel.login.result!;
     if (result.isFailure) {
       final message = result.error?.message ?? 'Falha ao autenticar.';
       if (!mounted) return;

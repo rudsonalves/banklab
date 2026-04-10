@@ -1,5 +1,97 @@
 # Changelog
 
+## 2026/04/10 — infra/layout-01
+
+Introduces a **UI layout standardization layer** for the Flutter application, centralizing structural concerns and improving consistency across authentication screens, while also refining routing behavior and state handling patterns.
+
+### 1. Routing Adjustment
+
+* Updated initial route:
+
+  * from `HomeRoutes.home` to `AuthRoutes.login`
+* Aligns application startup with authentication flow, enforcing a more realistic entry point for protected systems
+* This change is consistent with the backend contract where authentication precedes access to account resources 
+
+---
+
+### 2. Introduction of SafeScaffold
+
+* Added new base component: `SafeScaffold`
+* Encapsulates:
+
+  * `SafeArea` handling for body and bottom navigation
+  * consistent horizontal constraints (`maxWidth: 460`)
+  * standardized padding for bottom actions
+* Provides a **reusable layout abstraction**, reducing duplication and enforcing UI consistency
+* Conceptually aligns with separation of responsibilities seen in the backend architecture, isolating structural concerns from business/UI logic 
+
+---
+
+### 3. Login Page Refactor
+
+* Migrated from `Scaffold` to `SafeScaffold`
+* Introduced `AppBar` for clearer navigation structure
+* Refactored state handling:
+
+  * replaced `setState` with `ValueNotifier<bool>` for password visibility
+* Improved layout:
+
+  * consistent spacing using `Column.spacing`
+  * moved primary action to `bottomNavigationBar`
+  * added `GestureDetector` to dismiss keyboard
+* Decoupled navigation logic into dedicated methods (`_navToRegister`)
+* Replaced direct widget access with local `_viewModel` reference for better readability and lifecycle control
+
+---
+
+### 4. Register Page Refactor
+
+* Applied same structural pattern as Login:
+
+  * `SafeScaffold`
+  * `AppBar`
+  * bottom action bar for primary CTA
+* Introduced local `_viewmodel` reference
+* Improved layout consistency:
+
+  * removed redundant spacing widgets
+  * standardized vertical rhythm using `spacing`
+* Added explicit navigation method (`_navToLogin`)
+* Ensures both auth screens follow the same **visual and interaction contract**
+
+---
+
+### 5. UI Behavior Improvements
+
+* Centralized primary actions (Entrar / Cadastrar) in bottom area:
+
+  * improves ergonomics on mobile devices
+  * creates a consistent interaction pattern
+* Added loading state handling directly in action buttons
+* Improved keyboard UX with tap-to-dismiss behavior
+
+---
+
+### 6. Architectural Considerations
+
+This change is subtle but important from a design perspective:
+
+* Introduces a **UI composition layer**, analogous to how backend layers isolate responsibilities
+* Reduces duplication while preserving flexibility
+* Moves toward a **design system mindset**, even without formalizing one yet
+
+A critical observation:
+this abstraction is well-scoped. It does not attempt to generalize business logic or navigation, only layout concerns. This is a good boundary and avoids premature over-engineering.
+
+---
+
+### Conclusion
+
+This commit establishes a **foundation for consistent UI composition**, improving maintainability, readability, and user experience.
+
+The introduction of `SafeScaffold` combined with the refactoring of authentication screens represents a **clear step toward a scalable UI architecture**, mirroring the layered discipline already present in the backend.
+
+
 ## 2026/04/10 — infra/routing-01
 
 Introduces a **structured routing architecture using GoRouter**, along with UI composition, dependency injection integration, and initial authentication flows. This commit establishes a clear separation of routing concerns aligned with a modular layered approach 
