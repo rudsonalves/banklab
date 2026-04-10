@@ -14,11 +14,6 @@ class DioRestClient implements RestClient {
   }) : _dio = dio;
 
   @override
-  void setBaseUrl(String url) {
-    _dio.options.baseUrl = url;
-  }
-
-  @override
   AsyncResult<RestClientResponse> get(RestClientRequest request) {
     return _request(
       () => _dio.get(

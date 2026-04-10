@@ -88,10 +88,12 @@ void main() {
       expect(result.value?.data, {'created': true});
     });
 
-    test('setBaseUrl should update dio baseUrl', () async {
+    test('should use dio baseUrl configuration', () async {
       late RequestOptions capturedOptions;
 
-      final dio = Dio();
+      final dio = Dio(
+        BaseOptions(baseUrl: 'https://api.bankflow.dev'),
+      );
       dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, _) async {
         capturedOptions = options;
 
@@ -105,8 +107,6 @@ void main() {
       });
 
       final client = DioRestClient(dio: dio);
-
-      client.setBaseUrl('https://api.bankflow.dev');
 
       await client.get(const RestClientRequest(path: '/health'));
 

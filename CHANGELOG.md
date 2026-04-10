@@ -1,5 +1,91 @@
 # Changelog
 
+## 2026/04/10 — infra/http-client-setup-01
+
+Establishes a **centralized and environment-driven HTTP client configuration**, removing runtime mutation patterns and aligning the mobile client with a more deterministic and infrastructure-oriented design.
+
+### 1. Environment Configuration Refactor
+
+* Introduced `AppEnv` as the single source of truth for runtime configuration:
+
+  * `baseUrl` with strict validation (non-empty and valid URI)
+  * `connectTimeout` and `receiveTimeout` via compile-time environment variables
+  * `AppMode` enum with explicit parsing and validation
+* Removed legacy `EnviromentKey`, eliminating loosely validated configuration access
+* This change enforces **fail-fast behavior**, which is a critical improvement for reliability in distributed systems
+
+### 2. HTTP Client Design Simplification
+
+* Removed `setBaseUrl` from `RestClient` interface and its implementation
+* Eliminated runtime base URL mutation across the application layer
+* All configuration is now resolved at instantiation time via `DioFactory`
+* This is a **significant architectural improvement**, as it:
+
+  * removes hidden side effects
+  * avoids per-request configuration inconsistencies
+  * enforces immutability of infrastructure concerns
+
+### 3. DioFactory Redesign
+
+* Refactored `DioFactory` to return a configured `Dio` instance instead of `RestClient`
+* Integrated `AppEnv` directly into `BaseOptions`:
+
+  * `baseUrl`
+  * timeouts
+  * default headers
+* Added support for optional `defaultHeaders`
+* Improved interceptor registration:
+
+  * avoids duplicate interceptor instances using type comparison
+* This aligns the HTTP client with an **infrastructure-first responsibility model**, consistent with layered architecture principles 
+
+### 4. Dependency Injection Restructuring
+
+* Reorganized `CoreServices` with explicit layering:
+
+  1. `FlutterSecureStorage`
+  2. `LocalSecureStorage` abstraction
+  3. base `Dio` instance
+  4. `AuthInterceptor` with isolated configuration
+  5. `RestClient` composed from `Dio`
+* Notable design decision:
+
+  * `AuthInterceptor` uses a dedicated `Dio` instance to avoid recursive interception
+* This setup improves:
+
+  * testability
+  * separation of concerns
+  * predictability of request flow
+
+### 5. API Layer Cleanup
+
+* Removed manual base URL overrides from `AuthApi`
+* All endpoints now rely on centralized configuration
+* This eliminates duplication and prevents divergence across API calls
+* Aligns the client with a **contract-driven API consumption model** 
+
+### 6. Interceptor Behavior Clarification
+
+* Updated `AuthInterceptor` comment to explicitly document behavior:
+
+  * skips token injection when `Authorization` header is already present
+* Improves readability and reduces ambiguity in request handling
+
+### 7. Test Adjustments
+
+* Updated `DioRestClient` tests:
+
+  * removed dependency on `setBaseUrl`
+  * now validate behavior based on `Dio` configuration
+* Ensures tests reflect the new immutable configuration model
+
+### Conclusion
+
+This commit represents a **structural upgrade of the HTTP client layer**, shifting from mutable, scattered configuration to a **centralized, deterministic, and environment-driven approach**.
+
+From an architectural standpoint, the most relevant gain is the clear separation between **application logic and infrastructure concerns**, reinforcing the principles of layered architecture and significantly reducing the risk of inconsistent network behavior across the application.
+
+
 ## 2026/04/09 — infra/di-and-env-setup-01
 
 Establishes the **foundational infrastructure layer for dependency injection and environment configuration** in the Flutter client, aligning the mobile architecture with a modular, scalable structure and enabling controlled environment-based execution.
