@@ -133,7 +133,7 @@ func newAuthTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 
 	connString := os.Getenv("BANK_TEST_DATABASE_URL")
 	if connString == "" {
-		connString = "postgres://postgres:postgres@localhost:5432/bank?sslmode=disable"
+		connString = "postgres://postgres:postgres@localhost:5432/bank_test?sslmode=disable"
 	}
 
 	pool, err := pgxpool.New(ctx, connString)

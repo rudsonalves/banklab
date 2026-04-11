@@ -1,5 +1,269 @@
 # Changelog
 
+## 2026/04/11 — api/refresh_token-01
+
+Implements a **complete refresh token flow with session management**, evolving the authentication model from stateless JWT-only to a **stateful, revocable, and rotating session-based approach**. This change aligns the system with a more robust security posture while preserving the layered architecture principles 
+
+---
+
+### 1. Domain Layer — Contracts Expansion
+
+* Extended `TokenService`:
+
+  * added `GenerateRefreshToken(userID)`
+  * added `ParseRefreshToken(token)`
+* Introduced `SessionRepository`:
+
+  * `Create`
+  * `FindByTokenHash`
+  * `Revoke`
+* Establishes **explicit session lifecycle control** at the domain boundary
+
+---
+
+### 2. Application Layer — Login Flow Evolution
+
+* `LoginUserUseCase` updated to:
+
+  * generate **access token + refresh token**
+  * hash refresh token using `SHA-256`
+  * persist session with expiration (`30 days TTL`)
+* Output now includes:
+
+  * `AccessToken`
+  * `RefreshToken`
+* Optional session dependency supported (backward-safe injection)
+
+**Key observation (architectural):**
+This is the first point where authentication becomes **state-aware**, breaking the purely stateless JWT model intentionally.
+
+---
+
+### 3. Application Layer — Refresh Token Use Case
+
+* Introduced `RefreshAccessTokenUseCase`:
+
+  * validates refresh token integrity
+  * validates session (existence, expiration, revocation, ownership)
+  * loads user from repository
+  * generates new access token
+  * performs **refresh token rotation**:
+
+    * revoke old token
+    * generate new refresh token
+    * persist new session
+
+**Security properties introduced:**
+
+* replay protection (rotation)
+* server-side invalidation
+* binding between token and stored session
+
+---
+
+### 4. Infrastructure Layer — Token Service
+
+* Extended `JWTTokenService`:
+
+  * added **opaque refresh token generation**
+
+    * payload: `userID + nonce`
+    * signature: `HMAC-SHA256`
+    * encoding: `base64url`
+  * implemented `ParseRefreshToken`
+
+    * signature validation using constant-time comparison
+    * strict payload validation
+
+* Access token improvements:
+
+  * ensured `exp` claim correctness with TTL enforcement
+
+**Technical decision:**
+Refresh token is **not JWT**, which is a correct choice to:
+
+* reduce attack surface
+* simplify validation
+* avoid overloading JWT semantics
+
+---
+
+### 5. Infrastructure Layer — Session Persistence
+
+* Added `PostgresSessionRepository`
+
+  * `Create`: inserts hashed token
+  * `FindByTokenHash`: retrieves session state
+  * `Revoke`: soft-revokes via `revoked_at`
+
+* Supports transaction-aware execution via context
+
+* Migration `000005_user_sessions`:
+
+  * new table `user_sessions`
+  * indexed by `user_id` and `expires_at`
+  * unique constraint on `token_hash`
+
+**Critical design choice:**
+
+* only **hashed tokens are stored**
+* prevents token leakage from DB compromise
+
+---
+
+### 6. Delivery Layer — HTTP Contract Updates
+
+* `/auth/login`:
+
+  * now returns `refresh_token`
+
+* New endpoint:
+
+  * `POST /auth/refresh`
+
+* Handler additions:
+
+  * request validation (`refresh_token`)
+  * consistent error mapping
+  * response envelope preserved
+
+* Introduced DTOs:
+
+  * `refreshAccessTokenRequest`
+  * `refreshAccessTokenData`
+
+**Important:**
+This extends the API contract beyond what is currently documented  and requires documentation update.
+
+---
+
+### 7. Dependency Wiring (main.go)
+
+* Registered:
+
+  * `SessionRepository`
+  * `RefreshAccessTokenUseCase`
+* Injected into:
+
+  * `LoginUserUseCase`
+  * handler via setter
+* Exposed route:
+
+  * `POST /auth/refresh`
+
+---
+
+### 8. Test Coverage
+
+#### 8.1 Application Tests
+
+* Login:
+
+  * validates access + refresh generation
+  * verifies session persistence (hash + expiration)
+  * covers failure scenarios:
+
+    * access token failure
+    * refresh token failure
+    * session persistence failure
+
+* Refresh flow:
+
+  * success path
+  * invalid token
+  * session not found
+  * revoked session
+  * expired session
+  * user mismatch
+  * repository failures
+  * rotation integrity
+
+#### 8.2 Infrastructure Tests
+
+* Refresh token:
+
+  * generation + parsing
+  * entropy validation
+  * tampering detection
+  * malformed token handling
+* Access token:
+
+  * expiration correctness
+
+#### 8.3 Delivery Tests
+
+* Login:
+
+  * validates response now includes `refresh_token`
+* Refresh:
+
+  * success case
+  * invalid token → `401 INVALID_TOKEN`
+
+#### 8.4 Integration Tests
+
+* End-to-end validation:
+
+  * login returns both tokens
+  * refresh endpoint wired correctly
+* Test DB isolation:
+
+  * switched to `bank_test`
+* CPF constraint repair added for test consistency
+
+---
+
+### 9. Test & Environment Adjustments
+
+* Updated default test database:
+
+  * `bank → bank_test`
+* Added defensive SQL for constraint repair:
+
+  * prevents flaky test runs due to regex mismatch
+
+---
+
+### 10. Behavioral Changes Summary
+
+* Access tokens are now **short-lived**
+* Refresh tokens are:
+
+  * generated securely
+  * persisted as hashed values
+  * validated against DB
+  * rotated on use
+* Authentication becomes:
+
+  * **stateful**
+  * **revocable**
+  * **traceable**
+
+---
+
+### Conclusion
+
+This commit represents a **major security and architectural milestone**:
+
+* transitions authentication from **stateless JWT** to **session-backed model**
+* introduces **refresh token rotation**, a critical protection against replay attacks
+* enforces **server-side control over sessions**, enabling future features such as:
+
+  * logout
+  * device/session listing
+  * anomaly detection
+
+From a technical standpoint, the implementation is **well-aligned with Clean Architecture principles**, keeping:
+
+* domain contracts pure
+* application responsible for orchestration
+* infrastructure isolated
+
+The only architectural caveat is the **optional session dependency in login**, which introduces a potential inconsistency. In a production-grade system, this should be mandatory to avoid issuing unusable refresh tokens.
+
+Overall, this is a **production-grade foundation for authentication**, suitable for fintech-level requirements.
+
+
 ## 2026/04/08 — doc/adjustments-02
 
 Refines project documentation, improves architectural positioning of the mobile client, and aligns iOS build configuration with CocoaPods integration. Also simplifies initial UI structure in Flutter.

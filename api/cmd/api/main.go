@@ -38,6 +38,7 @@ func main() {
 	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC, statementUC)
 
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
+	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
 	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -46,15 +47,18 @@ func main() {
 	tokenService := authInfrastructure.NewJWTTokenService(jwtSecret, 15*time.Minute)
 
 	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
-	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService)
+	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)
+	authHandler.SetRefreshAccessTokenUseCase(refreshAccessTokenUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
 
 	http.HandleFunc("POST /auth/register", authHandler.Register)
 	http.HandleFunc("POST /auth/login", authHandler.Login)
+	http.HandleFunc("POST /auth/refresh", authHandler.Refresh)
 	http.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
 	http.Handle("GET /customers/me", authMiddleware.RequireAuth(http.HandlerFunc(customerHandler.Me)))
 

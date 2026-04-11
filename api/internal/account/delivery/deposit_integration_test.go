@@ -90,7 +90,7 @@ func newTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 
 	connString := os.Getenv("BANK_TEST_DATABASE_URL")
 	if connString == "" {
-		connString = "postgres://postgres:postgres@localhost:5432/bank?sslmode=disable"
+		connString = "postgres://postgres:postgres@localhost:5432/bank_test?sslmode=disable"
 	}
 
 	pool, err := pgxpool.New(ctx, connString)
@@ -120,6 +120,12 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
 		)`,
+		// Repair constraint if a previous test run created it with a broken regex.
+		`DO $$ BEGIN
+			ALTER TABLE customers DROP CONSTRAINT IF EXISTS chk_cpf_format;
+			ALTER TABLE customers ADD CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$');
+		EXCEPTION WHEN duplicate_object THEN NULL;
+		END $$`,
 		`CREATE TABLE IF NOT EXISTS accounts (
 			id UUID PRIMARY KEY,
 			customer_id UUID NOT NULL REFERENCES customers(id),

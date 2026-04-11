@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -29,5 +30,14 @@ type TokenClaims struct {
 
 type TokenService interface {
 	GenerateAccessToken(claims TokenClaims) (string, error)
+	GenerateRefreshToken(userID uuid.UUID) (string, error)
+
 	ParseAccessToken(token string) (*TokenClaims, error)
+	ParseRefreshToken(token string) (uuid.UUID, error)
+}
+
+type SessionRepository interface {
+	Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error
+	FindByTokenHash(ctx context.Context, tokenHash string) (userID uuid.UUID, expiresAt time.Time, revoked bool, err error)
+	Revoke(ctx context.Context, tokenHash string) error
 }

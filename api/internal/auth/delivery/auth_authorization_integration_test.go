@@ -65,10 +65,11 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 
 		var loginBody struct {
 			Data struct {
-				AccessToken string `json:"access_token"`
-				UserID      string `json:"user_id"`
-				Email       string `json:"email"`
-				Role        string `json:"role"`
+				AccessToken  string `json:"access_token"`
+				RefreshToken string `json:"refresh_token"`
+				UserID       string `json:"user_id"`
+				Email        string `json:"email"`
+				Role         string `json:"role"`
 			} `json:"data"`
 			Error *apiError `json:"error"`
 		}
@@ -78,6 +79,9 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 		}
 		if loginBody.Data.AccessToken == "" {
 			t.Fatal("expected non-empty access token")
+		}
+		if loginBody.Data.RefreshToken == "" {
+			t.Fatal("expected non-empty refresh token")
 		}
 
 		meResp := performJSONRequest(t, server.URL+"/auth/me", http.MethodGet, nil, loginBody.Data.AccessToken)
@@ -161,8 +165,8 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 		if body.Error.Code != "FORBIDDEN" {
 			t.Fatalf("expected error code %q, got %q", "FORBIDDEN", body.Error.Code)
 		}
-		if body.Error.Message != "access denied to account" {
-			t.Fatalf("expected error message %q, got %q", "access denied to account", body.Error.Message)
+		if body.Error.Message != "Access denied to account" {
+			t.Fatalf("expected error message %q, got %q", "Access denied to account", body.Error.Message)
 		}
 	})
 
@@ -212,14 +216,17 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	t.Helper()
 
 	userRepo := authinfrastructure.NewPostgresUserRepository(pool)
+	sessionRepo := authinfrastructure.NewPostgresSessionRepository(pool)
 	customerRepo := customerinfrastructure.New(pool)
 	hasher := authinfrastructure.NewBcryptPasswordHasher(bcrypt.MinCost)
 	tokenService := authinfrastructure.NewJWTTokenService("integration-secret", 20*time.Minute)
 
 	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
-	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, hasher, tokenService)
+	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
 	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)
+	authHandler.SetRefreshAccessTokenUseCase(refreshAccessTokenUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
 	accountRepo := accountinfrastructure.New(pool)
@@ -229,6 +236,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", authHandler.Register)
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
+	mux.HandleFunc("POST /auth/refresh", authHandler.Refresh)
 	mux.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
 	mux.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))
 
@@ -244,7 +252,7 @@ func newIntegrationPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 
 	connString := os.Getenv("BANK_TEST_DATABASE_URL")
 	if connString == "" {
-		connString = "postgres://postgres:postgres@localhost:5432/bank?sslmode=disable"
+		connString = "postgres://postgres:postgres@localhost:5432/bank_test?sslmode=disable"
 	}
 
 	pool, err := pgxpool.New(ctx, connString)
@@ -272,8 +280,14 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			cpf VARCHAR(11) NOT NULL UNIQUE,
 			email VARCHAR(120) NOT NULL UNIQUE,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\\d{11}$')
+			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
 		)`,
+		// Repair constraint if a previous test run created it with a broken regex.
+		`DO $$ BEGIN
+			ALTER TABLE customers DROP CONSTRAINT IF EXISTS chk_cpf_format;
+			ALTER TABLE customers ADD CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$');
+		EXCEPTION WHEN duplicate_object THEN NULL;
+		END $$`,
 		`CREATE TABLE IF NOT EXISTS accounts (
 			id UUID PRIMARY KEY,
 			customer_id UUID NOT NULL REFERENCES customers(id),
@@ -303,6 +317,14 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			CONSTRAINT fk_users_customer_id FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS user_sessions (
+			id UUID PRIMARY KEY,
+			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token_hash CHAR(64) NOT NULL UNIQUE,
+			expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+			revoked_at TIMESTAMP WITH TIME ZONE,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
 	}
 

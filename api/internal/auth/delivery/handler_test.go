@@ -50,6 +50,19 @@ func (m *getCurrentUserUseCaseMock) Execute(ctx context.Context) (*application.G
 	return m.output, m.err
 }
 
+type refreshAccessTokenUseCaseMock struct {
+	output *application.RefreshAccessTokenOutput
+	err    error
+	input  application.RefreshAccessTokenInput
+	called bool
+}
+
+func (m *refreshAccessTokenUseCaseMock) Execute(ctx context.Context, input application.RefreshAccessTokenInput) (*application.RefreshAccessTokenOutput, error) {
+	m.called = true
+	m.input = input
+	return m.output, m.err
+}
+
 func TestHandler_Register_Success(t *testing.T) {
 	userID := uuid.New()
 	customerID := uuid.New()
@@ -199,6 +212,66 @@ func TestHandler_Register_InvalidInput(t *testing.T) {
 	}
 }
 
+func TestHandler_Login_Success(t *testing.T) {
+	userID := uuid.New()
+	customerID := uuid.New()
+	loginUC := &loginUserUseCaseMock{
+		output: &application.LoginUserOutput{
+			AccessToken:  "access-token",
+			RefreshToken: "refresh-token",
+			UserID:       userID,
+			Email:        "user@example.com",
+			Role:         string(domain.RoleCustomer),
+			CustomerID:   &customerID,
+		},
+	}
+	handler := New(nil, loginUC, nil)
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	rec := httptest.NewRecorder()
+
+	handler.Login(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	if !loginUC.called {
+		t.Fatal("expected use case to be called")
+	}
+
+	var got struct {
+		Data struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+			UserID       string `json:"user_id"`
+			Email        string `json:"email"`
+			Role         string `json:"role"`
+			CustomerID   string `json:"customer_id"`
+		} `json:"data"`
+		Error any `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Data.AccessToken != "access-token" {
+		t.Fatalf("expected access token %q, got %q", "access-token", got.Data.AccessToken)
+	}
+
+	if got.Data.RefreshToken != "refresh-token" {
+		t.Fatalf("expected refresh token %q, got %q", "refresh-token", got.Data.RefreshToken)
+	}
+
+	if got.Data.UserID != userID.String() {
+		t.Fatalf("expected user id %q, got %q", userID.String(), got.Data.UserID)
+	}
+
+	if got.Error != nil {
+		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
+}
+
 func TestHandler_Login_InvalidCredentials(t *testing.T) {
 	loginUC := &loginUserUseCaseMock{err: domain.ErrInvalidCredentials}
 	handler := New(nil, loginUC, nil)
@@ -223,6 +296,83 @@ func TestHandler_Login_InvalidCredentials(t *testing.T) {
 
 	if got.Error.Code != "INVALID_CREDENTIALS" {
 		t.Fatalf("expected error code %q, got %q", "INVALID_CREDENTIALS", got.Error.Code)
+	}
+}
+
+func TestHandler_Refresh_Success(t *testing.T) {
+	refreshUC := &refreshAccessTokenUseCaseMock{output: &application.RefreshAccessTokenOutput{
+		AccessToken:  "new-access-token",
+		RefreshToken: "new-refresh-token",
+	}}
+	handler := New(nil, nil, nil)
+	handler.SetRefreshAccessTokenUseCase(refreshUC)
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"valid-refresh-token"}`))
+	rec := httptest.NewRecorder()
+
+	handler.Refresh(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	if !refreshUC.called {
+		t.Fatal("expected use case to be called")
+	}
+
+	if refreshUC.input.RefreshToken != "valid-refresh-token" {
+		t.Fatalf("expected refresh token %q, got %q", "valid-refresh-token", refreshUC.input.RefreshToken)
+	}
+
+	var got struct {
+		Data struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+		} `json:"data"`
+		Error any `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Data.AccessToken != "new-access-token" {
+		t.Fatalf("expected access token %q, got %q", "new-access-token", got.Data.AccessToken)
+	}
+
+	if got.Data.RefreshToken != "new-refresh-token" {
+		t.Fatalf("expected refresh token %q, got %q", "new-refresh-token", got.Data.RefreshToken)
+	}
+
+	if got.Error != nil {
+		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
+}
+
+func TestHandler_Refresh_InvalidToken(t *testing.T) {
+	refreshUC := &refreshAccessTokenUseCaseMock{err: domain.ErrInvalidToken}
+	handler := New(nil, nil, nil)
+	handler.SetRefreshAccessTokenUseCase(refreshUC)
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"bad-token"}`))
+	rec := httptest.NewRecorder()
+
+	handler.Refresh(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INVALID_TOKEN" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_TOKEN", got.Error.Code)
 	}
 }
 

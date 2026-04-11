@@ -2,8 +2,11 @@ package application
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
@@ -56,23 +59,66 @@ func (m *loginPasswordHasherMock) Compare(hash string, password string) error {
 }
 
 type tokenServiceMock struct {
-	generateCalls  int
-	generateClaims domain.TokenClaims
-	generateToken  string
-	generateErr    error
+	generateAccessCalls  int
+	generateAccessClaims domain.TokenClaims
+	accessToken          string
+	generateAccessErr    error
+
+	generateRefreshCalls int
+	generateRefreshUser  uuid.UUID
+	refreshToken         string
+	generateRefreshErr   error
+}
+
+type sessionRepositoryMock struct {
+	createCalls   int
+	createUserID  uuid.UUID
+	createHash    string
+	createExpires time.Time
+	createErr     error
+}
+
+func (m *sessionRepositoryMock) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
+	m.createCalls++
+	m.createUserID = userID
+	m.createHash = tokenHash
+	m.createExpires = expiresAt
+	return m.createErr
+}
+
+func (m *sessionRepositoryMock) FindByTokenHash(ctx context.Context, tokenHash string) (uuid.UUID, time.Time, bool, error) {
+	return uuid.Nil, time.Time{}, false, nil
+}
+
+func (m *sessionRepositoryMock) Revoke(ctx context.Context, tokenHash string) error {
+	return nil
 }
 
 func (m *tokenServiceMock) GenerateAccessToken(claims domain.TokenClaims) (string, error) {
-	m.generateCalls++
-	m.generateClaims = claims
-	if m.generateErr != nil {
-		return "", m.generateErr
+	m.generateAccessCalls++
+	m.generateAccessClaims = claims
+	if m.generateAccessErr != nil {
+		return "", m.generateAccessErr
 	}
-	return m.generateToken, nil
+	return m.accessToken, nil
+
+}
+
+func (m *tokenServiceMock) GenerateRefreshToken(userID uuid.UUID) (string, error) {
+	m.generateRefreshCalls++
+	m.generateRefreshUser = userID
+	if m.generateRefreshErr != nil {
+		return "", m.generateRefreshErr
+	}
+	return m.refreshToken, nil
 }
 
 func (m *tokenServiceMock) ParseAccessToken(token string) (*domain.TokenClaims, error) {
 	return nil, nil
+}
+
+func (m *tokenServiceMock) ParseRefreshToken(token string) (uuid.UUID, error) {
+	return uuid.Nil, nil
 }
 
 func TestLoginUserUseCase_Execute_Success(t *testing.T) {
@@ -88,8 +134,9 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 		},
 	}
 	hasher := &loginPasswordHasherMock{}
-	tokenService := &tokenServiceMock{generateToken: "jwt-token"}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService)
+	tokenService := &tokenServiceMock{accessToken: "jwt-token", refreshToken: "refresh-token"}
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    " USER@EXAMPLE.COM ",
@@ -106,6 +153,10 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 
 	if output.AccessToken != "jwt-token" {
 		t.Fatalf("expected access token %q, got %q", "jwt-token", output.AccessToken)
+	}
+
+	if output.RefreshToken != "refresh-token" {
+		t.Fatalf("expected refresh token %q, got %q", "refresh-token", output.RefreshToken)
 	}
 
 	if output.UserID != userID {
@@ -144,20 +195,45 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected Compare password %q, got %q", "password123", hasher.comparePassword)
 	}
 
-	if tokenService.generateCalls != 1 {
-		t.Fatalf("expected GenerateAccessToken to be called once, got %d", tokenService.generateCalls)
+	if tokenService.generateAccessCalls != 1 {
+		t.Fatalf("expected GenerateAccessToken to be called once, got %d", tokenService.generateAccessCalls)
 	}
 
-	if tokenService.generateClaims.UserID != userID {
-		t.Fatalf("expected token user ID %q, got %q", userID, tokenService.generateClaims.UserID)
+	if tokenService.generateRefreshCalls != 1 {
+		t.Fatalf("expected GenerateRefreshToken to be called once, got %d", tokenService.generateRefreshCalls)
 	}
 
-	if tokenService.generateClaims.Role != domain.RoleCustomer {
-		t.Fatalf("expected token role %q, got %q", domain.RoleCustomer, tokenService.generateClaims.Role)
+	if tokenService.generateAccessClaims.UserID != userID {
+		t.Fatalf("expected token user ID %q, got %q", userID, tokenService.generateAccessClaims.UserID)
 	}
 
-	if tokenService.generateClaims.CustomerID == nil || *tokenService.generateClaims.CustomerID != customerID {
-		t.Fatalf("expected token customer ID %q, got %v", customerID, tokenService.generateClaims.CustomerID)
+	if tokenService.generateAccessClaims.Role != domain.RoleCustomer {
+		t.Fatalf("expected token role %q, got %q", domain.RoleCustomer, tokenService.generateAccessClaims.Role)
+	}
+
+	if tokenService.generateAccessClaims.CustomerID == nil || *tokenService.generateAccessClaims.CustomerID != customerID {
+		t.Fatalf("expected token customer ID %q, got %v", customerID, tokenService.generateAccessClaims.CustomerID)
+	}
+
+	if tokenService.generateRefreshUser != userID {
+		t.Fatalf("expected refresh token user ID %q, got %q", userID, tokenService.generateRefreshUser)
+	}
+
+	if sessionRepo.createCalls != 1 {
+		t.Fatalf("expected session Create to be called once, got %d", sessionRepo.createCalls)
+	}
+
+	if sessionRepo.createUserID != userID {
+		t.Fatalf("expected session user ID %q, got %q", userID, sessionRepo.createUserID)
+	}
+
+	expectedHash := sha256.Sum256([]byte("refresh-token"))
+	if sessionRepo.createHash != hex.EncodeToString(expectedHash[:]) {
+		t.Fatalf("expected session token hash %q, got %q", hex.EncodeToString(expectedHash[:]), sessionRepo.createHash)
+	}
+
+	if sessionRepo.createExpires.IsZero() {
+		t.Fatal("expected session expires_at to be set")
 	}
 }
 
@@ -184,8 +260,12 @@ func TestLoginUserUseCase_Execute_UserNotFound(t *testing.T) {
 		t.Fatalf("expected Compare not to be called, got %d calls", hasher.compareCalls)
 	}
 
-	if tokenService.generateCalls != 0 {
-		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateCalls)
+	if tokenService.generateAccessCalls != 0 {
+		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected GenerateRefreshToken not to be called, got %d calls", tokenService.generateRefreshCalls)
 	}
 }
 
@@ -215,8 +295,12 @@ func TestLoginUserUseCase_Execute_WrongPassword(t *testing.T) {
 		t.Fatalf("expected output to be nil, got %+v", output)
 	}
 
-	if tokenService.generateCalls != 0 {
-		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateCalls)
+	if tokenService.generateAccessCalls != 0 {
+		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected GenerateRefreshToken not to be called, got %d calls", tokenService.generateRefreshCalls)
 	}
 }
 
@@ -231,7 +315,7 @@ func TestLoginUserUseCase_Execute_TokenGenerationFailure(t *testing.T) {
 		},
 	}
 	hasher := &loginPasswordHasherMock{}
-	tokenService := &tokenServiceMock{generateErr: expectedErr}
+	tokenService := &tokenServiceMock{generateAccessErr: expectedErr}
 	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
@@ -247,7 +331,89 @@ func TestLoginUserUseCase_Execute_TokenGenerationFailure(t *testing.T) {
 		t.Fatalf("expected output to be nil, got %+v", output)
 	}
 
-	if tokenService.generateCalls != 1 {
-		t.Fatalf("expected GenerateAccessToken to be called once, got %d calls", tokenService.generateCalls)
+	if tokenService.generateAccessCalls != 1 {
+		t.Fatalf("expected GenerateAccessToken to be called once, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected GenerateRefreshToken not to be called, got %d calls", tokenService.generateRefreshCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_RefreshTokenGenerationFailure(t *testing.T) {
+	expectedErr := errors.New("refresh token unavailable")
+	userID := uuid.New()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:           userID,
+			Email:        "user@example.com",
+			PasswordHash: "stored-hash",
+			Role:         domain.RoleAdmin,
+		},
+	}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{
+		accessToken:        "jwt-token",
+		generateRefreshErr: expectedErr,
+	}
+	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if tokenService.generateAccessCalls != 1 {
+		t.Fatalf("expected GenerateAccessToken to be called once, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 1 {
+		t.Fatalf("expected GenerateRefreshToken to be called once, got %d calls", tokenService.generateRefreshCalls)
+	}
+
+	if tokenService.generateRefreshUser != userID {
+		t.Fatalf("expected refresh token user ID %q, got %q", userID, tokenService.generateRefreshUser)
+	}
+}
+
+func TestLoginUserUseCase_Execute_SessionPersistenceFailure(t *testing.T) {
+	expectedErr := errors.New("session unavailable")
+	userID := uuid.New()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:           userID,
+			Email:        "user@example.com",
+			PasswordHash: "stored-hash",
+			Role:         domain.RoleAdmin,
+		},
+	}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{accessToken: "jwt-token", refreshToken: "refresh-token"}
+	sessionRepo := &sessionRepositoryMock{createErr: expectedErr}
+	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if sessionRepo.createCalls != 1 {
+		t.Fatalf("expected session Create to be called once, got %d", sessionRepo.createCalls)
 	}
 }
