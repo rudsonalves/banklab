@@ -39,6 +39,7 @@ func main() {
 
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
 	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
+	transactor := authInfrastructure.NewPostgresTransactor(db)
 	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -48,11 +49,10 @@ func main() {
 
 	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
-	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo)
+	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
-	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)
-	authHandler.SetRefreshAccessTokenUseCase(refreshAccessTokenUC)
+	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
 

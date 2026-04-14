@@ -77,17 +77,14 @@ func New(
 	registerUser registerUserUseCase,
 	loginUser loginUserUseCase,
 	getCurrentUser getCurrentUserUseCase,
+	refreshAccessToken refreshAccessTokenUseCase,
 ) *Handler {
 	return &Handler{
 		registerUser:       registerUser,
 		loginUser:          loginUser,
 		getCurrentUser:     getCurrentUser,
-		refreshAccessToken: nil,
+		refreshAccessToken: refreshAccessToken,
 	}
-}
-
-func (h *Handler) SetRefreshAccessTokenUseCase(useCase refreshAccessTokenUseCase) {
-	h.refreshAccessToken = useCase
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +163,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("event=login_user error=%v", err)
 		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	if output == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
 		return
 	}
 

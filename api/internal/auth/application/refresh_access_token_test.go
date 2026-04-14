@@ -123,6 +123,12 @@ func (m *refreshSessionRepositoryMock) Revoke(ctx context.Context, tokenHash str
 	return m.revokeErr
 }
 
+type transactorMock struct{}
+
+func (m *transactorMock) RunInTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
 func TestRefreshAccessTokenUseCase_Execute_Success(t *testing.T) {
 	customerID := uuid.New()
 	userID := uuid.MustParse("00000000-0000-0000-0000-000000000111")
@@ -140,7 +146,7 @@ func TestRefreshAccessTokenUseCase_Execute_Success(t *testing.T) {
 		findUserID:    userID,
 		findExpiresAt: time.Now().UTC().Add(10 * time.Minute),
 	}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if err != nil {
@@ -199,7 +205,7 @@ func TestRefreshAccessTokenUseCase_Execute_InvalidRefreshToken(t *testing.T) {
 	repo := &refreshUserRepositoryMock{}
 	tokens := &refreshTokenServiceMock{parseErr: errors.New("bad token")}
 	sessions := &refreshSessionRepositoryMock{}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "invalid-token"})
 	if !errors.Is(err, domain.ErrInvalidToken) {
@@ -224,7 +230,7 @@ func TestRefreshAccessTokenUseCase_Execute_InvalidSession_NotFound(t *testing.T)
 	repo := &refreshUserRepositoryMock{}
 	tokens := &refreshTokenServiceMock{parseUserID: userID}
 	sessions := &refreshSessionRepositoryMock{}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, domain.ErrInvalidToken) {
@@ -243,7 +249,7 @@ func TestRefreshAccessTokenUseCase_Execute_InvalidSession_Revoked(t *testing.T) 
 	repo := &refreshUserRepositoryMock{}
 	tokens := &refreshTokenServiceMock{parseUserID: userID}
 	sessions := &refreshSessionRepositoryMock{findUserID: userID, findExpiresAt: time.Now().UTC().Add(time.Minute), findRevoked: true}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, domain.ErrInvalidToken) {
@@ -259,7 +265,7 @@ func TestRefreshAccessTokenUseCase_Execute_InvalidSession_Expired(t *testing.T) 
 	repo := &refreshUserRepositoryMock{}
 	tokens := &refreshTokenServiceMock{parseUserID: userID}
 	sessions := &refreshSessionRepositoryMock{findUserID: userID, findExpiresAt: time.Now().UTC().Add(-1 * time.Minute)}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, domain.ErrInvalidToken) {
@@ -274,7 +280,7 @@ func TestRefreshAccessTokenUseCase_Execute_InvalidSession_UserMismatch(t *testin
 	repo := &refreshUserRepositoryMock{}
 	tokens := &refreshTokenServiceMock{parseUserID: uuid.New()}
 	sessions := &refreshSessionRepositoryMock{findUserID: uuid.New(), findExpiresAt: time.Now().UTC().Add(time.Minute)}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, domain.ErrInvalidToken) {
@@ -290,7 +296,7 @@ func TestRefreshAccessTokenUseCase_Execute_FindSessionFailure(t *testing.T) {
 	repo := &refreshUserRepositoryMock{}
 	tokens := &refreshTokenServiceMock{parseUserID: uuid.New()}
 	sessions := &refreshSessionRepositoryMock{findErr: expectedErr}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, expectedErr) {
@@ -306,7 +312,7 @@ func TestRefreshAccessTokenUseCase_Execute_UserNotFound(t *testing.T) {
 	repo := &refreshUserRepositoryMock{findByIDUser: nil}
 	tokens := &refreshTokenServiceMock{parseUserID: userID}
 	sessions := &refreshSessionRepositoryMock{findUserID: userID, findExpiresAt: time.Now().UTC().Add(time.Minute)}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, domain.ErrUnauthorized) {
@@ -326,7 +332,7 @@ func TestRefreshAccessTokenUseCase_Execute_FindUserFailure(t *testing.T) {
 	repo := &refreshUserRepositoryMock{findByIDErr: expectedErr}
 	tokens := &refreshTokenServiceMock{parseUserID: userID}
 	sessions := &refreshSessionRepositoryMock{findUserID: userID, findExpiresAt: time.Now().UTC().Add(time.Minute)}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, expectedErr) {
@@ -343,7 +349,7 @@ func TestRefreshAccessTokenUseCase_Execute_AccessTokenGenerationFailure(t *testi
 	repo := &refreshUserRepositoryMock{findByIDUser: &domain.User{ID: userID, Role: domain.RoleAdmin}}
 	tokens := &refreshTokenServiceMock{parseUserID: userID, generateErr: expectedErr}
 	sessions := &refreshSessionRepositoryMock{findUserID: userID, findExpiresAt: time.Now().UTC().Add(time.Minute)}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, expectedErr) {
@@ -364,7 +370,7 @@ func TestRefreshAccessTokenUseCase_Execute_RevokeFailure(t *testing.T) {
 		findExpiresAt: time.Now().UTC().Add(time.Minute),
 		revokeErr:     expectedErr,
 	}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, expectedErr) {
@@ -388,7 +394,7 @@ func TestRefreshAccessTokenUseCase_Execute_CreateNewSessionFailure(t *testing.T)
 		findExpiresAt: time.Now().UTC().Add(time.Minute),
 		createErr:     expectedErr,
 	}
-	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions)
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
 
 	out, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
 	if !errors.Is(err, expectedErr) {
@@ -396,5 +402,124 @@ func TestRefreshAccessTokenUseCase_Execute_CreateNewSessionFailure(t *testing.T)
 	}
 	if out != nil {
 		t.Fatalf("expected nil output, got %#v", out)
+	}
+}
+
+// statefulSessionMock is a session repository that tracks actual state across
+// calls, used to verify rotation integrity end-to-end.
+type statefulSessionEntry struct {
+	userID    uuid.UUID
+	expiresAt time.Time
+	revoked   bool
+}
+
+type statefulSessionMock struct {
+	store map[string]*statefulSessionEntry
+}
+
+func newStatefulSessionMock() *statefulSessionMock {
+	return &statefulSessionMock{store: map[string]*statefulSessionEntry{}}
+}
+
+func (m *statefulSessionMock) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
+	m.store[tokenHash] = &statefulSessionEntry{userID: userID, expiresAt: expiresAt}
+	return nil
+}
+
+func (m *statefulSessionMock) FindByTokenHash(ctx context.Context, tokenHash string) (uuid.UUID, time.Time, bool, error) {
+	e, ok := m.store[tokenHash]
+	if !ok {
+		return uuid.Nil, time.Time{}, false, nil
+	}
+	return e.userID, e.expiresAt, e.revoked, nil
+}
+
+func (m *statefulSessionMock) Revoke(ctx context.Context, tokenHash string) error {
+	e, ok := m.store[tokenHash]
+	if !ok {
+		return domain.ErrSessionNotFound
+	}
+	e.revoked = true
+	return nil
+}
+
+// TestRefreshAccessTokenUseCase_Execute_RotationIntegrity verifies Case 5:
+// after a successful rotation, the old token is unusable and the new token works.
+func TestRefreshAccessTokenUseCase_Execute_RotationIntegrity(t *testing.T) {
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000333")
+	user := &domain.User{ID: userID, Email: "user@example.com", Role: domain.RoleCustomer}
+
+	sessions := newStatefulSessionMock()
+
+	// Seed the initial session for "old-refresh-token".
+	oldToken := "old-refresh-token"
+	oldHash := sha256.Sum256([]byte(oldToken))
+	oldTokenHash := hex.EncodeToString(oldHash[:])
+	sessions.store[oldTokenHash] = &statefulSessionEntry{
+		userID:    userID,
+		expiresAt: time.Now().UTC().Add(30 * 24 * time.Hour),
+	}
+
+	newToken := "new-refresh-token"
+
+	// --- Call 1: use old token → must succeed and rotate.
+	tokens1 := &refreshTokenServiceMock{
+		parseUserID:          userID,
+		generateToken:        "access-token-1",
+		generateRefreshToken: newToken,
+	}
+	uc1 := NewRefreshAccessTokenUseCase(
+		&refreshUserRepositoryMock{findByIDUser: user},
+		tokens1,
+		sessions,
+		&transactorMock{},
+	)
+
+	out1, err1 := uc1.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: oldToken})
+	if err1 != nil {
+		t.Fatalf("call 1: expected no error, got %v", err1)
+	}
+	if out1 == nil || out1.RefreshToken != newToken {
+		t.Fatalf("call 1: expected refresh token %q, got %#v", newToken, out1)
+	}
+	if out1.AccessToken != "access-token-1" {
+		t.Fatalf("call 1: expected access token %q, got %q", "access-token-1", out1.AccessToken)
+	}
+
+	// --- Call 2: reuse old token → must fail (revoked).
+	tokens2 := &refreshTokenServiceMock{parseUserID: userID}
+	uc2 := NewRefreshAccessTokenUseCase(
+		&refreshUserRepositoryMock{findByIDUser: user},
+		tokens2,
+		sessions,
+		&transactorMock{},
+	)
+
+	out2, err2 := uc2.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: oldToken})
+	if !errors.Is(err2, domain.ErrInvalidToken) {
+		t.Fatalf("call 2 (old token reuse): expected %v, got %v", domain.ErrInvalidToken, err2)
+	}
+	if out2 != nil {
+		t.Fatalf("call 2 (old token reuse): expected nil output, got %#v", out2)
+	}
+
+	// --- Call 3: use new token → must succeed.
+	tokens3 := &refreshTokenServiceMock{
+		parseUserID:   userID,
+		generateToken: "access-token-3",
+	}
+	uc3 := NewRefreshAccessTokenUseCase(
+		&refreshUserRepositoryMock{findByIDUser: user},
+		tokens3,
+		sessions,
+		&transactorMock{},
+	)
+
+	out3, err3 := uc3.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: newToken})
+	if err3 != nil {
+		t.Fatalf("call 3 (new token): expected no error, got %v", err3)
+	}
+	if out3 == nil || out3.AccessToken != "access-token-3" {
+		t.Fatalf("call 3 (new token): expected access token %q, got %#v", "access-token-3", out3)
 	}
 }

@@ -74,6 +74,12 @@ func (r *PostgresSessionRepository) Revoke(ctx context.Context, tokenHash string
 		WHERE token_hash = $1
 	`
 
-	_, err := r.executor(ctx).Exec(ctx, query, tokenHash)
-	return err
+	result, err := r.executor(ctx).Exec(ctx, query, tokenHash)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return domain.ErrSessionNotFound
+	}
+	return nil
 }

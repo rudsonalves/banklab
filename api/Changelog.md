@@ -1,5 +1,154 @@
 # Changelog
 
+## 2026/04/17 — api/refresh_token-02
+
+Refactors and hardens the refresh token flow to guarantee **atomic rotation, consistency, and correctness of session management**, while simplifying dependency contracts and eliminating invalid execution paths.
+
+---
+
+### 1. Application Layer — Refresh Token Atomicity
+
+* Introduced `Transactor` as a first-class dependency in `RefreshAccessTokenUseCase`
+* Implemented atomic rotation using `RunInTx`:
+
+  * `Revoke(old_token)` + `Create(new_token)` executed in a single transaction
+* Removed non-transactional revoke operation
+* Guarantees:
+
+  * no partial state (no “revoked without replacement” or “duplicated sessions”)
+  * rollback preserves original token validity on failure
+* Aligns transaction control with Application layer responsibilities 
+
+---
+
+### 2. Infrastructure Layer — Transaction Support
+
+* Added `PostgresTransactor`:
+
+  * wraps `pgx` transaction lifecycle (`Begin → Commit / Rollback`)
+  * injects transaction into context (`ContextWithTx`)
+* Enables multiple repositories to share the same transaction transparently
+* Strengthens infrastructure compliance with domain contracts (`Transactor` interface)
+
+---
+
+### 3. Domain Layer — Contract Expansion
+
+* Introduced `Transactor` interface:
+
+  * explicit control of transactional boundaries at use case level
+* Added `ErrSessionNotFound`:
+
+  * ensures revoke failures are explicit and not silently ignored
+* Reinforces domain-driven consistency for session lifecycle
+
+---
+
+### 4. Session Repository — Correctness Enforcement
+
+* Updated `Revoke` implementation:
+
+  * now validates `RowsAffected()`
+  * returns `ErrSessionNotFound` when token does not exist
+* Eliminates silent inconsistencies in session state
+
+---
+
+### 5. Login Use Case — Contract Tightening
+
+* Removed optional `SessionRepository` dependency (variadic → required)
+* Enforced invariant:
+
+  * **no refresh token is issued without persisted session**
+* Simplified logic:
+
+  * always hashes and persists refresh token
+  * failure in session creation aborts login
+* This removes previously possible invalid states
+
+---
+
+### 6. Delivery Layer — Dependency Integrity
+
+* Refactored `Handler` constructor:
+
+  * now requires all use cases upfront (including refresh)
+  * removed setter injection (`SetRefreshAccessTokenUseCase`)
+* Ensures:
+
+  * no partially initialized handlers
+  * no runtime mutation of dependencies
+* Added defensive check for `nil` output in login flow
+
+---
+
+### 7. Wiring (main.go & integration)
+
+* Registered `PostgresTransactor` in composition root
+* Injected into `RefreshAccessTokenUseCase`
+* Updated handler initialization to reflect new constructor contract
+* Ensures consistent dependency graph across application and tests
+
+---
+
+### 8. Test Suite — Coverage Expansion
+
+#### 8.1 Refresh Flow Tests
+
+* Updated all tests to include `Transactor` dependency
+* Added `transactorMock` for transactional execution
+
+#### 8.2 Rotation Integrity Test (Stateful)
+
+* Introduced `statefulSessionMock` to simulate real session lifecycle
+* Validates full rotation behavior:
+
+  * old token becomes unusable after refresh
+  * new token is immediately valid
+  * reuse of revoked token fails correctly
+* This is a critical validation of **system invariants**
+
+#### 8.3 Login Tests
+
+* Updated to reflect mandatory `SessionRepository`
+* Ensures session persistence is always exercised
+
+#### 8.4 Infrastructure Test Fix
+
+* Simplified JWT error assertion (removed invalid `errors.Is` usage)
+
+---
+
+### 9. API & Documentation Updates
+
+* Login now explicitly returns `refresh_token`
+* Introduced `/auth/refresh` endpoint with:
+
+  * token rotation semantics
+  * single-use refresh tokens
+  * atomic revoke + create behavior
+* Documented error scenarios:
+
+  * invalid, expired, revoked, or missing sessions
+* Clarifies contract for clients and aligns behavior with implementation 
+
+---
+
+### Conclusion
+
+This commit is a **consistency and correctness milestone** for authentication flow.
+
+It eliminates entire classes of invalid states by enforcing:
+
+* **atomic token rotation**
+* **mandatory session persistence**
+* **explicit failure handling**
+* **constructor-level dependency integrity**
+
+From an architectural standpoint, this is a decisive improvement:
+transaction boundaries are now correctly owned by the Application layer, and the authentication model becomes **predictable, verifiable, and resilient under failure conditions**.
+
+
 ## 2026/04/11 — api/refresh_token-01
 
 Implements a **complete refresh token flow with session management**, evolving the authentication model from stateless JWT-only to a **stateful, revocable, and rotating session-based approach**. This change aligns the system with a more robust security posture while preserving the layered architecture principles 

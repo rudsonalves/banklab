@@ -25,18 +25,13 @@ func NewLoginUserUseCase(
 	userRepo domain.UserRepository,
 	hasher domain.PasswordHasher,
 	tokenService domain.TokenService,
-	sessionRepo ...domain.SessionRepository,
+	sessionRepo domain.SessionRepository,
 ) *LoginUserUseCase {
-	var sr domain.SessionRepository
-	if len(sessionRepo) > 0 {
-		sr = sessionRepo[0]
-	}
-
 	return &LoginUserUseCase{
 		userRepo:     userRepo,
 		hasher:       hasher,
 		tokenService: tokenService,
-		sessionRepo:  sr,
+		sessionRepo:  sessionRepo,
 	}
 }
 
@@ -93,14 +88,12 @@ func (uc *LoginUserUseCase) Execute(
 		return nil, fmt.Errorf("generate refresh token: %w", err)
 	}
 
-	if uc.sessionRepo != nil {
-		hash := sha256.Sum256([]byte(refreshToken))
-		tokenHash := hex.EncodeToString(hash[:])
+	hash := sha256.Sum256([]byte(refreshToken))
+	tokenHash := hex.EncodeToString(hash[:])
 
-		err = uc.sessionRepo.Create(ctx, user.ID, tokenHash, time.Now().UTC().Add(refreshSessionTTL))
-		if err != nil {
-			return nil, fmt.Errorf("create session: %w", err)
-		}
+	err = uc.sessionRepo.Create(ctx, user.ID, tokenHash, time.Now().UTC().Add(refreshSessionTTL))
+	if err != nil {
+		return nil, fmt.Errorf("create session: %w", err)
 	}
 
 	return &LoginUserOutput{

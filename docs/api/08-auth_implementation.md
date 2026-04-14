@@ -48,6 +48,8 @@ Create interfaces in `auth/domain`:
 * `UserRepository`
 * `PasswordHasher`
 * `TokenService`
+* `SessionRepository` — `Create`, `FindByTokenHash`, `Revoke`
+* `Transactor` — `RunInTx(ctx, fn)` — controls database transactions from the Application layer
 
 **Done when:**
 
@@ -104,7 +106,9 @@ Create interfaces in `auth/domain`:
 * Implement:
 
   * `GenerateAccessToken`
+  * `GenerateRefreshToken` — returns a random opaque token (signed, high-entropy)
   * `ParseAccessToken`
+  * `ParseRefreshToken`
 
 **Claims:**
 
@@ -117,6 +121,37 @@ Create interfaces in `auth/domain`:
 
 * Token is generated and parsed correctly
 * Invalid/expired tokens are rejected
+
+---
+
+### **Task 1.4 — PostgreSQL SessionRepository**
+
+* Implement in `auth/infrastructure`
+* Methods:
+
+  * `Create` — inserts a new session row
+  * `FindByTokenHash` — returns `userID`, `expiresAt`, `revoked`
+  * `Revoke` — sets `revoked_at = NOW()`; returns `ErrSessionNotFound` if zero rows affected
+
+* Uses context-based transaction propagation via `database.TxFromContext`
+
+**Done when:**
+
+* Session lifecycle works end-to-end with real DB
+* `Revoke` fails cleanly when token hash is unknown
+
+---
+
+### **Task 1.5 — PostgresTransactor**
+
+* Implement `domain.Transactor` in `auth/infrastructure`
+* `RunInTx` — begins a pgx transaction, injects it into context via `database.ContextWithTx`, defers rollback, commits on success
+* Satisfies `var _ domain.Transactor = (*PostgresTransactor)(nil)`
+
+**Done when:**
+
+* Any two repository calls inside `RunInTx` share the same transaction
+* Rollback occurs automatically on error
 
 ---
 
@@ -150,12 +185,54 @@ Flow:
 
 * find user by email
 * compare password
-* generate JWT
+* generate access token
+* generate refresh token
+* hash refresh token with SHA-256
+* persist session via `SessionRepository.Create` (TTL: 30 days)
+* return both tokens
+
+**Constraints:**
+
+* `SessionRepository` is a required dependency (not optional)
+* If session persistence fails, login fails — no token is returned
+* No code path issues a refresh token without a persisted session
 
 **Done when:**
 
-* valid login returns token
+* valid login returns both `access_token` and `refresh_token`
 * invalid password fails
+* session creation failure propagates as an error
+
+---
+
+### **Task 2.4 — RefreshAccessToken use case**
+
+Flow:
+
+* validate token is not blank
+* parse JWT signature to extract `userID`
+* hash token with SHA-256
+* look up session by hash — reject if not found, revoked, expired, or user mismatch
+* fetch user from `UserRepository`
+* generate new access token
+* generate new refresh token
+* atomically via `Transactor.RunInTx`:
+  * revoke old session (`SessionRepository.Revoke`)
+  * create new session (`SessionRepository.Create`)
+* return both new tokens
+
+**Atomicity guarantee:**
+
+* Revoke + Create execute in a single database transaction
+* If either step fails the transaction is rolled back
+* The old token remains valid when rollback occurs — no partial state is possible
+
+**Done when:**
+
+* valid token returns new `access_token` + `refresh_token`
+* old token is revoked after rotation
+* new token is immediately usable
+* rollback prevents partial state
 
 ---
 
@@ -181,12 +258,15 @@ Implement:
 
 * `POST /auth/register`
 * `POST /auth/login`
+* `POST /auth/refresh`
 * `GET /auth/me`
 
 **Requirements:**
 
 * DTO separation
 * no domain exposure
+* all handlers guard against nil use cases and nil output
+* `Handler.New` takes all four use cases as required constructor parameters — no setter injection
 
 **Done when:**
 
@@ -335,9 +415,20 @@ Apply middleware to:
 Cover:
 
 * password hashing
-* JWT parsing
+* JWT parsing (including `ParseRefreshToken`)
 * register use case
-* login use case
+* login use case — including `SessionPersistenceFailure`
+* refresh use case:
+
+  * success
+  * invalid / malformed token
+  * session not found
+  * revoked token
+  * expired token
+  * user-ID mismatch
+  * revoke failure (Create not called)
+  * create failure
+  * rotation integrity (old token unusable, new token works) — uses stateful session mock
 * ownership logic
 
 ---
@@ -359,6 +450,7 @@ Test flows:
 
 * email format
 * password length
+* refresh token: blank check before any DB access
 
 ---
 
@@ -367,6 +459,24 @@ Test flows:
 * expired token
 * malformed token
 * missing header
+* revoked refresh token
+* expired refresh token
+
+---
+
+### **Task 8.3 — Revoke integrity**
+
+* `SessionRepository.Revoke` checks `RowsAffected()` after the UPDATE
+* Returns `domain.ErrSessionNotFound` when zero rows are affected
+* This prevents silent failures when the hash never existed or was already deleted
+
+---
+
+### **Task 8.4 — Atomic token rotation**
+
+* `Revoke` and `Create` are wrapped in a single `Transactor.RunInTx` call in the Application layer
+* Infrastructure repositories detect the transaction in context via `database.TxFromContext` and use it automatically
+* If either operation fails the transaction rolls back — the client retains the original token
 
 ---
 

@@ -217,16 +217,16 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 
 	userRepo := authinfrastructure.NewPostgresUserRepository(pool)
 	sessionRepo := authinfrastructure.NewPostgresSessionRepository(pool)
+	transactor := authinfrastructure.NewPostgresTransactor(pool)
 	customerRepo := customerinfrastructure.New(pool)
 	hasher := authinfrastructure.NewBcryptPasswordHasher(bcrypt.MinCost)
 	tokenService := authinfrastructure.NewJWTTokenService("integration-secret", 20*time.Minute)
 
 	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
 	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
-	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo)
+	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
-	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC)
-	authHandler.SetRefreshAccessTokenUseCase(refreshAccessTokenUC)
+	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
 	accountRepo := accountinfrastructure.New(pool)

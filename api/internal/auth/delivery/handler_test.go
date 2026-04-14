@@ -74,7 +74,7 @@ func TestHandler_Register_Success(t *testing.T) {
 			CustomerID: &customerID,
 		},
 	}
-	handler := New(registerUC, nil, nil)
+	handler := New(registerUC, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
@@ -129,7 +129,7 @@ func TestHandler_Register_Success(t *testing.T) {
 
 func TestHandler_Register_UserAlreadyExists(t *testing.T) {
 	registerUC := &registerUserUseCaseMock{err: domain.ErrEmailAlreadyExists}
-	handler := New(registerUC, nil, nil)
+	handler := New(registerUC, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
@@ -181,7 +181,7 @@ func TestHandler_Register_InvalidInput(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			registerUC := &registerUserUseCaseMock{}
-			handler := New(registerUC, nil, nil)
+			handler := New(registerUC, nil, nil, nil)
 			req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(tc.body))
 			rec := httptest.NewRecorder()
 
@@ -225,7 +225,7 @@ func TestHandler_Login_Success(t *testing.T) {
 			CustomerID:   &customerID,
 		},
 	}
-	handler := New(nil, loginUC, nil)
+	handler := New(nil, loginUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
 	rec := httptest.NewRecorder()
 
@@ -274,7 +274,7 @@ func TestHandler_Login_Success(t *testing.T) {
 
 func TestHandler_Login_InvalidCredentials(t *testing.T) {
 	loginUC := &loginUserUseCaseMock{err: domain.ErrInvalidCredentials}
-	handler := New(nil, loginUC, nil)
+	handler := New(nil, loginUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"wrong"}`))
 	rec := httptest.NewRecorder()
 
@@ -304,8 +304,7 @@ func TestHandler_Refresh_Success(t *testing.T) {
 		AccessToken:  "new-access-token",
 		RefreshToken: "new-refresh-token",
 	}}
-	handler := New(nil, nil, nil)
-	handler.SetRefreshAccessTokenUseCase(refreshUC)
+	handler := New(nil, nil, nil, refreshUC)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"valid-refresh-token"}`))
 	rec := httptest.NewRecorder()
 
@@ -350,8 +349,7 @@ func TestHandler_Refresh_Success(t *testing.T) {
 
 func TestHandler_Refresh_InvalidToken(t *testing.T) {
 	refreshUC := &refreshAccessTokenUseCaseMock{err: domain.ErrInvalidToken}
-	handler := New(nil, nil, nil)
-	handler.SetRefreshAccessTokenUseCase(refreshUC)
+	handler := New(nil, nil, nil, refreshUC)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"bad-token"}`))
 	rec := httptest.NewRecorder()
 
@@ -378,7 +376,7 @@ func TestHandler_Refresh_InvalidToken(t *testing.T) {
 
 func TestHandler_Me_Unauthorized(t *testing.T) {
 	currentUserUC := &getCurrentUserUseCaseMock{err: domain.ErrUnauthorized}
-	handler := New(nil, nil, currentUserUC)
+	handler := New(nil, nil, currentUserUC, nil)
 	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	rec := httptest.NewRecorder()
 

@@ -41,3 +41,7 @@ type SessionRepository interface {
 	FindByTokenHash(ctx context.Context, tokenHash string) (userID uuid.UUID, expiresAt time.Time, revoked bool, err error)
 	Revoke(ctx context.Context, tokenHash string) error
 }
+
+type Transactor interface {
+	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
+}

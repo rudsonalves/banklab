@@ -241,7 +241,8 @@ func TestLoginUserUseCase_Execute_UserNotFound(t *testing.T) {
 	userRepo := &loginUserRepositoryMock{}
 	hasher := &loginPasswordHasherMock{}
 	tokenService := &tokenServiceMock{}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService)
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",
@@ -280,7 +281,8 @@ func TestLoginUserUseCase_Execute_WrongPassword(t *testing.T) {
 	}
 	hasher := &loginPasswordHasherMock{compareErr: errors.New("wrong password")}
 	tokenService := &tokenServiceMock{}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService)
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",
@@ -316,7 +318,8 @@ func TestLoginUserUseCase_Execute_TokenGenerationFailure(t *testing.T) {
 	}
 	hasher := &loginPasswordHasherMock{}
 	tokenService := &tokenServiceMock{generateAccessErr: expectedErr}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService)
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",
@@ -356,7 +359,8 @@ func TestLoginUserUseCase_Execute_RefreshTokenGenerationFailure(t *testing.T) {
 		accessToken:        "jwt-token",
 		generateRefreshErr: expectedErr,
 	}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService)
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",

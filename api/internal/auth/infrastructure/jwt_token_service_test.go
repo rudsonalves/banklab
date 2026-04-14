@@ -2,7 +2,6 @@ package infrastructure
 
 import (
 	"encoding/base64"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -194,7 +193,7 @@ func TestJWTTokenService_ParseAccessToken_MissingRequiredClaims(t *testing.T) {
 				t.Fatal("expected parsing token to fail")
 			}
 
-			if !errors.Is(err, err) && !strings.Contains(err.Error(), tc.errText) {
+			if !strings.Contains(err.Error(), tc.errText) {
 				t.Fatalf("expected error containing %q, got %v", tc.errText, err)
 			}
 		})

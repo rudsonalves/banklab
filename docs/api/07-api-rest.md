@@ -161,6 +161,7 @@ Success response (200):
 {
   "data": {
     "access_token": "<jwt>",
+    "refresh_token": "<opaque-token>",
     "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
     "email": "user@example.com",
     "role": "customer",
@@ -172,13 +173,54 @@ Success response (200):
 
 `customer_id` is always populated for users with role `customer`. The JWT embeds this value for use in subsequent requests.
 
+Every login issues a new refresh token and persists a corresponding server-side session. The refresh token is required to obtain a new access token via `POST /auth/refresh`.
+
 Possible errors:
-- 400 INVALID_REQUEST: invalid JSON body
+- 400 INVALID_REQUEST: invalid JSON body or unknown fields
 - 400 INVALID_DATA: invalid email or password input
 - 401 INVALID_CREDENTIALS: invalid email/password
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.3 Get Current User
+## 3.3 Refresh Access Token
+
+- Method: POST
+- Path: /auth/refresh
+- Auth required: no
+
+Exchanges a valid refresh token for a new access token and a new refresh token (token rotation). Each refresh token is single-use — after a successful refresh the old token is immediately revoked and a new session is created atomically.
+
+Request body:
+
+```json
+{
+  "refresh_token": "<opaque-token>"
+}
+```
+
+The `refresh_token` field is required and must not be blank. Unknown fields are rejected.
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "access_token": "<new-jwt>",
+    "refresh_token": "<new-opaque-token>"
+  },
+  "error": null
+}
+```
+
+Behaviour:
+- The old refresh token is revoked and the new token is persisted in a single database transaction. If either step fails the entire rotation is rolled back and the original token remains valid.
+- A refresh token that has been revoked, is expired, or does not correspond to any session returns `401 INVALID_TOKEN`.
+
+Possible errors:
+- 400 INVALID_REQUEST: missing or blank `refresh_token`, invalid JSON, or unknown fields
+- 401 INVALID_TOKEN: token invalid, revoked, expired, or not found
+- 500 INTERNAL_ERROR: unexpected internal error
+
+## 3.4 Get Current User
 
 - Method: GET
 - Path: /auth/me
@@ -491,6 +533,8 @@ Common error codes currently used by handlers:
 - INSUFFICIENT_FUNDS
 - SAME_ACCOUNT_TRANSFER
 - INTERNAL_ERROR
+
+`INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or JWT signature invalid.
 
 `INVALID_USER_STATE` (HTTP 409) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
 

@@ -16,17 +16,20 @@ type RefreshAccessTokenUseCase struct {
 	userRepo     domain.UserRepository
 	tokenService domain.TokenService
 	sessionRepo  domain.SessionRepository
+	transactor   domain.Transactor
 }
 
 func NewRefreshAccessTokenUseCase(
 	userRepo domain.UserRepository,
 	tokenService domain.TokenService,
 	sessionRepo domain.SessionRepository,
+	transactor domain.Transactor,
 ) *RefreshAccessTokenUseCase {
 	return &RefreshAccessTokenUseCase{
 		userRepo:     userRepo,
 		tokenService: tokenService,
 		sessionRepo:  sessionRepo,
+		transactor:   transactor,
 	}
 }
 
@@ -94,10 +97,6 @@ func (uc *RefreshAccessTokenUseCase) Execute(
 		return nil, fmt.Errorf("generate access token: %w", err)
 	}
 
-	if err := uc.sessionRepo.Revoke(ctx, tokenHash); err != nil {
-		return nil, fmt.Errorf("revoke old session: %w", err)
-	}
-
 	newRefreshToken, err := uc.tokenService.GenerateRefreshToken(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("generate refresh token: %w", err)
@@ -105,8 +104,17 @@ func (uc *RefreshAccessTokenUseCase) Execute(
 
 	newHash := sha256.Sum256([]byte(newRefreshToken))
 	newTokenHash := hex.EncodeToString(newHash[:])
-	if err := uc.sessionRepo.Create(ctx, user.ID, newTokenHash, time.Now().UTC().Add(refreshSessionTTL)); err != nil {
-		return nil, fmt.Errorf("create new session: %w", err)
+
+	if err := uc.transactor.RunInTx(ctx, func(txCtx context.Context) error {
+		if err := uc.sessionRepo.Revoke(txCtx, tokenHash); err != nil {
+			return fmt.Errorf("revoke old session: %w", err)
+		}
+		if err := uc.sessionRepo.Create(txCtx, user.ID, newTokenHash, time.Now().UTC().Add(refreshSessionTTL)); err != nil {
+			return fmt.Errorf("create new session: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return &RefreshAccessTokenOutput{AccessToken: accessToken, RefreshToken: newRefreshToken}, nil
