@@ -10,10 +10,13 @@ import (
 type UserRepository interface {
 	// Create persists the full User entity, including optional CustomerID.
 	Create(ctx context.Context, user *User) error
+	// UpdateStatus updates only the user's status. This is used
+	UpdateStatus(ctx context.Context, userID uuid.UUID, status UserStatus) error
 	// FindByEmail returns the full User entity, including optional CustomerID.
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	// FindByID returns the full User entity, including optional CustomerID.
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
+	// ExistsByEmail checks if a user with the given email already exists.
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 }
 

@@ -23,6 +23,10 @@ func (m *refreshUserRepositoryMock) Create(ctx context.Context, user *domain.Use
 	return nil
 }
 
+func (m *refreshUserRepositoryMock) UpdateStatus(ctx context.Context, userID uuid.UUID, status domain.UserStatus) error {
+	return nil
+}
+
 func (m *refreshUserRepositoryMock) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	return nil, nil
 }

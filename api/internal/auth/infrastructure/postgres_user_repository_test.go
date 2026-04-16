@@ -43,6 +43,9 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		if gotByEmail.CustomerID != nil {
 			t.Fatalf("expected nil customer id, got %v", *gotByEmail.CustomerID)
 		}
+		if gotByEmail.Status != domain.UserStatusPending {
+			t.Fatalf("expected status %q, got %q", domain.UserStatusPending, gotByEmail.Status)
+		}
 
 		gotByID, err := repo.FindByID(ctx, user.ID)
 		if err != nil {
@@ -64,6 +67,30 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		}
 	})
 
+	t.Run("update status", func(t *testing.T) {
+		user := testUser(time.Now().UTC())
+		defer cleanupUserByID(t, ctx, pool, user.ID)
+
+		if err := repo.Create(ctx, user); err != nil {
+			t.Fatalf("expected no error creating user, got %v", err)
+		}
+
+		if err := repo.UpdateStatus(ctx, user.ID, domain.UserStatusActive); err != nil {
+			t.Fatalf("expected no error updating status, got %v", err)
+		}
+
+		got, err := repo.FindByID(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("expected no error finding by id, got %v", err)
+		}
+		if got == nil {
+			t.Fatal("expected user from FindByID, got nil")
+		}
+		if got.Status != domain.UserStatusActive {
+			t.Fatalf("expected status %q, got %q", domain.UserStatusActive, got.Status)
+		}
+	})
+
 	t.Run("duplicate email returns error", func(t *testing.T) {
 		now := time.Now().UTC()
 		email := strings.ToLower(uuid.NewString()) + "@example.com"
@@ -73,6 +100,7 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 			Email:        email,
 			PasswordHash: "hash-a",
 			Role:         domain.RoleCustomer,
+			Status:       domain.UserStatusPending,
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}
@@ -83,6 +111,7 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 			Email:        email,
 			PasswordHash: "hash-b",
 			Role:         domain.RoleCustomer,
+			Status:       domain.UserStatusPending,
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}
@@ -168,6 +197,7 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 			password_hash TEXT NOT NULL,
 			role VARCHAR(20) NOT NULL,
 			customer_id UUID UNIQUE,
+			status VARCHAR(20) NOT NULL DEFAULT 'pending',
 			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			CONSTRAINT fk_users_customer_id FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
@@ -178,6 +208,10 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 		if _, err := pool.Exec(ctx, statement); err != nil {
 			t.Fatalf("failed to ensure auth repository test schema: %v", err)
 		}
+	}
+
+	if _, err := pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending'`); err != nil {
+		t.Fatalf("failed to ensure users.status column: %v", err)
 	}
 }
 
@@ -196,6 +230,7 @@ func testUser(now time.Time) *domain.User {
 		PasswordHash: "hashed-password",
 		Role:         domain.RoleCustomer,
 		CustomerID:   nil,
+		Status:       domain.UserStatusPending,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}

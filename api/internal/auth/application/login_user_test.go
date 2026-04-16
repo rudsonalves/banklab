@@ -23,6 +23,10 @@ func (m *loginUserRepositoryMock) Create(ctx context.Context, user *domain.User)
 	return nil
 }
 
+func (m *loginUserRepositoryMock) UpdateStatus(ctx context.Context, userID uuid.UUID, status domain.UserStatus) error {
+	return nil
+}
+
 func (m *loginUserRepositoryMock) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	m.findByEmailCalls++
 	m.findByEmailValue = email

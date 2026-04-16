@@ -222,7 +222,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	hasher := authinfrastructure.NewBcryptPasswordHasher(bcrypt.MinCost)
 	tokenService := authinfrastructure.NewJWTTokenService("integration-secret", 20*time.Minute)
 
-	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
+	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
@@ -332,6 +332,10 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		if _, err := pool.Exec(ctx, statement); err != nil {
 			t.Fatalf("failed to ensure integration schema: %v", err)
 		}
+	}
+
+	if _, err := pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending'`); err != nil {
+		t.Fatalf("failed to ensure users.status column: %v", err)
 	}
 }
 

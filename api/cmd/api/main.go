@@ -65,7 +65,7 @@ func main() {
 	transferUC := accountApplication.NewTransfer(accountRepo)
 	statementUC := accountApplication.NewGetStatement(accountRepo)
 
-	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher)
+	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)

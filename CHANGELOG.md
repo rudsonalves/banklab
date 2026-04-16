@@ -1,5 +1,121 @@
 # Changelog
 
+## 2026/04/16 — api/user_status-02
+
+Refactors user registration transaction handling, introduces **user status as a first-class domain attribute**, and standardizes persistence behavior across repository and application layers.
+
+### 1. Application Layer — Transaction Handling Refactor
+
+* Replaced repository-specific transaction coupling (`WithTransaction`) with a **generic `Transactor` abstraction**
+* Updated `RegisterUserUseCase` to depend on `domain.Transactor` instead of casting the repository
+* Execution now uses:
+
+  * `transactor.RunInTx(ctx, fn)`
+* Removes implicit assumptions about repository capabilities and enforces **explicit transaction orchestration at the application layer**
+* Improves architectural consistency with the layered design already used in account operations 
+
+### 2. Domain Layer — User Status Introduction
+
+* Added `status` attribute to `User` entity lifecycle
+* Introduced new domain error:
+
+  * `ErrUserNotFound`
+* Extended `UserRepository` contract:
+
+  * added `UpdateStatus(userID, status)`
+* Clarified repository responsibilities with explicit method semantics (e.g. `ExistsByEmail`)
+* Aligns user lifecycle with a **state-driven model**, enabling future approval/activation flows
+
+### 3. Persistence Layer — PostgreSQL Updates
+
+* Added `status` column to `users` table:
+
+  * `VARCHAR(20) NOT NULL DEFAULT 'pending'`
+* Updated repository behavior:
+
+  * `Create` now persists `status`
+  * `FindByEmail` and `FindByID` now map `status`
+  * implemented `UpdateStatus` with:
+
+    * `UPDATE users SET status = $1, updated_at = NOW()`
+    * returns `ErrUserNotFound` when no rows affected
+* Removed legacy `WithTransaction` implementation from repository
+* Consolidates responsibility: **repository handles persistence, application handles transactions**
+
+### 4. Migration Layer
+
+* Added migration:
+
+  * `000006_user_status.up.sql`
+  * `000006_user_status.down.sql`
+* Ensures schema evolution is:
+
+  * incremental
+  * reversible
+  * aligned with existing migration strategy
+
+### 5. Test Infrastructure Refactor
+
+* Updated all mocks to support new contract:
+
+  * added `UpdateStatus` to `UserRepository` mocks
+* Replaced transaction mocking:
+
+  * removed `WithTransaction`
+  * introduced `registerTransactorMock` with `RunInTx`
+* Adjusted assertions:
+
+  * validate `RunInTx` invocation instead of repository transaction calls
+
+### 6. Integration Tests
+
+* Updated integration setup:
+
+  * ensures `users.status` column exists via `ALTER TABLE IF NOT EXISTS`
+* Added validation for:
+
+  * default status (`pending`) on creation
+  * status transition via `UpdateStatus`
+* Strengthens alignment between:
+
+  * schema
+  * repository
+  * domain behavior
+
+### 7. Wiring Adjustments
+
+* Updated `main.go`:
+
+  * `RegisterUserUseCase` now receives `transactor`
+* Keeps dependency graph explicit and consistent with other use cases
+
+### 8. Design Considerations
+
+This change is particularly relevant from an architectural standpoint:
+
+* eliminates hidden coupling between repository and transaction control
+* enforces **application-layer ownership of transactional boundaries**
+* introduces a **stateful user lifecycle**, which is essential for:
+
+  * approval flows
+  * onboarding pipelines
+  * access control evolution
+
+The decision to move away from `WithTransaction` is correct and aligns the auth module with the same rigor already present in financial operations.
+
+### Conclusion
+
+This commit is a structural improvement rather than a feature addition.
+
+It establishes:
+
+* a **clean transaction boundary model**
+* a **state-driven user lifecycle**
+* a **more consistent repository contract**
+
+These changes prepare the system for more advanced flows such as user approval, activation, and policy-based authorization without requiring further architectural refactoring.
+
+
 ## 2026/04/16 — api/user_status-01
 
 Introduces **user status management** into the authentication domain and restructures the HTTP layer to support a clearer multi-stage authentication model, including AppToken-based onboarding and JWT-protected routes. 
