@@ -25,14 +25,6 @@ func init() {
 }
 
 func Register(match func(error) bool, appErr AppError) {
-	for _, e := range registry {
-		if e.appErr.Code == appErr.Code {
-			if e.appErr.Message != appErr.Message || e.appErr.Status != appErr.Status {
-				panic("duplicate error code registration: " + appErr.Code)
-			}
-		}
-	}
-
 	registry = append(registry, entry{
 		match:  match,
 		appErr: appErr,

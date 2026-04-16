@@ -226,10 +226,11 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
-	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
+	accountRepo := accountinfrastructure.New(pool)
+	approveUserUC := authapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor)
+	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC, approveUserUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
-	accountRepo := accountinfrastructure.New(pool)
 	depositUC := accountapplication.NewDeposit(accountRepo)
 	accountHandler := accountdelivery.New(nil, depositUC, nil, nil, nil)
 

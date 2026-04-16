@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
@@ -29,11 +30,16 @@ type refreshAccessTokenUseCase interface {
 	Execute(ctx context.Context, input application.RefreshAccessTokenInput) (*application.RefreshAccessTokenOutput, error)
 }
 
+type approveUserUseCase interface {
+	Execute(ctx context.Context, input application.ApproveUserInput) (*application.ApproveUserOutput, error)
+}
+
 type Handler struct {
 	registerUser       registerUserUseCase
 	loginUser          loginUserUseCase
 	getCurrentUser     getCurrentUserUseCase
 	refreshAccessToken refreshAccessTokenUseCase
+	approveUser        approveUserUseCase
 }
 
 type registerUserRequest struct {
@@ -73,17 +79,25 @@ type refreshAccessTokenData struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type approveUserData struct {
+	UserID    string `json:"user_id"`
+	Status    string `json:"status"`
+	AccountID string `json:"account_id"`
+}
+
 func New(
 	registerUser registerUserUseCase,
 	loginUser loginUserUseCase,
 	getCurrentUser getCurrentUserUseCase,
 	refreshAccessToken refreshAccessTokenUseCase,
+	approveUser approveUserUseCase,
 ) *Handler {
 	return &Handler{
 		registerUser:       registerUser,
 		loginUser:          loginUser,
 		getCurrentUser:     getCurrentUser,
 		refreshAccessToken: refreshAccessToken,
+		approveUser:        approveUser,
 	}
 }
 
@@ -238,5 +252,47 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	sharedhttp.WriteJSON(w, http.StatusOK, refreshAccessTokenData{
 		AccessToken:  output.AccessToken,
 		RefreshToken: output.RefreshToken,
+	})
+}
+
+func (h *Handler) ApproveUser(w http.ResponseWriter, r *http.Request) {
+	if h.approveUser == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	user, err := RequireAuthenticatedUser(r.Context())
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrUnauthorized))
+		return
+	}
+
+	if user.Role != authdomain.RoleAdmin {
+		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrForbidden))
+		return
+	}
+
+	userID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidData))
+		return
+	}
+
+	output, err := h.approveUser.Execute(r.Context(), application.ApproveUserInput{UserID: userID})
+	if err != nil {
+		log.Printf("event=approve_user error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	if output == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, approveUserData{
+		UserID:    output.UserID.String(),
+		Status:    output.Status,
+		AccountID: output.AccountID.String(),
 	})
 }

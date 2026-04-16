@@ -1,5 +1,139 @@
 # Changelog
 
+## 2026/04/16 — api/user_status-04
+
+Introduces **user status enforcement across account creation and admin approval flow**, strengthening authorization guarantees and aligning onboarding with an explicit lifecycle (pending → active).
+
+### 1. Application Layer — CreateAccount Hardening
+
+* Extended `CreateAccount` use case to depend on `UserRepository`
+* Added validation pipeline before account creation:
+
+  * user must exist
+  * user must have valid `UserID`
+  * user must be in `active` status
+* Enforced strict access control:
+
+  * any non-active user (pending, blocked) is rejected with `ErrForbidden`
+* Prevents invalid states where accounts could be created for non-approved users
+* This change aligns account creation with the authentication model where identity alone is insufficient without valid state 
+
+### 2. New Admin Capability — Approve User
+
+* Integrated `ApproveUserUseCase` into application wiring
+* Added new protected endpoint:
+
+  * `POST /admin/users/{id}/approve`
+* Approval flow:
+
+  * transitions user status to `active`
+  * creates associated account atomically
+* Extended output contract:
+
+  * now includes `status` field alongside `user_id` and `account_id`
+* Establishes explicit onboarding lifecycle:
+
+  * register → pending → approved → active → operational
+* This is a **structural improvement**, not just a feature addition
+
+### 3. Delivery Layer — Authorization Enforcement
+
+* Implemented `ApproveUser` handler with strict guards:
+
+  * requires authenticated user
+  * enforces `admin` role
+  * validates UUID path parameter
+* Maps domain errors consistently:
+
+  * `FORBIDDEN`, `INVALID_DATA`, `USER_NOT_FOUND`, etc.
+* Response includes:
+
+  * `user_id`
+  * `status`
+  * `account_id`
+* Maintains API contract consistency with existing envelope pattern 
+
+### 4. Error Handling Standardization
+
+* Added missing domain error mappings in auth layer:
+
+  * `ErrForbidden`
+  * `ErrInvalidData`
+* Unified error message:
+
+  * `"Access denied"` replaces inconsistent variants
+* Removed duplicate error registration guard in shared mapper:
+
+  * simplifies registry behavior
+  * shifts responsibility to developer discipline
+* Keeps alignment with global error strategy and response model 
+
+### 5. Dependency Wiring (Composition Root)
+
+* Updated `main.go`:
+
+  * `CreateAccount` now receives `userRepo`
+  * `ApproveUserUseCase` added to auth handler
+* Ensures correct dependency flow:
+
+  * Delivery → Application → Domain
+* Reinforces modular monolith structure and explicit wiring rules 
+
+### 6. Test Coverage Expansion
+
+#### 6.1 CreateAccount Tests
+
+* Added scenarios for:
+
+  * user repository not configured
+  * user not found
+  * user lookup failure
+  * pending user rejection
+  * blocked user rejection
+* Verified:
+
+  * no repository side-effects on failure paths
+  * correct interaction counts
+
+#### 6.2 ApproveUser Tests
+
+* Added full coverage:
+
+  * success case (admin)
+  * unauthorized request
+  * non-admin rejection
+  * invalid UUID
+  * domain error mapping (not found, conflict, forbidden, internal)
+* Validates both:
+
+  * authorization boundary
+  * HTTP contract correctness
+
+#### 6.3 Integration Adjustments
+
+* Updated handler constructors to include new dependency
+* Ensured compatibility with existing integration tests
+
+### 7. Domain Alignment
+
+* Reinforces the concept that:
+
+  * **user status is part of authorization context**, not just authentication
+* Prevents illegal transitions such as:
+
+  * financial operations executed by pending users
+* Aligns with domain invariants where operations depend on valid state, not only identity 
+
+### Conclusion
+
+This commit introduces a **critical correction in the authorization model** by incorporating user status into the decision process.
+
+The system now eliminates an important invalid state:
+users could previously authenticate and operate without being formally approved.
+
+From an architectural perspective, this is a **consistency and correctness fix**, ensuring that onboarding, authorization, and financial operations are coherently integrated.
+
+
 ## 2026/04/16 — api/user_status-03
 
 Implements the **user approval flow with automatic account creation**, introducing transactional consistency across auth and account modules, strengthening user lifecycle control, and expanding domain and infrastructure support for status transitions.

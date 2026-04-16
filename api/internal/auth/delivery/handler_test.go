@@ -63,6 +63,19 @@ func (m *refreshAccessTokenUseCaseMock) Execute(ctx context.Context, input appli
 	return m.output, m.err
 }
 
+type approveUserUseCaseMock struct {
+	output *application.ApproveUserOutput
+	err    error
+	input  application.ApproveUserInput
+	called bool
+}
+
+func (m *approveUserUseCaseMock) Execute(ctx context.Context, input application.ApproveUserInput) (*application.ApproveUserOutput, error) {
+	m.called = true
+	m.input = input
+	return m.output, m.err
+}
+
 func TestHandler_Register_Success(t *testing.T) {
 	userID := uuid.New()
 	customerID := uuid.New()
@@ -74,7 +87,7 @@ func TestHandler_Register_Success(t *testing.T) {
 			CustomerID: &customerID,
 		},
 	}
-	handler := New(registerUC, nil, nil, nil)
+	handler := New(registerUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
@@ -129,7 +142,7 @@ func TestHandler_Register_Success(t *testing.T) {
 
 func TestHandler_Register_UserAlreadyExists(t *testing.T) {
 	registerUC := &registerUserUseCaseMock{err: domain.ErrEmailAlreadyExists}
-	handler := New(registerUC, nil, nil, nil)
+	handler := New(registerUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
@@ -181,7 +194,7 @@ func TestHandler_Register_InvalidInput(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			registerUC := &registerUserUseCaseMock{}
-			handler := New(registerUC, nil, nil, nil)
+			handler := New(registerUC, nil, nil, nil, nil)
 			req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(tc.body))
 			rec := httptest.NewRecorder()
 
@@ -225,7 +238,7 @@ func TestHandler_Login_Success(t *testing.T) {
 			CustomerID:   &customerID,
 		},
 	}
-	handler := New(nil, loginUC, nil, nil)
+	handler := New(nil, loginUC, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
 	rec := httptest.NewRecorder()
 
@@ -274,7 +287,7 @@ func TestHandler_Login_Success(t *testing.T) {
 
 func TestHandler_Login_InvalidCredentials(t *testing.T) {
 	loginUC := &loginUserUseCaseMock{err: domain.ErrInvalidCredentials}
-	handler := New(nil, loginUC, nil, nil)
+	handler := New(nil, loginUC, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"wrong"}`))
 	rec := httptest.NewRecorder()
 
@@ -304,7 +317,7 @@ func TestHandler_Refresh_Success(t *testing.T) {
 		AccessToken:  "new-access-token",
 		RefreshToken: "new-refresh-token",
 	}}
-	handler := New(nil, nil, nil, refreshUC)
+	handler := New(nil, nil, nil, refreshUC, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"valid-refresh-token"}`))
 	rec := httptest.NewRecorder()
 
@@ -349,7 +362,7 @@ func TestHandler_Refresh_Success(t *testing.T) {
 
 func TestHandler_Refresh_InvalidToken(t *testing.T) {
 	refreshUC := &refreshAccessTokenUseCaseMock{err: domain.ErrInvalidToken}
-	handler := New(nil, nil, nil, refreshUC)
+	handler := New(nil, nil, nil, refreshUC, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"bad-token"}`))
 	rec := httptest.NewRecorder()
 
@@ -376,7 +389,7 @@ func TestHandler_Refresh_InvalidToken(t *testing.T) {
 
 func TestHandler_Me_Unauthorized(t *testing.T) {
 	currentUserUC := &getCurrentUserUseCaseMock{err: domain.ErrUnauthorized}
-	handler := New(nil, nil, currentUserUC, nil)
+	handler := New(nil, nil, currentUserUC, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	rec := httptest.NewRecorder()
 
@@ -398,5 +411,196 @@ func TestHandler_Me_Unauthorized(t *testing.T) {
 
 	if got.Error.Code != "UNAUTHORIZED" {
 		t.Fatalf("expected error code %q, got %q", "UNAUTHORIZED", got.Error.Code)
+	}
+}
+
+func TestHandler_ApproveUser_Success(t *testing.T) {
+	userID := uuid.New()
+	accountID := uuid.New()
+	approveUC := &approveUserUseCaseMock{
+		output: &application.ApproveUserOutput{
+			UserID:    userID,
+			Status:    string(domain.UserStatusActive),
+			AccountID: accountID,
+		},
+	}
+	handler := New(nil, nil, nil, nil, approveUC)
+	req := httptest.NewRequest(http.MethodPost, "/admin/users/"+userID.String()+"/approve", nil)
+	req.SetPathValue("id", userID.String())
+	req = req.WithContext(WithAuthenticatedUser(req.Context(), AuthenticatedUser{UserID: uuid.New(), Role: domain.RoleAdmin}))
+	rec := httptest.NewRecorder()
+
+	handler.ApproveUser(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	if !approveUC.called {
+		t.Fatal("expected use case to be called")
+	}
+
+	if approveUC.input.UserID != userID {
+		t.Fatalf("expected user id %v, got %v", userID, approveUC.input.UserID)
+	}
+
+	var got struct {
+		Data struct {
+			UserID    string `json:"user_id"`
+			Status    string `json:"status"`
+			AccountID string `json:"account_id"`
+		} `json:"data"`
+		Error any `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Data.UserID != userID.String() {
+		t.Fatalf("expected user id %q, got %q", userID.String(), got.Data.UserID)
+	}
+
+	if got.Data.Status != string(domain.UserStatusActive) {
+		t.Fatalf("expected status %q, got %q", domain.UserStatusActive, got.Data.Status)
+	}
+
+	if got.Data.AccountID != accountID.String() {
+		t.Fatalf("expected account id %q, got %q", accountID.String(), got.Data.AccountID)
+	}
+
+	if got.Error != nil {
+		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
+}
+
+func TestHandler_ApproveUser_Unauthorized(t *testing.T) {
+	approveUC := &approveUserUseCaseMock{}
+	handler := New(nil, nil, nil, nil, approveUC)
+	req := httptest.NewRequest(http.MethodPost, "/admin/users/"+uuid.NewString()+"/approve", nil)
+	req.SetPathValue("id", uuid.NewString())
+	rec := httptest.NewRecorder()
+
+	handler.ApproveUser(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	if approveUC.called {
+		t.Fatal("expected use case not to be called")
+	}
+}
+
+func TestHandler_ApproveUser_RejectsNonAdmin(t *testing.T) {
+	approveUC := &approveUserUseCaseMock{}
+	userID := uuid.New()
+	handler := New(nil, nil, nil, nil, approveUC)
+	req := httptest.NewRequest(http.MethodPost, "/admin/users/"+userID.String()+"/approve", nil)
+	req.SetPathValue("id", userID.String())
+	req = req.WithContext(WithAuthenticatedUser(req.Context(), AuthenticatedUser{UserID: uuid.New(), Role: domain.RoleCustomer}))
+	rec := httptest.NewRecorder()
+
+	handler.ApproveUser(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+
+	if approveUC.called {
+		t.Fatal("expected use case not to be called")
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "FORBIDDEN" {
+		t.Fatalf("expected error code %q, got %q", "FORBIDDEN", got.Error.Code)
+	}
+}
+
+func TestHandler_ApproveUser_InvalidUserID(t *testing.T) {
+	approveUC := &approveUserUseCaseMock{}
+	handler := New(nil, nil, nil, nil, approveUC)
+	req := httptest.NewRequest(http.MethodPost, "/admin/users/invalid/approve", nil)
+	req.SetPathValue("id", "invalid")
+	req = req.WithContext(WithAuthenticatedUser(req.Context(), AuthenticatedUser{UserID: uuid.New(), Role: domain.RoleAdmin}))
+	rec := httptest.NewRecorder()
+
+	handler.ApproveUser(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	if approveUC.called {
+		t.Fatal("expected use case not to be called")
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INVALID_DATA" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_DATA", got.Error.Code)
+	}
+}
+
+func TestHandler_ApproveUser_MapsUseCaseErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantCode   string
+	}{
+		{name: "user not found", err: domain.ErrUserNotFound, wantStatus: http.StatusNotFound, wantCode: "USER_NOT_FOUND"},
+		{name: "user already active", err: domain.ErrUserAlreadyActive, wantStatus: http.StatusConflict, wantCode: "USER_ALREADY_ACTIVE"},
+		{name: "forbidden", err: domain.ErrForbidden, wantStatus: http.StatusForbidden, wantCode: "FORBIDDEN"},
+		{name: "internal", err: context.DeadlineExceeded, wantStatus: http.StatusInternalServerError, wantCode: "INTERNAL_ERROR"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			approveUC := &approveUserUseCaseMock{err: tc.err}
+			targetUserID := uuid.New()
+			handler := New(nil, nil, nil, nil, approveUC)
+			req := httptest.NewRequest(http.MethodPost, "/admin/users/"+targetUserID.String()+"/approve", nil)
+			req.SetPathValue("id", targetUserID.String())
+			req = req.WithContext(WithAuthenticatedUser(req.Context(), AuthenticatedUser{UserID: uuid.New(), Role: domain.RoleAdmin}))
+			rec := httptest.NewRecorder()
+
+			handler.ApproveUser(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("expected status %d, got %d", tc.wantStatus, rec.Code)
+			}
+
+			var got struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+
+			if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+				t.Fatalf("failed to decode response body: %v", err)
+			}
+
+			if got.Error.Code != tc.wantCode {
+				t.Fatalf("expected error code %q, got %q", tc.wantCode, got.Error.Code)
+			}
+		})
 	}
 }

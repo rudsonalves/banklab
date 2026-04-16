@@ -16,6 +16,13 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		domain.ErrForbidden,
+		sharederrors.ErrCodeForbidden,
+		"Access denied",
+		http.StatusForbidden,
+	)
+
+	sharederrors.RegisterDomainError(
 		domain.ErrInvalidCredentials,
 		sharederrors.ErrCodeInvalidCredentials,
 		"Invalid credentials",
@@ -38,6 +45,13 @@ func RegisterErrors() {
 
 	sharederrors.RegisterDomainError(
 		domain.ErrInvalidEmail,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrInvalidData,
 		sharederrors.ErrCodeInvalidData,
 		"Invalid data",
 		http.StatusBadRequest,

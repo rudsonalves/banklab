@@ -166,6 +166,9 @@ func TestApproveUserUseCase_Execute_Success(t *testing.T) {
 	if output.UserID != user.ID {
 		t.Errorf("expected UserID %v, got %v", user.ID, output.UserID)
 	}
+	if output.Status != string(domain.UserStatusActive) {
+		t.Errorf("expected Status %q, got %q", domain.UserStatusActive, output.Status)
+	}
 	if output.AccountID == uuid.Nil {
 		t.Error("expected non-nil AccountID")
 	}

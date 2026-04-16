@@ -59,7 +59,7 @@ func main() {
 	// ======================
 	// Use Cases
 	// ======================
-	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo)
+	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo)
 	depositUC := accountApplication.NewDeposit(accountRepo)
 	withdrawUC := accountApplication.NewWithdraw(accountRepo)
 	transferUC := accountApplication.NewTransfer(accountRepo)
@@ -69,6 +69,7 @@ func main() {
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
+	approveUserUC := authApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
 
@@ -76,7 +77,7 @@ func main() {
 	// Handlers
 	// ======================
 	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC, statementUC)
-	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
+	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC, approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 
 	// ======================
@@ -104,6 +105,7 @@ func main() {
 
 	// --- API Router ---
 	apiRouter := http.NewServeMux()
+	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(authHandler.ApproveUser)))
 
 	apiRouter.Handle("GET /customers/me", withAuth(http.HandlerFunc(customerHandler.Me)))
 

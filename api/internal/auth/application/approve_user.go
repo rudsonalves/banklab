@@ -37,6 +37,7 @@ type ApproveUserInput struct {
 
 type ApproveUserOutput struct {
 	UserID    uuid.UUID
+	Status    string
 	AccountID uuid.UUID
 }
 
@@ -88,6 +89,7 @@ func (uc *ApproveUserUseCase) Execute(ctx context.Context, input ApproveUserInpu
 
 		output = &ApproveUserOutput{
 			UserID:    user.ID,
+			Status:    string(user.Status),
 			AccountID: account.ID,
 		}
 		return nil
