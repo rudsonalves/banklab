@@ -1,6 +1,100 @@
 # Changelog
 
-## 2026/04/17 — api/refresh_token-02
+
+## 2026/04/16 — api/refresh_token-02
+
+Refines authentication flow and project documentation, introducing **refresh token persistence on the client side** and restructuring the repository documentation to reflect the current architecture and usage model.
+
+### 1. Mobile — Refresh Token Support
+
+* Extended `LoggedUser` model:
+
+  * added `refreshToken` field
+  * updated `fromMap` to deserialize `refresh_token`
+* Updated authentication repository:
+
+  * persist `refreshToken` alongside `accessToken` on login
+  * ensure removal of both tokens on logout
+* This aligns the mobile client with the backend session model, enabling **token rotation and session continuity**
+
+### 2. Authentication Flow Consistency
+
+* Ensures that client-side storage reflects server expectations:
+
+  * access + refresh token pair becomes the canonical session representation
+* Prepares the mobile layer for:
+
+  * automatic token refresh via interceptor
+  * retry logic on `401` responses
+* Reinforces contract implied by auth endpoints and JWT usage 
+
+### 3. Monorepo Documentation Simplification
+
+* Rewrote root `README.md`:
+
+  * removed narrative-heavy content
+  * introduced concise structure and quick-start flow
+  * clarified dual-app nature (API + mobile)
+* Focus shifted from conceptual description to **operational clarity**
+
+### 4. API Documentation Restructuring
+
+* Simplified `api/README.md`:
+
+  * clearer separation of stack, architecture, and features
+  * explicit route listing
+  * streamlined setup instructions
+* Removed legacy architecture document:
+
+  * replaced with new `ARCHITECTURE.md`
+* New architecture document:
+
+  * formalizes modular monolith structure
+  * clarifies layer responsibilities and dependency direction
+  * documents authentication and refresh flow behavior
+* Maintains alignment with layered architecture principles 
+
+### 5. Documentation Standardization (Mobile)
+
+* Rewrote `mobile/README.md`:
+
+  * emphasizes role as integration client
+  * adds environment configuration guidance
+  * documents test and build workflows
+* Introduced `docs/mobile/ARCHITECTURE.md`:
+
+  * defines layered structure (UI, Data, Domain, Core)
+  * formalizes request flow and interceptor behavior
+
+### 6. Licensing
+
+* Added MIT license to API module:
+
+  * clarifies usage and distribution terms
+  * aligns repository with open-source conventions
+
+### 7. Structural Improvements
+
+* Normalized directory descriptions across README files
+* Improved onboarding flow:
+
+  * Docker → migrations → API → mobile
+* Reduced redundancy across documentation layers
+
+### Conclusion
+
+This commit is primarily a **consistency and alignment step** between client, API, and documentation.
+
+It establishes:
+
+* a **complete token lifecycle on the client (access + refresh)**
+* a **clearer and more operational documentation structure**
+* a **more explicit architectural baseline for future evolution**
+
+From a design standpoint, this is a necessary consolidation step before advancing into more complex authentication concerns such as concurrent refresh handling and session control.
+
+
+## 2026/04/15 — api/refresh_token-02
 
 Refactors and hardens the refresh token flow to guarantee **atomic rotation, consistency, and correctness of session management**, while simplifying dependency contracts and eliminating invalid execution paths.
 

@@ -1,85 +1,93 @@
 # banklab
 
-**banklab** is a monorepo combining a Go banking API and a Flutter mobile client, built as an engineering-focused environment to explore system design decisions across backend and mobile layers, with a strong emphasis on transactional consistency, API contract design, and end-to-end correctness.
+banklab is a monorepo with two main applications:
 
-> This project prioritizes correctness and design clarity over feature breadth. It is intended as an engineering exploration, not a production-ready system.
+- a Go API that implements a simplified banking core
+- a Flutter mobile app used to validate end-to-end flows against the API
 
----
+The project is intentionally focused on correctness, consistency, and architecture decisions, not on feature volume.
 
-## Repository Structure
+## Repository structure
 
-```
+```text
 banklab/
-├── api/        # Go banking API (modular monolith)
-├── mobile/     # Flutter mobile client (BankFlow)
-├── infra/      # Docker and infrastructure scripts
-├── docs/       # Architecture and design decisions
-└── Makefile    # Monorepo task runner
+|-- api/            # Go backend (modular monolith)
+|-- mobile/         # Flutter app (BankFlow)
+|-- docs/           # Architecture and design docs
+|-- infra/          # Docker and infrastructure scripts
+|-- docker-compose.yml
+`-- Makefile
 ```
 
----
+## What is implemented
 
-## Purpose
+### API (Go)
 
-This project is part of a broader effort to build and validate a complete system (backend + mobile client), focusing on:
+- JWT authentication (register, login, me)
+- customer creation
+- account creation
+- money operations: deposit, withdraw, transfer
+- account statement with pagination
 
-- Correctness of financial operations
-- Consistency guarantees under concurrent access
-- Clear API contracts between backend and client
-- Explicit modeling of business rules and invariants
-- End-to-end validation of financial workflows
+### Mobile (Flutter)
 
----
+- authentication flow with JWT
+- account creation and management flows
+- transaction operations integrated with API
+- transaction history browsing
 
-## API — Bank API (Go)
+## Quick start
 
-A modular Go service implementing a simplified banking core.
+### Prerequisites
 
-### Core Capabilities
+- Docker and Docker Compose
+- Go 1.26.1+
+- Flutter SDK (matching your local setup)
+- golang-migrate CLI
 
-- Customer creation
-- User registration and authentication (JWT)
-- Account creation and ownership enforcement
-- Financial operations: deposit, withdraw, transfer
-- Account statement with pagination and filtering
+Install golang-migrate (macOS/Homebrew):
 
-### Architectural Approach
-
-Layered modular monolith:
-
-- **Delivery** — HTTP layer
-- **Application** — use cases and transaction orchestration
-- **Domain** — business rules and invariants
-- **Infrastructure** — PostgreSQL and repositories
-
-Dependency direction: `Delivery → Application → Domain` / `Infrastructure → Domain`
-
-### Design Focus
-
-**Transactional Consistency**
-- All balance-changing operations run inside explicit database transactions
-- Row-level locking (`SELECT FOR UPDATE`) prevents race conditions
-- Deterministic lock ordering in transfers reduces deadlock risk
-
-**Ledger Integrity**
-- All balance changes recorded as immutable ledger entries
-- Operations designed to be traceable and auditable
-
-**API Design**
-- Consistent response envelope (`data` / `error`)
-- Explicit error codes and messages
-- Endpoints reflect real-world operations, not CRUD abstractions
-
-### Technology Stack
-
-- Go 1.26.1
-- PostgreSQL 16
-- pgx/v5
-- net/http (standard library)
-
-### Implemented Endpoints
-
+```bash
+brew install golang-migrate
 ```
+
+### 1) Start infrastructure
+
+```bash
+make docker-up
+```
+
+This starts PostgreSQL 16 at localhost:5432.
+
+### 2) Run database migrations
+
+```bash
+make api-migrate-up
+```
+
+### 3) Build and run API
+
+```bash
+make api-build
+export JWT_SECRET=dev-change-me
+./api/build/bank-api
+```
+
+API base URL: http://localhost:8080
+
+### 4) Run mobile app
+
+```bash
+cd mobile
+flutter pub get
+flutter run
+```
+
+For emulator/device networking, point the app to the API URL that is reachable from your device.
+
+## Main endpoints
+
+```text
 POST   /auth/register
 POST   /auth/login
 GET    /auth/me
@@ -93,131 +101,42 @@ POST   /accounts/transfer
 GET    /accounts/{id}/statement
 ```
 
-Protected routes require JWT authentication.
+Routes other than register/login require JWT authentication.
 
-### API Project Structure
-
-```
-api/
-├── cmd/api/            # Bootstrap and route registration
-├── internal/
-│   ├── customer/       # Customer module
-│   ├── account/        # Account and transaction logic
-│   ├── auth/           # Authentication and authorization
-│   └── database/       # Database initialization
-├── migrations/         # Schema evolution
-└── docs/               # Design documentation
-```
-
-### API Documentation
-
-- [Architecture](docs/api/00-arquitetura.md)
-- [Domain Model](docs/api/01-modelo_de_dominio.md)
-- [Use Case Flows](docs/api/02-fluxos_de_caso_de_uso.md)
-- [Data Model](docs/api/03-modelo_de_dados.md)
-- [Consistency and Concurrency Strategy](docs/api/04-estrategia_de_consistencia_e_concorrencia.md)
-- [Error Handling](docs/api/05-padrao_de_erros_e_respostas.md)
-- [Implementation Details](docs/api/06-implementation.md)
-- [API REST Design](docs/api/07-api-rest.md)
-- [Authentication and Authorization](docs/api/08-auth_implementation.md)
-
----
-
-## Mobile — BankFlow (Flutter)
-
-A Flutter mobile client designed to validate and exercise the banking API, acting as a controlled integration environment rather than a feature-driven product.
-
-### Scope
-
-- JWT-based authentication
-- Account creation and lifecycle management
-- Financial operations: deposit, withdraw, transfer
-- Transaction history with cursor-based pagination
-
-### Architectural Role
-
-- Validates backend assumptions through real usage flows
-- Exposes inconsistencies in API design and data contracts
-- Ensures alignment between user interaction and backend behavior
-- Structured to reflect production concerns: clear separation between UI, state, and business logic
-
----
-
-## Local Development
-
-### Prerequisites
-
-- Go 1.26.1+
-- Flutter SDK
-- Docker & Docker Compose
-- [golang-migrate](https://github.com/golang-migrate/migrate)
-
-### Start infrastructure
+## Development commands
 
 ```bash
-make docker-up
-make api-migrate-up
-```
+make help
 
-### Run the API
+# monorepo
+make build
+make test
 
-```bash
+# api
 make api-build
-export JWT_SECRET=dev-change-me
-./api/build/bank-api
+make api-migrate-up
+make api-migrate-down
+make api-test
+
+# mobile
+make mobile-test
+make mobile-test-unit
+make fclean
+make fbuild
+
+# docker
+make docker-up
+make docker-down
+make docker-logs
 ```
 
-API runs at `http://localhost:8080`.
+## Project docs
 
-### Run tests
-
-```bash
-make test              # API + Mobile tests
-make api-test          # Go tests with coverage
-make mobile-test       # Flutter tests
-make mobile-test-unit  # Flutter unit tests (test/core)
-```
-
----
-
-## Makefile Reference
-
-```
-make help              List all available commands
-
-make build             Build API binary
-make test              Run API and Mobile tests
-
-make api-build         Build API binary into api/build/
-make api-migrate-up    Run database migrations
-make api-migrate-down  Rollback last migration
-make api-test          Run API tests with coverage
-
-make mobile-test       Run all Flutter tests
-make mobile-test-unit  Run Flutter unit tests
-
-make docker-up         Start Docker containers
-make docker-down       Stop Docker containers
-make docker-logs       Follow Docker logs
-
-make commit            Commit using ~/commit.md message
-make diff              Show staged diff and line count
-make push [branch=x]   Push branch to origin
-make pull [branch=x]   Pull branch from origin
-make gitlog            Show git log (one line)
-```
-
----
-
-## Future Work
-
-- Zero Trust Architecture (context-aware request validation)
-- Transaction-level authorization (transaction password / step-up auth)
-- Onboarding flows aligned with financial systems
-- Improved observability and audit capabilities
-
----
+- API guide: [api/README.md](api/README.md)
+- Mobile guide: [mobile/README.md](mobile/README.md)
+- Mobile architecture: [docs/mobile/ARCHITECTURE.md](docs/mobile/ARCHITECTURE.md)
+- Architecture and design docs: [docs/api](docs/api)
 
 ## License
 
-MIT License — see the LICENSE file for details.
+MIT. See [LICENSE](LICENSE).
