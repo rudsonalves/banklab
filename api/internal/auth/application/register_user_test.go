@@ -30,6 +30,10 @@ func (m *userRepositoryMock) UpdateStatus(ctx context.Context, userID uuid.UUID,
 	return nil
 }
 
+func (m *userRepositoryMock) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	return nil, nil
+}
+
 func (m *userRepositoryMock) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	return nil, nil
 }

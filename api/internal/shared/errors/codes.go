@@ -16,4 +16,6 @@ const (
 	ErrCodeInvalidToken       = "INVALID_TOKEN"
 	ErrCodeInternal           = "INTERNAL_ERROR"
 	ErrCodeInvalidUserState   = "INVALID_USER_STATE"
+	ErrCodeUserNotFound       = "USER_NOT_FOUND"
+	ErrCodeUserAlreadyActive  = "USER_ALREADY_ACTIVE"
 )

@@ -56,4 +56,18 @@ func RegisterErrors() {
 		"Invalid user state",
 		http.StatusConflict,
 	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrUserNotFound,
+		sharederrors.ErrCodeUserNotFound,
+		"User not found",
+		http.StatusNotFound,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrUserAlreadyActive,
+		sharederrors.ErrCodeUserAlreadyActive,
+		"User is already active",
+		http.StatusConflict,
+	)
 }

@@ -1,5 +1,120 @@
 # Changelog
 
+## 2026/04/16 — api/user_status-03
+
+Implements the **user approval flow with automatic account creation**, introducing transactional consistency across auth and account modules, strengthening user lifecycle control, and expanding domain and infrastructure support for status transitions.
+
+### 1. Application Layer — ApproveUser Use Case
+
+* Added `ApproveUserUseCase` to handle transition from `pending` to `active`
+* Full transactional orchestration via `Transactor.RunInTx`
+* Execution flow:
+
+  * load user with `FindByIDForUpdate` (row-level lock)
+  * validate user existence and current status
+  * update user status to `active`
+  * validate `customer_id` presence and existence
+  * generate account number
+  * create and persist new account
+* Ensures **atomic activation + account creation**, preventing partial states
+* Reuses `accountapplication.GenerateBranch()` for consistency with account module
+
+### 2. Domain Layer Enhancements
+
+* Introduced new domain error:
+
+  * `ErrUserAlreadyActive`
+* Reinforces user lifecycle invariants:
+
+  * only `pending` users can be approved
+  * active users cannot be reprocessed
+* Aligns with invariant enforcement strategy described in the domain model 
+
+### 3. Repository Contract Evolution
+
+* Extended `UserRepository`:
+
+  * added `FindByIDForUpdate` for pessimistic locking
+* Enables safe concurrent approval handling, consistent with system-wide locking strategy 
+
+### 4. Infrastructure Layer — PostgreSQL
+
+* Implemented `FindByIDForUpdate` using:
+
+  * `SELECT ... FOR UPDATE`
+* Ensures:
+
+  * row-level locking during approval
+  * protection against concurrent status transitions
+* Behavior:
+
+  * returns `nil` when user not found (mapped at application level)
+
+### 5. Error Handling Standardization
+
+* Registered new domain errors in error registry:
+
+  * `USER_NOT_FOUND → 404`
+  * `USER_ALREADY_ACTIVE → 409`
+* Added corresponding error codes in shared layer:
+
+  * `ErrCodeUserNotFound`
+  * `ErrCodeUserAlreadyActive`
+* Maintains consistency with global API error contract 
+
+### 6. Account Module Adjustment
+
+* Refactored branch generation:
+
+  * `generateBranch` → `GenerateBranch`
+* Promotes reuse across modules and avoids duplication in account creation logic
+
+### 7. Test Coverage
+
+#### 7.1 Application Tests — ApproveUser
+
+* Added comprehensive test suite:
+
+  * success scenario (user activation + account creation)
+  * user not found
+  * user already active
+  * missing customer_id
+  * customer not found
+  * account creation failure
+* Validates transactional integrity and invariant enforcement
+
+#### 7.2 Test Infrastructure Updates
+
+* Updated mocks across auth tests to support:
+
+  * `FindByIDForUpdate`
+* Ensures compatibility with new repository contract without breaking existing tests
+
+### 8. Architectural Impact
+
+* Introduces a **controlled onboarding progression**:
+
+  * register → pending user
+  * approve → active user + account creation
+* Eliminates invalid intermediate states:
+
+  * active user without account
+  * account created for unapproved user
+* Strengthens consistency guarantees across modules, aligned with system transaction model 
+
+### Conclusion
+
+This commit introduces a **critical lifecycle transition for users**, integrating authentication and financial domains under a single transactional boundary.
+
+The implementation is technically robust, particularly due to:
+
+* explicit use of pessimistic locking
+* strict invariant enforcement
+* elimination of partial states
+
+From an architectural perspective, this significantly improves the correctness and consistency of the onboarding flow, aligning it with the system’s financial integrity requirements.
+
+
 ## 2026/04/16 — api/user_status-02
 
 Refactors user registration transaction handling, introduces **user status as a first-class domain attribute**, and standardizes persistence behavior across repository and application layers.

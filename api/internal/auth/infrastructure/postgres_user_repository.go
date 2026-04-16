@@ -142,6 +142,34 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id uuid.UUID) (*d
 	return user, nil
 }
 
+func (r *PostgresUserRepository) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	query := `
+		SELECT
+			id,
+			email,
+			password_hash,
+			role,
+			customer_id,
+			status,
+			created_at,
+			updated_at
+		FROM users
+		WHERE id = $1
+		FOR UPDATE
+	`
+
+	row := r.executor(ctx).QueryRow(ctx, query, id)
+	user, err := scanUser(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
 func (r *PostgresUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	query := `
 		SELECT 1

@@ -66,7 +66,7 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 	if err != nil {
 		return nil, fmt.Errorf("generate account number: %w", err)
 	}
-	branch := generateBranch()
+	branch := GenerateBranch()
 
 	account, err := domain.NewAccount(customerID, number, branch)
 	if err != nil {
@@ -80,6 +80,6 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 	return account, nil
 }
 
-func generateBranch() string {
+func GenerateBranch() string {
 	return "0001"
 }

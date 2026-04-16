@@ -18,6 +18,9 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	// ExistsByEmail checks if a user with the given email already exists.
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	// FindByIDForUpdate returns the full User entity locked for update (FOR UPDATE).
+	// Must be called within a transaction.
+	FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*User, error)
 }
 
 type PasswordHasher interface {

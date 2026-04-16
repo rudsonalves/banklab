@@ -11,5 +11,6 @@ var (
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrInvalidUserState   = errors.New("invalid user state: customer role requires customer_id")
 	ErrUserNotFound       = errors.New("user not found")
+	ErrUserAlreadyActive  = errors.New("user already active")
 	ErrSessionNotFound    = errors.New("session not found")
 )
