@@ -43,6 +43,9 @@ api-migrate-down: ## Rollback last API database migration
 api-test: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
+api-run: ## Run API server
+	cd api && go run ./cmd/api
+
 # =========================
 # Mobile (Flutter)
 # =========================

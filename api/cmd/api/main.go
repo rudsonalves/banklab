@@ -17,6 +17,7 @@ import (
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
 	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
+	sharedhttpmiddleware "github.com/seu-usuario/bank-api/internal/shared/http/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -26,6 +27,11 @@ func main() {
 	db := database.NewPool()
 
 	log.Println("DB connected")
+
+	appToken := os.Getenv("APP_TOKEN")
+	if appToken == "" {
+		log.Fatal("APP_TOKEN environment variable is required")
+	}
 
 	customerRepo := customerInfrastructure.New(db)
 
@@ -43,7 +49,7 @@ func main() {
 	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "dev-change-me"
+		log.Fatal("JWT_SECRET environment variable is required")
 	}
 	tokenService := authInfrastructure.NewJWTTokenService(jwtSecret, 15*time.Minute)
 
@@ -56,21 +62,27 @@ func main() {
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
 
-	http.HandleFunc("POST /auth/register", authHandler.Register)
-	http.HandleFunc("POST /auth/login", authHandler.Login)
-	http.HandleFunc("POST /auth/refresh", authHandler.Refresh)
-	http.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
-	http.Handle("GET /customers/me", authMiddleware.RequireAuth(http.HandlerFunc(customerHandler.Me)))
+	router := http.NewServeMux()
 
-	http.Handle("POST /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.CreateAccount)))
-	http.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))
-	http.Handle("POST /accounts/{id}/withdraw", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Withdraw)))
-	http.Handle("GET /accounts/{id}/statement", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Statement)))
-	http.Handle("POST /accounts/transfer", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Transfer)))
+	router.HandleFunc("POST /auth/register", authHandler.Register)
+	router.HandleFunc("POST /auth/login", authHandler.Login)
+	router.HandleFunc("POST /auth/refresh", authHandler.Refresh)
 
-	log.Println("Server running on port 8080")
+	router.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
+	router.Handle("GET /customers/me", authMiddleware.RequireAuth(http.HandlerFunc(customerHandler.Me)))
 
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	router.Handle("POST /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.CreateAccount)))
+	router.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))
+	router.Handle("POST /accounts/{id}/withdraw", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Withdraw)))
+	router.Handle("GET /accounts/{id}/statement", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Statement)))
+	router.Handle("POST /accounts/transfer", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Transfer)))
+
+	handler := http.Handler(router)
+	handler = sharedhttpmiddleware.AppToken(appToken)(handler)
+
+	log.Println("Server running in localhost on port 8080")
+
+	if err := http.ListenAndServe(":8080", handler); err != nil {
 		log.Fatal("failed to start server:", err)
 	}
 }

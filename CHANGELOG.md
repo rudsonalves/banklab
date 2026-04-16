@@ -1,5 +1,92 @@
 # Changelog
 
+## 2026/04/16 — api/app_token-01
+
+Introduces **application-level request validation via App Token middleware**, enforces stricter environment configuration, and refactors HTTP server initialization to support middleware composition and improved security boundaries.
+
+### 1. Security — App Token Middleware
+
+* Implemented `AppToken` middleware to enforce presence and validity of `X-App-Token` header
+* Uses `crypto/subtle.ConstantTimeCompare` to prevent timing attacks during token comparison
+* Rejects unauthorized requests early in the pipeline with standardized error response
+* Integrates with existing error contract via `ErrInvalidAppToken`
+* Establishes a clear separation between:
+
+  * client identity (JWT)
+  * client application validation (App Token)
+
+This aligns with a layered security model, where multiple independent signals are validated before request execution, consistent with the system’s architectural direction 
+
+### 2. Error Standardization
+
+* Added `ErrInvalidAppToken` to shared sentinel errors
+* Ensures consistency with API response envelope (`data` / `error`) 
+* Avoids inline error construction, reinforcing centralized error definitions
+
+### 3. HTTP Pipeline Refactor
+
+* Replaced global `http.Handle` usage with explicit `http.ServeMux`
+* Introduced handler composition:
+
+  * `router → auth middleware → app token middleware`
+* Final pipeline:
+
+  * `handler := AppToken(...) (router)`
+* Improves:
+
+  * composability
+  * testability
+  * visibility of request flow
+
+### 4. Environment Hardening
+
+* Enforced mandatory environment variables:
+
+  * `APP_TOKEN` now required (fail-fast with `log.Fatal`)
+  * `JWT_SECRET` no longer has fallback value
+* Eliminates insecure default configurations
+* Guarantees that authentication and application validation cannot run in an invalid state
+
+### 5. Routing Organization
+
+* Centralized all routes into `ServeMux`
+* Maintains explicit registration of:
+
+  * auth endpoints
+  * customer endpoints
+  * account endpoints (including transfer)
+* Preserves existing authorization behavior via JWT middleware
+
+### 6. Test Coverage — Middleware
+
+* Added comprehensive tests for `AppToken`:
+
+  * missing header
+  * invalid token
+  * valid token (happy path)
+* Validates:
+
+  * correct HTTP status (`401`)
+  * response envelope structure
+  * prevention of downstream handler execution on failure
+
+### 7. Developer Experience
+
+* Added `api-run` command to `Makefile` for local server execution
+* Introduced `.gitignore` for API build artifacts
+
+### 8. Documentation Reorganization
+
+* Moved API documentation into `api/docs`
+* Improves cohesion between code and documentation
+* Maintains consistency with modular project structure
+
+### Conclusion
+
+This commit introduces a **critical security boundary at the application level**, ensuring that requests are validated not only by user identity (JWT) but also by client context (App Token).
+
+From an architectural standpoint, this is a meaningful step toward a **multi-signal validation model**, where authentication alone is no longer treated as sufficient.
+
 
 ## 2026/04/16 — api/refresh_token-02
 
