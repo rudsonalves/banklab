@@ -13,12 +13,21 @@ const (
 	RoleCustomer Role = "customer"
 )
 
+type UserStatus string
+
+const (
+	UserStatusPending UserStatus = "pending"
+	UserStatusActive  UserStatus = "active"
+	UserStatusBlocked UserStatus = "blocked"
+)
+
 type User struct {
 	ID           uuid.UUID
 	Email        string
 	PasswordHash string
 	Role         Role
 	CustomerID   *uuid.UUID
+	Status       UserStatus
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -44,6 +53,7 @@ func NewUser(id uuid.UUID, email, passwordHash string, role Role, customerID *uu
 		PasswordHash: passwordHash,
 		Role:         role,
 		CustomerID:   customerID,
+		Status:       UserStatusPending,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}, nil

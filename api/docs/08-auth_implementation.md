@@ -1,523 +1,270 @@
-# **Auth & Authorization — Progressive Task Plan**
+# Auth & Authorization — Bank API
 
-## **Phase 0 — Foundation (Database + Domain Contracts)**
+## 1. Overview
 
-### **Task 0.1 — Create users table migration**
+This document describes the **current authentication and authorization model implemented in the system**.
 
-* Create migration files:
+It reflects the actual runtime behavior of the API and complements the implementation plan defined previously.
 
-  * `xxxxxx_create_users_table_up.sql`
-  * `xxxxxx_create_users_table_down.sql`
-* Include:
+The model is intentionally simple and designed to:
 
-  * `id (UUID)`
-  * `email (UNIQUE)`
-  * `password_hash`
-  * `role`
-  * `customer_id (nullable, unique, FK)`
-  * timestamps
-* Validate migration runs successfully
-
-**Done when:**
-
-* `migrate up` creates table
-* `migrate down` rolls back cleanly
+* control access to onboarding endpoints
+* validate end-to-end authentication flows
+* enable functional testing of the system
+* avoid premature introduction of advanced security mechanisms
 
 ---
 
-### **Task 0.2 — Define User domain entity**
+## 2. Authentication Model
 
-* Create `auth/domain/user.go`
-* Define:
+At the current stage, the system adopts a **multi-stage authentication model**, separating:
 
-  * struct `User`
-  * role type (typed, not raw string)
-* No external dependencies
+* system entry control
+* session establishment
+* resource access control
 
-**Done when:**
-
-* Entity compiles
-* No infra leakage
+This separation allows the system to remain simple while preserving a clear path for future evolution.
 
 ---
 
-### **Task 0.3 — Define domain interfaces**
+## 3. Token Types
 
-Create interfaces in `auth/domain`:
+The system operates with two distinct tokens:
 
-* `UserRepository`
-* `PasswordHasher`
-* `TokenService`
-* `SessionRepository` — `Create`, `FindByTokenHash`, `Revoke`
-* `Transactor` — `RunInTx(ctx, fn)` — controls database transactions from the Application layer
+### 3.1 App Token
 
-**Done when:**
+A static token used to restrict access to onboarding endpoints.
 
-* Interfaces are minimal and clear
-* No implementation yet
+**Purpose:**
 
----
+* prevent unauthorized clients from creating users
+* prevent automated abuse of authentication endpoints
+* limit onboarding to known applications
 
-## **Phase 1 — Infrastructure Adapters**
+**Characteristics:**
 
-### **Task 1.1 — PostgreSQL UserRepository**
-
-* Implement repository in `auth/infrastructure`
-* Methods:
-
-  * `Create`
-  * `FindByEmail`
-  * `FindByID`
-  * `ExistsByEmail`
-
-**Edge cases:**
-
-* duplicate email
-* null customer_id
-
-**Done when:**
-
-* Repository works with real DB
-* Basic integration test passes
+* defined via environment variable (`APP_TOKEN`)
+* sent via HTTP header: `X-App-Token`
+* validated at the HTTP boundary (Delivery layer)
+* not associated with any user identity
 
 ---
 
-### **Task 1.2 — Bcrypt PasswordHasher**
+### 3.2 Access Token (JWT)
 
-* Implement:
+A user-scoped token issued after successful authentication.
 
-  * `Hash(password)`
-  * `Compare(hash, password)`
+**Purpose:**
 
-**Constraints:**
+* identify the authenticated user
+* authorize access to protected resources
 
-* never expose password
-* proper error handling
+**Characteristics:**
 
-**Done when:**
-
-* Hash + compare works
-* Wrong password fails correctly
-
----
-
-### **Task 1.3 — JWT TokenService**
-
-* Implement:
-
-  * `GenerateAccessToken`
-  * `GenerateRefreshToken` — returns a random opaque token (signed, high-entropy)
-  * `ParseAccessToken`
-  * `ParseRefreshToken`
-
-**Claims:**
-
-* `sub`
-* `role`
-* `cid`
-* `exp`, `iat`
-
-**Done when:**
-
-* Token is generated and parsed correctly
-* Invalid/expired tokens are rejected
+* issued during login
+* short-lived
+* contains claims (`sub`, `role`, `customer_id`)
+* validated via JWT middleware
 
 ---
 
-### **Task 1.4 — PostgreSQL SessionRepository**
+## 4. Request Flow
 
-* Implement in `auth/infrastructure`
-* Methods:
+### 4.1 Onboarding Endpoints (AppToken Required)
 
-  * `Create` — inserts a new session row
-  * `FindByTokenHash` — returns `userID`, `expiresAt`, `revoked`
-  * `Revoke` — sets `revoked_at = NOW()`; returns `ErrSessionNotFound` if zero rows affected
-
-* Uses context-based transaction propagation via `database.TxFromContext`
-
-**Done when:**
-
-* Session lifecycle works end-to-end with real DB
-* `Revoke` fails cleanly when token hash is unknown
-
----
-
-### **Task 1.5 — PostgresTransactor**
-
-* Implement `domain.Transactor` in `auth/infrastructure`
-* `RunInTx` — begins a pgx transaction, injects it into context via `database.ContextWithTx`, defers rollback, commits on success
-* Satisfies `var _ domain.Transactor = (*PostgresTransactor)(nil)`
-
-**Done when:**
-
-* Any two repository calls inside `RunInTx` share the same transaction
-* Rollback occurs automatically on error
-
----
-
-## **Phase 2 — Application Layer (Use Cases)**
-
-### **Task 2.1 — RegisterUser use case**
-
-Flow:
-
-* validate email
-* validate password
-* check email uniqueness
-* hash password
-* create user
-* persist
-
-**Decisions:**
-
-* do NOT require `customer_id` initially
-
-**Done when:**
-
-* user is created
-* duplicate email fails
-
----
-
-### **Task 2.2 — LoginUser use case**
-
-Flow:
-
-* find user by email
-* compare password
-* generate access token
-* generate refresh token
-* hash refresh token with SHA-256
-* persist session via `SessionRepository.Create` (TTL: 30 days)
-* return both tokens
-
-**Constraints:**
-
-* `SessionRepository` is a required dependency (not optional)
-* If session persistence fails, login fails — no token is returned
-* No code path issues a refresh token without a persisted session
-
-**Done when:**
-
-* valid login returns both `access_token` and `refresh_token`
-* invalid password fails
-* session creation failure propagates as an error
-
----
-
-### **Task 2.4 — RefreshAccessToken use case**
-
-Flow:
-
-* validate token is not blank
-* parse JWT signature to extract `userID`
-* hash token with SHA-256
-* look up session by hash — reject if not found, revoked, expired, or user mismatch
-* fetch user from `UserRepository`
-* generate new access token
-* generate new refresh token
-* atomically via `Transactor.RunInTx`:
-  * revoke old session (`SessionRepository.Revoke`)
-  * create new session (`SessionRepository.Create`)
-* return both new tokens
-
-**Atomicity guarantee:**
-
-* Revoke + Create execute in a single database transaction
-* If either step fails the transaction is rolled back
-* The old token remains valid when rollback occurs — no partial state is possible
-
-**Done when:**
-
-* valid token returns new `access_token` + `refresh_token`
-* old token is revoked after rotation
-* new token is immediately usable
-* rollback prevents partial state
-
----
-
-### **Task 2.3 — GetCurrentUser use case**
-
-Flow:
-
-* read authenticated principal
-* optionally fetch user
-
-**Done when:**
-
-* returns correct identity
-* works with middleware context
-
----
-
-## **Phase 3 — Delivery Layer (HTTP)**
-
-### **Task 3.1 — Auth handlers**
-
-Implement:
+Endpoints:
 
 * `POST /auth/register`
 * `POST /auth/login`
-* `POST /auth/refresh`
-* `GET /auth/me`
+
+Flow:
+
+```text
+Request
+  ↓
+[AppToken Middleware]
+  ↓
+Auth Handler
+```
 
 **Requirements:**
 
-* DTO separation
-* no domain exposure
-* all handlers guard against nil use cases and nil output
-* `Handler.New` takes all four use cases as required constructor parameters — no setter injection
-
-**Done when:**
-
-* endpoints respond correctly
-* JSON format follows standard
+* `X-App-Token` header is mandatory
+* JWT is not required
 
 ---
 
-### **Task 3.2 — Standardized error handling**
+### 4.2 Authenticated Endpoints (JWT Required)
 
-* Integrate auth errors into existing error pattern
+Endpoints:
 
-Add codes:
+* `POST /auth/refresh`
+* `GET /auth/me`
 
-* `USER_ALREADY_EXISTS`
-* `INVALID_CREDENTIALS`
-* `UNAUTHORIZED`
-* `INVALID_TOKEN`
-
-**Done when:**
-
-* no raw `http.Error`
-* all responses follow `{data, error}` format
-
----
-
-## **Phase 4 — Authentication Middleware**
-
-### **Task 4.1 — JWT middleware**
-
-* Read `Authorization` header
-* Validate token
-* Extract claims
-* Inject principal into context
-
-**Principal:**
+Flow:
 
 ```text
-userID
-role
-customerID
+Request
+  ↓
+[JWT Middleware]
+  ↓
+Auth Handler
 ```
 
-**Done when:**
+**Requirements:**
 
-* valid token populates context
-* invalid token returns 401
-
----
-
-### **Task 4.2 — Context helpers**
-
-* Helper functions:
-
-  * `GetAuthenticatedUser(ctx)`
-  * `MustGetAuthenticatedUser(ctx)`
-
-**Done when:**
-
-* handlers/use cases can easily access identity
+* valid `Authorization: Bearer <access_token>`
+* App Token is not required
 
 ---
 
-## **Phase 5 — Authorization (Critical Layer)**
+### 4.3 Protected Resource Endpoints (JWT Required)
 
-### **Task 5.1 — Ownership validation logic**
+Examples:
 
-Implement a reusable function/service:
+* `/accounts/*`
+* `/customers/me`
+
+Flow:
 
 ```text
-CanAccessAccount(user, account)
+Request
+  ↓
+[JWT Middleware]
+  ↓
+Protected Handler
 ```
 
-Rules:
+**Requirements:**
 
-* user.customer_id == account.customer_id
-* OR user.role == admin
-
-**Done when:**
-
-* ownership logic is centralized
-* no duplication across handlers
+* valid `Authorization: Bearer <access_token>`
+* App Token is not required
 
 ---
 
-### **Task 5.2 — Integrate authorization into use cases**
+## 5. Authorization Model
 
-Update:
+Authorization is based on the authenticated user identity extracted from the JWT.
 
-* GetBalance
-* GetStatement
-* Deposit
-* Withdraw
-* Transfer
+### Rules:
 
-**Rules:**
+* users with role `customer` can only access their own resources
+* users with role `admin` can access any resource
+* ownership is enforced at the **application layer**, not only in handlers
 
-* must be authenticated
-* must own account (or admin)
+### Source of truth:
 
-**IMPORTANT:**
-
-* enforce in application layer, not only in handler
-
-**Done when:**
-
-* unauthorized access is blocked
-* correct access is allowed
+* `customer_id` is always derived from JWT
+* client input for ownership is ignored
 
 ---
 
-## **Phase 6 — Route Protection**
+## 6. Design Rationale
 
-### **Task 6.1 — Protect account routes**
+This model reflects a deliberate decision to:
 
-Apply middleware to:
+* restrict **who can initiate authentication**
+* separate onboarding from authenticated usage
+* delegate **resource access control** to JWT-based identity
+* isolate authentication concerns from future security layers
+
+The system assumes:
+
+> a request that successfully obtained a valid access token has passed through a controlled entry point
+
+This assumption is **intentionally limited to this stage of the system**.
+
+---
+
+## 7. Known Limitations
+
+This model does **not** provide:
+
+* continuous validation of client integrity
+* request-level contextual verification
+* differentiation between client applications after authentication
+* protection against token reuse outside the original client
+* device or environment validation
+
+Once a valid JWT is issued:
 
 ```text
-/accounts/*
+JWT alone is sufficient to access protected resources
 ```
 
-**Done when:**
+---
 
-* unauthenticated requests fail
-* authenticated requests proceed
+## 8. Security Model Interpretation
+
+The current system follows a **trusted boundary at authentication time**.
+
+This means:
+
+* control is enforced at onboarding (`AppToken`)
+* identity is enforced via JWT
+* no additional validation is performed per request
+
+This is a **controlled simplification**, not a final security model.
 
 ---
 
-### **Task 6.2 — Transfer-specific rule**
+## 9. Future Evolution
 
-* Validate:
+This model is designed to evolve toward a **Zero Trust Architecture (ZTA)**.
 
-  * user owns **source account**
+Planned improvements include:
 
-**Done when:**
+* enforcing App Token on all requests
+* introducing client identity into request context
+* incorporating device and environment signals
+* implementing request-level decision models
 
-* cannot transfer from чужой account
-* admin can override
+Future pipeline:
+
+```text
+Request
+  ↓
+[App Identity]
+  ↓
+[User Identity]
+  ↓
+[Context Evaluation]
+  ↓
+Decision
+```
 
 ---
 
-## **Phase 7 — Testing**
+## 10. Relationship with Implementation Plan
 
-### **Task 7.1 — Unit tests**
+The authentication system was implemented following a phased approach:
 
-Cover:
-
+* user persistence
 * password hashing
-* JWT parsing (including `ParseRefreshToken`)
-* register use case
-* login use case — including `SessionPersistenceFailure`
-* refresh use case:
+* JWT generation
+* session management (refresh token)
+* middleware enforcement
+* authorization rules
 
-  * success
-  * invalid / malformed token
-  * session not found
-  * revoked token
-  * expired token
-  * user-ID mismatch
-  * revoke failure (Create not called)
-  * create failure
-  * rotation integrity (old token unusable, new token works) — uses stateful session mock
-* ownership logic
+This document describes the **result of those phases**, not the steps themselves.
 
 ---
 
-### **Task 7.2 — Integration tests**
+## 11. Conclusion
 
-Test flows:
+The current authentication model provides:
 
-* register → login → access `/auth/me`
-* access own account → success
-* access another account → forbidden
-* admin access → allowed
+* controlled system entry
+* clear separation between onboarding and usage
+* consistent JWT-based authorization
+* sufficient security for functional validation
 
----
+It intentionally prioritizes:
 
-## **Phase 8 — Hardening (Minimal)**
+* simplicity
+* clarity
+* architectural stability
 
-### **Task 8.1 — Input validation**
+over premature complexity.
 
-* email format
-* password length
-* refresh token: blank check before any DB access
-
----
-
-### **Task 8.2 — Token validation edge cases**
-
-* expired token
-* malformed token
-* missing header
-* revoked refresh token
-* expired refresh token
-
----
-
-### **Task 8.3 — Revoke integrity**
-
-* `SessionRepository.Revoke` checks `RowsAffected()` after the UPDATE
-* Returns `domain.ErrSessionNotFound` when zero rows are affected
-* This prevents silent failures when the hash never existed or was already deleted
-
----
-
-### **Task 8.4 — Atomic token rotation**
-
-* `Revoke` and `Create` are wrapped in a single `Transactor.RunInTx` call in the Application layer
-* Infrastructure repositories detect the transaction in context via `database.TxFromContext` and use it automatically
-* If either operation fails the transaction rolls back — the client retains the original token
-
----
-
-## **Suggested Branching Strategy**
-
-Use incremental branches:
-
-```text
-auth/users-table-01
-auth/domain-01
-auth/infrastructure-01
-auth/usecases-01
-auth/http-01
-auth/middleware-01
-auth/authorization-01
-auth/tests-01
-```
-
----
-
-# **Execution Strategy (Important)**
-
-Do NOT jump across phases.
-
-Recommended order:
-
-```text
-DB → Domain → Infrastructure → UseCases → HTTP → Middleware → Authorization → Tests
-```
-
----
-
-# **Critical Opinion**
-
-The most common failure here would be:
-
-> implementing login before ownership
-
-If you reach a point where users can authenticate but can still access any account by ID, the system is **functionally insecure**.
-
-So treat this as the real milestone:
-
-> Authentication is necessary
-> Authorization is what makes it correct
+This forms a solid baseline for future evolution toward more advanced security models.

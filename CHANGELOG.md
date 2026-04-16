@@ -1,5 +1,121 @@
 # Changelog
 
+## 2026/04/16 — api/user_status-01
+
+Introduces **user status management** into the authentication domain and restructures the HTTP layer to support a clearer multi-stage authentication model, including AppToken-based onboarding and JWT-protected routes. 
+
+### 1. Domain Layer — User Status
+
+* Added `UserStatus` type with explicit states:
+
+  * `pending`
+  * `active`
+  * `blocked`
+* Extended `User` entity to include `Status` field
+* Updated `NewUser` factory:
+
+  * initializes all new users with `UserStatusPending`
+* This change establishes a **foundation for lifecycle control** (approval, activation, blocking), which was previously absent in the model
+
+### 2. Bootstrap — Environment Configuration
+
+* Introduced automatic `.env` loading using `github.com/joho/godotenv`
+* Implemented flexible resolution strategy:
+
+  * local `.env`
+  * `api/.env`
+  * executable-relative paths
+* Ensures configuration is available regardless of execution context
+* Aligns with **fail-fast configuration validation** already present in `main.go`
+
+### 3. Main Wiring Refactor (cmd/api/main.go)
+
+* Reorganized startup into explicit sections:
+
+  * Config
+  * Repositories
+  * Services
+  * Use Cases
+  * Handlers
+  * Middlewares
+  * Routers
+* Enforced validation of critical environment variables:
+
+  * `APP_TOKEN`
+  * `JWT_SECRET`
+* Improved readability and maintainability of composition root
+* This is a **structural improvement**, not just cosmetic; it clarifies dependency boundaries
+
+### 4. Routing Architecture — Separation of Concerns
+
+* Split routing into three layers:
+
+  * `authRouter` (authentication endpoints)
+  * `apiRouter` (business endpoints)
+  * `mainRouter` (composition)
+* Introduced explicit middleware application per route group:
+
+  * AppToken for onboarding
+  * JWT for authenticated access
+* Eliminated global middleware wrapping, replacing it with **route-level control**, which is more precise and safer
+
+### 5. Authentication Model — AppToken + JWT
+
+* Applied AppToken middleware to:
+
+  * `POST /auth/register`
+  * `POST /auth/login`
+* Applied JWT middleware to:
+
+  * `POST /auth/refresh`
+  * `GET /auth/me`
+  * all `/accounts/*`
+  * `/customers/me`
+* This formalizes a **two-phase authentication model**:
+
+  * controlled entry (AppToken)
+  * authenticated session (JWT)
+* Matches the intended design described in the authentication documentation 
+
+### 6. API Contract Documentation Updates
+
+* Updated REST documentation to reflect:
+
+  * AppToken requirement for onboarding endpoints
+  * JWT requirement for all protected endpoints
+* Added new error code:
+
+  * `INVALID_APP_TOKEN` (HTTP 401)
+* Expanded error scenarios with concrete payload examples
+* Clarified access control rules and authentication flows
+* Improves alignment between implementation and public contract 
+
+### 7. Dependency Updates
+
+* Added `godotenv` dependency to `go.mod` and `go.sum`
+* Enables environment-based configuration without external tooling
+
+### 8. Architectural Impact
+
+* Introduces the first step toward **user lifecycle governance** via status
+* Establishes a clearer boundary between:
+
+  * onboarding security
+  * session-based authentication
+  * resource authorization
+* Prepares the system for future features such as:
+
+  * user approval workflows
+  * account activation
+  * access blocking
+
+### Conclusion
+
+This commit is a **strategic evolution of the authentication layer**, not merely a feature addition.
+
+It introduces user lifecycle semantics and formalizes a multi-stage authentication model, improving both **security posture and architectural clarity**, while keeping the system aligned with its current simplicity goals and ready for future extensions.
+
+
 ## 2026/04/16 — api/app_token-01
 
 Introduces **application-level request validation via App Token middleware**, enforces stricter environment configuration, and refactors HTTP server initialization to support middleware composition and improved security boundaries.

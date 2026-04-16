@@ -12,8 +12,13 @@ Content type:
 - response: application/json
 
 Authentication:
-- JWT Bearer token
-- Send in header Authorization: Bearer <access_token>
+- `POST /auth/register` and `POST /auth/login` require header `X-App-Token: <app_token>`
+- `POST /auth/refresh`, `GET /auth/me`, all `/accounts/*`, and all `/customers/*` require JWT Bearer token
+- Send JWT in header `Authorization: Bearer <access_token>`
+
+Access control summary:
+- Auth entry routes: AppToken only
+- Auth session and service routes: JWT only
 
 ## 2. Response Envelope
 
@@ -100,7 +105,7 @@ Example - 500 INTERNAL_ERROR:
 
 - Method: POST
 - Path: /auth/register
-- Auth required: no
+- Auth required: AppToken (`X-App-Token`)
 
 This endpoint creates a User and an associated Customer atomically in a single transaction. The Customer is created automatically — the client never needs to call a separate customer creation endpoint.
 
@@ -134,6 +139,7 @@ Success response (201):
 `customer_id` is always populated for users with role `customer`.
 
 Possible errors:
+- 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_DATA: invalid email or password format
 - 409 USER_ALREADY_EXISTS: duplicate email
@@ -144,7 +150,7 @@ Possible errors:
 
 - Method: POST
 - Path: /auth/login
-- Auth required: no
+- Auth required: AppToken (`X-App-Token`)
 
 Request body:
 
@@ -176,6 +182,7 @@ Success response (200):
 Every login issues a new refresh token and persists a corresponding server-side session. The refresh token is required to obtain a new access token via `POST /auth/refresh`.
 
 Possible errors:
+- 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
 - 400 INVALID_REQUEST: invalid JSON body or unknown fields
 - 400 INVALID_DATA: invalid email or password input
 - 401 INVALID_CREDENTIALS: invalid email/password
@@ -185,7 +192,7 @@ Possible errors:
 
 - Method: POST
 - Path: /auth/refresh
-- Auth required: no
+- Auth required: JWT Bearer token
 
 Exchanges a valid refresh token for a new access token and a new refresh token (token rotation). Each refresh token is single-use — after a successful refresh the old token is immediately revoked and a new session is created atomically.
 
@@ -216,6 +223,7 @@ Behaviour:
 - A refresh token that has been revoked, is expired, or does not correspond to any session returns `401 INVALID_TOKEN`.
 
 Possible errors:
+- 401 UNAUTHORIZED: authentication required
 - 400 INVALID_REQUEST: missing or blank `refresh_token`, invalid JSON, or unknown fields
 - 401 INVALID_TOKEN: token invalid, revoked, expired, or not found
 - 500 INTERNAL_ERROR: unexpected internal error
@@ -518,6 +526,7 @@ This rule is enforced in the application layer via `CanAccessAccount` and `CanAc
 ## 7. Error Code Reference
 
 Common error codes currently used by handlers:
+- INVALID_APP_TOKEN
 - INVALID_REQUEST
 - INVALID_DATA
 - INVALID_AMOUNT
@@ -533,6 +542,8 @@ Common error codes currently used by handlers:
 - INSUFFICIENT_FUNDS
 - SAME_ACCOUNT_TRANSFER
 - INTERNAL_ERROR
+
+`INVALID_APP_TOKEN` (HTTP 401) is returned when `POST /auth/register` or `POST /auth/login` is called without `X-App-Token` or with an invalid app token.
 
 `INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or JWT signature invalid.
 
@@ -550,6 +561,20 @@ Common error codes currently used by handlers:
 This section lists common error situations and the expected payload shape.
 
 ### 9.1 POST /auth/register
+
+Scenario: missing or invalid app token
+- Status: 401
+- Code: INVALID_APP_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_APP_TOKEN",
+    "message": "invalid application token"
+  }
+}
+```
 
 Scenario: malformed JSON
 - Status: 400
@@ -581,6 +606,20 @@ Scenario: duplicate email/CPF
 
 ### 9.2 POST /auth/login
 
+Scenario: missing or invalid app token
+- Status: 401
+- Code: INVALID_APP_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_APP_TOKEN",
+    "message": "invalid application token"
+  }
+}
+```
+
 Scenario: invalid credentials
 - Status: 401
 - Code: INVALID_CREDENTIALS
@@ -595,7 +634,23 @@ Scenario: invalid credentials
 }
 ```
 
-### 9.3 GET /auth/me
+### 9.3 POST /auth/refresh
+
+Scenario: missing/invalid JWT authentication
+- Status: 401
+- Code: UNAUTHORIZED or INVALID_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+### 9.4 GET /auth/me
 
 Scenario: missing/invalid authentication
 - Status: 401
@@ -611,7 +666,7 @@ Scenario: missing/invalid authentication
 }
 ```
 
-### 9.4 POST /accounts
+### 9.5 POST /accounts
 
 Scenario: authenticated user cannot create account for requested context
 - Status: 403
