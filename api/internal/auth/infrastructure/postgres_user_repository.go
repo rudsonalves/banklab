@@ -228,11 +228,3 @@ func nullableUUIDValue(value *uuid.UUID) any {
 
 	return *value
 }
-
-func nullableStringValue(value *string) any {
-	if value == nil {
-		return nil
-	}
-
-	return *value
-}

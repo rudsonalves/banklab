@@ -75,7 +75,6 @@ func (uc *RegisterUserUseCase) Execute(
 			ID:        uuid.New(),
 			Name:      strings.TrimSpace(input.Name),
 			CPF:       strings.TrimSpace(input.CPF),
-			Email:     email,
 			CreatedAt: now,
 		}
 

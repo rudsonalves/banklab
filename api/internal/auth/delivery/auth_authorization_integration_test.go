@@ -279,7 +279,6 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
 			cpf VARCHAR(11) NOT NULL UNIQUE,
-			email VARCHAR(120) NOT NULL UNIQUE,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
 		)`,
@@ -439,12 +438,11 @@ func seedCustomer(t *testing.T, ctx context.Context, pool *pgxpool.Pool) uuid.UU
 	id := uuid.New()
 	unique := time.Now().UnixNano()
 	cpf := fmt.Sprintf("%011d", unique%100000000000)
-	email := fmt.Sprintf("customer-%d-%s@example.com", unique, id.String())
 
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO customers (id, name, cpf, email, created_at)
-		VALUES ($1, $2, $3, $4, $5)
-	`, id, "Integration Customer", cpf, email, time.Now().UTC()); err != nil {
+		INSERT INTO customers (id, name, cpf, created_at)
+		VALUES ($1, $2, $3, $4)
+	`, id, "Integration Customer", cpf, time.Now().UTC()); err != nil {
 		t.Fatalf("failed to seed customer: %v", err)
 	}
 

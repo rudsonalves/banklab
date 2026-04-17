@@ -2,6 +2,158 @@
 
 ## 2026/04/17 — api/user_status-05
 
+Refactors the **customer domain boundary by removing email from the Customer aggregate**, repositioning it as a responsibility of the authentication layer, and aligning persistence, application flows, and delivery contracts accordingly. Also introduces a utility for database schema extraction and updates all related tests and documentation. 
+
+### 1. Domain Layer — Customer Simplification
+
+* Removed `email` from `Customer` entity
+* Updated `NewCustomer` factory:
+
+  * now validates only `name` and `cpf`
+* Removed domain errors:
+
+  * `ErrEmailRequired`
+  * `ErrEmailAlreadyExists`
+* Reinforces a cleaner domain model where:
+
+  * Customer represents **identity (CPF-based)**
+  * Email belongs to **authentication/user context**
+
+This is a **structural correction**, not merely a field removal, improving separation of concerns.
+
+### 2. Repository Contract Redesign
+
+* Updated `CustomerRepository.GetByID` signature:
+
+  * now returns `(customer, email, error)`
+* Email is retrieved via join with `users` table at infrastructure level
+* Makes explicit that:
+
+  * email is **not part of the aggregate**
+  * but still required for **read models / API responses**
+
+### 3. Infrastructure Layer — PostgreSQL
+
+* Updated `customers` persistence:
+
+  * removed `email` from INSERT operations
+* Adjusted constraint handling:
+
+  * removed email unique constraint mapping
+* Refactored `GetByID` query:
+
+  * now performs:
+
+    ```sql
+    JOIN users u ON u.customer_id = c.id
+    ```
+  * returns email as a separate value
+* Removed unused helper:
+
+  * `nullableStringValue`
+
+This aligns persistence with the **new aggregate boundary** while preserving API requirements.
+
+### 4. Application Layer Adjustments
+
+#### 4.1 Create Customer
+
+* Input no longer includes email
+* Delegates email responsibility entirely to auth flow
+
+#### 4.2 Get Customer Me
+
+* Updated return signature to include email separately
+* Propagates `(customer, email)` across layers
+* Ensures:
+
+  * domain purity
+  * complete response composition
+
+### 5. Auth Module Alignment
+
+* `RegisterUser` no longer injects email into Customer entity
+* Maintains email strictly within `User` context
+* Strengthens consistency between:
+
+  * user identity (auth)
+  * customer identity (domain)
+
+### 6. Delivery Layer — HTTP Contract
+
+#### 6.1 Create Customer Endpoint
+
+* Introduced explicit request DTO:
+
+  * `createCustomerRequest`
+* Email remains in request payload but:
+
+  * is not persisted in Customer
+  * is returned as part of response
+* Adjusted validation:
+
+  * removed email-related domain errors
+
+#### 6.2 Get /customers/me
+
+* Now composes response using:
+
+  * `customer` (domain)
+  * `email` (auth layer)
+* Preserves API contract expected by clients 
+
+This is a **read model composition at delivery level**, which is the correct architectural placement.
+
+### 7. Test Suite Updates
+
+* Updated all mocks and signatures to reflect new repository contract
+* Adjusted integration tests:
+
+  * removed email from `customers` schema
+  * removed email from seed data
+* Extended assertions:
+
+  * validate email returned separately
+* Ensures full coverage of new behavior across:
+
+  * application
+  * delivery
+  * infrastructure
+
+### 8. Makefile Enhancement
+
+* Added `database-schema` target:
+
+  * exports current DB schema using `pg_dump --schema-only`
+* Improves:
+
+  * observability
+  * documentation workflow
+  * version tracking of schema
+
+### 9. Documentation Update
+
+* Entire `api/docs` directory reviewed and updated to reflect:
+
+  * new domain boundary (Customer without email)
+  * updated repository contracts
+  * adjusted API behavior
+* This aligns implementation with documented architecture and avoids conceptual drift
+
+### Conclusion
+
+This commit introduces an important architectural refinement by **decoupling customer identity from authentication data**, resulting in:
+
+* clearer aggregate boundaries
+* improved domain purity
+* better alignment with layered architecture
+* explicit read model composition at delivery layer
+
+From a design standpoint, this is a **high-quality correction**, reducing leakage of concerns into the domain and preparing the system for future evolution in authentication and user management.
+
+
+## 2026/04/17 — api/user_status-05
+
 Consolidates the **ledger model as the single source of truth for transactions**, removes the legacy operation abstraction, and introduces a robust idempotency and replay mechanism based entirely on persisted ledger data. This change also aligns repository contracts, database schema, and tests with the new model, while updating the entire documentation set to reflect the evolved architecture.
 
 ### 1. Ledger Consolidation and Domain Simplification

@@ -28,11 +28,4 @@ func RegisterErrors() {
 		"User already exists",
 		http.StatusConflict,
 	)
-
-	sharederrors.RegisterDomainError(
-		domain.ErrEmailAlreadyExists,
-		sharederrors.ErrCodeUserAlreadyExists,
-		"User already exists",
-		http.StatusConflict,
-	)
 }

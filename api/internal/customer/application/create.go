@@ -15,16 +15,14 @@ func NewCreateCustomer(repo domain.Repository) *CreateCustomer {
 }
 
 type Input struct {
-	Name  string
-	CPF   string
-	Email string
+	Name string
+	CPF  string
 }
 
 func (uc *CreateCustomer) Execute(ctx context.Context, input Input) (*domain.Customer, error) {
 	customer, err := domain.NewCustomer(
 		input.Name,
 		input.CPF,
-		input.Email,
 	)
 	if err != nil {
 		return nil, err

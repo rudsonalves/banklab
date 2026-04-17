@@ -20,12 +20,18 @@ type createCustomerUseCase interface {
 }
 
 type getCustomerMeUseCase interface {
-	Execute(ctx context.Context, input application.GetCustomerMeInput) (*customerdomain.Customer, error)
+	Execute(ctx context.Context, input application.GetCustomerMeInput) (*customerdomain.Customer, string, error)
 }
 
 type Handler struct {
 	createUC createCustomerUseCase
 	getMeUC  getCustomerMeUseCase
+}
+
+type createCustomerRequest struct {
+	Name  string `json:"name"`
+	CPF   string `json:"cpf"`
+	Email string `json:"email"`
 }
 
 type createCustomerData struct {
@@ -46,18 +52,21 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var input application.Input
+	var req createCustomerRequest
 
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
-	customer, err := h.createUC.Execute(r.Context(), input)
+	customer, err := h.createUC.Execute(r.Context(), application.Input{
+		Name: req.Name,
+		CPF:  req.CPF,
+	})
 	if err != nil {
 		log.Println("create customer error:", err)
 
-		if err == customerdomain.ErrNameRequired || err == customerdomain.ErrCPFRequired || err == customerdomain.ErrEmailRequired {
+		if err == customerdomain.ErrNameRequired || err == customerdomain.ErrCPFRequired {
 			sharedhttp.WriteError(w, sharederrors.MapError(customerdomain.ErrInvalidData))
 			return
 		}
@@ -70,7 +79,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		ID:        customer.ID.String(),
 		Name:      customer.Name,
 		CPF:       customer.CPF,
-		Email:     customer.Email,
+		Email:     req.Email,
 		CreatedAt: customer.CreatedAt.Format(time.RFC3339),
 	})
 }
@@ -92,7 +101,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	customer, err := h.getMeUC.Execute(r.Context(), application.GetCustomerMeInput{CustomerID: *user.CustomerID})
+	customer, email, err := h.getMeUC.Execute(r.Context(), application.GetCustomerMeInput{CustomerID: *user.CustomerID})
 	if err != nil {
 		log.Println("get customer me error:", err)
 		sharedhttp.WriteError(w, sharederrors.MapError(err))
@@ -103,7 +112,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		ID:        customer.ID.String(),
 		Name:      customer.Name,
 		CPF:       customer.CPF,
-		Email:     customer.Email,
+		Email:     email,
 		CreatedAt: customer.CreatedAt.Format(time.RFC3339),
 	})
 }
