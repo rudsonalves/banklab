@@ -109,12 +109,12 @@ func (m *approveAccountRepoMock) CreateTransaction(ctx context.Context, tx *acco
 	return nil
 }
 
-func (m *approveAccountRepoMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*accountdomain.Operation, error) {
+func (m *approveAccountRepoMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*accountdomain.Transaction, error) {
 	return nil, nil
 }
 
-func (m *approveAccountRepoMock) CreateOperation(ctx context.Context, op *accountdomain.Operation) error {
-	return nil
+func (m *approveAccountRepoMock) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName accountdomain.TransactionType) (*accountdomain.Transaction, error) {
+	return nil, nil
 }
 
 func (m *approveAccountRepoMock) BeginTx(ctx context.Context) (accountdomain.Tx, error) {

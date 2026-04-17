@@ -159,6 +159,57 @@ Authorization is based on the authenticated user identity extracted from the JWT
 
 ---
 
+## 5.1 Operational Status (UserStatus)
+
+**IMPORTANT DISTINCTION:** Authorization and operational capability are separated.
+
+### Definition
+
+Beyond **authentication** (who you are) and **authorization** (what role you have), the system enforces **operational status** (whether you can act).
+
+### Three Layers
+
+1. **Authentication** (JWT)
+   - Identity verification
+   - Claims: `sub` (user ID), `role`, `customer_id`
+   - Validity: short-lived, token-based
+
+2. **Authorization** (Role)
+   - Access control: customer vs. admin vs. other roles
+   - Enforced at application layer
+   - Tied to JWT claims
+
+3. **Operational Status** (UserStatus)
+   - Capability to perform financial operations
+   - Stored in `users.status` column
+   - Values: `pending`, `active`, `blocked`
+   - Required: **user must be `active` to operate in the system**
+
+### Invariant
+
+```text
+Authentication + Authorization ≠ Operational Capability
+
+Only active users can perform financial operations.
+```
+
+### Examples
+
+| Scenario                    | JWT Valid? | Role OK? | Status? | Can Operate? |
+| --------------------------- | ---------- | -------- | ------- | ------------ |
+| Pending user, has valid JWT | ✓          | ✓        | pending | ✗            |
+| Active user, customer role  | ✓          | ✓        | active  | ✓            |
+| Blocked user, valid JWT     | ✓          | ✓        | blocked | ✗            |
+| No JWT                      | ✗          | -        | -       | ✗            |
+
+### Responsibility
+
+* **Authentication**: verified at JWT middleware (HTTP boundary)
+* **Authorization**: enforced at application layer (use cases)
+* **Operational Status**: enforced at application layer (business rules)
+
+---
+
 ## 6. Design Rationale
 
 This model reflects a deliberate decision to:

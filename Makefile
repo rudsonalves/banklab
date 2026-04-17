@@ -34,17 +34,20 @@ test: api-test mobile-test ## Run API and Mobile tests
 api-build: ## Build API binary into api/build/
 	cd api && go build -o build/bank-api ./cmd/api
 
-api-migrate-up: ## Run API database migrations
-	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" up
-
-api-migrate-down: ## Rollback last API database migration
-	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down
-
 api-test: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
 api-run: ## Run API server
 	cd api && go run ./cmd/api
+
+# =========================
+# Database Migrations
+# =========================
+migrate-up: ## Run API database migrations
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" up
+
+migrate-down: ## Rollback last API database migration
+	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down
 
 # =========================
 # Mobile (Flutter)

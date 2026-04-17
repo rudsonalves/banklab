@@ -376,11 +376,10 @@ func TestRegisterUserUseCase_Execute_CustomerCreateFailure(t *testing.T) {
 // for a customer-role user, ErrInvalidUserState is returned.
 func TestRegisterUserUseCase_Execute_CustomerIDNeverNilForCustomerRole(t *testing.T) {
 	customerRepo := &customerRepositoryMock{}
-	hasher := &passwordHasherMock{hashValue: "hashed-password"}
+	hasher := &passwordHasherMock{}
 
 	// Inject a user repo whose Create() clears CustomerID to simulate a bug.
 	userRepo := &userRepositoryMock{}
-	userRepo.createErr = nil // allow create
 
 	// We can't easily test NewUser returning ErrInvalidUserState via the use case
 	// because the constructor is called inside the transaction. Instead we verify

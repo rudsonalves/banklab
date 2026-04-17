@@ -1,6 +1,170 @@
 # Changelog
 
-## 2026/04/16 — api/user_status-04
+## 2026/04/17 — api/user_status-05
+
+Consolidates the **ledger model as the single source of truth for transactions**, removes the legacy operation abstraction, and introduces a robust idempotency and replay mechanism based entirely on persisted ledger data. This change also aligns repository contracts, database schema, and tests with the new model, while updating the entire documentation set to reflect the evolved architecture.
+
+### 1. Ledger Consolidation and Domain Simplification
+
+* Removed `Operation` entity and its entire persistence flow
+* Eliminated `transactions` table as a separate idempotency store via migration
+* Promoted `account_transactions` as the **canonical ledger**
+* Extended `Transaction` entity:
+
+  * added `related_account_id`
+  * added `idempotency_key`
+* Introduced `NewTransactionWithIdempotency` to support origin-side idempotent writes
+* Replaced `ErrOperationAlreadyProcessed` with `ErrTransferDuplicate`, aligning error semantics with the new model
+
+This change reinforces the domain principle that **all financial truth must be derivable from the ledger itself**, as already outlined in the domain model .
+
+### 2. Transfer Use Case — Idempotency Redesign
+
+* Replaced operation-based idempotency with **ledger-based replay**
+* Introduced early idempotency check using:
+
+  * `GetTransactionByIdempotencyKey`
+* Implemented replay via `transferResultFromLedger`:
+
+  * reconstructs result using `transfer_out` and paired `transfer_in`
+  * validates ledger consistency (reference_id, related_account_id, type pairing)
+* Added conflict handling:
+
+  * DB unique constraint triggers `ErrTransferDuplicate`
+  * reloads committed transaction and returns replay result
+  * forces rollback while preserving response
+
+This approach eliminates parallel state (operations table) and ensures **idempotency is enforced at the same layer that guarantees financial consistency**.
+
+### 3. Repository Contract Evolution
+
+* Removed:
+
+  * `CreateOperation`
+  * `GetOperationByIdempotencyKey`
+* Added:
+
+  * `GetTransactionByIdempotencyKey`
+  * `GetTransactionByReference`
+* Updated all mocks and tests accordingly
+
+The repository now exposes only **ledger-native queries**, reducing conceptual duplication and improving cohesion.
+
+### 4. PostgreSQL Layer Enhancements
+
+* Updated `CreateTransaction`:
+
+  * includes `related_account_id` and `idempotency_key`
+  * uses `ON CONFLICT (account_id, idempotency_key) DO NOTHING`
+  * detects duplicates via `RowsAffected == 0`
+* Implemented:
+
+  * `GetTransactionByIdempotencyKey`
+  * `GetTransactionByReference`
+* Extended query projections across the repository to include new fields
+
+These changes move idempotency enforcement fully into the database, consistent with the system’s **strong consistency strategy** .
+
+### 5. Database Migrations
+
+* Added migration `000007_consolidate_ledger`:
+
+  * moves idempotency data into `account_transactions`
+  * converts `type` to enum
+  * creates unique index for idempotency
+  * drops legacy `transactions` table
+* Added migration `000008_transfer_pair_integrity`:
+
+  * enforces uniqueness of `(reference_id, type)` for transfer pairs
+  * introduces index for efficient lookup
+
+These migrations formalize:
+
+* **idempotency at the ledger level**
+* **structural integrity of transfer pairs**
+
+### 6. Transfer Integrity Guarantees
+
+* Enforced bidirectional linkage:
+
+  * `transfer_out.related_account_id → destination`
+  * `transfer_in.related_account_id → origin`
+* Ensured:
+
+  * both sides share the same `reference_id`
+  * only one row per `(reference_id, type)`
+* Added defensive checks in replay logic:
+
+  * missing reference_id
+  * missing related_account_id
+  * mismatched pairing
+
+This elevates the ledger from a log to a **verifiable structure**, not merely a record of events.
+
+### 7. Test Suite Refactor
+
+* Updated all mocks to align with new repository interface
+* Removed operation-related expectations
+* Added:
+
+  * validation of `related_account_id` on both transfer legs
+  * replay correctness using ledger data
+  * duplicate conflict handling via DB constraint simulation
+* Adjusted expectations:
+
+  * single ledger write attempt before conflict
+  * rollback behavior preserved
+* Updated integration schema setup:
+
+  * ensures backward compatibility with pre-existing databases
+  * adds missing columns and indexes dynamically
+
+### 8. Error Handling Adjustments
+
+* Standardized duplicate semantics:
+
+  * `ErrTransferDuplicate` mapped to idempotent replay
+* Simplified authorization error message:
+
+  * "Access denied to account" → "Access denied"
+* Maintains consistency with API error contract 
+
+### 9. Makefile Refinement
+
+* Renamed migration commands:
+
+  * `api-migrate-up` → `migrate-up`
+  * `api-migrate-down` → `migrate-down`
+* Grouped under a dedicated "Database Migrations" section
+
+Improves clarity and aligns CLI with project scope.
+
+### 10. Documentation Update (api/docs)
+
+* Entire documentation set updated to reflect:
+
+  * ledger as single source of truth
+  * removal of `transactions` table usage
+  * idempotency embedded in ledger
+  * updated transfer flow and consistency guarantees
+* Affects architecture, domain, data model, flows, and API contract
+* Ensures alignment between implementation and documented behavior 
+
+### Conclusion
+
+This commit represents a **critical architectural refinement**, removing an artificial abstraction (`Operation`) and converging the system toward a **pure ledger-driven model**.
+
+The resulting system is:
+
+* more coherent (single source of truth)
+* more robust (DB-enforced idempotency and integrity)
+* easier to reason about (no dual-write model)
+* better aligned with financial system principles
+
+From a design standpoint, this is a substantial improvement. The previous model introduced unnecessary indirection; the current one correctly treats the ledger as both **execution log and verification mechanism**, which is the right direction for any system that aims at financial correctness.
+
+
+## 2026/04/17 — api/user_status-04
 
 Introduces **user status enforcement across account creation and admin approval flow**, strengthening authorization guarantees and aligning onboarding with an explicit lifecycle (pending → active).
 

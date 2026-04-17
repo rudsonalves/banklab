@@ -253,6 +253,64 @@ Possible errors:
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 500 INTERNAL_ERROR: unexpected internal error
 
+## 3.5 Approve User (Admin Only)
+
+- Method: POST
+- Path: /admin/users/{id}/approve
+- Auth required: JWT (admin role)
+
+Approves a pending user, transitioning them from `pending` to `active` status. Also creates the associated account atomically.
+
+Path parameters:
+
+- `id`: UUID of the user to approve
+
+Request body:
+
+Empty object or no body required.
+
+```json
+{}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "status": "active",
+    "email": "user@example.com",
+    "account_id": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789",
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
+  },
+  "error": null
+}
+```
+
+Response fields:
+
+- `user_id`: UUID of the approved user
+- `status`: new status (always "active" on success)
+- `email`: user email
+- `account_id`: UUID of the newly created account
+- `customer_id`: UUID of the customer (derived from approval flow)
+
+Atomicity:
+
+- User status update and account creation occur within a single database transaction
+- If account creation fails, user status is not updated
+- No partial state is possible
+
+Possible errors:
+
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid or expired
+- 403 FORBIDDEN: authenticated user does not have admin role
+- 404 USER_NOT_FOUND: user does not exist
+- 400 USER_ALREADY_ACTIVE: user is already active (cannot approve active/blocked users)
+- 500 INTERNAL_ERROR: unexpected internal error
+
 ## 4. Account Endpoints
 
 All account routes are protected and require Authorization header with Bearer token.
@@ -264,6 +322,8 @@ Ownership is enforced automatically. A customer-role user can only access accoun
 - Method: POST
 - Path: /accounts
 - Auth required: yes
+
+Creates a new account for the authenticated user. The user **must have status = active** to create an account.
 
 The `customer_id` is derived automatically from the authenticated user's JWT token. The client MUST NOT send a `customer_id` in the request body.
 
@@ -295,7 +355,7 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: user is not active or access denied
 - 404 CUSTOMER_NOT_FOUND: customer does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -331,7 +391,7 @@ Possible errors:
 - 400 INVALID_DATA: invalid account id
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_AMOUNT: amount must be greater than zero
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: access denied
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
@@ -368,7 +428,7 @@ Possible errors:
 - 400 INVALID_DATA: invalid account id
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_AMOUNT: amount must be greater than zero
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: access denied
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 422 INSUFFICIENT_FUNDS: insufficient funds
 - 422 ACCOUNT_INACTIVE: account not active
@@ -386,9 +446,15 @@ Request body:
 {
   "from_account_id": "7e2a56a4-b56c-44aa-9204-5e6c2df659d5",
   "to_account_id": "f2ec464e-dd1d-4b89-9f29-bf45dcbf16ff",
-  "amount": 2500
+  "amount": 2500,
+  "idempotency_key": "optional-client-key"
 }
 ```
+
+Notes:
+- `idempotency_key` is optional.
+- Idempotency scope is `(from_account_id, idempotency_key)`.
+- Replay responses return the historical transfer result from ledger data (not current account balances).
 
 Success response (200):
 
@@ -412,7 +478,7 @@ Possible errors:
 - 400 INVALID_DATA: invalid UUID data
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: access denied
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
 - 422 INSUFFICIENT_FUNDS: source account has insufficient funds
 - 422 ACCOUNT_INACTIVE: one account is inactive
@@ -472,7 +538,7 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_DATA: invalid path/query value or cursor/cursor_id mismatch
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: access denied
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -677,7 +743,7 @@ Scenario: authenticated user cannot create account for requested context
   "data": null,
   "error": {
     "code": "FORBIDDEN",
-    "message": "Access denied to account"
+    "message": "Access denied"
   }
 }
 ```
@@ -781,7 +847,7 @@ Scenario: access denied to source account
   "data": null,
   "error": {
     "code": "FORBIDDEN",
-    "message": "Access denied to account"
+    "message": "Access denied"
   }
 }
 ```

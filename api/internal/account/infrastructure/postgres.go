@@ -91,22 +91,32 @@ func (r *Repository) Create(ctx context.Context, acc *domain.Account) error {
 func (r *baseRepository) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
 	query := `
 		INSERT INTO account_transactions (
-			id, account_id, type, amount, balance_after, reference_id, created_at
+			id, account_id, type, amount, balance_after, reference_id,
+			related_account_id, idempotency_key, created_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (account_id, idempotency_key)
+		WHERE idempotency_key IS NOT NULL
+		DO NOTHING
 	`
 
-	_, err := r.exec.Exec(ctx, query,
+	cmd, err := r.exec.Exec(ctx, query,
 		tx.ID,
 		tx.AccountID,
 		tx.Type,
 		tx.Amount,
 		tx.BalanceAfter,
 		tx.ReferenceID,
+		tx.RelatedAccountID,
+		tx.IdempotencyKey,
 		tx.CreatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("create account transaction: %w", err)
+	}
+
+	if tx.IdempotencyKey != nil && cmd.RowsAffected() == 0 {
+		return domain.ErrTransferDuplicate
 	}
 
 	return nil
@@ -116,76 +126,76 @@ func (r *Repository) CreateTransaction(ctx context.Context, tx *domain.Transacti
 	return r.base.CreateTransaction(ctx, tx)
 }
 
-func (r *baseRepository) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
-	var operation domain.Operation
+func (r *baseRepository) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
+	var t domain.Transaction
 
 	query := `
-		SELECT id, account_id, type, amount, description, related_account_id, reference_id, idempotency_key, created_at
-		FROM transactions
+		SELECT id, account_id, type, amount, balance_after, reference_id,
+		       related_account_id, idempotency_key, created_at
+		FROM account_transactions
 		WHERE account_id = $1 AND idempotency_key = $2
 		LIMIT 1
 	`
 
 	err := r.exec.QueryRow(ctx, query, accountID, key).Scan(
-		&operation.ID,
-		&operation.AccountID,
-		&operation.Type,
-		&operation.Amount,
-		&operation.Description,
-		&operation.RelatedAccountID,
-		&operation.ReferenceID,
-		&operation.IdempotencyKey,
-		&operation.CreatedAt,
+		&t.ID,
+		&t.AccountID,
+		&t.Type,
+		&t.Amount,
+		&t.BalanceAfter,
+		&t.ReferenceID,
+		&t.RelatedAccountID,
+		&t.IdempotencyKey,
+		&t.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("get operation by idempotency key: %w", err)
+		return nil, fmt.Errorf("get transaction by idempotency key: %w", err)
 	}
 
-	return &operation, nil
+	return &t, nil
 }
 
-func (r *Repository) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
-	return r.base.GetOperationByIdempotencyKey(ctx, accountID, key)
+func (r *Repository) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
+	return r.base.GetTransactionByIdempotencyKey(ctx, accountID, key)
 }
 
-func (r *baseRepository) CreateOperation(ctx context.Context, op *domain.Operation) error {
+func (r *baseRepository) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
+	var t domain.Transaction
+
 	query := `
-		INSERT INTO transactions (
-			id, account_id, type, amount, description, related_account_id, reference_id, idempotency_key, created_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		ON CONFLICT (account_id, idempotency_key)
-		WHERE idempotency_key IS NOT NULL
-		DO NOTHING
+		SELECT id, account_id, type, amount, balance_after, reference_id,
+		       related_account_id, idempotency_key, created_at
+		FROM account_transactions
+		WHERE account_id = $1 AND reference_id = $2 AND type = $3
+		LIMIT 1
 	`
 
-	cmd, err := r.exec.Exec(ctx, query,
-		op.ID,
-		op.AccountID,
-		op.Type,
-		op.Amount,
-		op.Description,
-		op.RelatedAccountID,
-		op.ReferenceID,
-		op.IdempotencyKey,
-		op.CreatedAt,
+	err := r.exec.QueryRow(ctx, query, accountID, referenceID, typeName).Scan(
+		&t.ID,
+		&t.AccountID,
+		&t.Type,
+		&t.Amount,
+		&t.BalanceAfter,
+		&t.ReferenceID,
+		&t.RelatedAccountID,
+		&t.IdempotencyKey,
+		&t.CreatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("create operation: %w", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get transaction by reference: %w", err)
 	}
 
-	if cmd.RowsAffected() == 0 {
-		return domain.ErrOperationAlreadyProcessed
-	}
-
-	return nil
+	return &t, nil
 }
 
-func (r *Repository) CreateOperation(ctx context.Context, op *domain.Operation) error {
-	return r.base.CreateOperation(ctx, op)
+func (r *Repository) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
+	return r.base.GetTransactionByReference(ctx, accountID, referenceID, typeName)
 }
 
 func (r *baseRepository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
@@ -295,7 +305,8 @@ func (r *baseRepository) GetTransactions(
 	}
 
 	query := `
-		SELECT id, account_id, type, amount, balance_after, reference_id, created_at
+		SELECT id, account_id, type, amount, balance_after, reference_id,
+		       related_account_id, idempotency_key, created_at
 		FROM account_transactions
 		WHERE account_id = $1
 		  AND ($2::timestamptz IS NULL OR created_at >= $2)
@@ -324,6 +335,8 @@ func (r *baseRepository) GetTransactions(
 			&transaction.Amount,
 			&transaction.BalanceAfter,
 			&transaction.ReferenceID,
+			&transaction.RelatedAccountID,
+			&transaction.IdempotencyKey,
 			&transaction.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("get transactions: %w", err)
@@ -480,12 +493,12 @@ func (r *txRepository) CreateTransaction(ctx context.Context, tx *domain.Transac
 	return r.base.CreateTransaction(ctx, tx)
 }
 
-func (r *txRepository) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
-	return r.base.GetOperationByIdempotencyKey(ctx, accountID, key)
+func (r *txRepository) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
+	return r.base.GetTransactionByIdempotencyKey(ctx, accountID, key)
 }
 
-func (r *txRepository) CreateOperation(ctx context.Context, op *domain.Operation) error {
-	return r.base.CreateOperation(ctx, op)
+func (r *txRepository) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
+	return r.base.GetTransactionByReference(ctx, accountID, referenceID, typeName)
 }
 
 func (r *txRepository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {

@@ -24,12 +24,12 @@ func (m *depositAccountRepositoryMock) CreateTransaction(ctx context.Context, tx
 	return nil
 }
 
-func (m *depositAccountRepositoryMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+func (m *depositAccountRepositoryMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
 	return nil, nil
 }
 
-func (m *depositAccountRepositoryMock) CreateOperation(ctx context.Context, op *domain.Operation) error {
-	return nil
+func (m *depositAccountRepositoryMock) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
+	return nil, nil
 }
 
 func (m *depositAccountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
@@ -121,12 +121,12 @@ func (m *txMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) 
 	return m.createTransactionErr
 }
 
-func (m *txMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+func (m *txMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
 	return nil, nil
 }
 
-func (m *txMock) CreateOperation(ctx context.Context, op *domain.Operation) error {
-	return nil
+func (m *txMock) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
+	return nil, nil
 }
 
 func (m *txMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {

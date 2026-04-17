@@ -136,6 +136,17 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			CONSTRAINT chk_account_status CHECK (status IN ('active', 'inactive', 'blocked'))
 		)`,
+		`CREATE TABLE IF NOT EXISTS account_transactions (
+			id UUID PRIMARY KEY,
+			account_id UUID NOT NULL REFERENCES accounts(id),
+			type VARCHAR(20) NOT NULL,
+			amount BIGINT NOT NULL,
+			balance_after BIGINT NOT NULL,
+			reference_id UUID,
+			related_account_id UUID,
+			idempotency_key VARCHAR(100),
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+		)`,
 		`CREATE SEQUENCE IF NOT EXISTS account_number_seq START WITH 10000000 INCREMENT BY 1`,
 	}
 
@@ -143,6 +154,21 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		if _, err := pool.Exec(ctx, statement); err != nil {
 			t.Fatalf("failed to ensure test schema: %v", err)
 		}
+	}
+
+	// Keep compatibility with pre-existing test databases created before ledger consolidation.
+	if _, err := pool.Exec(ctx, `ALTER TABLE account_transactions ADD COLUMN IF NOT EXISTS related_account_id UUID`); err != nil {
+		t.Fatalf("failed to ensure account_transactions.related_account_id column: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `ALTER TABLE account_transactions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100)`); err != nil {
+		t.Fatalf("failed to ensure account_transactions.idempotency_key column: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS ux_account_transactions_idempotency
+		ON account_transactions(account_id, idempotency_key)
+		WHERE idempotency_key IS NOT NULL`); err != nil {
+		t.Fatalf("failed to ensure account_transactions idempotency index: %v", err)
 	}
 }
 

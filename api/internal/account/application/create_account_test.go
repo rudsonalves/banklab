@@ -30,12 +30,12 @@ func (m *accountRepositoryMock) CreateTransaction(ctx context.Context, tx *domai
 	return nil
 }
 
-func (m *accountRepositoryMock) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+func (m *accountRepositoryMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
 	return nil, nil
 }
 
-func (m *accountRepositoryMock) CreateOperation(ctx context.Context, op *domain.Operation) error {
-	return nil
+func (m *accountRepositoryMock) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
+	return nil, nil
 }
 
 func (m *accountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {

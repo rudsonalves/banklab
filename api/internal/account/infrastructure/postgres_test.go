@@ -79,11 +79,13 @@ func (f *fakeTx) Create(ctx context.Context, account *domain.Account) error { re
 
 func (f *fakeTx) CreateTransaction(ctx context.Context, tx *domain.Transaction) error { return nil }
 
-func (f *fakeTx) GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Operation, error) {
+func (f *fakeTx) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
 	return nil, nil
 }
 
-func (f *fakeTx) CreateOperation(ctx context.Context, op *domain.Operation) error { return nil }
+func (f *fakeTx) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
+	return nil, nil
+}
 
 func (f *fakeTx) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
