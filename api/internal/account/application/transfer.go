@@ -11,7 +11,7 @@ import (
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
-var errTransferIdempotencyConflict = errors.New("transfer idempotency conflict")
+var errTransferDuplicateConflict = errors.New("transfer duplicate conflict")
 
 type Transfer struct {
 	accountRepo domain.AccountRepository
@@ -52,14 +52,15 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 
 	var result *TransferResult
 	err = uc.accountRepo.WithTransaction(ctx, func(tx domain.Tx) error {
+		// Idempotency check: if a ledger entry already exists for this key, replay result.
 		if input.IdempotencyKey != "" {
-			existing, err := tx.GetOperationByIdempotencyKey(ctx, input.FromAccountID, input.IdempotencyKey)
+			existing, err := tx.GetTransactionByIdempotencyKey(ctx, input.FromAccountID, input.IdempotencyKey)
 			if err != nil {
-				return fmt.Errorf("get operation by idempotency key: %w", err)
+				return fmt.Errorf("get transaction by idempotency key: %w", err)
 			}
 
 			if existing != nil {
-				result, err = transferResultFromOperation(ctx, tx, input, existing)
+				result, err = transferResultFromLedger(ctx, tx, existing)
 				if err != nil {
 					return err
 				}
@@ -120,14 +121,44 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 
 		referenceID := uuid.New()
 
-		outgoing := domain.NewTransaction(
-			input.FromAccountID,
-			domain.TransactionTransferOut,
-			input.Amount,
-			fromAccount.Balance,
-			&referenceID,
-		)
+		// Origin side carries idempotency_key and related_account_id.
+		var outgoing *domain.Transaction
+		if input.IdempotencyKey != "" {
+			outgoing = domain.NewTransactionWithIdempotency(
+				input.FromAccountID,
+				domain.TransactionTransferOut,
+				input.Amount,
+				fromAccount.Balance,
+				&referenceID,
+				&input.ToAccountID,
+				input.IdempotencyKey,
+			)
+		} else {
+			outgoing = domain.NewTransaction(
+				input.FromAccountID,
+				domain.TransactionTransferOut,
+				input.Amount,
+				fromAccount.Balance,
+				&referenceID,
+			)
+			outgoing.RelatedAccountID = &input.ToAccountID
+		}
 		if err := tx.CreateTransaction(ctx, outgoing); err != nil {
+			if errors.Is(err, domain.ErrTransferDuplicate) {
+				existing, getErr := tx.GetTransactionByIdempotencyKey(ctx, input.FromAccountID, input.IdempotencyKey)
+				if getErr != nil {
+					return fmt.Errorf("reload transaction by idempotency key: %w", getErr)
+				}
+				if existing == nil {
+					return fmt.Errorf("reload transaction by idempotency key: not found")
+				}
+				result, getErr = transferResultFromLedger(ctx, tx, existing)
+				if getErr != nil {
+					return getErr
+				}
+				// Rollback the duplicate execution while preserving the replay result.
+				return errTransferDuplicateConflict
+			}
 			return fmt.Errorf("create transfer out ledger transaction: %w", err)
 		}
 
@@ -138,41 +169,9 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 			toAccount.Balance,
 			&referenceID,
 		)
+		incoming.RelatedAccountID = &input.FromAccountID
 		if err := tx.CreateTransaction(ctx, incoming); err != nil {
 			return fmt.Errorf("create transfer in ledger transaction: %w", err)
-		}
-
-		if input.IdempotencyKey != "" {
-			op := domain.NewOperation(
-				input.FromAccountID,
-				domain.TransactionTransferOut,
-				input.Amount,
-				&input.ToAccountID,
-				&referenceID,
-				input.IdempotencyKey,
-			)
-
-			if err := tx.CreateOperation(ctx, op); err != nil {
-				if errors.Is(err, domain.ErrOperationAlreadyProcessed) {
-					existing, getErr := tx.GetOperationByIdempotencyKey(ctx, input.FromAccountID, input.IdempotencyKey)
-					if getErr != nil {
-						return fmt.Errorf("reload operation by idempotency key: %w", getErr)
-					}
-					if existing == nil {
-						return fmt.Errorf("reload operation by idempotency key: not found")
-					}
-
-					result, getErr = transferResultFromOperation(ctx, tx, input, existing)
-					if getErr != nil {
-						return getErr
-					}
-
-					// Force rollback of this duplicate execution while preserving the replay result.
-					return errTransferIdempotencyConflict
-				}
-
-				return fmt.Errorf("create transfer operation: %w", err)
-			}
 		}
 
 		result = &TransferResult{
@@ -185,7 +184,7 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, errTransferIdempotencyConflict) && result != nil {
+		if errors.Is(err, errTransferDuplicateConflict) && result != nil {
 			return result, nil
 		}
 		return nil, err
@@ -194,39 +193,47 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 	return result, nil
 }
 
-func transferResultFromOperation(ctx context.Context, tx domain.Tx, input TransferInput, op *domain.Operation) (*TransferResult, error) {
-	toAccountID := input.ToAccountID
-	if op.RelatedAccountID != nil {
-		toAccountID = *op.RelatedAccountID
+func transferResultFromLedger(ctx context.Context, tx domain.Tx, outgoing *domain.Transaction) (*TransferResult, error) {
+	if outgoing == nil {
+		return nil, fmt.Errorf("ledger inconsistency: outgoing transaction is nil")
 	}
 
-	fromAccount, err := tx.GetByID(ctx, input.FromAccountID)
+	if outgoing.Type != domain.TransactionTransferOut {
+		return nil, fmt.Errorf("ledger inconsistency: expected transfer_out, got %s", outgoing.Type)
+	}
+
+	if outgoing.RelatedAccountID == nil {
+		return nil, fmt.Errorf("ledger inconsistency: missing related_account_id on transfer_out")
+	}
+
+	if outgoing.ReferenceID == nil {
+		return nil, fmt.Errorf("ledger inconsistency: missing reference_id on transfer_out")
+	}
+
+	incoming, err := tx.GetTransactionByReference(
+		ctx,
+		*outgoing.RelatedAccountID,
+		*outgoing.ReferenceID,
+		domain.TransactionTransferIn,
+	)
 	if err != nil {
-		if errors.Is(err, domain.ErrAccountNotFound) {
-			return nil, err
-		}
-		return nil, fmt.Errorf("get source account for idempotency replay: %w", err)
+		return nil, fmt.Errorf("get transfer_in by reference: %w", err)
 	}
 
-	toAccount, err := tx.GetByID(ctx, toAccountID)
-	if err != nil {
-		if errors.Is(err, domain.ErrAccountNotFound) {
-			return nil, err
-		}
-		return nil, fmt.Errorf("get destination account for idempotency replay: %w", err)
+	if incoming == nil {
+		return nil, fmt.Errorf("ledger inconsistency: transfer_in not found for reference %s", outgoing.ReferenceID.String())
 	}
 
-	amount := op.Amount
-	if amount <= 0 {
-		amount = input.Amount
+	if incoming.RelatedAccountID == nil || *incoming.RelatedAccountID != outgoing.AccountID {
+		return nil, fmt.Errorf("ledger inconsistency: transfer_in related_account_id mismatch")
 	}
 
 	return &TransferResult{
-		FromAccountID: input.FromAccountID,
-		ToAccountID:   toAccountID,
-		Amount:        amount,
-		FromBalance:   fromAccount.Balance,
-		ToBalance:     toAccount.Balance,
+		FromAccountID: outgoing.AccountID,
+		ToAccountID:   *outgoing.RelatedAccountID,
+		Amount:        outgoing.Amount,
+		FromBalance:   outgoing.BalanceAfter,
+		ToBalance:     incoming.BalanceAfter,
 	}, nil
 }
 

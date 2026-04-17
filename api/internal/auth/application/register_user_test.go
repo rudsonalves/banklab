@@ -18,14 +18,20 @@ type userRepositoryMock struct {
 	createCalls        int
 	createErr          error
 	createdUser        *domain.User
-	withTxCalls        int
-	withTxErr          error
 }
 
 func (m *userRepositoryMock) Create(ctx context.Context, user *domain.User) error {
 	m.createCalls++
 	m.createdUser = user
 	return m.createErr
+}
+
+func (m *userRepositoryMock) UpdateStatus(ctx context.Context, userID uuid.UUID, status domain.UserStatus) error {
+	return nil
+}
+
+func (m *userRepositoryMock) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	return nil, nil
 }
 
 func (m *userRepositoryMock) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
@@ -41,10 +47,15 @@ func (m *userRepositoryMock) ExistsByEmail(ctx context.Context, email string) (b
 	return m.existsByEmailValue, m.existsByEmailErr
 }
 
-func (m *userRepositoryMock) WithTransaction(ctx context.Context, fn func(txCtx context.Context) error) error {
-	m.withTxCalls++
-	if m.withTxErr != nil {
-		return m.withTxErr
+type registerTransactorMock struct {
+	runInTxCalls int
+	runInTxErr   error
+}
+
+func (m *registerTransactorMock) RunInTx(ctx context.Context, fn func(context.Context) error) error {
+	m.runInTxCalls++
+	if m.runInTxErr != nil {
+		return m.runInTxErr
 	}
 
 	return fn(ctx)
@@ -88,7 +99,8 @@ func TestRegisterUserUseCase_Execute_Success(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher)
+	transactor := &registerTransactorMock{}
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
 		Email:    "  USER@Example.com ",
@@ -121,8 +133,8 @@ func TestRegisterUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatal("expected customer ID to be set")
 	}
 
-	if userRepo.withTxCalls != 1 {
-		t.Fatalf("expected WithTransaction to be called once, got %d", userRepo.withTxCalls)
+	if transactor.runInTxCalls != 1 {
+		t.Fatalf("expected RunInTx to be called once, got %d", transactor.runInTxCalls)
 	}
 
 	if userRepo.existsByEmailCalls != 1 {
@@ -190,7 +202,8 @@ func TestRegisterUserUseCase_Execute_DuplicateEmail(t *testing.T) {
 	userRepo := &userRepositoryMock{existsByEmailValue: true}
 	customerRepo := &customerRepositoryMock{}
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher)
+	transactor := &registerTransactorMock{}
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
 		Email:    "user@example.com",
@@ -224,7 +237,8 @@ func TestRegisterUserUseCase_Execute_InvalidEmail(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	hasher := &passwordHasherMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher)
+	transactor := &registerTransactorMock{}
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
 		Email:    "invalid-email",
@@ -262,7 +276,8 @@ func TestRegisterUserUseCase_Execute_InvalidPassword(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	hasher := &passwordHasherMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher)
+	transactor := &registerTransactorMock{}
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
 		Email:    "user@example.com",
@@ -301,7 +316,8 @@ func TestRegisterUserUseCase_Execute_HashingFailure(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	hasher := &passwordHasherMock{hashErr: expectedErr}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher)
+	transactor := &registerTransactorMock{}
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
 		Email:    "user@example.com",
@@ -332,7 +348,8 @@ func TestRegisterUserUseCase_Execute_CustomerCreateFailure(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{createErr: expectedErr}
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher)
+	transactor := &registerTransactorMock{}
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
 		Email:    "user@example.com",
@@ -359,11 +376,10 @@ func TestRegisterUserUseCase_Execute_CustomerCreateFailure(t *testing.T) {
 // for a customer-role user, ErrInvalidUserState is returned.
 func TestRegisterUserUseCase_Execute_CustomerIDNeverNilForCustomerRole(t *testing.T) {
 	customerRepo := &customerRepositoryMock{}
-	hasher := &passwordHasherMock{hashValue: "hashed-password"}
+	hasher := &passwordHasherMock{}
 
 	// Inject a user repo whose Create() clears CustomerID to simulate a bug.
 	userRepo := &userRepositoryMock{}
-	userRepo.createErr = nil // allow create
 
 	// We can't easily test NewUser returning ErrInvalidUserState via the use case
 	// because the constructor is called inside the transaction. Instead we verify

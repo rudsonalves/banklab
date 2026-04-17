@@ -12,8 +12,13 @@ Content type:
 - response: application/json
 
 Authentication:
-- JWT Bearer token
-- Send in header Authorization: Bearer <access_token>
+- `POST /auth/register` and `POST /auth/login` require header `X-App-Token: <app_token>`
+- `POST /auth/refresh`, `GET /auth/me`, all `/accounts/*`, and all `/customers/*` require JWT Bearer token
+- Send JWT in header `Authorization: Bearer <access_token>`
+
+Access control summary:
+- Auth entry routes: AppToken only
+- Auth session and service routes: JWT only
 
 ## 2. Response Envelope
 
@@ -100,7 +105,7 @@ Example - 500 INTERNAL_ERROR:
 
 - Method: POST
 - Path: /auth/register
-- Auth required: no
+- Auth required: AppToken (`X-App-Token`)
 
 This endpoint creates a User and an associated Customer atomically in a single transaction. The Customer is created automatically — the client never needs to call a separate customer creation endpoint.
 
@@ -134,6 +139,7 @@ Success response (201):
 `customer_id` is always populated for users with role `customer`.
 
 Possible errors:
+- 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_DATA: invalid email or password format
 - 409 USER_ALREADY_EXISTS: duplicate email
@@ -144,7 +150,7 @@ Possible errors:
 
 - Method: POST
 - Path: /auth/login
-- Auth required: no
+- Auth required: AppToken (`X-App-Token`)
 
 Request body:
 
@@ -161,6 +167,7 @@ Success response (200):
 {
   "data": {
     "access_token": "<jwt>",
+    "refresh_token": "<opaque-token>",
     "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
     "email": "user@example.com",
     "role": "customer",
@@ -172,13 +179,56 @@ Success response (200):
 
 `customer_id` is always populated for users with role `customer`. The JWT embeds this value for use in subsequent requests.
 
+Every login issues a new refresh token and persists a corresponding server-side session. The refresh token is required to obtain a new access token via `POST /auth/refresh`.
+
 Possible errors:
-- 400 INVALID_REQUEST: invalid JSON body
+- 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
+- 400 INVALID_REQUEST: invalid JSON body or unknown fields
 - 400 INVALID_DATA: invalid email or password input
 - 401 INVALID_CREDENTIALS: invalid email/password
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.3 Get Current User
+## 3.3 Refresh Access Token
+
+- Method: POST
+- Path: /auth/refresh
+- Auth required: JWT Bearer token
+
+Exchanges a valid refresh token for a new access token and a new refresh token (token rotation). Each refresh token is single-use — after a successful refresh the old token is immediately revoked and a new session is created atomically.
+
+Request body:
+
+```json
+{
+  "refresh_token": "<opaque-token>"
+}
+```
+
+The `refresh_token` field is required and must not be blank. Unknown fields are rejected.
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "access_token": "<new-jwt>",
+    "refresh_token": "<new-opaque-token>"
+  },
+  "error": null
+}
+```
+
+Behaviour:
+- The old refresh token is revoked and the new token is persisted in a single database transaction. If either step fails the entire rotation is rolled back and the original token remains valid.
+- A refresh token that has been revoked, is expired, or does not correspond to any session returns `401 INVALID_TOKEN`.
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 400 INVALID_REQUEST: missing or blank `refresh_token`, invalid JSON, or unknown fields
+- 401 INVALID_TOKEN: token invalid, revoked, expired, or not found
+- 500 INTERNAL_ERROR: unexpected internal error
+
+## 3.4 Get Current User
 
 - Method: GET
 - Path: /auth/me
@@ -203,6 +253,64 @@ Possible errors:
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 500 INTERNAL_ERROR: unexpected internal error
 
+## 3.5 Approve User (Admin Only)
+
+- Method: POST
+- Path: /admin/users/{id}/approve
+- Auth required: JWT (admin role)
+
+Approves a pending user, transitioning them from `pending` to `active` status. Also creates the associated account atomically.
+
+Path parameters:
+
+- `id`: UUID of the user to approve
+
+Request body:
+
+Empty object or no body required.
+
+```json
+{}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "status": "active",
+    "email": "user@example.com",
+    "account_id": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789",
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
+  },
+  "error": null
+}
+```
+
+Response fields:
+
+- `user_id`: UUID of the approved user
+- `status`: new status (always "active" on success)
+- `email`: user email
+- `account_id`: UUID of the newly created account
+- `customer_id`: UUID of the customer (derived from approval flow)
+
+Atomicity:
+
+- User status update and account creation occur within a single database transaction
+- If account creation fails, user status is not updated
+- No partial state is possible
+
+Possible errors:
+
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid or expired
+- 403 FORBIDDEN: authenticated user does not have admin role
+- 404 USER_NOT_FOUND: user does not exist
+- 400 USER_ALREADY_ACTIVE: user is already active (cannot approve active/blocked users)
+- 500 INTERNAL_ERROR: unexpected internal error
+
 ## 4. Account Endpoints
 
 All account routes are protected and require Authorization header with Bearer token.
@@ -214,6 +322,8 @@ Ownership is enforced automatically. A customer-role user can only access accoun
 - Method: POST
 - Path: /accounts
 - Auth required: yes
+
+Creates a new account for the authenticated user. The user **must have status = active** to create an account.
 
 The `customer_id` is derived automatically from the authenticated user's JWT token. The client MUST NOT send a `customer_id` in the request body.
 
@@ -245,7 +355,7 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: user is not active or access denied
 - 404 CUSTOMER_NOT_FOUND: customer does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -281,7 +391,7 @@ Possible errors:
 - 400 INVALID_DATA: invalid account id
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_AMOUNT: amount must be greater than zero
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: access denied
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
@@ -318,7 +428,7 @@ Possible errors:
 - 400 INVALID_DATA: invalid account id
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_AMOUNT: amount must be greater than zero
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: access denied
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 422 INSUFFICIENT_FUNDS: insufficient funds
 - 422 ACCOUNT_INACTIVE: account not active
@@ -336,9 +446,15 @@ Request body:
 {
   "from_account_id": "7e2a56a4-b56c-44aa-9204-5e6c2df659d5",
   "to_account_id": "f2ec464e-dd1d-4b89-9f29-bf45dcbf16ff",
-  "amount": 2500
+  "amount": 2500,
+  "idempotency_key": "optional-client-key"
 }
 ```
+
+Notes:
+- `idempotency_key` is optional.
+- Idempotency scope is `(from_account_id, idempotency_key)`.
+- Replay responses return the historical transfer result from ledger data (not current account balances).
 
 Success response (200):
 
@@ -362,7 +478,7 @@ Possible errors:
 - 400 INVALID_DATA: invalid UUID data
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: access denied
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
 - 422 INSUFFICIENT_FUNDS: source account has insufficient funds
 - 422 ACCOUNT_INACTIVE: one account is inactive
@@ -422,7 +538,7 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_DATA: invalid path/query value or cursor/cursor_id mismatch
-- 403 FORBIDDEN: access denied to account
+- 403 FORBIDDEN: access denied
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -476,6 +592,7 @@ This rule is enforced in the application layer via `CanAccessAccount` and `CanAc
 ## 7. Error Code Reference
 
 Common error codes currently used by handlers:
+- INVALID_APP_TOKEN
 - INVALID_REQUEST
 - INVALID_DATA
 - INVALID_AMOUNT
@@ -492,6 +609,10 @@ Common error codes currently used by handlers:
 - SAME_ACCOUNT_TRANSFER
 - INTERNAL_ERROR
 
+`INVALID_APP_TOKEN` (HTTP 401) is returned when `POST /auth/register` or `POST /auth/login` is called without `X-App-Token` or with an invalid app token.
+
+`INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or JWT signature invalid.
+
 `INVALID_USER_STATE` (HTTP 409) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
 
 ## 8. Domain Notes for API Consumers
@@ -506,6 +627,20 @@ Common error codes currently used by handlers:
 This section lists common error situations and the expected payload shape.
 
 ### 9.1 POST /auth/register
+
+Scenario: missing or invalid app token
+- Status: 401
+- Code: INVALID_APP_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_APP_TOKEN",
+    "message": "invalid application token"
+  }
+}
+```
 
 Scenario: malformed JSON
 - Status: 400
@@ -537,6 +672,20 @@ Scenario: duplicate email/CPF
 
 ### 9.2 POST /auth/login
 
+Scenario: missing or invalid app token
+- Status: 401
+- Code: INVALID_APP_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_APP_TOKEN",
+    "message": "invalid application token"
+  }
+}
+```
+
 Scenario: invalid credentials
 - Status: 401
 - Code: INVALID_CREDENTIALS
@@ -551,7 +700,23 @@ Scenario: invalid credentials
 }
 ```
 
-### 9.3 GET /auth/me
+### 9.3 POST /auth/refresh
+
+Scenario: missing/invalid JWT authentication
+- Status: 401
+- Code: UNAUTHORIZED or INVALID_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+### 9.4 GET /auth/me
 
 Scenario: missing/invalid authentication
 - Status: 401
@@ -567,7 +732,7 @@ Scenario: missing/invalid authentication
 }
 ```
 
-### 9.4 POST /accounts
+### 9.5 POST /accounts
 
 Scenario: authenticated user cannot create account for requested context
 - Status: 403
@@ -578,7 +743,7 @@ Scenario: authenticated user cannot create account for requested context
   "data": null,
   "error": {
     "code": "FORBIDDEN",
-    "message": "Access denied to account"
+    "message": "Access denied"
   }
 }
 ```
@@ -682,7 +847,7 @@ Scenario: access denied to source account
   "data": null,
   "error": {
     "code": "FORBIDDEN",
-    "message": "Access denied to account"
+    "message": "Access denied"
   }
 }
 ```

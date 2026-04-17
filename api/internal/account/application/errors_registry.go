@@ -60,7 +60,7 @@ func RegisterErrors() {
 	sharederrors.RegisterDomainError(
 		domain.ErrForbidden,
 		sharederrors.ErrCodeForbidden,
-		"Access denied to account",
+		"Access denied",
 		http.StatusForbidden,
 	)
 }

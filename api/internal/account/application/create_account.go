@@ -12,15 +12,18 @@ import (
 type CreateAccount struct {
 	accountRepo  domain.AccountRepository
 	customerRepo domain.CustomerRepository
+	userRepo     authdomain.UserRepository
 }
 
 func NewCreateAccount(
 	accountRepo domain.AccountRepository,
 	customerRepo domain.CustomerRepository,
+	userRepo authdomain.UserRepository,
 ) *CreateAccount {
 	return &CreateAccount{
 		accountRepo:  accountRepo,
 		customerRepo: customerRepo,
+		userRepo:     userRepo,
 	}
 }
 
@@ -30,6 +33,23 @@ type CreateAccountInput struct {
 
 func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) (*domain.Account, error) {
 	if input.User == nil || input.User.CustomerID == nil {
+		return nil, domain.ErrForbidden
+	}
+	if uc.userRepo == nil {
+		return nil, fmt.Errorf("user repository not configured")
+	}
+	if input.User.UserID == uuid.Nil {
+		return nil, domain.ErrForbidden
+	}
+
+	user, err := uc.userRepo.FindByID(ctx, input.User.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("find user by id: %w", err)
+	}
+	if user == nil {
+		return nil, domain.ErrForbidden
+	}
+	if user.Status != authdomain.UserStatusActive {
 		return nil, domain.ErrForbidden
 	}
 
@@ -66,7 +86,7 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 	if err != nil {
 		return nil, fmt.Errorf("generate account number: %w", err)
 	}
-	branch := generateBranch()
+	branch := GenerateBranch()
 
 	account, err := domain.NewAccount(customerID, number, branch)
 	if err != nil {
@@ -80,6 +100,6 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 	return account, nil
 }
 
-func generateBranch() string {
+func GenerateBranch() string {
 	return "0001"
 }

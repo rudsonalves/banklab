@@ -23,6 +23,10 @@ func (m *tokenServiceMock) GenerateAccessToken(claims domain.TokenClaims) (strin
 	return "", nil
 }
 
+func (m *tokenServiceMock) GenerateRefreshToken(userID uuid.UUID) (string, error) {
+	return "", nil
+}
+
 func (m *tokenServiceMock) ParseAccessToken(token string) (*domain.TokenClaims, error) {
 	m.called = true
 	m.token = token
@@ -30,6 +34,10 @@ func (m *tokenServiceMock) ParseAccessToken(token string) (*domain.TokenClaims, 
 		return nil, m.err
 	}
 	return m.claims, nil
+}
+
+func (m *tokenServiceMock) ParseRefreshToken(token string) (uuid.UUID, error) {
+	return uuid.Nil, nil
 }
 
 func TestJWTMiddleware_RequireAuth_ValidToken(t *testing.T) {

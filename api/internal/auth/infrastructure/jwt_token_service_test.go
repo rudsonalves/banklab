@@ -1,7 +1,7 @@
 package infrastructure
 
 import (
-	"errors"
+	"encoding/base64"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +40,44 @@ func TestJWTTokenService_GenerateAndParseAccessToken_Success(t *testing.T) {
 
 	if claims.CustomerID == nil || *claims.CustomerID != cid {
 		t.Fatalf("expected customer id %q, got %#v", cid, claims.CustomerID)
+	}
+}
+
+func TestJWTTokenService_GenerateAccessToken_SetsExpirationClaim(t *testing.T) {
+	ttl := 15 * time.Minute
+	service := NewJWTTokenService("test-secret", ttl)
+
+	before := time.Now().UTC()
+	token, err := service.GenerateAccessToken(domain.TokenClaims{
+		UserID: uuid.MustParse("00000000-0000-0000-0000-000000000123"),
+		Role:   domain.RoleCustomer,
+	})
+	if err != nil {
+		t.Fatalf("expected no error generating token, got %v", err)
+	}
+	after := time.Now().UTC()
+
+	parsed, err := jwt.Parse(token, func(t *jwt.Token) (any, error) {
+		return []byte("test-secret"), nil
+	})
+	if err != nil {
+		t.Fatalf("expected no error parsing generated token, got %v", err)
+	}
+
+	claims, ok := parsed.Claims.(jwt.MapClaims)
+	if !ok {
+		t.Fatalf("expected jwt.MapClaims, got %T", parsed.Claims)
+	}
+
+	exp, err := claims.GetExpirationTime()
+	if err != nil {
+		t.Fatalf("expected exp claim to be present, got %v", err)
+	}
+
+	minExp := before.Add(ttl).Add(-1 * time.Second)
+	maxExp := after.Add(ttl).Add(1 * time.Second)
+	if exp.Time.UTC().Before(minExp) || exp.Time.UTC().After(maxExp) {
+		t.Fatalf("expected exp between %v and %v, got %v", minExp, maxExp, exp.Time)
 	}
 }
 
@@ -155,9 +193,92 @@ func TestJWTTokenService_ParseAccessToken_MissingRequiredClaims(t *testing.T) {
 				t.Fatal("expected parsing token to fail")
 			}
 
-			if !errors.Is(err, err) && !strings.Contains(err.Error(), tc.errText) {
+			if !strings.Contains(err.Error(), tc.errText) {
 				t.Fatalf("expected error containing %q, got %v", tc.errText, err)
 			}
 		})
+	}
+}
+
+func TestJWTTokenService_GenerateAndParseRefreshToken_Success(t *testing.T) {
+	service := NewJWTTokenService("test-secret", time.Minute)
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000123")
+
+	token, err := service.GenerateRefreshToken(userID)
+	if err != nil {
+		t.Fatalf("expected no error generating refresh token, got %v", err)
+	}
+
+	if token == "" {
+		t.Fatal("expected non-empty refresh token")
+	}
+
+	parsedUserID, err := service.ParseRefreshToken(token)
+	if err != nil {
+		t.Fatalf("expected no error parsing refresh token, got %v", err)
+	}
+
+	if parsedUserID != userID {
+		t.Fatalf("expected user id %q, got %q", userID, parsedUserID)
+	}
+}
+
+func TestJWTTokenService_GenerateRefreshToken_HighEntropy(t *testing.T) {
+	service := NewJWTTokenService("test-secret", time.Minute)
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000123")
+
+	first, err := service.GenerateRefreshToken(userID)
+	if err != nil {
+		t.Fatalf("expected no error generating first refresh token, got %v", err)
+	}
+
+	second, err := service.GenerateRefreshToken(userID)
+	if err != nil {
+		t.Fatalf("expected no error generating second refresh token, got %v", err)
+	}
+
+	if first == second {
+		t.Fatal("expected different refresh tokens for same user")
+	}
+}
+
+func TestJWTTokenService_ParseRefreshToken_TamperedSignature(t *testing.T) {
+	service := NewJWTTokenService("test-secret", time.Minute)
+	userID := uuid.MustParse("00000000-0000-0000-0000-000000000123")
+
+	token, err := service.GenerateRefreshToken(userID)
+	if err != nil {
+		t.Fatalf("expected no error generating refresh token, got %v", err)
+	}
+
+	parts := strings.SplitN(token, ".", 2)
+	if len(parts) != 2 {
+		t.Fatalf("expected token with 2 parts, got %d", len(parts))
+	}
+
+	sig, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		t.Fatalf("expected valid signature encoding, got %v", err)
+	}
+	sig[0] ^= 0x01
+	tamperedSig := base64.RawURLEncoding.EncodeToString(sig)
+	tampered := parts[0] + "." + tamperedSig
+
+	_, err = service.ParseRefreshToken(tampered)
+	if err == nil {
+		t.Fatal("expected parsing tampered refresh token to fail")
+	}
+
+	if !strings.Contains(err.Error(), "signature") {
+		t.Fatalf("expected signature error, got %v", err)
+	}
+}
+
+func TestJWTTokenService_ParseRefreshToken_Malformed(t *testing.T) {
+	service := NewJWTTokenService("test-secret", time.Minute)
+
+	_, err := service.ParseRefreshToken("not-a-refresh-token")
+	if err == nil {
+		t.Fatal("expected parsing malformed refresh token to fail")
 	}
 }

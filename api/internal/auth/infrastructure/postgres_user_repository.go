@@ -3,7 +3,6 @@ package infrastructure
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -44,10 +43,11 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 			password_hash,
 			role,
 			customer_id,
+			status,
 			created_at,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
 	_, err := r.executor(ctx).Exec(
@@ -58,11 +58,31 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 		user.PasswordHash,
 		string(user.Role),
 		nullableUUIDValue(user.CustomerID),
+		string(user.Status),
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (r *PostgresUserRepository) UpdateStatus(ctx context.Context, userID uuid.UUID, status domain.UserStatus) error {
+	query := `
+		UPDATE users
+		SET status = $1, updated_at = NOW()
+		WHERE id = $2
+	`
+
+	result, err := r.executor(ctx).Exec(ctx, query, string(status), userID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return domain.ErrUserNotFound
 	}
 
 	return nil
@@ -76,6 +96,7 @@ func (r *PostgresUserRepository) FindByEmail(ctx context.Context, email string) 
 			password_hash,
 			role,
 			customer_id,
+			status,
 			created_at,
 			updated_at
 		FROM users
@@ -102,10 +123,39 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id uuid.UUID) (*d
 			password_hash,
 			role,
 			customer_id,
+			status,
 			created_at,
 			updated_at
 		FROM users
 		WHERE id = $1
+	`
+
+	row := r.executor(ctx).QueryRow(ctx, query, id)
+	user, err := scanUser(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (r *PostgresUserRepository) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	query := `
+		SELECT
+			id,
+			email,
+			password_hash,
+			role,
+			customer_id,
+			status,
+			created_at,
+			updated_at
+		FROM users
+		WHERE id = $1
+		FOR UPDATE
 	`
 
 	row := r.executor(ctx).QueryRow(ctx, query, id)
@@ -140,30 +190,6 @@ func (r *PostgresUserRepository) ExistsByEmail(ctx context.Context, email string
 	return true, nil
 }
 
-func (r *PostgresUserRepository) WithTransaction(ctx context.Context, fn func(txCtx context.Context) error) error {
-	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("begin user transaction: %w", err)
-	}
-
-	txCtx := database.ContextWithTx(ctx, tx)
-	if err := fn(txCtx); err != nil {
-		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
-			return fmt.Errorf("rollback user transaction after callback error: %v (original: %w)", rollbackErr, err)
-		}
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
-			return fmt.Errorf("rollback user transaction after commit error: %v (commit: %w)", rollbackErr, err)
-		}
-		return fmt.Errorf("commit user transaction: %w", err)
-	}
-
-	return nil
-}
-
 type scanner interface {
 	Scan(dest ...any) error
 }
@@ -172,6 +198,7 @@ func scanUser(s scanner) (*domain.User, error) {
 	var user domain.User
 	var role string
 	var customerID *uuid.UUID
+	var status string
 
 	err := s.Scan(
 		&user.ID,
@@ -179,6 +206,7 @@ func scanUser(s scanner) (*domain.User, error) {
 		&user.PasswordHash,
 		&role,
 		&customerID,
+		&status,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -188,6 +216,7 @@ func scanUser(s scanner) (*domain.User, error) {
 
 	user.Role = domain.Role(role)
 	user.CustomerID = customerID
+	user.Status = domain.UserStatus(status)
 
 	return &user, nil
 }

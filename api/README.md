@@ -1,166 +1,129 @@
 # Bank API
 
-Bank API is a modular Go service that implements a simplified banking core, designed with a strong emphasis on transactional consistency and system correctness.
+Bank API is a Go service that implements a simplified banking core with emphasis on transactional consistency and explicit business invariants.
 
-Rather than a feature-complete product, this project serves as an engineering-focused environment to explore backend design decisions in financial systems.
+This service is part of the banklab monorepo and is designed to be consumed by the Flutter mobile app in the same repository.
 
-## Purpose
-
-This project is part of a broader effort to build and validate a complete system (backend + mobile client), focusing on:
-
-- correctness of financial operations
-- consistency guarantees under concurrent access
-- clear API contracts between backend and client
-- explicit modeling of business rules and invariants
-
-## Core Capabilities
-
-- customer creation
-- user registration and authentication (JWT)
-- account creation and ownership enforcement
-- financial operations (deposit, withdraw, transfer)
-- account statement with pagination and filtering
-
-## Architectural Approach
-
-The system follows a layered modular monolith structure:
-
-- Delivery (HTTP layer)
-- Application (use cases and transaction orchestration)
-- Domain (business rules and invariants)
-- Infrastructure (PostgreSQL and repositories)
-
-Dependency direction:
-
-- Delivery → Application → Domain  
-- Infrastructure → Domain  
-
-This structure is intentionally enforced to keep business logic isolated and predictable.
-
-## Design Focus
-
-### Transactional Consistency
-
-Financial operations are treated as critical sections:
-
-- all balance-changing operations run inside explicit database transactions
-- row-level locking (`SELECT FOR UPDATE`) is used to prevent race conditions
-- deterministic lock ordering is applied in transfers to reduce deadlock risk
-
-### Ledger Integrity
-
-- all balance changes are recorded as immutable ledger entries
-- account balance is derived from controlled updates, not arbitrary mutations
-- operations are designed to be traceable and auditable
-
-### Domain Invariants
-
-- business rules are enforced at domain and application levels
-- invalid state transitions are rejected early
-- consistency is prioritized over convenience
-
-### API Design
-
-- consistent response envelope (`data` / `error`)
-- explicit error codes and messages
-- endpoints designed to reflect real-world operations rather than CRUD abstractions
-
-## Technology Stack
+## Stack
 
 - Go 1.26.1
 - PostgreSQL 16
 - pgx/v5
-- net/http (standard library)
+- net/http
 
-## Implemented Endpoints
+## Architecture
 
-Authentication:
-- POST /auth/register
-- POST /auth/login
-- GET /auth/me
+Modular monolith with layered boundaries:
 
-Customer:
-- POST /customers
+- Delivery: HTTP handlers and request/response mapping
+- Application: use cases and transaction orchestration
+- Domain: entities, value objects, invariants, domain errors
+- Infrastructure: repositories and database integration
 
-Accounts:
-- POST /accounts
-- POST /accounts/{id}/deposit
-- POST /accounts/{id}/withdraw
-- POST /accounts/transfer
-- GET /accounts/{id}/statement
+Dependency direction:
 
-Protected routes require JWT authentication.
+- Delivery -> Application -> Domain
+- Infrastructure -> Domain
 
-## Persistence Model
+## Features
 
-- relational schema in PostgreSQL
-- balances stored in minor units (BIGINT)
-- ledger entries stored in `account_transactions`
-- explicit transaction boundaries for all critical operations
+- auth: register, login, current user
+- customer creation
+- account creation
+- balance-changing operations: deposit, withdraw, transfer
+- account statement listing with pagination support
 
-## Local Development
+## API routes
 
-**Start database:**
+```text
+POST   /auth/register
+POST   /auth/login
+GET    /auth/me
 
+POST   /customers
+
+POST   /accounts
+POST   /accounts/{id}/deposit
+POST   /accounts/{id}/withdraw
+POST   /accounts/transfer
+GET    /accounts/{id}/statement
 ```
+
+All routes except register/login require JWT authentication.
+
+## Local setup
+
+The recommended flow is from repository root.
+
+1. Start database:
+
+```bash
 make docker-up
+```
+
+2. Run migrations:
+
+```bash
 make api-migrate-up
 ```
 
-This starts PostgreSQL 16 in a container and runs all pending database migrations.
+3. Build API:
 
-**Run tests:**
-
-```
-make api-test
-```
-
-Runs all tests with coverage report.
-
-**Build and run API:**
-
-```
+```bash
 make api-build
+```
+
+4. Run API:
+
+```bash
 export JWT_SECRET=dev-change-me
 ./api/build/bank-api
 ```
 
-Compiles the binary into the `api/build/` directory and runs the server on `http://localhost:8080`.
+Default URL: http://localhost:8080
 
-## Project Structure
+## Tests
 
-- cmd/api: application bootstrap and route registration
-- internal/customer: customer module (domain, application, delivery, infra)
-- internal/account: account and transaction logic
-- internal/auth: authentication and authorization
-- internal/database: database initialization
-- migrations: schema evolution
-- docs: architectural and technical documentation
+From repository root:
 
-## Documentation
+```bash
+make api-test
+```
 
-Detailed design decisions are documented in `../docs/api/`:
+Or directly from api directory:
 
-- [Architecture](../docs/api/00-arquitetura.md)
-- [Domain Model](../docs/api/01-modelo_de_dominio.md)
-- [Use Case Flows](../docs/api/02-fluxos_de_caso_de_uso.md)
-- [Data Model](../docs/api/03-modelo_de_dados.md)
-- [Consistency and Concurrency Strategy](../docs/api/04-estrategia_de_consistencia_e_concorrencia.md)
-- [Error Handling](../docs/api/05-padrao_de_erros_e_respostas.md)
-- [Implementation Details](../docs/api/06-implementation.md)
-- [API REST Design](../docs/api/07-api-rest.md)
-- [Authentication and Authorization](../docs/api/08-auth_implementation.md)
+```bash
+cd api
+go test -cover ./...
+```
 
-## Future Work
+## Directory map
 
-Planned extensions include:
+```text
+api/
+|-- cmd/api/            # application bootstrap
+|-- internal/
+|   |-- account/
+|   |-- auth/
+|   |-- customer/
+|   |-- database/
+|   `-- shared/
+|-- migrations/
+`-- README.md
+```
 
-- Zero Trust Architecture (context-aware request validation)
-- transaction-level authorization (transaction password / step-up auth)
-- onboarding flows aligned with financial systems
-- improved observability and audit capabilities
+## Design documents
 
-## Notes
+- [Architecture](../docs/api/ARCHITECTURE.md)
+- [Domain model](../docs/api/01-modelo_de_dominio.md)
+- [Use case flows](../docs/api/02-fluxos_de_caso_de_uso.md)
+- [Data model](../docs/api/03-modelo_de_dados.md)
+- [Consistency and concurrency strategy](../docs/api/04-estrategia_de_consistencia_e_concorrencia.md)
+- [Error patterns](../docs/api/05-padrao_de_erros_e_respostas.md)
+- [Implementation notes](../docs/api/06-implementation.md)
+- [REST API design](../docs/api/07-api-rest.md)
+- [Auth implementation](../docs/api/08-auth_implementation.md)
 
-- this project prioritizes correctness and design clarity over feature breadth
-- it is intended as an engineering exploration, not a production-ready system
+## Related docs
+
+- Monorepo overview: [../README.md](../README.md)

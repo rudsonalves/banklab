@@ -1,7 +1,13 @@
 package infrastructure
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -58,6 +64,24 @@ func (s *JWTTokenService) GenerateAccessToken(claims domain.TokenClaims) (string
 	return signedToken, nil
 }
 
+func (s *JWTTokenService) GenerateRefreshToken(userID uuid.UUID) (string, error) {
+	nonce := make([]byte, 32)
+	if _, err := rand.Read(nonce); err != nil {
+		return "", err
+	}
+
+	payload := make([]byte, 0, 16+len(nonce))
+	payload = append(payload, userID[:]...)
+	payload = append(payload, nonce...)
+
+	sig := signRefreshPayload(payload, s.secret)
+
+	payloadPart := base64.RawURLEncoding.EncodeToString(payload)
+	sigPart := base64.RawURLEncoding.EncodeToString(sig)
+
+	return payloadPart + "." + sigPart, nil
+}
+
 func (s *JWTTokenService) ParseAccessToken(token string) (*domain.TokenClaims, error) {
 	parsedClaims := &jwtClaims{}
 
@@ -103,4 +127,43 @@ func (s *JWTTokenService) ParseAccessToken(token string) (*domain.TokenClaims, e
 		Role:       domain.Role(parsedClaims.Role),
 		CustomerID: customerID,
 	}, nil
+}
+
+func (s *JWTTokenService) ParseRefreshToken(token string) (uuid.UUID, error) {
+	parts := strings.SplitN(token, ".", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return uuid.Nil, errors.New("invalid refresh token")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return uuid.Nil, errors.New("invalid refresh token payload")
+	}
+
+	sig, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return uuid.Nil, errors.New("invalid refresh token signature")
+	}
+
+	expectedSig := signRefreshPayload(payload, s.secret)
+	if subtle.ConstantTimeCompare(sig, expectedSig) != 1 {
+		return uuid.Nil, errors.New("invalid refresh token signature")
+	}
+
+	if len(payload) != 48 {
+		return uuid.Nil, errors.New("invalid refresh token payload")
+	}
+
+	userID, err := uuid.FromBytes(payload[:16])
+	if err != nil {
+		return uuid.Nil, errors.New("invalid refresh token user id")
+	}
+
+	return userID, nil
+}
+
+func signRefreshPayload(payload []byte, secret []byte) []byte {
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write(payload)
+	return mac.Sum(nil)
 }

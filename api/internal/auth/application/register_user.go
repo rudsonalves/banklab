@@ -13,25 +13,20 @@ import (
 
 type RegisterUserUseCase struct {
 	userRepo     domain.UserRepository
-	txUserRepo   userTransactionRepository
+	transactor   domain.Transactor
 	customerRepo customerdomain.CustomerRepository
 	hasher       domain.PasswordHasher
-}
-
-type userTransactionRepository interface {
-	WithTransaction(ctx context.Context, fn func(txCtx context.Context) error) error
 }
 
 func NewRegisterUserUseCase(
 	userRepo domain.UserRepository,
 	customerRepo customerdomain.CustomerRepository,
 	hasher domain.PasswordHasher,
+	transactor domain.Transactor,
 ) *RegisterUserUseCase {
-	txUserRepo, _ := userRepo.(userTransactionRepository)
-
 	return &RegisterUserUseCase{
 		userRepo:     userRepo,
-		txUserRepo:   txUserRepo,
+		transactor:   transactor,
 		customerRepo: customerRepo,
 		hasher:       hasher,
 	}
@@ -64,13 +59,9 @@ func (uc *RegisterUserUseCase) Execute(
 		return nil, domain.ErrInvalidPassword
 	}
 
-	if uc.txUserRepo == nil {
-		return nil, fmt.Errorf("register user: user repository does not support transactions")
-	}
-
 	var user *domain.User
 
-	err := uc.txUserRepo.WithTransaction(ctx, func(txCtx context.Context) error {
+	err := uc.transactor.RunInTx(ctx, func(txCtx context.Context) error {
 		exists, err := uc.userRepo.ExistsByEmail(txCtx, email)
 		if err != nil {
 			return fmt.Errorf("check email uniqueness: %w", err)

@@ -48,8 +48,8 @@ Main entrypoint:
   - application: create account, deposit, withdraw, transfer, statement
   - delivery: HTTP handlers, request parsing, response mapping
   - infrastructure: PostgreSQL repository with transactional and locking support
-- db/schema.sql: baseline schema including customers, accounts, account_transactions, transactions
-- migrations: additive migration files for account number sequence and account_transactions
+- db/schema.sql: baseline schema including customers, accounts, account_transactions, users, user_sessions
+- migrations: additive files for account number sequence, ledger consolidation, and transfer pair integrity
 
 ## 4. Bootstrap and Wiring
 
@@ -154,6 +154,8 @@ Entity fields:
 - amount
 - balance_after
 - reference_id (nullable UUID)
+- related_account_id (nullable UUID)
+- idempotency_key (nullable string)
 - created_at
 
 Factory behavior:
@@ -181,25 +183,55 @@ Flow:
 
 The customer is always created before the user. If any step fails, the transaction rolls back and no partial state is persisted.
 
-### 6.2 Create Account
+### 6.2 Approve User
+
+Input:
+- user_id
+- authenticated user context (admin role required)
+
+Flow:
+1. Start transaction
+2. Load user with lock (FOR UPDATE)
+3. Validate user exists (returns ErrNotFound if not)
+4. Validate user status == pending (returns appropriate error if already active or blocked)
+5. Update user.status → active
+6. Generate account number using sequence
+7. Create Account entity (branch fixed as "0001", balance = 0, status = active)
+8. Persist account
+9. Update user.customer_id with newly created account's customer_id (if needed)
+10. Persist user updates
+11. Commit transaction
+
+Atomicity guarantee:
+- Status transition and account creation happen within same transaction
+- No partial state possible: either both succeed or both rollback
+
+Dependencies:
+- UserRepository for user lookup and update
+- AccountRepository for account creation
+- Sequence generator for account number
+
+### 6.3 Create Account
 
 Input:
 - authenticated user context (customer_id derived from token principal)
 
 Flow:
 1. Validate authenticated user has non-nil customer_id (returns ErrForbidden otherwise)
-2. Validate customer_id is not zero UUID (returns ErrForbidden)
-3. Validate user owns the customer_id via CanAccessCustomer
-4. Ensure customer exists in the database
-5. Generate account number using sequence
-6. Build account entity (branch currently fixed as "0001")
-7. Persist and return account
+2. Validate user status == active (returns ErrForbidden if pending or blocked)
+3. Validate customer_id is not zero UUID (returns ErrForbidden)
+4. Validate user owns the customer_id via CanAccessCustomer
+5. Ensure customer exists in the database
+6. Generate account number using sequence
+7. Build account entity (branch currently fixed as "0001")
+8. Persist and return account
 
 Notes:
 - The client MUST NOT and CANNOT provide customer_id — it is ignored if sent.
 - Optional one-account-per-customer rule exists but is currently commented out.
+- User must be active (enforced at application layer) to create accounts
 
-### 6.3 Deposit
+### 6.4 Deposit
 
 Input:
 - account_id
@@ -217,7 +249,7 @@ Flow:
 Rollback strategy:
 - deferred rollback executes unless commit succeeds.
 
-### 6.4 Withdraw
+### 6.5 Withdraw
 
 Input:
 - account_id
@@ -232,7 +264,7 @@ Flow:
 6. Insert withdraw ledger row
 7. Commit
 
-### 6.5 Transfer
+### 6.6 Transfer
 
 Input:
 - from_account_id
@@ -248,12 +280,14 @@ Flow:
 6. Decrease source balance
 7. Increase destination balance
 8. Insert transfer_out and transfer_in ledger rows sharing same reference_id
-9. Commit
+9. If idempotency key is present, enforce deduplication on transfer_out by `(account_id, idempotency_key)`
+10. On duplicate, rollback duplicate mutation and replay deterministic result from ledger pair
+11. Commit
 
 Deadlock mitigation:
 - lock ordering by UUID bytes using orderedUUIDs.
 
-### 6.6 Get Statement
+### 6.7 Get Statement
 
 Input:
 - account_id
@@ -269,7 +303,7 @@ Flow:
 5. Map rows to API statement items
 6. Build next cursor if full page returned
 
-### 6.7 Get Customer Me
+### 6.8 Get Customer Me
 
 Input:
 - authenticated user context (customer_id derived from token principal)
@@ -380,15 +414,18 @@ Primary relational objects in db/schema.sql:
 - customers
 - accounts
 - account_transactions
-- transactions
+- users
+- user_sessions
 
 Applied migration files include:
 - account_number_seq sequence
 - account_transactions table + immutability trigger + indexes
+- ledger consolidation from `transactions` to `account_transactions`
+- transfer pair integrity indexes (`reference_id`, `reference_id+type` unique per transfer leg)
 
 Important implementation detail:
-- account operations currently persist ledger entries in account_transactions.
-- The transactions table exists in schema but is not the active ledger table for current account flows.
+- account operations persist ledger entries exclusively in `account_transactions`.
+- idempotent transfer replay is reconstructed from ledger rows (`transfer_out` + paired `transfer_in`) using `reference_id`.
 
 ## 9. Consistency and Concurrency Strategy (Implemented)
 
@@ -453,7 +490,7 @@ Server listens on:
 - DB connection string is hard-coded in code and not yet externalized via environment variables.
 - Branch generation for accounts is currently fixed to "0001".
 - A one-account-per-customer rule is scaffolded but not active.
-- Both transactions and account_transactions tables are present in schema, but account flows use account_transactions.
+- Ledger is single-source (`account_transactions`) and append-only.
 
 ## 13. Summary
 

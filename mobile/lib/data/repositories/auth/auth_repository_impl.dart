@@ -41,7 +41,7 @@ class AuthRepositoryImpl implements AuthRepository {
     _currentUser = user;
 
     await _storage.write(StorageKeys.accessToken, user.accessToken);
-    // await _storage.write(StorageKeys.refreshToken, loggedUser.refreshToken);
+    await _storage.write(StorageKeys.refreshToken, user.refreshToken);
 
     return Success(user);
   }
@@ -54,7 +54,7 @@ class AuthRepositoryImpl implements AuthRepository {
     _userProfile = null;
 
     await _storage.delete(StorageKeys.accessToken);
-    // await _storage.delete(StorageKeys.refreshToken);
+    await _storage.delete(StorageKeys.refreshToken);
 
     return Success(unit);
   }

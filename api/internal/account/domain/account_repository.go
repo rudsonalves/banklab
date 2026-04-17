@@ -14,8 +14,8 @@ type TransactionRepository interface {
 type AccountRepository interface {
 	TransactionRepository
 
-	GetOperationByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*Operation, error)
-	CreateOperation(ctx context.Context, op *Operation) error
+	GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*Transaction, error)
+	GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName TransactionType) (*Transaction, error)
 
 	Create(ctx context.Context, account *Account) error
 	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)

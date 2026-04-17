@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
@@ -25,10 +26,20 @@ type getCurrentUserUseCase interface {
 	Execute(ctx context.Context) (*application.GetCurrentUserOutput, error)
 }
 
+type refreshAccessTokenUseCase interface {
+	Execute(ctx context.Context, input application.RefreshAccessTokenInput) (*application.RefreshAccessTokenOutput, error)
+}
+
+type approveUserUseCase interface {
+	Execute(ctx context.Context, input application.ApproveUserInput) (*application.ApproveUserOutput, error)
+}
+
 type Handler struct {
-	registerUser   registerUserUseCase
-	loginUser      loginUserUseCase
-	getCurrentUser getCurrentUserUseCase
+	registerUser       registerUserUseCase
+	loginUser          loginUserUseCase
+	getCurrentUser     getCurrentUserUseCase
+	refreshAccessToken refreshAccessTokenUseCase
+	approveUser        approveUserUseCase
 }
 
 type registerUserRequest struct {
@@ -43,6 +54,10 @@ type loginUserRequest struct {
 	Password string `json:"password"`
 }
 
+type refreshAccessTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 type userData struct {
 	ID         uuid.UUID  `json:"id"`
 	Email      string     `json:"email"`
@@ -51,22 +66,38 @@ type userData struct {
 }
 
 type loginData struct {
-	AccessToken string     `json:"access_token"`
-	UserID      uuid.UUID  `json:"user_id"`
-	Email       string     `json:"email"`
-	Role        string     `json:"role"`
-	CustomerID  *uuid.UUID `json:"customer_id,omitempty"`
+	AccessToken  string     `json:"access_token"`
+	RefreshToken string     `json:"refresh_token"`
+	UserID       uuid.UUID  `json:"user_id"`
+	Email        string     `json:"email"`
+	Role         string     `json:"role"`
+	CustomerID   *uuid.UUID `json:"customer_id,omitempty"`
+}
+
+type refreshAccessTokenData struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type approveUserData struct {
+	UserID    string `json:"user_id"`
+	Status    string `json:"status"`
+	AccountID string `json:"account_id"`
 }
 
 func New(
 	registerUser registerUserUseCase,
 	loginUser loginUserUseCase,
 	getCurrentUser getCurrentUserUseCase,
+	refreshAccessToken refreshAccessTokenUseCase,
+	approveUser approveUserUseCase,
 ) *Handler {
 	return &Handler{
-		registerUser:   registerUser,
-		loginUser:      loginUser,
-		getCurrentUser: getCurrentUser,
+		registerUser:       registerUser,
+		loginUser:          loginUser,
+		getCurrentUser:     getCurrentUser,
+		refreshAccessToken: refreshAccessToken,
+		approveUser:        approveUser,
 	}
 }
 
@@ -149,12 +180,18 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if output == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
 	sharedhttp.WriteJSON(w, http.StatusOK, loginData{
-		AccessToken: output.AccessToken,
-		UserID:      output.UserID,
-		Email:       output.Email,
-		Role:        output.Role,
-		CustomerID:  output.CustomerID,
+		AccessToken:  output.AccessToken,
+		RefreshToken: output.RefreshToken,
+		UserID:       output.UserID,
+		Email:        output.Email,
+		Role:         output.Role,
+		CustomerID:   output.CustomerID,
 	})
 }
 
@@ -176,5 +213,86 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		Email:      output.Email,
 		Role:       output.Role,
 		CustomerID: output.CustomerID,
+	})
+}
+
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+	if h.refreshAccessToken == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	var req refreshAccessTokenRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	if strings.TrimSpace(req.RefreshToken) == "" {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	output, err := h.refreshAccessToken.Execute(r.Context(), application.RefreshAccessTokenInput{
+		RefreshToken: req.RefreshToken,
+	})
+	if err != nil {
+		log.Printf("event=refresh_access_token error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	if output == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, refreshAccessTokenData{
+		AccessToken:  output.AccessToken,
+		RefreshToken: output.RefreshToken,
+	})
+}
+
+func (h *Handler) ApproveUser(w http.ResponseWriter, r *http.Request) {
+	if h.approveUser == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	user, err := RequireAuthenticatedUser(r.Context())
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrUnauthorized))
+		return
+	}
+
+	if user.Role != authdomain.RoleAdmin {
+		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrForbidden))
+		return
+	}
+
+	userID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrInvalidData))
+		return
+	}
+
+	output, err := h.approveUser.Execute(r.Context(), application.ApproveUserInput{UserID: userID})
+	if err != nil {
+		log.Printf("event=approve_user error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	if output == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, approveUserData{
+		UserID:    output.UserID.String(),
+		Status:    output.Status,
+		AccountID: output.AccountID.String(),
 	})
 }

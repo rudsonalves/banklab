@@ -1,5 +1,1244 @@
 # Changelog
 
+## 2026/04/17 — api/user_status-05
+
+Consolidates the **ledger model as the single source of truth for transactions**, removes the legacy operation abstraction, and introduces a robust idempotency and replay mechanism based entirely on persisted ledger data. This change also aligns repository contracts, database schema, and tests with the new model, while updating the entire documentation set to reflect the evolved architecture.
+
+### 1. Ledger Consolidation and Domain Simplification
+
+* Removed `Operation` entity and its entire persistence flow
+* Eliminated `transactions` table as a separate idempotency store via migration
+* Promoted `account_transactions` as the **canonical ledger**
+* Extended `Transaction` entity:
+
+  * added `related_account_id`
+  * added `idempotency_key`
+* Introduced `NewTransactionWithIdempotency` to support origin-side idempotent writes
+* Replaced `ErrOperationAlreadyProcessed` with `ErrTransferDuplicate`, aligning error semantics with the new model
+
+This change reinforces the domain principle that **all financial truth must be derivable from the ledger itself**, as already outlined in the domain model .
+
+### 2. Transfer Use Case — Idempotency Redesign
+
+* Replaced operation-based idempotency with **ledger-based replay**
+* Introduced early idempotency check using:
+
+  * `GetTransactionByIdempotencyKey`
+* Implemented replay via `transferResultFromLedger`:
+
+  * reconstructs result using `transfer_out` and paired `transfer_in`
+  * validates ledger consistency (reference_id, related_account_id, type pairing)
+* Added conflict handling:
+
+  * DB unique constraint triggers `ErrTransferDuplicate`
+  * reloads committed transaction and returns replay result
+  * forces rollback while preserving response
+
+This approach eliminates parallel state (operations table) and ensures **idempotency is enforced at the same layer that guarantees financial consistency**.
+
+### 3. Repository Contract Evolution
+
+* Removed:
+
+  * `CreateOperation`
+  * `GetOperationByIdempotencyKey`
+* Added:
+
+  * `GetTransactionByIdempotencyKey`
+  * `GetTransactionByReference`
+* Updated all mocks and tests accordingly
+
+The repository now exposes only **ledger-native queries**, reducing conceptual duplication and improving cohesion.
+
+### 4. PostgreSQL Layer Enhancements
+
+* Updated `CreateTransaction`:
+
+  * includes `related_account_id` and `idempotency_key`
+  * uses `ON CONFLICT (account_id, idempotency_key) DO NOTHING`
+  * detects duplicates via `RowsAffected == 0`
+* Implemented:
+
+  * `GetTransactionByIdempotencyKey`
+  * `GetTransactionByReference`
+* Extended query projections across the repository to include new fields
+
+These changes move idempotency enforcement fully into the database, consistent with the system’s **strong consistency strategy** .
+
+### 5. Database Migrations
+
+* Added migration `000007_consolidate_ledger`:
+
+  * moves idempotency data into `account_transactions`
+  * converts `type` to enum
+  * creates unique index for idempotency
+  * drops legacy `transactions` table
+* Added migration `000008_transfer_pair_integrity`:
+
+  * enforces uniqueness of `(reference_id, type)` for transfer pairs
+  * introduces index for efficient lookup
+
+These migrations formalize:
+
+* **idempotency at the ledger level**
+* **structural integrity of transfer pairs**
+
+### 6. Transfer Integrity Guarantees
+
+* Enforced bidirectional linkage:
+
+  * `transfer_out.related_account_id → destination`
+  * `transfer_in.related_account_id → origin`
+* Ensured:
+
+  * both sides share the same `reference_id`
+  * only one row per `(reference_id, type)`
+* Added defensive checks in replay logic:
+
+  * missing reference_id
+  * missing related_account_id
+  * mismatched pairing
+
+This elevates the ledger from a log to a **verifiable structure**, not merely a record of events.
+
+### 7. Test Suite Refactor
+
+* Updated all mocks to align with new repository interface
+* Removed operation-related expectations
+* Added:
+
+  * validation of `related_account_id` on both transfer legs
+  * replay correctness using ledger data
+  * duplicate conflict handling via DB constraint simulation
+* Adjusted expectations:
+
+  * single ledger write attempt before conflict
+  * rollback behavior preserved
+* Updated integration schema setup:
+
+  * ensures backward compatibility with pre-existing databases
+  * adds missing columns and indexes dynamically
+
+### 8. Error Handling Adjustments
+
+* Standardized duplicate semantics:
+
+  * `ErrTransferDuplicate` mapped to idempotent replay
+* Simplified authorization error message:
+
+  * "Access denied to account" → "Access denied"
+* Maintains consistency with API error contract 
+
+### 9. Makefile Refinement
+
+* Renamed migration commands:
+
+  * `api-migrate-up` → `migrate-up`
+  * `api-migrate-down` → `migrate-down`
+* Grouped under a dedicated "Database Migrations" section
+
+Improves clarity and aligns CLI with project scope.
+
+### 10. Documentation Update (api/docs)
+
+* Entire documentation set updated to reflect:
+
+  * ledger as single source of truth
+  * removal of `transactions` table usage
+  * idempotency embedded in ledger
+  * updated transfer flow and consistency guarantees
+* Affects architecture, domain, data model, flows, and API contract
+* Ensures alignment between implementation and documented behavior 
+
+### Conclusion
+
+This commit represents a **critical architectural refinement**, removing an artificial abstraction (`Operation`) and converging the system toward a **pure ledger-driven model**.
+
+The resulting system is:
+
+* more coherent (single source of truth)
+* more robust (DB-enforced idempotency and integrity)
+* easier to reason about (no dual-write model)
+* better aligned with financial system principles
+
+From a design standpoint, this is a substantial improvement. The previous model introduced unnecessary indirection; the current one correctly treats the ledger as both **execution log and verification mechanism**, which is the right direction for any system that aims at financial correctness.
+
+
+## 2026/04/17 — api/user_status-04
+
+Introduces **user status enforcement across account creation and admin approval flow**, strengthening authorization guarantees and aligning onboarding with an explicit lifecycle (pending → active).
+
+### 1. Application Layer — CreateAccount Hardening
+
+* Extended `CreateAccount` use case to depend on `UserRepository`
+* Added validation pipeline before account creation:
+
+  * user must exist
+  * user must have valid `UserID`
+  * user must be in `active` status
+* Enforced strict access control:
+
+  * any non-active user (pending, blocked) is rejected with `ErrForbidden`
+* Prevents invalid states where accounts could be created for non-approved users
+* This change aligns account creation with the authentication model where identity alone is insufficient without valid state 
+
+### 2. New Admin Capability — Approve User
+
+* Integrated `ApproveUserUseCase` into application wiring
+* Added new protected endpoint:
+
+  * `POST /admin/users/{id}/approve`
+* Approval flow:
+
+  * transitions user status to `active`
+  * creates associated account atomically
+* Extended output contract:
+
+  * now includes `status` field alongside `user_id` and `account_id`
+* Establishes explicit onboarding lifecycle:
+
+  * register → pending → approved → active → operational
+* This is a **structural improvement**, not just a feature addition
+
+### 3. Delivery Layer — Authorization Enforcement
+
+* Implemented `ApproveUser` handler with strict guards:
+
+  * requires authenticated user
+  * enforces `admin` role
+  * validates UUID path parameter
+* Maps domain errors consistently:
+
+  * `FORBIDDEN`, `INVALID_DATA`, `USER_NOT_FOUND`, etc.
+* Response includes:
+
+  * `user_id`
+  * `status`
+  * `account_id`
+* Maintains API contract consistency with existing envelope pattern 
+
+### 4. Error Handling Standardization
+
+* Added missing domain error mappings in auth layer:
+
+  * `ErrForbidden`
+  * `ErrInvalidData`
+* Unified error message:
+
+  * `"Access denied"` replaces inconsistent variants
+* Removed duplicate error registration guard in shared mapper:
+
+  * simplifies registry behavior
+  * shifts responsibility to developer discipline
+* Keeps alignment with global error strategy and response model 
+
+### 5. Dependency Wiring (Composition Root)
+
+* Updated `main.go`:
+
+  * `CreateAccount` now receives `userRepo`
+  * `ApproveUserUseCase` added to auth handler
+* Ensures correct dependency flow:
+
+  * Delivery → Application → Domain
+* Reinforces modular monolith structure and explicit wiring rules 
+
+### 6. Test Coverage Expansion
+
+#### 6.1 CreateAccount Tests
+
+* Added scenarios for:
+
+  * user repository not configured
+  * user not found
+  * user lookup failure
+  * pending user rejection
+  * blocked user rejection
+* Verified:
+
+  * no repository side-effects on failure paths
+  * correct interaction counts
+
+#### 6.2 ApproveUser Tests
+
+* Added full coverage:
+
+  * success case (admin)
+  * unauthorized request
+  * non-admin rejection
+  * invalid UUID
+  * domain error mapping (not found, conflict, forbidden, internal)
+* Validates both:
+
+  * authorization boundary
+  * HTTP contract correctness
+
+#### 6.3 Integration Adjustments
+
+* Updated handler constructors to include new dependency
+* Ensured compatibility with existing integration tests
+
+### 7. Domain Alignment
+
+* Reinforces the concept that:
+
+  * **user status is part of authorization context**, not just authentication
+* Prevents illegal transitions such as:
+
+  * financial operations executed by pending users
+* Aligns with domain invariants where operations depend on valid state, not only identity 
+
+### Conclusion
+
+This commit introduces a **critical correction in the authorization model** by incorporating user status into the decision process.
+
+The system now eliminates an important invalid state:
+users could previously authenticate and operate without being formally approved.
+
+From an architectural perspective, this is a **consistency and correctness fix**, ensuring that onboarding, authorization, and financial operations are coherently integrated.
+
+
+## 2026/04/16 — api/user_status-03
+
+Implements the **user approval flow with automatic account creation**, introducing transactional consistency across auth and account modules, strengthening user lifecycle control, and expanding domain and infrastructure support for status transitions.
+
+### 1. Application Layer — ApproveUser Use Case
+
+* Added `ApproveUserUseCase` to handle transition from `pending` to `active`
+* Full transactional orchestration via `Transactor.RunInTx`
+* Execution flow:
+
+  * load user with `FindByIDForUpdate` (row-level lock)
+  * validate user existence and current status
+  * update user status to `active`
+  * validate `customer_id` presence and existence
+  * generate account number
+  * create and persist new account
+* Ensures **atomic activation + account creation**, preventing partial states
+* Reuses `accountapplication.GenerateBranch()` for consistency with account module
+
+### 2. Domain Layer Enhancements
+
+* Introduced new domain error:
+
+  * `ErrUserAlreadyActive`
+* Reinforces user lifecycle invariants:
+
+  * only `pending` users can be approved
+  * active users cannot be reprocessed
+* Aligns with invariant enforcement strategy described in the domain model 
+
+### 3. Repository Contract Evolution
+
+* Extended `UserRepository`:
+
+  * added `FindByIDForUpdate` for pessimistic locking
+* Enables safe concurrent approval handling, consistent with system-wide locking strategy 
+
+### 4. Infrastructure Layer — PostgreSQL
+
+* Implemented `FindByIDForUpdate` using:
+
+  * `SELECT ... FOR UPDATE`
+* Ensures:
+
+  * row-level locking during approval
+  * protection against concurrent status transitions
+* Behavior:
+
+  * returns `nil` when user not found (mapped at application level)
+
+### 5. Error Handling Standardization
+
+* Registered new domain errors in error registry:
+
+  * `USER_NOT_FOUND → 404`
+  * `USER_ALREADY_ACTIVE → 409`
+* Added corresponding error codes in shared layer:
+
+  * `ErrCodeUserNotFound`
+  * `ErrCodeUserAlreadyActive`
+* Maintains consistency with global API error contract 
+
+### 6. Account Module Adjustment
+
+* Refactored branch generation:
+
+  * `generateBranch` → `GenerateBranch`
+* Promotes reuse across modules and avoids duplication in account creation logic
+
+### 7. Test Coverage
+
+#### 7.1 Application Tests — ApproveUser
+
+* Added comprehensive test suite:
+
+  * success scenario (user activation + account creation)
+  * user not found
+  * user already active
+  * missing customer_id
+  * customer not found
+  * account creation failure
+* Validates transactional integrity and invariant enforcement
+
+#### 7.2 Test Infrastructure Updates
+
+* Updated mocks across auth tests to support:
+
+  * `FindByIDForUpdate`
+* Ensures compatibility with new repository contract without breaking existing tests
+
+### 8. Architectural Impact
+
+* Introduces a **controlled onboarding progression**:
+
+  * register → pending user
+  * approve → active user + account creation
+* Eliminates invalid intermediate states:
+
+  * active user without account
+  * account created for unapproved user
+* Strengthens consistency guarantees across modules, aligned with system transaction model 
+
+### Conclusion
+
+This commit introduces a **critical lifecycle transition for users**, integrating authentication and financial domains under a single transactional boundary.
+
+The implementation is technically robust, particularly due to:
+
+* explicit use of pessimistic locking
+* strict invariant enforcement
+* elimination of partial states
+
+From an architectural perspective, this significantly improves the correctness and consistency of the onboarding flow, aligning it with the system’s financial integrity requirements.
+
+
+## 2026/04/16 — api/user_status-02
+
+Refactors user registration transaction handling, introduces **user status as a first-class domain attribute**, and standardizes persistence behavior across repository and application layers.
+
+### 1. Application Layer — Transaction Handling Refactor
+
+* Replaced repository-specific transaction coupling (`WithTransaction`) with a **generic `Transactor` abstraction**
+* Updated `RegisterUserUseCase` to depend on `domain.Transactor` instead of casting the repository
+* Execution now uses:
+
+  * `transactor.RunInTx(ctx, fn)`
+* Removes implicit assumptions about repository capabilities and enforces **explicit transaction orchestration at the application layer**
+* Improves architectural consistency with the layered design already used in account operations 
+
+### 2. Domain Layer — User Status Introduction
+
+* Added `status` attribute to `User` entity lifecycle
+* Introduced new domain error:
+
+  * `ErrUserNotFound`
+* Extended `UserRepository` contract:
+
+  * added `UpdateStatus(userID, status)`
+* Clarified repository responsibilities with explicit method semantics (e.g. `ExistsByEmail`)
+* Aligns user lifecycle with a **state-driven model**, enabling future approval/activation flows
+
+### 3. Persistence Layer — PostgreSQL Updates
+
+* Added `status` column to `users` table:
+
+  * `VARCHAR(20) NOT NULL DEFAULT 'pending'`
+* Updated repository behavior:
+
+  * `Create` now persists `status`
+  * `FindByEmail` and `FindByID` now map `status`
+  * implemented `UpdateStatus` with:
+
+    * `UPDATE users SET status = $1, updated_at = NOW()`
+    * returns `ErrUserNotFound` when no rows affected
+* Removed legacy `WithTransaction` implementation from repository
+* Consolidates responsibility: **repository handles persistence, application handles transactions**
+
+### 4. Migration Layer
+
+* Added migration:
+
+  * `000006_user_status.up.sql`
+  * `000006_user_status.down.sql`
+* Ensures schema evolution is:
+
+  * incremental
+  * reversible
+  * aligned with existing migration strategy
+
+### 5. Test Infrastructure Refactor
+
+* Updated all mocks to support new contract:
+
+  * added `UpdateStatus` to `UserRepository` mocks
+* Replaced transaction mocking:
+
+  * removed `WithTransaction`
+  * introduced `registerTransactorMock` with `RunInTx`
+* Adjusted assertions:
+
+  * validate `RunInTx` invocation instead of repository transaction calls
+
+### 6. Integration Tests
+
+* Updated integration setup:
+
+  * ensures `users.status` column exists via `ALTER TABLE IF NOT EXISTS`
+* Added validation for:
+
+  * default status (`pending`) on creation
+  * status transition via `UpdateStatus`
+* Strengthens alignment between:
+
+  * schema
+  * repository
+  * domain behavior
+
+### 7. Wiring Adjustments
+
+* Updated `main.go`:
+
+  * `RegisterUserUseCase` now receives `transactor`
+* Keeps dependency graph explicit and consistent with other use cases
+
+### 8. Design Considerations
+
+This change is particularly relevant from an architectural standpoint:
+
+* eliminates hidden coupling between repository and transaction control
+* enforces **application-layer ownership of transactional boundaries**
+* introduces a **stateful user lifecycle**, which is essential for:
+
+  * approval flows
+  * onboarding pipelines
+  * access control evolution
+
+The decision to move away from `WithTransaction` is correct and aligns the auth module with the same rigor already present in financial operations.
+
+### Conclusion
+
+This commit is a structural improvement rather than a feature addition.
+
+It establishes:
+
+* a **clean transaction boundary model**
+* a **state-driven user lifecycle**
+* a **more consistent repository contract**
+
+These changes prepare the system for more advanced flows such as user approval, activation, and policy-based authorization without requiring further architectural refactoring.
+
+
+## 2026/04/16 — api/user_status-01
+
+Introduces **user status management** into the authentication domain and restructures the HTTP layer to support a clearer multi-stage authentication model, including AppToken-based onboarding and JWT-protected routes. 
+
+### 1. Domain Layer — User Status
+
+* Added `UserStatus` type with explicit states:
+
+  * `pending`
+  * `active`
+  * `blocked`
+* Extended `User` entity to include `Status` field
+* Updated `NewUser` factory:
+
+  * initializes all new users with `UserStatusPending`
+* This change establishes a **foundation for lifecycle control** (approval, activation, blocking), which was previously absent in the model
+
+### 2. Bootstrap — Environment Configuration
+
+* Introduced automatic `.env` loading using `github.com/joho/godotenv`
+* Implemented flexible resolution strategy:
+
+  * local `.env`
+  * `api/.env`
+  * executable-relative paths
+* Ensures configuration is available regardless of execution context
+* Aligns with **fail-fast configuration validation** already present in `main.go`
+
+### 3. Main Wiring Refactor (cmd/api/main.go)
+
+* Reorganized startup into explicit sections:
+
+  * Config
+  * Repositories
+  * Services
+  * Use Cases
+  * Handlers
+  * Middlewares
+  * Routers
+* Enforced validation of critical environment variables:
+
+  * `APP_TOKEN`
+  * `JWT_SECRET`
+* Improved readability and maintainability of composition root
+* This is a **structural improvement**, not just cosmetic; it clarifies dependency boundaries
+
+### 4. Routing Architecture — Separation of Concerns
+
+* Split routing into three layers:
+
+  * `authRouter` (authentication endpoints)
+  * `apiRouter` (business endpoints)
+  * `mainRouter` (composition)
+* Introduced explicit middleware application per route group:
+
+  * AppToken for onboarding
+  * JWT for authenticated access
+* Eliminated global middleware wrapping, replacing it with **route-level control**, which is more precise and safer
+
+### 5. Authentication Model — AppToken + JWT
+
+* Applied AppToken middleware to:
+
+  * `POST /auth/register`
+  * `POST /auth/login`
+* Applied JWT middleware to:
+
+  * `POST /auth/refresh`
+  * `GET /auth/me`
+  * all `/accounts/*`
+  * `/customers/me`
+* This formalizes a **two-phase authentication model**:
+
+  * controlled entry (AppToken)
+  * authenticated session (JWT)
+* Matches the intended design described in the authentication documentation 
+
+### 6. API Contract Documentation Updates
+
+* Updated REST documentation to reflect:
+
+  * AppToken requirement for onboarding endpoints
+  * JWT requirement for all protected endpoints
+* Added new error code:
+
+  * `INVALID_APP_TOKEN` (HTTP 401)
+* Expanded error scenarios with concrete payload examples
+* Clarified access control rules and authentication flows
+* Improves alignment between implementation and public contract 
+
+### 7. Dependency Updates
+
+* Added `godotenv` dependency to `go.mod` and `go.sum`
+* Enables environment-based configuration without external tooling
+
+### 8. Architectural Impact
+
+* Introduces the first step toward **user lifecycle governance** via status
+* Establishes a clearer boundary between:
+
+  * onboarding security
+  * session-based authentication
+  * resource authorization
+* Prepares the system for future features such as:
+
+  * user approval workflows
+  * account activation
+  * access blocking
+
+### Conclusion
+
+This commit is a **strategic evolution of the authentication layer**, not merely a feature addition.
+
+It introduces user lifecycle semantics and formalizes a multi-stage authentication model, improving both **security posture and architectural clarity**, while keeping the system aligned with its current simplicity goals and ready for future extensions.
+
+
+## 2026/04/16 — api/app_token-01
+
+Introduces **application-level request validation via App Token middleware**, enforces stricter environment configuration, and refactors HTTP server initialization to support middleware composition and improved security boundaries.
+
+### 1. Security — App Token Middleware
+
+* Implemented `AppToken` middleware to enforce presence and validity of `X-App-Token` header
+* Uses `crypto/subtle.ConstantTimeCompare` to prevent timing attacks during token comparison
+* Rejects unauthorized requests early in the pipeline with standardized error response
+* Integrates with existing error contract via `ErrInvalidAppToken`
+* Establishes a clear separation between:
+
+  * client identity (JWT)
+  * client application validation (App Token)
+
+This aligns with a layered security model, where multiple independent signals are validated before request execution, consistent with the system’s architectural direction 
+
+### 2. Error Standardization
+
+* Added `ErrInvalidAppToken` to shared sentinel errors
+* Ensures consistency with API response envelope (`data` / `error`) 
+* Avoids inline error construction, reinforcing centralized error definitions
+
+### 3. HTTP Pipeline Refactor
+
+* Replaced global `http.Handle` usage with explicit `http.ServeMux`
+* Introduced handler composition:
+
+  * `router → auth middleware → app token middleware`
+* Final pipeline:
+
+  * `handler := AppToken(...) (router)`
+* Improves:
+
+  * composability
+  * testability
+  * visibility of request flow
+
+### 4. Environment Hardening
+
+* Enforced mandatory environment variables:
+
+  * `APP_TOKEN` now required (fail-fast with `log.Fatal`)
+  * `JWT_SECRET` no longer has fallback value
+* Eliminates insecure default configurations
+* Guarantees that authentication and application validation cannot run in an invalid state
+
+### 5. Routing Organization
+
+* Centralized all routes into `ServeMux`
+* Maintains explicit registration of:
+
+  * auth endpoints
+  * customer endpoints
+  * account endpoints (including transfer)
+* Preserves existing authorization behavior via JWT middleware
+
+### 6. Test Coverage — Middleware
+
+* Added comprehensive tests for `AppToken`:
+
+  * missing header
+  * invalid token
+  * valid token (happy path)
+* Validates:
+
+  * correct HTTP status (`401`)
+  * response envelope structure
+  * prevention of downstream handler execution on failure
+
+### 7. Developer Experience
+
+* Added `api-run` command to `Makefile` for local server execution
+* Introduced `.gitignore` for API build artifacts
+
+### 8. Documentation Reorganization
+
+* Moved API documentation into `api/docs`
+* Improves cohesion between code and documentation
+* Maintains consistency with modular project structure
+
+### Conclusion
+
+This commit introduces a **critical security boundary at the application level**, ensuring that requests are validated not only by user identity (JWT) but also by client context (App Token).
+
+From an architectural standpoint, this is a meaningful step toward a **multi-signal validation model**, where authentication alone is no longer treated as sufficient.
+
+
+## 2026/04/16 — api/refresh_token-02
+
+Refines authentication flow and project documentation, introducing **refresh token persistence on the client side** and restructuring the repository documentation to reflect the current architecture and usage model.
+
+### 1. Mobile — Refresh Token Support
+
+* Extended `LoggedUser` model:
+
+  * added `refreshToken` field
+  * updated `fromMap` to deserialize `refresh_token`
+* Updated authentication repository:
+
+  * persist `refreshToken` alongside `accessToken` on login
+  * ensure removal of both tokens on logout
+* This aligns the mobile client with the backend session model, enabling **token rotation and session continuity**
+
+### 2. Authentication Flow Consistency
+
+* Ensures that client-side storage reflects server expectations:
+
+  * access + refresh token pair becomes the canonical session representation
+* Prepares the mobile layer for:
+
+  * automatic token refresh via interceptor
+  * retry logic on `401` responses
+* Reinforces contract implied by auth endpoints and JWT usage 
+
+### 3. Monorepo Documentation Simplification
+
+* Rewrote root `README.md`:
+
+  * removed narrative-heavy content
+  * introduced concise structure and quick-start flow
+  * clarified dual-app nature (API + mobile)
+* Focus shifted from conceptual description to **operational clarity**
+
+### 4. API Documentation Restructuring
+
+* Simplified `api/README.md`:
+
+  * clearer separation of stack, architecture, and features
+  * explicit route listing
+  * streamlined setup instructions
+* Removed legacy architecture document:
+
+  * replaced with new `ARCHITECTURE.md`
+* New architecture document:
+
+  * formalizes modular monolith structure
+  * clarifies layer responsibilities and dependency direction
+  * documents authentication and refresh flow behavior
+* Maintains alignment with layered architecture principles 
+
+### 5. Documentation Standardization (Mobile)
+
+* Rewrote `mobile/README.md`:
+
+  * emphasizes role as integration client
+  * adds environment configuration guidance
+  * documents test and build workflows
+* Introduced `docs/mobile/ARCHITECTURE.md`:
+
+  * defines layered structure (UI, Data, Domain, Core)
+  * formalizes request flow and interceptor behavior
+
+### 6. Licensing
+
+* Added MIT license to API module:
+
+  * clarifies usage and distribution terms
+  * aligns repository with open-source conventions
+
+### 7. Structural Improvements
+
+* Normalized directory descriptions across README files
+* Improved onboarding flow:
+
+  * Docker → migrations → API → mobile
+* Reduced redundancy across documentation layers
+
+### Conclusion
+
+This commit is primarily a **consistency and alignment step** between client, API, and documentation.
+
+It establishes:
+
+* a **complete token lifecycle on the client (access + refresh)**
+* a **clearer and more operational documentation structure**
+* a **more explicit architectural baseline for future evolution**
+
+From a design standpoint, this is a necessary consolidation step before advancing into more complex authentication concerns such as concurrent refresh handling and session control.
+
+
+## 2026/04/15 — api/refresh_token-02
+
+Refactors and hardens the refresh token flow to guarantee **atomic rotation, consistency, and correctness of session management**, while simplifying dependency contracts and eliminating invalid execution paths.
+
+---
+
+### 1. Application Layer — Refresh Token Atomicity
+
+* Introduced `Transactor` as a first-class dependency in `RefreshAccessTokenUseCase`
+* Implemented atomic rotation using `RunInTx`:
+
+  * `Revoke(old_token)` + `Create(new_token)` executed in a single transaction
+* Removed non-transactional revoke operation
+* Guarantees:
+
+  * no partial state (no “revoked without replacement” or “duplicated sessions”)
+  * rollback preserves original token validity on failure
+* Aligns transaction control with Application layer responsibilities 
+
+---
+
+### 2. Infrastructure Layer — Transaction Support
+
+* Added `PostgresTransactor`:
+
+  * wraps `pgx` transaction lifecycle (`Begin → Commit / Rollback`)
+  * injects transaction into context (`ContextWithTx`)
+* Enables multiple repositories to share the same transaction transparently
+* Strengthens infrastructure compliance with domain contracts (`Transactor` interface)
+
+---
+
+### 3. Domain Layer — Contract Expansion
+
+* Introduced `Transactor` interface:
+
+  * explicit control of transactional boundaries at use case level
+* Added `ErrSessionNotFound`:
+
+  * ensures revoke failures are explicit and not silently ignored
+* Reinforces domain-driven consistency for session lifecycle
+
+---
+
+### 4. Session Repository — Correctness Enforcement
+
+* Updated `Revoke` implementation:
+
+  * now validates `RowsAffected()`
+  * returns `ErrSessionNotFound` when token does not exist
+* Eliminates silent inconsistencies in session state
+
+---
+
+### 5. Login Use Case — Contract Tightening
+
+* Removed optional `SessionRepository` dependency (variadic → required)
+* Enforced invariant:
+
+  * **no refresh token is issued without persisted session**
+* Simplified logic:
+
+  * always hashes and persists refresh token
+  * failure in session creation aborts login
+* This removes previously possible invalid states
+
+---
+
+### 6. Delivery Layer — Dependency Integrity
+
+* Refactored `Handler` constructor:
+
+  * now requires all use cases upfront (including refresh)
+  * removed setter injection (`SetRefreshAccessTokenUseCase`)
+* Ensures:
+
+  * no partially initialized handlers
+  * no runtime mutation of dependencies
+* Added defensive check for `nil` output in login flow
+
+---
+
+### 7. Wiring (main.go & integration)
+
+* Registered `PostgresTransactor` in composition root
+* Injected into `RefreshAccessTokenUseCase`
+* Updated handler initialization to reflect new constructor contract
+* Ensures consistent dependency graph across application and tests
+
+---
+
+### 8. Test Suite — Coverage Expansion
+
+#### 8.1 Refresh Flow Tests
+
+* Updated all tests to include `Transactor` dependency
+* Added `transactorMock` for transactional execution
+
+#### 8.2 Rotation Integrity Test (Stateful)
+
+* Introduced `statefulSessionMock` to simulate real session lifecycle
+* Validates full rotation behavior:
+
+  * old token becomes unusable after refresh
+  * new token is immediately valid
+  * reuse of revoked token fails correctly
+* This is a critical validation of **system invariants**
+
+#### 8.3 Login Tests
+
+* Updated to reflect mandatory `SessionRepository`
+* Ensures session persistence is always exercised
+
+#### 8.4 Infrastructure Test Fix
+
+* Simplified JWT error assertion (removed invalid `errors.Is` usage)
+
+---
+
+### 9. API & Documentation Updates
+
+* Login now explicitly returns `refresh_token`
+* Introduced `/auth/refresh` endpoint with:
+
+  * token rotation semantics
+  * single-use refresh tokens
+  * atomic revoke + create behavior
+* Documented error scenarios:
+
+  * invalid, expired, revoked, or missing sessions
+* Clarifies contract for clients and aligns behavior with implementation 
+
+---
+
+### Conclusion
+
+This commit is a **consistency and correctness milestone** for authentication flow.
+
+It eliminates entire classes of invalid states by enforcing:
+
+* **atomic token rotation**
+* **mandatory session persistence**
+* **explicit failure handling**
+* **constructor-level dependency integrity**
+
+From an architectural standpoint, this is a decisive improvement:
+transaction boundaries are now correctly owned by the Application layer, and the authentication model becomes **predictable, verifiable, and resilient under failure conditions**.
+
+
+## 2026/04/11 — api/refresh_token-01
+
+Implements a **complete refresh token flow with session management**, evolving the authentication model from stateless JWT-only to a **stateful, revocable, and rotating session-based approach**. This change aligns the system with a more robust security posture while preserving the layered architecture principles 
+
+---
+
+### 1. Domain Layer — Contracts Expansion
+
+* Extended `TokenService`:
+
+  * added `GenerateRefreshToken(userID)`
+  * added `ParseRefreshToken(token)`
+* Introduced `SessionRepository`:
+
+  * `Create`
+  * `FindByTokenHash`
+  * `Revoke`
+* Establishes **explicit session lifecycle control** at the domain boundary
+
+---
+
+### 2. Application Layer — Login Flow Evolution
+
+* `LoginUserUseCase` updated to:
+
+  * generate **access token + refresh token**
+  * hash refresh token using `SHA-256`
+  * persist session with expiration (`30 days TTL`)
+* Output now includes:
+
+  * `AccessToken`
+  * `RefreshToken`
+* Optional session dependency supported (backward-safe injection)
+
+**Key observation (architectural):**
+This is the first point where authentication becomes **state-aware**, breaking the purely stateless JWT model intentionally.
+
+---
+
+### 3. Application Layer — Refresh Token Use Case
+
+* Introduced `RefreshAccessTokenUseCase`:
+
+  * validates refresh token integrity
+  * validates session (existence, expiration, revocation, ownership)
+  * loads user from repository
+  * generates new access token
+  * performs **refresh token rotation**:
+
+    * revoke old token
+    * generate new refresh token
+    * persist new session
+
+**Security properties introduced:**
+
+* replay protection (rotation)
+* server-side invalidation
+* binding between token and stored session
+
+---
+
+### 4. Infrastructure Layer — Token Service
+
+* Extended `JWTTokenService`:
+
+  * added **opaque refresh token generation**
+
+    * payload: `userID + nonce`
+    * signature: `HMAC-SHA256`
+    * encoding: `base64url`
+  * implemented `ParseRefreshToken`
+
+    * signature validation using constant-time comparison
+    * strict payload validation
+
+* Access token improvements:
+
+  * ensured `exp` claim correctness with TTL enforcement
+
+**Technical decision:**
+Refresh token is **not JWT**, which is a correct choice to:
+
+* reduce attack surface
+* simplify validation
+* avoid overloading JWT semantics
+
+---
+
+### 5. Infrastructure Layer — Session Persistence
+
+* Added `PostgresSessionRepository`
+
+  * `Create`: inserts hashed token
+  * `FindByTokenHash`: retrieves session state
+  * `Revoke`: soft-revokes via `revoked_at`
+
+* Supports transaction-aware execution via context
+
+* Migration `000005_user_sessions`:
+
+  * new table `user_sessions`
+  * indexed by `user_id` and `expires_at`
+  * unique constraint on `token_hash`
+
+**Critical design choice:**
+
+* only **hashed tokens are stored**
+* prevents token leakage from DB compromise
+
+---
+
+### 6. Delivery Layer — HTTP Contract Updates
+
+* `/auth/login`:
+
+  * now returns `refresh_token`
+
+* New endpoint:
+
+  * `POST /auth/refresh`
+
+* Handler additions:
+
+  * request validation (`refresh_token`)
+  * consistent error mapping
+  * response envelope preserved
+
+* Introduced DTOs:
+
+  * `refreshAccessTokenRequest`
+  * `refreshAccessTokenData`
+
+**Important:**
+This extends the API contract beyond what is currently documented  and requires documentation update.
+
+---
+
+### 7. Dependency Wiring (main.go)
+
+* Registered:
+
+  * `SessionRepository`
+  * `RefreshAccessTokenUseCase`
+* Injected into:
+
+  * `LoginUserUseCase`
+  * handler via setter
+* Exposed route:
+
+  * `POST /auth/refresh`
+
+---
+
+### 8. Test Coverage
+
+#### 8.1 Application Tests
+
+* Login:
+
+  * validates access + refresh generation
+  * verifies session persistence (hash + expiration)
+  * covers failure scenarios:
+
+    * access token failure
+    * refresh token failure
+    * session persistence failure
+
+* Refresh flow:
+
+  * success path
+  * invalid token
+  * session not found
+  * revoked session
+  * expired session
+  * user mismatch
+  * repository failures
+  * rotation integrity
+
+#### 8.2 Infrastructure Tests
+
+* Refresh token:
+
+  * generation + parsing
+  * entropy validation
+  * tampering detection
+  * malformed token handling
+* Access token:
+
+  * expiration correctness
+
+#### 8.3 Delivery Tests
+
+* Login:
+
+  * validates response now includes `refresh_token`
+* Refresh:
+
+  * success case
+  * invalid token → `401 INVALID_TOKEN`
+
+#### 8.4 Integration Tests
+
+* End-to-end validation:
+
+  * login returns both tokens
+  * refresh endpoint wired correctly
+* Test DB isolation:
+
+  * switched to `bank_test`
+* CPF constraint repair added for test consistency
+
+---
+
+### 9. Test & Environment Adjustments
+
+* Updated default test database:
+
+  * `bank → bank_test`
+* Added defensive SQL for constraint repair:
+
+  * prevents flaky test runs due to regex mismatch
+
+---
+
+### 10. Behavioral Changes Summary
+
+* Access tokens are now **short-lived**
+* Refresh tokens are:
+
+  * generated securely
+  * persisted as hashed values
+  * validated against DB
+  * rotated on use
+* Authentication becomes:
+
+  * **stateful**
+  * **revocable**
+  * **traceable**
+
+---
+
+### Conclusion
+
+This commit represents a **major security and architectural milestone**:
+
+* transitions authentication from **stateless JWT** to **session-backed model**
+* introduces **refresh token rotation**, a critical protection against replay attacks
+* enforces **server-side control over sessions**, enabling future features such as:
+
+  * logout
+  * device/session listing
+  * anomaly detection
+
+From a technical standpoint, the implementation is **well-aligned with Clean Architecture principles**, keeping:
+
+* domain contracts pure
+* application responsible for orchestration
+* infrastructure isolated
+
+The only architectural caveat is the **optional session dependency in login**, which introduces a potential inconsistency. In a production-grade system, this should be mandatory to avoid issuing unusable refresh tokens.
+
+Overall, this is a **production-grade foundation for authentication**, suitable for fintech-level requirements.
+
+
 ## 2026/04/10 — infra/layout-01
 
 Introduces a **UI layout standardization layer** for the Flutter application, centralizing structural concerns and improving consistency across authentication screens, while also refining routing behavior and state handling patterns.
