@@ -116,7 +116,6 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
 			cpf VARCHAR(11) NOT NULL UNIQUE,
-			email VARCHAR(120) NOT NULL UNIQUE,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
 		)`,
@@ -178,12 +177,11 @@ func seedDepositTestData(t *testing.T, ctx context.Context, pool *pgxpool.Pool, 
 	uniqueNumber := time.Now().UnixNano()
 	cpfSuffix := fmt.Sprintf("%011d", uniqueNumber%100000000000)
 	accountNumber := fmt.Sprintf("%08d", uniqueNumber%100000000)
-	email := fmt.Sprintf("deposit-%s@example.com", customerID.String())
 
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO customers (id, name, cpf, email, created_at)
-		VALUES ($1, $2, $3, $4, $5)
-	`, customerID, "Deposit Test", cpfSuffix, email, time.Now().UTC()); err != nil {
+		INSERT INTO customers (id, name, cpf, created_at)
+		VALUES ($1, $2, $3, $4)
+	`, customerID, "Deposit Test", cpfSuffix, time.Now().UTC()); err != nil {
 		t.Fatalf("failed to insert customer: %v", err)
 	}
 

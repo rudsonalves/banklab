@@ -19,18 +19,18 @@ type GetCustomerMeInput struct {
 	CustomerID uuid.UUID
 }
 
-func (uc *GetCustomerMe) Execute(ctx context.Context, input GetCustomerMeInput) (*domain.Customer, error) {
+func (uc *GetCustomerMe) Execute(ctx context.Context, input GetCustomerMeInput) (*domain.Customer, string, error) {
 	if input.CustomerID == uuid.Nil {
-		return nil, domain.ErrInvalidData
+		return nil, "", domain.ErrInvalidData
 	}
 
-	customer, err := uc.repo.GetByID(ctx, input.CustomerID)
+	customer, email, err := uc.repo.GetByID(ctx, input.CustomerID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if customer == nil {
-		return nil, domain.ErrNotFound
+		return nil, "", domain.ErrNotFound
 	}
 
-	return customer, nil
+	return customer, email, nil
 }

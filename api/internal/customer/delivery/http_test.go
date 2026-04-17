@@ -19,15 +19,16 @@ import (
 
 type getCustomerMeUseCaseMock struct {
 	output *domain.Customer
+	email  string
 	err    error
 	called bool
 	input  application.GetCustomerMeInput
 }
 
-func (m *getCustomerMeUseCaseMock) Execute(ctx context.Context, input application.GetCustomerMeInput) (*domain.Customer, error) {
+func (m *getCustomerMeUseCaseMock) Execute(ctx context.Context, input application.GetCustomerMeInput) (*domain.Customer, string, error) {
 	m.called = true
 	m.input = input
-	return m.output, m.err
+	return m.output, m.email, m.err
 }
 
 var registerErrorsOnce sync.Once
@@ -47,9 +48,8 @@ func TestHandler_Me_Success(t *testing.T) {
 		ID:        customerID,
 		Name:      "Maria Silva",
 		CPF:       "12345678901",
-		Email:     "maria@example.com",
 		CreatedAt: createdAt,
-	}}
+	}, email: "maria@example.com"}
 	h := &Handler{getMeUC: uc}
 
 	req := httptest.NewRequest(http.MethodGet, "/customers/me", nil)
@@ -90,6 +90,9 @@ func TestHandler_Me_Success(t *testing.T) {
 	}
 	if got.Data.Name != "Maria Silva" {
 		t.Fatalf("expected name Maria Silva, got %q", got.Data.Name)
+	}
+	if got.Data.Email != "maria@example.com" {
+		t.Fatalf("expected email %q, got %q", "maria@example.com", got.Data.Email)
 	}
 	if got.Error != nil {
 		t.Fatalf("expected nil error, got %#v", got.Error)

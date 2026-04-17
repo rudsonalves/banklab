@@ -49,6 +49,13 @@ migrate-up: ## Run API database migrations
 migrate-down: ## Rollback last API database migration
 	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down
 
+database-schema: ## Export database schema to schema.sql
+	docker exec -t bank-postgres pg_dump \              
+		-U postgres \
+		-d bank \
+		--schema-only \
+		> schema.sql
+
 # =========================
 # Mobile (Flutter)
 # =========================

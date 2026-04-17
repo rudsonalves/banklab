@@ -38,15 +38,14 @@ func (r *Repository) executor(ctx context.Context) dbExecutor {
 
 func (r *Repository) Create(ctx context.Context, c *domain.Customer) error {
 	query := `
-		INSERT INTO customers (id, name, cpf, email, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO customers (id, name, cpf, created_at)
+		VALUES ($1, $2, $3, $4)
 	`
 
 	_, err := r.executor(ctx).Exec(ctx, query,
 		c.ID,
 		c.Name,
 		c.CPF,
-		c.Email,
 		c.CreatedAt,
 	)
 
@@ -57,9 +56,6 @@ func (r *Repository) Create(ctx context.Context, c *domain.Customer) error {
 			case "23505": // unique_violation
 				if pgErr.ConstraintName == "customers_cpf_key" {
 					return domain.ErrCPFAlreadyExists
-				}
-				if pgErr.ConstraintName == "customers_email_key" {
-					return domain.ErrEmailAlreadyExists
 				}
 
 			case "23514": // check_violation
@@ -90,28 +86,30 @@ func (r *Repository) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	return exists, nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Customer, error) {
+func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Customer, string, error) {
 	query := `
-		SELECT id, name, cpf, email, created_at
-		FROM customers
-		WHERE id = $1
+		SELECT c.id, c.name, c.cpf, u.email, c.created_at
+		FROM customers c
+		JOIN users u ON u.customer_id = c.id
+		WHERE c.id = $1
 	`
 
 	var customer domain.Customer
+	var email string
 	err := r.executor(ctx).QueryRow(ctx, query, id).Scan(
 		&customer.ID,
 		&customer.Name,
 		&customer.CPF,
-		&customer.Email,
+		&email,
 		&customer.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, "", nil
 		}
 
-		return nil, fmt.Errorf("customer repository get by id: %w", err)
+		return nil, "", fmt.Errorf("customer repository get by id: %w", err)
 	}
 
-	return &customer, nil
+	return &customer, email, nil
 }
