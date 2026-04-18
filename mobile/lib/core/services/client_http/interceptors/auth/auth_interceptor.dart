@@ -1,8 +1,7 @@
-import 'dart:developer';
-
 import 'package:dio/dio.dart';
 
-import '/core/config/storage_keys.dart';
+import '/core/resources/storage_keys.dart';
+import '/core/services/logging/console_log.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
 
 /// NOTE: Potential race condition during token refresh
@@ -49,6 +48,8 @@ class AuthInterceptor extends Interceptor {
          ),
        );
 
+  final _log = ConsoleLog('AuthInterceptor');
+
   @override
   Future<void> onRequest(
     RequestOptions options,
@@ -81,9 +82,30 @@ class AuthInterceptor extends Interceptor {
     final statusCode = err.response?.statusCode;
     final path = err.requestOptions.path;
 
-    log(
+    _log.error(
       '[AuthInterceptor] ERROR $statusCode → ${err.requestOptions.method} $path',
+      error: err,
+      stack: err.stackTrace,
     );
+
+    // Log the full error for debugging
+    if (statusCode == null) {
+      _log.error(
+        '[AuthInterceptor] Full error: ${err.toString()}',
+        error: err,
+        stack: err.stackTrace,
+      );
+      _log.error(
+        '[AuthInterceptor] Error type: ${err.type}',
+        error: err,
+        stack: err.stackTrace,
+      );
+      _log.error(
+        '[AuthInterceptor] Error message: ${err.message}',
+        error: err,
+        stack: err.stackTrace,
+      );
+    }
 
     // only attempt refresh if 401 from non-refresh endpoint
     if (statusCode != 401 || path.endsWith(_refreshPath)) {
@@ -152,8 +174,7 @@ class AuthInterceptor extends Interceptor {
 
       return handler.resolve(retryResponse);
     } catch (e, s) {
-      log('[AuthInterceptor] refresh failed: $e');
-      log('$s');
+      _log.error('[AuthInterceptor] refresh failed: $e', error: e, stack: s);
 
       await _clearSession();
       return handler.next(err);

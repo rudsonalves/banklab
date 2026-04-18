@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '/core/result/result.dart';
+import '/data/services/logging/console_log.dart';
 import '../client/rest_client.dart';
 import '../client/rest_client_request.dart';
 import '../client/rest_client_response.dart';
@@ -12,6 +13,8 @@ class DioRestClient implements RestClient {
   DioRestClient({
     required Dio dio,
   }) : _dio = dio;
+
+  final _log = ConsoleLog('DioRestClient');
 
   @override
   AsyncResult<RestClientResponse> get(RestClientRequest request) {
@@ -26,6 +29,7 @@ class DioRestClient implements RestClient {
 
   @override
   AsyncResult<RestClientResponse> post(RestClientRequest request) {
+    _log.info('POST ${request.path} - Headers: ${request.headers}');
     return _request(
       () => _dio.post(
         request.path,
@@ -38,6 +42,7 @@ class DioRestClient implements RestClient {
 
   @override
   AsyncResult<RestClientResponse> put(RestClientRequest request) {
+    _log.info('PUT ${request.path} - Headers: ${request.headers}');
     return _request(
       () => _dio.put(
         request.path,
@@ -86,6 +91,7 @@ class DioRestClient implements RestClient {
         ),
       );
     } catch (err, stack) {
+      _log.error('Request error: $err', error: err, stack: stack);
       return Result.failure(mapHttpError(err, stack));
     }
   }

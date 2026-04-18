@@ -1,6 +1,149 @@
 # Changelog
 
-## 2026/04/17 — api/user_status-05
+## 2026/04/18 — mobile/login-01
+
+Implements the **initial mobile authentication integration aligned with the backend contract**, introducing structured logging, AppToken support, stricter HTTP handling, and internal refactoring for environment configuration. Also includes database migration adjustments and a full documentation update across the API layer. 
+
+### 1. Environment Configuration Refactor
+
+* Moved configuration files from `core/config` to `core/resources`:
+
+  * `app_env.dart`
+  * `storage_keys.dart`
+* Refactored `AppEnv`:
+
+  * introduced `APP_ACCESS_TOKEN` support (`appToken`)
+  * encapsulated timeouts and mode as private constants with getters
+  * added `isProd` helper
+* Improved validation for `BASE_URL`
+* Overall effect:
+
+  * clearer separation between configuration and infrastructure
+  * safer access to environment variables
+
+### 2. HTTP Layer Enhancements (Dio + RestClient)
+
+* Added structured logging via `ConsoleLog`:
+
+  * request logging for `POST` and `PUT`
+  * centralized error logging with stack trace
+* Improved error handling in `DioRestClient`:
+
+  * ensures all exceptions are mapped consistently to `Result.failure`
+* This aligns the client with the backend response contract:
+
+  * strict envelope parsing
+  * predictable failure paths 
+
+### 3. Auth Interceptor Improvements
+
+* Replaced `dart:developer.log` with `ConsoleLog`
+* Added detailed error diagnostics:
+
+  * status code
+  * error type
+  * message
+  * full stack trace
+* Improved observability for:
+
+  * token refresh failures
+  * unexpected network errors
+* Maintains current refresh flow while making failure states explicit
+
+### 4. Secure Storage Logging
+
+* Integrated `ConsoleLog` into `FlutterSecureStorageLocalStorage`
+* All operations now include structured error logging:
+
+  * read
+  * write
+  * delete
+  * deleteAll
+* Converts silent failures into traceable events without changing behavior
+
+### 5. Auth API Integration (Login/Register)
+
+* Added required header:
+
+  * `X-App-Token: AppEnv.appToken`
+* Enforced HTTP validation before parsing:
+
+  * rejects non-2xx responses explicitly
+* Refactored response handling:
+
+  * now uses `RestClientResponse` instead of raw maps
+  * validates `statusCode` before envelope parsing
+* Improved error semantics:
+
+  * HTTP errors mapped explicitly
+  * parsing errors logged with stack trace
+* Aligns mobile client with backend authentication model:
+
+  * AppToken required for onboarding endpoints
+  * JWT used after login 
+
+### 6. Logging Infrastructure Introduction
+
+* Introduced `ConsoleLog` as a reusable logging utility:
+
+  * supports `error`, `warn`, `info`, and raw `log`
+  * context-aware logging (`Class.method`)
+  * debug-only execution via `kDebugMode`
+* Establishes a consistent logging standard across:
+
+  * HTTP layer
+  * interceptors
+  * storage
+  * APIs
+
+### 7. Dependency Wiring Adjustments
+
+* Updated imports across core services to reflect new structure
+* Ensured `DioFactory` and `CoreServices` use the new `AppEnv` location
+* Maintains existing DI structure without introducing new abstractions
+
+### 8. Database and Backend Alignment
+
+* Added migrations:
+
+  * `customer.email` becomes nullable
+  * full removal of `customer.email`
+* Introduced `schema.sql` dump for full database snapshot
+* Updated Makefile:
+
+  * simplified schema export command (`dbschema`)
+* These changes reflect the architectural shift:
+
+  * email responsibility moved from Customer to Auth layer
+
+### 9. Documentation Update (API)
+
+* Entire `api/docs` directory updated and normalized:
+
+  * heading hierarchy fixes
+  * consistency improvements across endpoints
+* Documentation now reflects:
+
+  * AppToken requirement for `/auth/*`
+  * JWT-based access control
+  * standardized response envelope
+* This ensures the mobile client is aligned with the real API contract 
+
+### Conclusion
+
+This commit establishes a **cohesive foundation for mobile authentication**, ensuring strict alignment with backend contracts while improving observability and error handling.
+
+From an architectural perspective, the most relevant gains are:
+
+* explicit separation of configuration concerns
+* deterministic HTTP behavior
+* consistent logging strategy
+* formalization of AppToken-based onboarding
+
+The result is a **much more predictable and debuggable client**, which is essential before advancing to higher-level flows such as session management and UI integration.
+
+
+## 2026/04/17 — api/customer-email-removal-01
 
 Refactors the **customer domain boundary by removing email from the Customer aggregate**, repositioning it as a responsibility of the authentication layer, and aligning persistence, application flows, and delivery contracts accordingly. Also introduces a utility for database schema extraction and updates all related tests and documentation. 
 

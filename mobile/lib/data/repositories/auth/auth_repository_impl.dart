@@ -1,4 +1,3 @@
-import '/core/config/storage_keys.dart';
 import '/core/result/result.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
 import '/data/repositories/auth/auth_repository.dart';
@@ -7,6 +6,7 @@ import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/data/services/apis/auth/dtos/register_request_dto.dart';
 import '/domain/auth/models/auth_user.dart';
 import '/domain/auth/models/user_profile.dart';
+import '../../../core/resources/storage_keys.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApi _api;
