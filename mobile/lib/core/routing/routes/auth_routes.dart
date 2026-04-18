@@ -6,18 +6,23 @@ import '/uis/pages/auth/login/login_page.dart';
 import '/uis/pages/auth/login/viewmodel/login_viewmodel.dart';
 import '/uis/pages/auth/register/register_page.dart';
 import '/uis/pages/auth/register/viewmodel/register_viewmodel.dart';
+import '../animations_page/app_custom_transaction.dart';
 
 List<RouteBase> authRoutes() => [
   GoRoute(
     path: AuthRoutes.login.path,
     name: AuthRoutes.login.name,
-    builder: (context, state) =>
-        LoginPage(viewModel: injector.get<LoginViewModel>()),
+    pageBuilder: (context, state) => AppCustomTransactionPage(
+      key: state.pageKey,
+      child: LoginPage(viewModel: injector.get<LoginViewModel>()),
+    ),
   ),
   GoRoute(
     path: AuthRoutes.register.path,
     name: AuthRoutes.register.name,
-    builder: (context, state) =>
-        RegisterPage(viewmodel: injector.get<RegisterViewmodel>()),
+    pageBuilder: (context, state) => AppCustomTransactionPage(
+      key: state.pageKey,
+      child: RegisterPage(viewmodel: injector.get<RegisterViewmodel>()),
+    ),
   ),
 ];

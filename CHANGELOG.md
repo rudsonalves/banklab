@@ -1,6 +1,338 @@
 # Changelog
 
-## 2026/04/17 — api/user_status-05
+## 2026/04/18 — docs/update-01
+
+Refactors and consolidates the entire project documentation to align with the current implementation, architectural decisions, and system positioning. The update establishes a clear narrative centered on **transactional consistency**, **ledger-driven design**, and **explicit system guarantees**, while significantly improving documentation discoverability and structure.
+
+### 1. Root Documentation — README.md
+
+* Rewrote the project introduction to reflect the system’s core premise:
+
+  * balance as a consequence of transactions
+  * transaction as the central element of the model
+* Introduced a formal **System Scope** section:
+
+  * defined goals, boundaries, and responsibilities
+  * clarified in-scope vs out-of-scope features
+* Added explicit **system guarantees**:
+
+  * financial integrity, atomicity, traceability, consistency, synchronous model, single source of truth
+* Improved API and Mobile descriptions to better reflect actual capabilities
+* Reorganized documentation references into structured sections:
+
+  * API documentation
+  * Mobile documentation
+* Elevated the README from a simple entry point to a **high-level architectural contract**
+
+### 2. Documentation Consolidation
+
+* Centralized system definition previously described in:
+
+  * `api/docs/objetivos.md`
+* Replaced duplicated content with a reference to the root README:
+
+  * avoids divergence between documents
+  * enforces a single source of truth for system scope
+
+### 3. Full Documentation Update (api/docs)
+
+* All documents under `api/docs` were reviewed and updated to reflect the current state of the system
+* The documentation now consistently describes:
+
+  * domain model centered on transactions and invariants 
+  * data model aligned with financial consistency and traceability 
+  * strong consistency and concurrency strategy using ACID transactions and pessimistic locking 
+  * use case flows with explicit transactional behavior and validation order 
+  * REST contract with standardized response envelope and error mapping 
+  * error handling model with stable codes and predictable structure 
+  * authentication and authorization model with staged token strategy 
+  * implementation details reflecting actual runtime behavior and layering 
+
+### 4. Structural Improvements
+
+* Eliminated conceptual duplication across documents
+* Strengthened separation between:
+
+  * conceptual documentation (domain, flows, guarantees)
+  * implementation documentation (runtime behavior, wiring, persistence)
+* Established a clearer documentation hierarchy:
+
+  * README as entry point and system definition
+  * api/docs as deep technical reference
+
+### 5. Documentation Positioning
+
+* The documentation now functions as:
+
+  * a **technical specification of the system**
+  * a **learning artifact for architectural decisions**
+  * a **foundation for future evolution (e.g., Zero Trust, distributed systems)**
+
+### Conclusion
+
+This commit transforms the documentation from a fragmented set of notes into a **cohesive, authoritative, and implementation-aligned body of knowledge**. The system is now clearly defined not only by its code, but by explicit guarantees, constraints, and architectural intent, which significantly increases its value as both a technical asset and a reference model.
+
+
+## 2026/04/18 — mobile/login-02
+
+Implements a **refined authentication UI layer** with standardized input components, improved routing transitions, and consistent theming across login and registration flows. Also aligns the mobile layer with the backend contract and documentation updates 
+
+### 1. Linting and Import Consistency
+
+* Enabled `prefer_relative_imports` in `analysis_options.yaml`
+* Refactored imports in `dio_rest_client.dart` to use relative paths
+* Improves modular isolation and reduces dependency coupling across layers
+
+### 2. Routing Layer — Custom Transitions
+
+* Introduced `AppCustomTransactionPage`
+
+  * Combines `FadeTransition` with `ScaleTransition`
+  * Uses `easeOutCubic` curve for smoother perception
+* Migrated auth routes (`login`, `register`) from `builder` to `pageBuilder`
+* Centralizes navigation behavior at routing level rather than UI layer
+
+Opinion: this is a correct architectural move. Transition concerns belong to routing, not to pages. It avoids UI fragmentation and implicit navigation behavior.
+
+### 3. UI Abstraction — Form Components
+
+* Introduced `BasicTextFormField`
+
+  * Encapsulates:
+
+    * decoration
+    * border styling
+    * radius standardization
+    * icon handling
+  * Reduces duplication across forms
+* Applied to:
+
+  * `LoginPage`
+  * `RegisterPage`
+
+Impact:
+
+* Eliminates repeated `InputDecoration`
+* Enforces visual consistency
+* Simplifies future global UI changes
+
+### 4. Input Formatting — CPF
+
+* Added `CpfInputFormatter`
+
+  * Normalizes input to digits only
+  * Applies mask: `000.000.000-00`
+* Integrated into registration form with:
+
+  * `FilteringTextInputFormatter.digitsOnly`
+  * custom formatter
+
+Opinion: this is a critical UX improvement. It reduces invalid payloads before they reach the API and aligns well with backend expectations for CPF validation.
+
+### 5. Login Page Refinements
+
+* Replaced raw `TextFormField` with `BasicTextFormField`
+* Added:
+
+  * `textInputAction` flow (next/done)
+  * explicit hints
+  * submit via keyboard (`onFieldSubmitted`)
+* Simplified `ValueListenableBuilder` usage for password visibility
+
+### 6. Register Page Refinements
+
+* Fully migrated all inputs to `BasicTextFormField`
+* Improved UX flow:
+
+  * sequential navigation via keyboard actions
+  * consistent hints and labels
+* Integrated CPF formatting and validation pipeline
+
+### 7. Theme Standardization
+
+* Centralized theme adjustments in `AppWidget`:
+
+  * `AppBarTheme` now uses `colorScheme` explicitly
+  * Introduced `InputDecorationTheme`:
+
+    * filled inputs
+    * semi-transparent background
+    * rounded borders (24px)
+* Aligns visual identity across all form fields without per-widget duplication
+
+Opinion: this is a strong step toward a design system. The combination of theme + base component is significantly more maintainable than scattered styling.
+
+### 8. Documentation Update (API Layer)
+
+* Updated entire `api/docs` structure (not included in diff due to size)
+* Ensures alignment between:
+
+  * mobile DTOs
+  * authentication flow (login/register/refresh)
+  * response envelope and error handling patterns
+
+This is particularly relevant given the API contract:
+
+* standardized `data/error` envelope
+* authentication flow using AppToken + JWT
+* consistent error codes and payloads 
+
+### Conclusion
+
+This commit represents a **UI architecture consolidation for authentication flows**, focusing on:
+
+* component reuse
+* visual consistency
+* controlled navigation behavior
+* input validation at the edge
+
+From a design perspective, the most important gain is the **emergence of a coherent UI foundation**. The introduction of a base input component combined with theme-level control significantly reduces long-term maintenance cost and prevents divergence across screens.
+
+
+## 2026/04/18 — mobile/login-01
+
+Implements the **initial mobile authentication integration aligned with the backend contract**, introducing structured logging, AppToken support, stricter HTTP handling, and internal refactoring for environment configuration. Also includes database migration adjustments and a full documentation update across the API layer. 
+
+### 1. Environment Configuration Refactor
+
+* Moved configuration files from `core/config` to `core/resources`:
+
+  * `app_env.dart`
+  * `storage_keys.dart`
+* Refactored `AppEnv`:
+
+  * introduced `APP_ACCESS_TOKEN` support (`appToken`)
+  * encapsulated timeouts and mode as private constants with getters
+  * added `isProd` helper
+* Improved validation for `BASE_URL`
+* Overall effect:
+
+  * clearer separation between configuration and infrastructure
+  * safer access to environment variables
+
+### 2. HTTP Layer Enhancements (Dio + RestClient)
+
+* Added structured logging via `ConsoleLog`:
+
+  * request logging for `POST` and `PUT`
+  * centralized error logging with stack trace
+* Improved error handling in `DioRestClient`:
+
+  * ensures all exceptions are mapped consistently to `Result.failure`
+* This aligns the client with the backend response contract:
+
+  * strict envelope parsing
+  * predictable failure paths 
+
+### 3. Auth Interceptor Improvements
+
+* Replaced `dart:developer.log` with `ConsoleLog`
+* Added detailed error diagnostics:
+
+  * status code
+  * error type
+  * message
+  * full stack trace
+* Improved observability for:
+
+  * token refresh failures
+  * unexpected network errors
+* Maintains current refresh flow while making failure states explicit
+
+### 4. Secure Storage Logging
+
+* Integrated `ConsoleLog` into `FlutterSecureStorageLocalStorage`
+* All operations now include structured error logging:
+
+  * read
+  * write
+  * delete
+  * deleteAll
+* Converts silent failures into traceable events without changing behavior
+
+### 5. Auth API Integration (Login/Register)
+
+* Added required header:
+
+  * `X-App-Token: AppEnv.appToken`
+* Enforced HTTP validation before parsing:
+
+  * rejects non-2xx responses explicitly
+* Refactored response handling:
+
+  * now uses `RestClientResponse` instead of raw maps
+  * validates `statusCode` before envelope parsing
+* Improved error semantics:
+
+  * HTTP errors mapped explicitly
+  * parsing errors logged with stack trace
+* Aligns mobile client with backend authentication model:
+
+  * AppToken required for onboarding endpoints
+  * JWT used after login 
+
+### 6. Logging Infrastructure Introduction
+
+* Introduced `ConsoleLog` as a reusable logging utility:
+
+  * supports `error`, `warn`, `info`, and raw `log`
+  * context-aware logging (`Class.method`)
+  * debug-only execution via `kDebugMode`
+* Establishes a consistent logging standard across:
+
+  * HTTP layer
+  * interceptors
+  * storage
+  * APIs
+
+### 7. Dependency Wiring Adjustments
+
+* Updated imports across core services to reflect new structure
+* Ensured `DioFactory` and `CoreServices` use the new `AppEnv` location
+* Maintains existing DI structure without introducing new abstractions
+
+### 8. Database and Backend Alignment
+
+* Added migrations:
+
+  * `customer.email` becomes nullable
+  * full removal of `customer.email`
+* Introduced `schema.sql` dump for full database snapshot
+* Updated Makefile:
+
+  * simplified schema export command (`dbschema`)
+* These changes reflect the architectural shift:
+
+  * email responsibility moved from Customer to Auth layer
+
+### 9. Documentation Update (API)
+
+* Entire `api/docs` directory updated and normalized:
+
+  * heading hierarchy fixes
+  * consistency improvements across endpoints
+* Documentation now reflects:
+
+  * AppToken requirement for `/auth/*`
+  * JWT-based access control
+  * standardized response envelope
+* This ensures the mobile client is aligned with the real API contract 
+
+### Conclusion
+
+This commit establishes a **cohesive foundation for mobile authentication**, ensuring strict alignment with backend contracts while improving observability and error handling.
+
+From an architectural perspective, the most relevant gains are:
+
+* explicit separation of configuration concerns
+* deterministic HTTP behavior
+* consistent logging strategy
+* formalization of AppToken-based onboarding
+
+The result is a **much more predictable and debuggable client**, which is essential before advancing to higher-level flows such as session management and UI integration.
+
+
+## 2026/04/17 — api/customer-email-removal-01
 
 Refactors the **customer domain boundary by removing email from the Customer aggregate**, repositioning it as a responsibility of the authentication layer, and aligning persistence, application flows, and delivery contracts accordingly. Also introduces a utility for database schema extraction and updates all related tests and documentation. 
 

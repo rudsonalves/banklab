@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/register_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/pages/auth/register/viewmodel/register_viewmodel.dart';
+import '../../../core/input_formatters/cpf_input_formatter.dart';
+import '../../../core/text_form_field/basic_text_form_field.dart';
 
 class RegisterPage extends StatefulWidget {
   final RegisterViewmodel viewmodel;
@@ -83,64 +86,64 @@ class _RegisterPageState extends State<RegisterPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        BasicTextFormField(
                           controller: _nameController,
                           textCapitalization: TextCapitalization.words,
                           enabled: !isRunning,
-                          decoration: const InputDecoration(
-                            labelText: 'Nome completo',
-                            hintText: 'Seu nome completo',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
+                          textInputAction: TextInputAction.next,
+                          labelText: 'Nome completo',
+                          hintText: 'Seu nome completo',
+                          prefixIcon: Icon(Icons.person_outline),
                           validator: _nameValidator,
                         ),
 
-                        TextFormField(
+                        BasicTextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           autofillHints: const [AutofillHints.email],
                           enabled: !isRunning,
-                          decoration: const InputDecoration(
-                            labelText: 'E-mail',
-                            hintText: 'voce@exemplo.com',
-                            prefixIcon: Icon(Icons.email_outlined),
-                          ),
+                          textInputAction: TextInputAction.next,
+                          labelText: 'E-mail',
+                          hintText: 'voce@exemplo.com',
+                          prefixIcon: Icon(Icons.email_outlined),
                           validator: _emailValidator,
                         ),
 
-                        TextFormField(
+                        BasicTextFormField(
                           controller: _cpfController,
                           keyboardType: TextInputType.number,
                           enabled: !isRunning,
-                          decoration: const InputDecoration(
-                            labelText: 'CPF',
-                            hintText: '00000000000',
-                            prefixIcon: Icon(Icons.badge_outlined),
-                          ),
+                          textInputAction: TextInputAction.next,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            CpfInputFormatter(),
+                          ],
+                          labelText: 'CPF',
+                          hintText: '000.000.000-00',
+                          prefixIcon: Icon(Icons.badge_outlined),
                           validator: _cpfValidator,
                         ),
 
-                        TextFormField(
+                        BasicTextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           enabled: !isRunning,
                           autofillHints: const [AutofillHints.newPassword],
-                          decoration: InputDecoration(
-                            labelText: 'Senha',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              onPressed: isRunning
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
+                          textInputAction: TextInputAction.done,
+                          labelText: 'Senha',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            onPressed: isRunning
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
                             ),
                           ),
                           validator: _passwordValidator,

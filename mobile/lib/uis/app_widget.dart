@@ -47,12 +47,22 @@ class _AppWidgetState extends State<AppWidget> {
   }
 
   ThemeData _buildAppTheme(ThemeData base) {
+    final colorScheme = base.colorScheme;
+
     return base.copyWith(
       appBarTheme: base.appBarTheme.copyWith(
-        backgroundColor: base.colorScheme.primaryContainer,
-        foregroundColor: base.colorScheme.onPrimaryContainer,
+        backgroundColor: colorScheme.primaryContainer,
+        foregroundColor: colorScheme.onPrimaryContainer,
         titleTextStyle: base.textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w600,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colorScheme.primaryContainer.withValues(alpha: 0.5),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide.none,
         ),
       ),
     );

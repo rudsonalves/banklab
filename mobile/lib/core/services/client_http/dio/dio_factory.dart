@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '/core/config/app_env.dart';
+import '../../../resources/app_env.dart';
 
 class DioFactory {
   static Dio create({

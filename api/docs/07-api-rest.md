@@ -49,7 +49,7 @@ Notes:
 - Current implementation returns `error.code` and `error.message`.
 - `error.details` is not currently populated by handlers.
 
-## 2.1 Error Payload Examples (Standard)
+### 2.1 Error Payload Examples (Standard)
 
 Example - 400 INVALID_REQUEST:
 
@@ -101,7 +101,7 @@ Example - 500 INTERNAL_ERROR:
 
 ## 3. Authentication Endpoints
 
-## 3.1 Register User
+### 3.1 Register User
 
 - Method: POST
 - Path: /auth/register
@@ -146,7 +146,7 @@ Possible errors:
 - 409 (customer domain): duplicate CPF or email in customers table
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.2 Login User
+### 3.2 Login User
 
 - Method: POST
 - Path: /auth/login
@@ -188,7 +188,7 @@ Possible errors:
 - 401 INVALID_CREDENTIALS: invalid email/password
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.3 Refresh Access Token
+### 3.3 Refresh Access Token
 
 - Method: POST
 - Path: /auth/refresh
@@ -228,7 +228,7 @@ Possible errors:
 - 401 INVALID_TOKEN: token invalid, revoked, expired, or not found
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.4 Get Current User
+### 3.4 Get Current User
 
 - Method: GET
 - Path: /auth/me
@@ -253,7 +253,7 @@ Possible errors:
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 3.5 Approve User (Admin Only)
+### 3.5 Approve User (Admin Only)
 
 - Method: POST
 - Path: /admin/users/{id}/approve
@@ -317,7 +317,7 @@ All account routes are protected and require Authorization header with Bearer to
 
 Ownership is enforced automatically. A customer-role user can only access accounts that belong to their own `customer_id`. Admin-role users can access any account.
 
-## 4.1 Create Account
+### 4.1 Create Account
 
 - Method: POST
 - Path: /accounts
@@ -359,7 +359,7 @@ Possible errors:
 - 404 CUSTOMER_NOT_FOUND: customer does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 4.2 Deposit
+### 4.2 Deposit
 
 - Method: POST
 - Path: /accounts/{id}/deposit
@@ -396,7 +396,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 4.3 Withdraw
+### 4.3 Withdraw
 
 - Method: POST
 - Path: /accounts/{id}/withdraw
@@ -434,7 +434,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 4.4 Transfer
+### 4.4 Transfer
 
 - Method: POST
 - Path: /accounts/transfer
@@ -484,7 +484,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-## 4.5 Get Statement
+### 4.5 Get Statement
 
 - Method: GET
 - Path: /accounts/{id}/statement
@@ -546,7 +546,7 @@ Possible errors:
 
 All customer routes are protected and require Authorization header with Bearer token.
 
-## 5.1 Get My Customer Profile
+### 5.1 Get My Customer Profile
 
 - Method: GET
 - Path: /customers/me

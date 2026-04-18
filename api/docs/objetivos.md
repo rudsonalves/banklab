@@ -1,5 +1,7 @@
 # Contornos do Sistema — Bank API
 
+> O conteúdo deste documento foi consolidado no [README.md](../../README.md#system-scope) da raiz do repositório.
+
 ## 1. Objetivo do Sistema
 
 O sistema tem como objetivo implementar um núcleo bancário simplificado, capaz de:

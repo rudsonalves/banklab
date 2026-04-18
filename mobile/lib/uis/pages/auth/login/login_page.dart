@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
+import '../../../core/text_form_field/basic_text_form_field.dart';
 import 'viewmodel/login_viewmodel.dart';
 
 class LoginPage extends StatefulWidget {
@@ -82,29 +83,30 @@ class _LoginPageState extends State<LoginPage> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+
+                        BasicTextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           autofillHints: const [AutofillHints.email],
                           enabled: !isRunning,
-                          decoration: const InputDecoration(
-                            labelText: 'E-mail',
-                            hintText: 'voce@exemplo.com',
-                            prefixIcon: Icon(Icons.email_outlined),
-                          ),
+                          textInputAction: TextInputAction.next,
+                          labelText: 'E-mail',
+                          hintText: 'voce@exemplo.com',
+                          prefixIcon: const Icon(Icons.email_outlined),
                           validator: _emailValidator,
                         ),
 
                         ValueListenableBuilder<bool>(
                           valueListenable: _obscurePassword,
-                          builder: (context, value, child) {
-                            return TextFormField(
-                              controller: _passwordController,
-                              obscureText: value,
-                              enabled: !isRunning,
-                              autofillHints: const [AutofillHints.password],
-                              decoration: InputDecoration(
+                          builder: (context, value, child) =>
+                              BasicTextFormField(
+                                controller: _passwordController,
+                                obscureText: value,
+                                enabled: !isRunning,
+                                autofillHints: const [AutofillHints.password],
+                                textInputAction: TextInputAction.done,
                                 labelText: 'Senha',
+                                hintText: '********',
                                 prefixIcon: const Icon(Icons.lock_outline),
                                 suffixIcon: IconButton(
                                   onPressed: isRunning
@@ -116,11 +118,9 @@ class _LoginPageState extends State<LoginPage> {
                                         : Icons.visibility_off_outlined,
                                   ),
                                 ),
+                                validator: _passwordValidator,
+                                onFieldSubmitted: (_) => _submit(),
                               ),
-                              validator: _passwordValidator,
-                              onFieldSubmitted: (_) => _submit(),
-                            );
-                          },
                         ),
 
                         const SizedBox(height: 6),
