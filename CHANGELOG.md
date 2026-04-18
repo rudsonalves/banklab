@@ -1,5 +1,78 @@
 # Changelog
 
+## 2026/04/18 — docs/update-01
+
+Refactors and consolidates the entire project documentation to align with the current implementation, architectural decisions, and system positioning. The update establishes a clear narrative centered on **transactional consistency**, **ledger-driven design**, and **explicit system guarantees**, while significantly improving documentation discoverability and structure.
+
+### 1. Root Documentation — README.md
+
+* Rewrote the project introduction to reflect the system’s core premise:
+
+  * balance as a consequence of transactions
+  * transaction as the central element of the model
+* Introduced a formal **System Scope** section:
+
+  * defined goals, boundaries, and responsibilities
+  * clarified in-scope vs out-of-scope features
+* Added explicit **system guarantees**:
+
+  * financial integrity, atomicity, traceability, consistency, synchronous model, single source of truth
+* Improved API and Mobile descriptions to better reflect actual capabilities
+* Reorganized documentation references into structured sections:
+
+  * API documentation
+  * Mobile documentation
+* Elevated the README from a simple entry point to a **high-level architectural contract**
+
+### 2. Documentation Consolidation
+
+* Centralized system definition previously described in:
+
+  * `api/docs/objetivos.md`
+* Replaced duplicated content with a reference to the root README:
+
+  * avoids divergence between documents
+  * enforces a single source of truth for system scope
+
+### 3. Full Documentation Update (api/docs)
+
+* All documents under `api/docs` were reviewed and updated to reflect the current state of the system
+* The documentation now consistently describes:
+
+  * domain model centered on transactions and invariants 
+  * data model aligned with financial consistency and traceability 
+  * strong consistency and concurrency strategy using ACID transactions and pessimistic locking 
+  * use case flows with explicit transactional behavior and validation order 
+  * REST contract with standardized response envelope and error mapping 
+  * error handling model with stable codes and predictable structure 
+  * authentication and authorization model with staged token strategy 
+  * implementation details reflecting actual runtime behavior and layering 
+
+### 4. Structural Improvements
+
+* Eliminated conceptual duplication across documents
+* Strengthened separation between:
+
+  * conceptual documentation (domain, flows, guarantees)
+  * implementation documentation (runtime behavior, wiring, persistence)
+* Established a clearer documentation hierarchy:
+
+  * README as entry point and system definition
+  * api/docs as deep technical reference
+
+### 5. Documentation Positioning
+
+* The documentation now functions as:
+
+  * a **technical specification of the system**
+  * a **learning artifact for architectural decisions**
+  * a **foundation for future evolution (e.g., Zero Trust, distributed systems)**
+
+### Conclusion
+
+This commit transforms the documentation from a fragmented set of notes into a **cohesive, authoritative, and implementation-aligned body of knowledge**. The system is now clearly defined not only by its code, but by explicit guarantees, constraints, and architectural intent, which significantly increases its value as both a technical asset and a reference model.
+
+
 ## 2026/04/18 — mobile/login-02
 
 Implements a **refined authentication UI layer** with standardized input components, improved routing transitions, and consistent theming across login and registration flows. Also aligns the mobile layer with the backend contract and documentation updates 

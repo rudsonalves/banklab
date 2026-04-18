@@ -1,9 +1,13 @@
 # banklab
 
-banklab is a monorepo with two main applications:
+banklab is a monorepo built around a simplified banking core with emphasis on **transactional consistency** and **explicit business invariants**.
 
-- a Go API that implements a simplified banking core
-- a Flutter mobile app used to validate end-to-end flows against the API
+The system is structured around the premise that the transaction is the central element — balance is a consequence of recorded movements, not a value maintained directly.
+
+It consists of two applications:
+
+- **API (Go)** — implements the banking core: customers, accounts, and financial operations with reliable transactional control
+- **Mobile (Flutter)** — consumes the API and validates end-to-end flows across auth, account management, and transactions
 
 The project is intentionally focused on correctness, consistency, and architecture decisions, not on feature volume.
 
@@ -19,21 +23,70 @@ banklab/
 `-- Makefile
 ```
 
+## System scope
+
+### Goal
+
+Implement a simplified banking core capable of:
+
+- managing customers
+- maintaining bank accounts
+- recording financial movements
+- guaranteeing balance consistency
+
+The focus is on **reliable transactional control**, not on peripheral features.
+
+### Nature
+
+> A balance-control system based on records of financial movements.
+
+- the balance is a consequence
+- the transaction is the central element
+
+### In scope
+
+| Domain    | Responsibilities                                |
+| --------- | ----------------------------------------------- |
+| Customers | creation, identification by CPF and email       |
+| Accounts  | opening, balance query, status control          |
+| Movements | deposit, withdraw, transfer, full operation log |
+| Statement | transaction listing per account                 |
+
+### Out of scope (at this stage)
+
+- integration with external systems (Pix, TED, etc.)
+- anti-fraud and risk analysis
+- notifications (email, push)
+- multi-currency
+- bank reconciliation and external settlement
+
+### System guarantees
+
+- **Financial integrity** — no balance inconsistency; every movement is recorded
+- **Atomicity** — critical operations (especially transfers) are indivisible
+- **Traceability** — all operations are auditable; no balance change without a record
+- **Consistency** — system state is always valid, even under concurrency
+- **Synchronous model** — all operations complete at request time; no eventual consistency
+- **Single source of truth** — the relational database is the only authority
+
+---
+
 ## What is implemented
 
 ### API (Go)
 
-- JWT authentication (register, login, me)
-- customer creation
-- account creation
-- money operations: deposit, withdraw, transfer
+- auth: register, login, current user (JWT)
+- customer creation, identified by CPF and email
+- account opening, balance query, status control
+- financial operations: deposit, withdraw, transfer between accounts
 - account statement with pagination
+- transactional consistency enforced at the database level
 
 ### Mobile (Flutter)
 
 - authentication flow with JWT
-- account creation and management flows
-- transaction operations integrated with API
+- account creation and management
+- deposit, withdrawal, and transfer operations integrated with the API
 - transaction history browsing
 
 ## Quick start
@@ -132,10 +185,26 @@ make docker-logs
 
 ## Project docs
 
-- API guide: [api/README.md](api/README.md)
-- Mobile guide: [mobile/README.md](mobile/README.md)
-- Mobile architecture: [docs/mobile/ARCHITECTURE.md](docs/mobile/ARCHITECTURE.md)
-- Architecture and design docs: [docs/api](docs/api)
+### API (Go)
+
+- [api/README.md](api/README.md) — API guide and setup
+- [api/docs/ARCHITECTURE.md](api/docs/ARCHITECTURE.md) — API Architecture
+- [api/docs/objetivos.md](api/docs/objetivos.md) — System Scope — Bank API
+- [api/docs/01-domain_model.md](api/docs/01-domain_model.md) — Domain Model
+- [api/docs/02-use_case_flows.md](api/docs/02-use_case_flows.md) — Use Case Flows
+- [api/docs/03-application_model.md](api/docs/03-application_model.md) — Application Model
+- [api/docs/04-consistency_and_concorrency.md](api/docs/04-consistency_and_concorrency.md) — Consistency and Concurrency Strategy
+- [api/docs/05-error_and_response.md](api/docs/05-error_and_response.md) — Error and Response Standard
+- [api/docs/06-implementation.md](api/docs/06-implementation.md) — Implementation Documentation
+- [api/docs/07-api-rest.md](api/docs/07-api-rest.md) — REST API Documentation
+- [api/docs/08-auth_implementation.md](api/docs/08-auth_implementation.md) — Auth & Authorization
+- [api/docs/09-database.md](api/docs/09-database.md) — Database Documentation
+- [api/docs/infra.md](api/docs/infra.md) — Infrastructure
+
+### Mobile (Flutter)
+
+- [mobile/README.md](mobile/README.md) — Mobile guide and setup
+- [mobile/docs/ARCHITECTURE.md](mobile/docs/ARCHITECTURE.md) — Mobile Architecture
 
 ## License
 
