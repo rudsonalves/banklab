@@ -1,5 +1,121 @@
 # Changelog
 
+## 2026/04/18 — mobile/login-02
+
+Implements a **refined authentication UI layer** with standardized input components, improved routing transitions, and consistent theming across login and registration flows. Also aligns the mobile layer with the backend contract and documentation updates 
+
+### 1. Linting and Import Consistency
+
+* Enabled `prefer_relative_imports` in `analysis_options.yaml`
+* Refactored imports in `dio_rest_client.dart` to use relative paths
+* Improves modular isolation and reduces dependency coupling across layers
+
+### 2. Routing Layer — Custom Transitions
+
+* Introduced `AppCustomTransactionPage`
+
+  * Combines `FadeTransition` with `ScaleTransition`
+  * Uses `easeOutCubic` curve for smoother perception
+* Migrated auth routes (`login`, `register`) from `builder` to `pageBuilder`
+* Centralizes navigation behavior at routing level rather than UI layer
+
+Opinion: this is a correct architectural move. Transition concerns belong to routing, not to pages. It avoids UI fragmentation and implicit navigation behavior.
+
+### 3. UI Abstraction — Form Components
+
+* Introduced `BasicTextFormField`
+
+  * Encapsulates:
+
+    * decoration
+    * border styling
+    * radius standardization
+    * icon handling
+  * Reduces duplication across forms
+* Applied to:
+
+  * `LoginPage`
+  * `RegisterPage`
+
+Impact:
+
+* Eliminates repeated `InputDecoration`
+* Enforces visual consistency
+* Simplifies future global UI changes
+
+### 4. Input Formatting — CPF
+
+* Added `CpfInputFormatter`
+
+  * Normalizes input to digits only
+  * Applies mask: `000.000.000-00`
+* Integrated into registration form with:
+
+  * `FilteringTextInputFormatter.digitsOnly`
+  * custom formatter
+
+Opinion: this is a critical UX improvement. It reduces invalid payloads before they reach the API and aligns well with backend expectations for CPF validation.
+
+### 5. Login Page Refinements
+
+* Replaced raw `TextFormField` with `BasicTextFormField`
+* Added:
+
+  * `textInputAction` flow (next/done)
+  * explicit hints
+  * submit via keyboard (`onFieldSubmitted`)
+* Simplified `ValueListenableBuilder` usage for password visibility
+
+### 6. Register Page Refinements
+
+* Fully migrated all inputs to `BasicTextFormField`
+* Improved UX flow:
+
+  * sequential navigation via keyboard actions
+  * consistent hints and labels
+* Integrated CPF formatting and validation pipeline
+
+### 7. Theme Standardization
+
+* Centralized theme adjustments in `AppWidget`:
+
+  * `AppBarTheme` now uses `colorScheme` explicitly
+  * Introduced `InputDecorationTheme`:
+
+    * filled inputs
+    * semi-transparent background
+    * rounded borders (24px)
+* Aligns visual identity across all form fields without per-widget duplication
+
+Opinion: this is a strong step toward a design system. The combination of theme + base component is significantly more maintainable than scattered styling.
+
+### 8. Documentation Update (API Layer)
+
+* Updated entire `api/docs` structure (not included in diff due to size)
+* Ensures alignment between:
+
+  * mobile DTOs
+  * authentication flow (login/register/refresh)
+  * response envelope and error handling patterns
+
+This is particularly relevant given the API contract:
+
+* standardized `data/error` envelope
+* authentication flow using AppToken + JWT
+* consistent error codes and payloads 
+
+### Conclusion
+
+This commit represents a **UI architecture consolidation for authentication flows**, focusing on:
+
+* component reuse
+* visual consistency
+* controlled navigation behavior
+* input validation at the edge
+
+From a design perspective, the most important gain is the **emergence of a coherent UI foundation**. The introduction of a base input component combined with theme-level control significantly reduces long-term maintenance cost and prevents divergence across screens.
+
+
 ## 2026/04/18 — mobile/login-01
 
 Implements the **initial mobile authentication integration aligned with the backend contract**, introducing structured logging, AppToken support, stricter HTTP handling, and internal refactoring for environment configuration. Also includes database migration adjustments and a full documentation update across the API layer. 

@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '/core/result/result.dart';
-import '/data/services/logging/console_log.dart';
+import '../../logging/console_log.dart';
 import '../client/rest_client.dart';
 import '../client/rest_client_request.dart';
 import '../client/rest_client_response.dart';
