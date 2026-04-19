@@ -1,5 +1,142 @@
 # Changelog
 
+## 2026/04/19 — docs/update-02
+
+Updates documentation, developer workflow, and project structure to reflect the current state of the system, with emphasis on bootstrap automation, ledger-based modeling, and clearer onboarding for both API and mobile applications.
+
+### 1. Makefile — Developer Workflow and Environment Management
+
+* Introduced a complete **Docker orchestration layer**:
+
+  * `docker-up`, `docker-down`, `docker-logs`, `docker-clean`, `docker-check`
+* Added **environment lifecycle commands**:
+
+  * `setup`: full bootstrap (Docker + DB + migrations)
+  * `run`: full system startup including API
+  * `reset`: deterministic full reset (containers + database + migrations)
+  * `db-reset`, `db-wait`
+* Added semantic aliases:
+
+  * `bootstrap` → setup
+  * `dev` → run
+* Removed duplicated Docker section and consolidated structure
+
+This significantly improves reproducibility and reduces manual setup errors.
+
+### 2. Root README — Conceptual Clarification and Onboarding
+
+* Reframed system model:
+
+  * emphasizes **ledger as source of truth**
+  * explicitly states `account_transactions` as authoritative
+* Removed ambiguity around legacy `transactions` table
+* Expanded API capabilities:
+
+  * refresh token support
+  * admin approval flow
+  * customer self-access (`/customers/me`)
+* Updated authentication model:
+
+  * AppToken for onboarding
+  * JWT for all other routes
+* Replaced manual setup steps with:
+
+  * `make run` as the primary entrypoint
+* Added direct references to:
+
+  * API getting started guide
+  * Mobile getting started guide
+
+This aligns the documentation with the actual implementation and reduces cognitive friction during onboarding.
+
+### 3. API README — Documentation Reorganization
+
+* Replaced outdated relative paths with **local docs structure**
+* Introduced a structured documentation index:
+
+  * getting started
+  * architecture
+  * domain, application, and persistence models
+  * database and infrastructure
+* Standardized naming conventions across documents
+
+Improves discoverability and reinforces the API as a well-documented subsystem.
+
+### 4. API Bootstrap — Configuration Refactor
+
+* Introduced `Config` struct and `LoadConfig()` function:
+
+  * centralizes environment variable validation
+  * enforces fail-fast behavior
+* Replaced direct environment access with structured configuration usage
+* Updated dependency wiring to use config values
+
+This is a subtle but important step toward better configuration management and testability.
+
+### 5. API Documentation — Getting Started
+
+* Added new guide: `api/docs/00-getting_started.md`
+* Defines:
+
+  * environment variables (`APP_TOKEN`, `JWT_SECRET`)
+  * Docker initialization
+  * bootstrap via `make setup`
+  * execution via `make run`
+  * reset strategy
+* Reinforces database-first approach and deterministic environment setup
+
+Complements the implementation described in  by making the runtime flow explicit.
+
+### 6. Mobile Documentation — Getting Started
+
+* Added new guide: `mobile/docs/00-getting_started.md`
+* Defines:
+
+  * environment configuration via `dart-define`
+  * API dependency requirement
+  * execution with environment files (`dev.env`, `staging.env`, `prod.env`)
+* Documents networking constraints (emulator vs device)
+* Integrates mobile startup with backend lifecycle (`make run`)
+
+This removes ambiguity in mobile setup and enforces alignment with backend availability.
+
+### 7. Mobile README — Documentation Alignment
+
+* Updated references to:
+
+  * API getting started
+  * mobile getting started
+  * local architecture docs
+* Removed outdated paths and centralized documentation access
+
+### 8. Documentation Cleanup and Standardization
+
+* Removed obsolete file:
+
+  * `api/docs/changes.md`
+* Simplified formatting in `errors.md`:
+
+  * removed visual noise and emoji markers
+  * improved readability and long-term maintainability
+* Standardized document naming and structure across the repository
+
+### 9. Conceptual Consolidation — Ledger Model
+
+* Reinforced across documentation:
+
+  * ledger entries are append-only
+  * balance is derived, not authoritative
+* Aligns documentation with:
+
+  * domain model invariants 
+  * consistency strategy 
+  * use case execution model 
+
+### Conclusion
+
+This commit transforms the project documentation from a partial reference into a **cohesive, executable guide** for the system. It also aligns the conceptual model, developer workflow, and runtime behavior, resulting in a more robust and maintainable foundation for further evolution.
+
+
 ## 2026/04/18 — docs/update-01
 
 Refactors and consolidates the entire project documentation to align with the current implementation, architectural decisions, and system positioning. The update establishes a clear narrative centered on **transactional consistency**, **ledger-driven design**, and **explicit system guarantees**, while significantly improving documentation discoverability and structure.

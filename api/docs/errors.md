@@ -1,4 +1,4 @@
-## ✅ This is a **significant improvement**
+## This is a **significant improvement**
 
 You corrected the most critical issue:
 
@@ -13,13 +13,13 @@ Your handler now depends only on:
 
 ---
 
-## 🔎 Now let’s refine it (important details)
+## Now let’s refine it (important details)
 
 Even though the structure is now correct, there are still some **subtle issues that will matter later**.
 
 ---
 
-## ⚠️ 1. Fragile error comparison (`switch err`)
+## 1. Fragile error comparison (`switch err`)
 
 ```go
 switch err {
@@ -56,7 +56,7 @@ if errors.Is(err, domain.ErrInvalidData) {
 
 ---
 
-## ⚠️ 2. Repository returning raw `err` (leak risk)
+## 2. Repository returning raw `err` (leak risk)
 
 ```go
 return err
@@ -97,7 +97,7 @@ return ErrInternal
 
 ---
 
-## ⚠️ 3. Constraint name coupling (still exists)
+## 3. Constraint name coupling (still exists)
 
 ```go
 if pgErr.ConstraintName == "customers_cpf_key"
@@ -125,7 +125,7 @@ Or standardize constraint names explicitly in migrations.
 
 ---
 
-## ⚠️ 4. Missing response body (still inconsistent)
+## 4. Missing response body (still inconsistent)
 
 ```go
 w.WriteHeader(http.StatusCreated)
@@ -146,7 +146,7 @@ Right now:
 
 ---
 
-## ⚠️ 5. Logging strategy (too raw)
+## 5. Logging strategy (too raw)
 
 ```go
 log.Println("create customer error:", err)
@@ -210,7 +210,7 @@ var ErrInvalidData = errors.New("invalid data")
 
 ---
 
-## ⚠️ 7. Use case still returns only `error`
+## 7. Use case still returns only `error`
 
 Still:
 
@@ -233,7 +233,7 @@ Execute(...) (*domain.Customer, error)
 
 ---
 
-## 🧠 Architectural insight (important)
+## Architectural insight (important)
 
 You just moved from:
 
@@ -254,7 +254,7 @@ But now the next step is:
 
 ---
 
-## 🎯 Summary of improvements
+## Summary of improvements
 
 ### ✔️ What you fixed
 
@@ -274,7 +274,7 @@ But now the next step is:
 
 ---
 
-## 📌 Final opinion
+## Final opinion
 
 You are now **architecturally on the right track**.
 

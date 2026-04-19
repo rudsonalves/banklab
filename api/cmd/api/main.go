@@ -21,15 +21,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func main() {
-	bootstrap.Init()
+type Config struct {
+	AppToken  string
+	JWTSecret string
+}
 
-	db := database.NewPool()
-	log.Println("DB connected")
-
-	// ======================
-	// Config (fail-fast)
-	// ======================
+func LoadConfig() Config {
 	appToken := os.Getenv("APP_TOKEN")
 	if appToken == "" {
 		log.Fatal("APP_TOKEN environment variable is required")
@@ -39,6 +36,23 @@ func main() {
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable is required")
 	}
+
+	return Config{
+		AppToken:  appToken,
+		JWTSecret: jwtSecret,
+	}
+}
+
+func main() {
+	bootstrap.Init()
+
+	// ======================
+	// Config (fail-fast)
+	// ======================
+	config := LoadConfig()
+
+	db := database.NewPool()
+	log.Println("DB connected")
 
 	// ======================
 	// Repositories
@@ -54,7 +68,7 @@ func main() {
 	// Services
 	// ======================
 	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
-	tokenService := authInfrastructure.NewJWTTokenService(jwtSecret, 15*time.Minute)
+	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, 15*time.Minute)
 
 	// ======================
 	// Use Cases
@@ -83,7 +97,7 @@ func main() {
 	// ======================
 	// Middlewares
 	// ======================
-	appTokenMiddleware := sharedhttpmiddleware.AppToken(appToken)
+	appTokenMiddleware := sharedhttpmiddleware.AppToken(config.AppToken)
 	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
 
 	withAuth := authMiddleware.RequireAuth

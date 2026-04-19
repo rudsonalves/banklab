@@ -22,6 +22,52 @@ help: ## List available commands
 	@echo ""
 
 # =========================
+# Docker
+# =========================
+docker-up: ## Start Docker containers in detached mode
+	docker compose up -d
+
+docker-down: ## Stop and remove Docker containers
+	docker compose down
+
+docker-logs: ## Follow Docker container logs
+	docker compose logs -f
+
+docker-clean: ## Remove containers and volumes
+	docker compose down -v
+
+docker-check: ## Check if Docker is running
+	@docker info > /dev/null 2>&1 || (echo "Docker is not running" && exit 1)
+
+# =========================
+# Bootstrap and Reset
+# =========================
+setup: docker-check docker-up db-wait migrate-up ## Full setup from scratch
+
+run: docker-check docker-up db-wait migrate-up api-run ## Start full system
+
+reset: docker-check docker-clean docker-up db-wait db-reset migrate-up ## Hard reset environment
+
+db-reset: ## Reset only the database
+	docker exec -i bank-postgres psql -U postgres -c "DROP DATABASE IF EXISTS bank;"
+	docker exec -i bank-postgres psql -U postgres -c "CREATE DATABASE bank;"
+
+db-wait: ## Wait for the database to be ready
+	@echo "Waiting for database..."
+	@for i in $$(seq 1 30); do \
+		if docker exec bank-postgres pg_isready -U postgres > /dev/null 2>&1; then \
+			echo "Database is ready"; \
+			exit 0; \
+		fi; \
+		sleep 1; \
+	done; \
+	echo "Database not ready after timeout"; \
+	exit 1
+
+bootstrap: setup ## Alias semântico
+dev: run ## Alias para desenvolvimento
+
+# =========================
 # Monorepo
 # =========================
 build: api-build ## Build backend binary
@@ -94,18 +140,6 @@ pull: ## Pull current branch or specified branch (make pull branch=xxx)
 
 gitlog: ## Show git log in one line format
 	git log --oneline
-
-# =========================
-# Docker
-# =========================
-docker-up: ## Start Docker containers in detached mode
-	docker compose up -d
-
-docker-down: ## Stop and remove Docker containers
-	docker compose down
-
-docker-logs: ## Follow Docker container logs
-	docker compose logs -f
 
 # =========================
 # Flutter specific
