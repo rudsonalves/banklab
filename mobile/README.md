@@ -95,7 +95,9 @@ mobile/
 
 - Monorepo overview: [../README.md](../README.md)
 - API service guide: [../api/README.md](../api/README.md)
-- Mobile architecture: [../docs/mobile/ARCHITECTURE.md](../docs/mobile/ARCHITECTURE.md)
+- API getting started: [../api/docs/00-getting_started.md](../api/docs/00-getting_started.md)
+- Mobile getting started: [docs/00-getting_started.md](docs/00-getting_started.md)
+- Mobile architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ## License
 

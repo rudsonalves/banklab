@@ -114,15 +114,18 @@ api/
 
 ## Design documents
 
-- [Architecture](../docs/api/ARCHITECTURE.md)
-- [Domain model](../docs/api/01-modelo_de_dominio.md)
-- [Use case flows](../docs/api/02-fluxos_de_caso_de_uso.md)
-- [Data model](../docs/api/03-modelo_de_dados.md)
-- [Consistency and concurrency strategy](../docs/api/04-estrategia_de_consistencia_e_concorrencia.md)
-- [Error patterns](../docs/api/05-padrao_de_erros_e_respostas.md)
-- [Implementation notes](../docs/api/06-implementation.md)
-- [REST API design](../docs/api/07-api-rest.md)
-- [Auth implementation](../docs/api/08-auth_implementation.md)
+- [Getting started](docs/00-getting_started.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Domain model](docs/01-domain_model.md)
+- [Use case flows](docs/02-use_case_flows.md)
+- [Application model](docs/03-application_model.md)
+- [Consistency and concurrency strategy](docs/04-consistency_and_concorrency.md)
+- [Error and response standard](docs/05-error_and_response.md)
+- [Implementation notes](docs/06-implementation.md)
+- [REST API design](docs/07-api-rest.md)
+- [Auth implementation](docs/08-auth_implementation.md)
+- [Database](docs/09-database.md)
+- [Infrastructure](docs/infra.md)
 
 ## Related docs
 

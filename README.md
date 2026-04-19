@@ -2,7 +2,9 @@
 
 banklab is a monorepo built around a simplified banking core with emphasis on **transactional consistency** and **explicit business invariants**.
 
-The system is structured around the premise that the transaction is the central element — balance is a consequence of recorded movements, not a value maintained directly.
+The system is structured around the premise that financial movements are the central element: balances are derived from ledger records, not treated as the primary source of truth.
+
+The authoritative ledger is persisted in `account_transactions` (append-only). The legacy `transactions` table has been consolidated and is no longer part of the active model.
 
 It consists of two applications:
 
@@ -41,7 +43,7 @@ The focus is on **reliable transactional control**, not on peripheral features.
 > A balance-control system based on records of financial movements.
 
 - the balance is a consequence
-- the transaction is the central element
+- ledger entries in `account_transactions` are the source of truth
 
 ### In scope
 
@@ -65,6 +67,7 @@ The focus is on **reliable transactional control**, not on peripheral features.
 - **Financial integrity** — no balance inconsistency; every movement is recorded
 - **Atomicity** — critical operations (especially transfers) are indivisible
 - **Traceability** — all operations are auditable; no balance change without a record
+- **Ledger authority** — financial records are persisted in `account_transactions` only
 - **Consistency** — system state is always valid, even under concurrency
 - **Synchronous model** — all operations complete at request time; no eventual consistency
 - **Single source of truth** — the relational database is the only authority
@@ -75,11 +78,13 @@ The focus is on **reliable transactional control**, not on peripheral features.
 
 ### API (Go)
 
-- auth: register, login, current user (JWT)
-- customer creation, identified by CPF and email
+- auth: register, login, refresh, current user (JWT)
+- user registration with automatic customer creation (CPF and email)
+- admin approval flow for pending users
 - account opening, balance query, status control
 - financial operations: deposit, withdraw, transfer between accounts
 - account statement with pagination
+- ledger persistence in `account_transactions` (append-only)
 - transactional consistency enforced at the database level
 
 ### Mobile (Flutter)
@@ -90,6 +95,11 @@ The focus is on **reliable transactional control**, not on peripheral features.
 - transaction history browsing
 
 ## Quick start
+
+For the most up-to-date setup instructions, use:
+
+- [api/docs/00-getting_started.md](api/docs/00-getting_started.md)
+- [mobile/docs/00-getting_started.md](mobile/docs/00-getting_started.md)
 
 ### Prerequisites
 
@@ -104,48 +114,34 @@ Install golang-migrate (macOS/Homebrew):
 brew install golang-migrate
 ```
 
-### 1) Start infrastructure
+### 1) Start API stack (recommended)
 
 ```bash
-make docker-up
+make run
 ```
 
-This starts PostgreSQL 16 at localhost:5432.
+This validates Docker, starts PostgreSQL, applies migrations, and starts the API.
 
-### 2) Run database migrations
-
-```bash
-make api-migrate-up
-```
-
-### 3) Build and run API
-
-```bash
-make api-build
-export JWT_SECRET=dev-change-me
-./api/build/bank-api
-```
-
-API base URL: http://localhost:8080
-
-### 4) Run mobile app
+### 2) Run mobile app
 
 ```bash
 cd mobile
 flutter pub get
-flutter run
+flutter run --dart-define-from-file=dev.env
 ```
 
-For emulator/device networking, point the app to the API URL that is reachable from your device.
+For environment variables and detailed bootstrap/reset instructions, see the getting started guides above.
 
 ## Main endpoints
 
 ```text
 POST   /auth/register
 POST   /auth/login
+POST   /auth/refresh
 GET    /auth/me
 
-POST   /customers
+POST   /admin/users/{id}/approve
+GET    /customers/me
 
 POST   /accounts
 POST   /accounts/{id}/deposit
@@ -154,7 +150,8 @@ POST   /accounts/transfer
 GET    /accounts/{id}/statement
 ```
 
-Routes other than register/login require JWT authentication.
+`/auth/register` and `/auth/login` require `X-App-Token`.
+All other routes require JWT authentication.
 
 ## Development commands
 
@@ -188,6 +185,7 @@ make docker-logs
 ### API (Go)
 
 - [api/README.md](api/README.md) — API guide and setup
+- [api/docs/00-getting_started.md](api/docs/00-getting_started.md) — API getting started
 - [api/docs/ARCHITECTURE.md](api/docs/ARCHITECTURE.md) — API Architecture
 - [api/docs/objetivos.md](api/docs/objetivos.md) — System Scope — Bank API
 - [api/docs/01-domain_model.md](api/docs/01-domain_model.md) — Domain Model
@@ -204,6 +202,7 @@ make docker-logs
 ### Mobile (Flutter)
 
 - [mobile/README.md](mobile/README.md) — Mobile guide and setup
+- [mobile/docs/00-getting_started.md](mobile/docs/00-getting_started.md) — Mobile getting started
 - [mobile/docs/ARCHITECTURE.md](mobile/docs/ARCHITECTURE.md) — Mobile Architecture
 
 ## License
