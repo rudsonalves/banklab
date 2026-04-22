@@ -29,12 +29,17 @@ type statementUseCase interface {
 	Execute(ctx context.Context, input application.GetStatementInput) (*application.Statement, error)
 }
 
+type getBalanceUseCase interface {
+	Execute(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error)
+}
+
 type Handler struct {
 	createAccount createAccountUseCase
 	deposit       depositUseCase
 	withdraw      withdrawUseCase
 	transfer      transferUseCase
 	statement     statementUseCase
+	balance       getBalanceUseCase
 }
 
 func New(
@@ -43,6 +48,7 @@ func New(
 	withdraw withdrawUseCase,
 	transfer transferUseCase,
 	statement statementUseCase,
+	balance getBalanceUseCase,
 ) *Handler {
 	return &Handler{
 		createAccount: createAccount,
@@ -50,10 +56,11 @@ func New(
 		withdraw:      withdraw,
 		transfer:      transfer,
 		statement:     statement,
+		balance:       balance,
 	}
 }
 
-func RequireUser(ctx context.Context) (*authdelivery.AuthenticatedUser, error) {
+func RequireUser(ctx context.Context) (*authdomain.AuthenticatedUser, error) {
 	user, ok := authdelivery.GetAuthenticatedUser(ctx)
 	if !ok || user == nil {
 		return nil, authdomain.ErrUnauthorized

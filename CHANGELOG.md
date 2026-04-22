@@ -1,5 +1,138 @@
 # Changelog
 
+## 2026/04/22 — api/balane-01
+
+Adds support for **account balance retrieval** as a first-class use case, exposing a new protected endpoint and ensuring consistency with the existing authorization, domain, and repository contracts.
+
+### 1. Application Layer — GetAccountBalance Use Case
+
+* Introduced `GetAccountBalance` use case
+
+  * Input includes authenticated user and account ID
+  * Validates:
+
+    * non-nil UUID
+    * account existence
+    * ownership via `CanAccessAccount`
+* Returns a minimal projection:
+
+  * `AccountID`
+  * `Balance`
+* Aligns with the existing principle that balance is a **snapshot derived from the ledger** 
+* Keeps the operation read-only and free from transactional overhead, which is appropriate given that no state mutation occurs 
+
+### 2. Domain Contract Clarification
+
+* Strengthened `AccountRepository.GetByID` contract:
+
+  * must never return `(nil, nil)`
+  * explicitly returns `ErrAccountNotFound`
+* This removes ambiguity and prevents invalid states propagating into the application layer
+* Consistent with domain invariant that **account must exist for any operation** 
+
+### 3. Infrastructure Layer — PostgreSQL
+
+* Updated repository implementations (`Repository` and `txRepository`):
+
+  * enforce `ErrAccountNotFound` when no row is returned
+* Eliminates implicit null handling and aligns persistence behavior with domain expectations
+* Improves correctness and reduces defensive checks in upper layers
+
+### 4. Delivery Layer — HTTP Endpoint
+
+* Added new endpoint:
+
+  * `GET /accounts/{id}/balance`
+* Implemented handler `GetBalance`:
+
+  * requires authenticated user (JWT)
+  * rejects any query parameters (`400 INVALID_DATA`)
+  * validates UUID parsing
+  * delegates to application use case
+* Response structure:
+
+  * `{ account_id, balance }`
+  * balance returned in cents, consistent with system-wide monetary representation 
+* Error mapping aligned with global response standard 
+
+### 5. Handler Wiring and Routing
+
+* Extended handler constructor to include `balance` use case
+* Updated dependency injection in `main.go`
+* Registered new route:
+
+  * `GET /accounts/{id}/balance`
+* Maintains consistency with existing route protection via JWT middleware 
+
+### 6. Delivery DTOs
+
+* Added `AccountBalanceData` for HTTP response mapping
+* Keeps delivery layer isolated from application structs, preserving layer boundaries
+
+### 7. Test Coverage
+
+#### 7.1 Application Tests
+
+* Covered scenarios:
+
+  * invalid account ID
+  * account not found
+  * forbidden access (ownership violation)
+  * successful retrieval
+* Ensures no repository call on invalid input (early validation pattern)
+
+#### 7.2 Delivery Tests
+
+* Added handler tests for:
+
+  * query params rejection
+  * unauthorized access
+  * invalid UUID
+  * account not found
+  * forbidden access
+  * success response validation
+
+#### 7.3 Integration Adjustments
+
+* Updated handler constructor usage across tests to include new dependency
+* Maintains compatibility with existing integration setup
+
+### 8. Documentation Updates
+
+* Extended REST API documentation with:
+
+  * endpoint definition
+  * request constraints
+  * response format
+  * error scenarios
+* Adjusted section numbering to accommodate the new endpoint
+* Reinforces API contract consistency and discoverability 
+
+### 9. Customer Repository Fix
+
+* Corrected `GetByID` behavior:
+
+  * now returns `ErrNotFound` instead of `(nil, nil)`
+* Aligns customer module with the same repository contract expectations applied to accounts
+
+### Conclusion
+
+This change introduces a **clean and well-isolated read use case** that fits naturally into the existing architecture.
+
+From a design perspective, the implementation is correct and disciplined:
+
+* no leakage of persistence concerns into application logic
+* strict enforcement of ownership and domain invariants
+* consistent error semantics across layers
+
+Although technically simple, this endpoint is important because it formalizes **balance as an explicit query operation**, reinforcing the separation between:
+
+* ledger (source of truth)
+* account snapshot (read model)
+
+This is a necessary step toward a more complete and coherent financial API surface.
+
+
 ## 2026/04/22 — api/migrate-update-01
 
 Refactors the database migration strategy by consolidating all historical migrations into a single baseline schema and aligning the entire codebase with the `transactions` table as the authoritative ledger.

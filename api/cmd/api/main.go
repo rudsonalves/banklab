@@ -78,6 +78,7 @@ func main() {
 	withdrawUC := accountApplication.NewWithdraw(accountRepo)
 	transferUC := accountApplication.NewTransfer(accountRepo)
 	statementUC := accountApplication.NewGetStatement(accountRepo)
+	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 
 	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
@@ -90,7 +91,7 @@ func main() {
 	// ======================
 	// Handlers
 	// ======================
-	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC, statementUC)
+	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC, statementUC, balanceUC)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC, approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 
@@ -127,6 +128,7 @@ func main() {
 	apiRouter.Handle("POST /accounts/{id}/deposit", withAuth(http.HandlerFunc(accountHandler.Deposit)))
 	apiRouter.Handle("POST /accounts/{id}/withdraw", withAuth(http.HandlerFunc(accountHandler.Withdraw)))
 	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(accountHandler.Statement)))
+	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
 	apiRouter.Handle("POST /accounts/transfer", withAuth(http.HandlerFunc(accountHandler.Transfer)))
 
 	// ======================

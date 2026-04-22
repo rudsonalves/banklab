@@ -232,7 +232,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
 	depositUC := accountapplication.NewDeposit(accountRepo)
-	accountHandler := accountdelivery.New(nil, depositUC, nil, nil, nil)
+	accountHandler := accountdelivery.New(nil, depositUC, nil, nil, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", authHandler.Register)
