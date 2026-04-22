@@ -299,7 +299,7 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			CONSTRAINT chk_account_status CHECK (status IN ('active', 'inactive', 'blocked'))
 		)`,
 		`CREATE SEQUENCE IF NOT EXISTS account_number_seq START WITH 10000000 INCREMENT BY 1`,
-		`CREATE TABLE IF NOT EXISTS account_transactions (
+		`CREATE TABLE IF NOT EXISTS transactions (
 			id UUID PRIMARY KEY,
 			account_id UUID NOT NULL REFERENCES accounts(id),
 			type VARCHAR(20) NOT NULL,
@@ -336,19 +336,19 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		}
 	}
 
-	// Keep compatibility with pre-existing test databases created before ledger consolidation.
-	if _, err := pool.Exec(ctx, `ALTER TABLE account_transactions ADD COLUMN IF NOT EXISTS related_account_id UUID`); err != nil {
-		t.Fatalf("failed to ensure account_transactions.related_account_id column: %v", err)
+	// Keep compatibility with pre-existing test databases created before the latest ledger schema.
+	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS related_account_id UUID`); err != nil {
+		t.Fatalf("failed to ensure transactions.related_account_id column: %v", err)
 	}
 
-	if _, err := pool.Exec(ctx, `ALTER TABLE account_transactions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100)`); err != nil {
-		t.Fatalf("failed to ensure account_transactions.idempotency_key column: %v", err)
+	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100)`); err != nil {
+		t.Fatalf("failed to ensure transactions.idempotency_key column: %v", err)
 	}
 
-	if _, err := pool.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS ux_account_transactions_idempotency
-		ON account_transactions(account_id, idempotency_key)
+	if _, err := pool.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_idempotency
+		ON transactions(account_id, idempotency_key)
 		WHERE idempotency_key IS NOT NULL`); err != nil {
-		t.Fatalf("failed to ensure account_transactions idempotency index: %v", err)
+		t.Fatalf("failed to ensure transactions idempotency index: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending'`); err != nil {
@@ -467,7 +467,7 @@ func seedAccount(t *testing.T, ctx context.Context, pool *pgxpool.Pool, customer
 	}
 
 	t.Cleanup(func() {
-		_, _ = pool.Exec(ctx, `DELETE FROM account_transactions WHERE account_id = $1`, id)
+		_, _ = pool.Exec(ctx, `DELETE FROM transactions WHERE account_id = $1`, id)
 		_, _ = pool.Exec(ctx, `DELETE FROM accounts WHERE id = $1`, id)
 	})
 

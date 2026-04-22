@@ -149,7 +149,7 @@ All flows must comply with:
 3. verify account is active
 4. start transaction
 5. update balance (balance + amount)
-6. record ledger entry in `account_transactions` (type: deposit)
+6. record ledger entry in `transactions` (type: deposit)
 7. persist changes
 8. commit transaction
 
@@ -180,7 +180,7 @@ All flows must comply with:
 4. start transaction
 5. verify sufficient balance
 6. update balance (balance - amount)
-7. record ledger entry in `account_transactions` (type: withdraw)
+7. record ledger entry in `transactions` (type: withdraw)
 8. persist changes
 9. commit transaction
 
@@ -218,7 +218,7 @@ All flows must comply with:
 8. verify sufficient balance in source account
 9. debit source account
 10. credit destination account
-11. record two ledger entries in `account_transactions`:
+11. record two ledger entries in `transactions`:
 
     * `transfer_out` (source, with idempotencyKey)
     * `transfer_in` (destination)
