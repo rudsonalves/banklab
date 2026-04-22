@@ -45,7 +45,11 @@ Main entrypoint:
   - infrastructure: PostgreSQL repository implementation
 - internal/account:
   - domain: account and transaction entities, repository contracts, account rules
-  - application: create account, deposit, withdraw, transfer, statement
+  - application:
+    - root package: shared policies/error registration used by account flows
+    - account: create account and get balance use cases
+    - transaction: deposit, withdraw, transfer use cases
+    - statement: statement query use case
   - delivery: HTTP handlers, request parsing, response mapping
   - infrastructure: PostgreSQL repository with transactional and locking support
 - db/schema.sql: baseline schema including customers, accounts, transactions, users, user_sessions
@@ -67,11 +71,13 @@ Current route registration:
 
 - POST /auth/register (public)
 - POST /auth/login (public)
+- POST /auth/refresh (JWT required)
 - GET /auth/me (JWT required)
 - GET /customers/me (JWT required)
 - POST /accounts (JWT required)
 - POST /accounts/{id}/deposit (JWT required)
 - POST /accounts/{id}/withdraw (JWT required)
+- GET /accounts/{id}/balance (JWT required)
 - GET /accounts/{id}/statement (JWT required)
 - POST /accounts/transfer (JWT required)
 
@@ -195,12 +201,13 @@ Flow:
 3. Validate user exists (returns ErrNotFound if not)
 4. Validate user status == pending (returns appropriate error if already active or blocked)
 5. Update user.status → active
-6. Generate account number using sequence
-7. Create Account entity (branch fixed as "0001", balance = 0, status = active)
-8. Persist account
-9. Update user.customer_id with newly created account's customer_id (if needed)
-10. Persist user updates
-11. Commit transaction
+6. Validate user has non-nil customer_id
+7. Validate referenced customer exists
+8. Generate account number using sequence
+9. Resolve branch using the account branch policy
+10. Create Account entity (balance = 0, status = active)
+11. Persist account
+12. Commit transaction
 
 Atomicity guarantee:
 - Status transition and account creation happen within same transaction
@@ -208,8 +215,10 @@ Atomicity guarantee:
 
 Dependencies:
 - UserRepository for user lookup and update
+- CustomerRepository for customer existence check
 - AccountRepository for account creation
 - Sequence generator for account number
+- Branch policy owned by account application
 
 ### 6.3 Create Account
 
@@ -223,8 +232,9 @@ Flow:
 4. Validate user owns the customer_id via CanAccessCustomer
 5. Ensure customer exists in the database
 6. Generate account number using sequence
-7. Build account entity (branch currently fixed as "0001")
-8. Persist and return account
+7. Resolve branch using the account branch policy
+8. Build account entity
+9. Persist and return account
 
 Notes:
 - The client MUST NOT and CANNOT provide customer_id — it is ignored if sent.
@@ -303,7 +313,24 @@ Flow:
 5. Map rows to API statement items
 6. Build next cursor if full page returned
 
-### 6.8 Get Customer Me
+### 6.8 Get Balance
+
+Input:
+- account_id
+
+Flow:
+1. Validate account ID
+2. Ensure account exists via `GetByID`
+3. Validate ownership with `CanAccessAccount`
+4. Return current `accounts.balance` snapshot
+
+Notes:
+- Delivery rejects unexpected query params before the use case is called
+- No explicit transaction is opened
+- No `FOR UPDATE` is used
+- No ledger query is executed
+
+### 6.9 Get Customer Me
 
 Input:
 - authenticated user context (customer_id derived from token principal)
@@ -311,7 +338,7 @@ Input:
 Flow:
 1. Validate user.CustomerID is not nil (returns ErrInvalidData otherwise)
 2. Query customer by ID via repository
-3. Return nil result as ErrNotFound
+3. Repository returns ErrNotFound when the customer does not exist
 4. Return customer data
 
 ## 7. HTTP Delivery Layer
@@ -319,6 +346,7 @@ Flow:
 ## 7.1 Account Handler Endpoints
 
 - CreateAccount
+- GetBalance
 - Deposit
 - Withdraw
 - Transfer
@@ -346,12 +374,14 @@ Implemented concerns:
 
 - Register (POST /auth/register)
 - Login (POST /auth/login)
+- Refresh (POST /auth/refresh)
 - Me (GET /auth/me)
 
 Implemented concerns:
 - Minimal delivery validation: rejects blank required fields
 - Domain/format validation delegated to application layer
 - Returns customer_id in register and login responses
+- Refresh rotates tokens through the auth application use case
 
 ## 7.4 Response Contract
 
@@ -401,10 +431,12 @@ Transaction abstraction:
 Implemented behaviors:
 - create customer
 - check customer existence by ID
+- get customer by ID with email projection
 
 Error conversion:
 - unique violation on customers_cpf_key -> ErrCPFAlreadyExists
 - unique violation on customers_email_key -> ErrEmailAlreadyExists
+- pgx.ErrNoRows on customer lookup -> ErrNotFound
 - check violation -> ErrInvalidData
 - unknown infra failures are wrapped with context
 
@@ -449,6 +481,7 @@ Domain tests:
 Application tests:
 - register user (transactional creation, invariant enforcement)
 - create account
+- get account balance
 - deposit (including ownership enforcement)
 - withdraw (including ownership enforcement)
 - transfer (including source ownership enforcement)
@@ -459,6 +492,7 @@ Application tests:
 Delivery tests:
 - account handler unit tests for success and error mappings
 - auth handler unit tests
+- admin handler unit tests
 - customer handler unit tests (GET /customers/me)
 - deposit integration test with real PostgreSQL
 
@@ -486,17 +520,16 @@ Server listens on:
 
 ## 12. Known Implementation Notes
 
-- README.md is currently empty; docs folder is the main source of project documentation.
 - DB connection string is hard-coded in code and not yet externalized via environment variables.
-- Branch generation for accounts is currently fixed to "0001".
+- The default account branch policy currently returns "0001" and is owned by `account/application/account`.
 - A one-account-per-customer rule is scaffolded but not active.
 - Ledger is single-source (`transactions`) and append-only.
 
 ## 13. Summary
 
 The current implementation already contains a complete vertical slice for:
-- customer creation
-- account lifecycle operations (create, deposit, withdraw, transfer)
+- customer creation and self-profile lookup
+- account lifecycle operations (create, balance, deposit, withdraw, transfer)
 - statement retrieval with pagination and date filters
 
 It is implemented with transactional integrity, row-level locking, domain-level invariants, and practical test coverage appropriate for a financial core service baseline.

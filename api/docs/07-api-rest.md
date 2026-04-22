@@ -280,9 +280,7 @@ Success response (200):
   "data": {
     "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
     "status": "active",
-    "email": "user@example.com",
-    "account_id": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789",
-    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
+    "account_id": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789"
   },
   "error": null
 }
@@ -292,9 +290,7 @@ Response fields:
 
 - `user_id`: UUID of the approved user
 - `status`: new status (always "active" on success)
-- `email`: user email
 - `account_id`: UUID of the newly created account
-- `customer_id`: UUID of the customer (derived from approval flow)
 
 Atomicity:
 
@@ -308,7 +304,8 @@ Possible errors:
 - 401 INVALID_TOKEN: token invalid or expired
 - 403 FORBIDDEN: authenticated user does not have admin role
 - 404 USER_NOT_FOUND: user does not exist
-- 400 USER_ALREADY_ACTIVE: user is already active (cannot approve active/blocked users)
+- 404 CUSTOMER_NOT_FOUND: associated customer does not exist
+- 409 USER_ALREADY_ACTIVE: user is already active (cannot approve active/blocked users)
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ## 4. Account Endpoints

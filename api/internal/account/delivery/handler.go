@@ -3,34 +3,36 @@ package delivery
 import (
 	"context"
 
-	"github.com/seu-usuario/bank-api/internal/account/application"
+	accountapp "github.com/seu-usuario/bank-api/internal/account/application/account"
+	statementapp "github.com/seu-usuario/bank-api/internal/account/application/statement"
+	transactionapp "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
-	authdelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
 
 type createAccountUseCase interface {
-	Execute(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error)
+	Execute(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error)
 }
 
 type depositUseCase interface {
-	Execute(ctx context.Context, input application.DepositInput) (*domain.Account, error)
+	Execute(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error)
 }
 
 type withdrawUseCase interface {
-	Execute(ctx context.Context, input application.WithdrawInput) (*domain.Account, error)
+	Execute(ctx context.Context, input transactionapp.WithdrawInput) (*domain.Account, error)
 }
 
 type transferUseCase interface {
-	Execute(ctx context.Context, input application.TransferInput) (*application.TransferResult, error)
+	Execute(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error)
 }
 
 type statementUseCase interface {
-	Execute(ctx context.Context, input application.GetStatementInput) (*application.Statement, error)
+	Execute(ctx context.Context, input statementapp.GetStatementInput) (*statementapp.Statement, error)
 }
 
 type getBalanceUseCase interface {
-	Execute(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error)
+	Execute(ctx context.Context, input accountapp.GetAccountBalanceInput) (*accountapp.AccountBalance, error)
 }
 
 type Handler struct {
@@ -61,7 +63,7 @@ func New(
 }
 
 func RequireUser(ctx context.Context) (*authdomain.AuthenticatedUser, error) {
-	user, ok := authdelivery.GetAuthenticatedUser(ctx)
+	user, ok := sharedauthctx.GetAuthenticatedUser(ctx)
 	if !ok || user == nil {
 		return nil, authdomain.ErrUnauthorized
 	}

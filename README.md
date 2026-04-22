@@ -147,11 +147,13 @@ POST   /accounts
 POST   /accounts/{id}/deposit
 POST   /accounts/{id}/withdraw
 POST   /accounts/transfer
+GET    /accounts/{id}/balance
 GET    /accounts/{id}/statement
 ```
 
 `/auth/register` and `/auth/login` require `X-App-Token`.
 All other routes require JWT authentication.
+`/admin/users/{id}/approve` additionally requires an authenticated user with the `admin` role.
 
 ## Development commands
 

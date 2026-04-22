@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	customerdomain "github.com/seu-usuario/bank-api/internal/customer/domain"
 )
 
 type accountRepositoryMock struct {
@@ -90,6 +91,14 @@ type customerRepositoryMock struct {
 	existsErr   error
 }
 
+func (m *customerRepositoryMock) Create(ctx context.Context, c *customerdomain.Customer) error {
+	return nil
+}
+
+func (m *customerRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*customerdomain.Customer, string, error) {
+	return nil, "", nil
+}
+
 type userRepositoryMock struct {
 	findByIDCalls int
 	findByIDValue *authdomain.User
@@ -130,7 +139,7 @@ func TestCreateAccount_Execute_MissingUserCustomerID(t *testing.T) {
 	accountRepo := &accountRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	userRepo := &userRepositoryMock{}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser()})
 
@@ -167,7 +176,7 @@ func TestCreateAccount_Execute_UserRepositoryNotConfigured(t *testing.T) {
 	accountRepo := &accountRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	customerID := uuid.New()
-	useCase := NewCreateAccount(accountRepo, customerRepo, nil)
+	useCase := NewCreateAccount(accountRepo, customerRepo, nil, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -193,7 +202,7 @@ func TestCreateAccount_Execute_CustomerNotFound(t *testing.T) {
 	customerRepo := &customerRepositoryMock{}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -228,7 +237,7 @@ func TestCreateAccount_Execute_CustomerExistsReturnsError(t *testing.T) {
 	customerRepo := &customerRepositoryMock{existsErr: expectedErr}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -259,7 +268,7 @@ func TestCreateAccount_Execute_UserLookupReturnsError(t *testing.T) {
 	customerRepo := &customerRepositoryMock{}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDErr: expectedErr}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -285,7 +294,7 @@ func TestCreateAccount_Execute_UserNotFound(t *testing.T) {
 	customerRepo := &customerRepositoryMock{}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -311,7 +320,7 @@ func TestCreateAccount_Execute_PendingUserIsForbidden(t *testing.T) {
 	customerRepo := &customerRepositoryMock{}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusPending)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -337,7 +346,7 @@ func TestCreateAccount_Execute_BlockedUserIsForbidden(t *testing.T) {
 	customerRepo := &customerRepositoryMock{}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusBlocked)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -364,12 +373,34 @@ func TestCreateAccount_Execute_NextAccountNumberReturnsError(t *testing.T) {
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+
+	if account != nil {
+		t.Fatalf("expected account to be nil, got %+v", account)
+	}
+
+	if accountRepo.createCalls != 0 {
+		t.Fatalf("expected Create not to be called, got %d calls", accountRepo.createCalls)
+	}
+}
+
+func TestCreateAccount_Execute_BranchPolicyNotConfigured(t *testing.T) {
+	accountRepo := &accountRepositoryMock{nextAccountNumberValue: "12345678"}
+	customerRepo := &customerRepositoryMock{existsValue: true}
+	customerID := uuid.New()
+	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, nil)
+
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+
+	if err == nil || err.Error() != "branch policy not configured" {
+		t.Fatalf("expected error %q, got %v", "branch policy not configured", err)
 	}
 
 	if account != nil {
@@ -390,7 +421,7 @@ func TestCreateAccount_Execute_CreateReturnsError(t *testing.T) {
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -420,7 +451,7 @@ func TestCreateAccount_Execute_Success(t *testing.T) {
 	accountRepo := &accountRepositoryMock{nextAccountNumberValue: "12345678"}
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(inputCustomerID, authdomain.UserStatusActive)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(inputCustomerID)})
 
@@ -454,7 +485,7 @@ func TestCreateAccount_Execute_InteractionCountsOnSuccess(t *testing.T) {
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -488,7 +519,7 @@ func TestCreateAccount_Execute_DoesNotCallCreateWhenCustomerNotFound(t *testing.
 	customerRepo := &customerRepositoryMock{existsValue: false}
 	customerID := uuid.New()
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	_, _ = useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
 
@@ -501,7 +532,7 @@ func TestCreateAccount_Execute_InvalidWhenUserIsNil(t *testing.T) {
 	accountRepo := &accountRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	userRepo := &userRepositoryMock{}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{
 		User: nil,
@@ -532,7 +563,7 @@ func TestCreateAccount_Execute_AdminWithoutCustomerIDIsInvalid(t *testing.T) {
 	accountRepo := &accountRepositoryMock{nextAccountNumberValue: "12345678"}
 	customerRepo := &customerRepositoryMock{existsValue: true}
 	userRepo := &userRepositoryMock{}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{
 		User: testAdminUser(),
@@ -559,7 +590,7 @@ func TestCreateAccount_Execute_ZeroCustomerIDIsForbidden(t *testing.T) {
 	accountRepo := &accountRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	userRepo := &userRepositoryMock{}
-	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo)
+	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
 	zeroCustomerID := uuid.Nil
 	account, err := useCase.Execute(context.Background(), CreateAccountInput{

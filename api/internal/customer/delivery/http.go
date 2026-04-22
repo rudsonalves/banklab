@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	authdelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	"github.com/seu-usuario/bank-api/internal/customer/application"
 	customerdomain "github.com/seu-usuario/bank-api/internal/customer/domain"
+	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
@@ -90,7 +90,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, ok := authdelivery.GetAuthenticatedUser(r.Context())
+	user, ok := sharedauthctx.GetAuthenticatedUser(r.Context())
 	if !ok || user == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrUnauthorized))
 		return

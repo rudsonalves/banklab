@@ -1,20 +1,19 @@
-package delivery
+package authctx
 
 import (
 	"context"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/auth/domain"
-	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 func TestGetAuthenticatedUser_ContextContainsUser(t *testing.T) {
 	customerID := uuid.New()
 	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	ctx := sharedauthctx.WithAuthenticatedUser(context.Background(), sharedauthctx.AuthenticatedUser{
+	ctx := WithAuthenticatedUser(context.Background(), AuthenticatedUser{
 		UserID:     userID,
-		Role:       domain.RoleCustomer,
+		Role:       authdomain.RoleCustomer,
 		CustomerID: &customerID,
 	})
 

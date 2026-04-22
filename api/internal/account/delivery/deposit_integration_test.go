@@ -13,11 +13,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	accountApplication "github.com/seu-usuario/bank-api/internal/account/application"
+	transactionApplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
-	auth "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
 
 func TestHandler_Deposit_Integration(t *testing.T) {
@@ -33,12 +33,12 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 	defer cleanupDepositTestData(t, ctx, pool, customerID, accountID)
 
 	repo := accountInfrastructure.New(pool)
-	depositUC := accountApplication.NewDeposit(repo)
+	depositUC := transactionApplication.NewDeposit(repo)
 	handler := New(nil, depositUC, nil, nil, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /accounts/{id}/deposit", func(w http.ResponseWriter, r *http.Request) {
-		ctx := auth.WithAuthenticatedUser(r.Context(), auth.AuthenticatedUser{
+		ctx := sharedauthctx.WithAuthenticatedUser(r.Context(), sharedauthctx.AuthenticatedUser{
 			UserID:     uuid.New(),
 			Role:       authdomain.RoleCustomer,
 			CustomerID: &customerID,

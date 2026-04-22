@@ -1,5 +1,425 @@
 # Changelog
 
+## 2026/04/22 — refactor/api-application-structure-04
+
+Refines the **API and application structure** to better align documentation, use case flows, and architectural responsibilities with the current implementation, particularly around account lifecycle, admin operations, and branch resolution strategy. 
+
+### 1. API Surface Adjustments
+
+* Added new endpoint:
+
+  * `GET /accounts/{id}/balance`
+* Introduced explicit access control note:
+
+  * `/admin/users/{id}/approve` requires authenticated user with `admin` role
+* Improves clarity of exposed capabilities and security model at the API boundary
+
+### 2. Use Case Flow Corrections
+
+* Refined **Approve User flow**:
+
+  * added explicit validation of associated customer existence
+  * introduced account number generation and branch resolution as distinct steps
+  * clarified transactional sequence and responsibilities
+* Updated **Create Account flow**:
+
+  * replaced implicit branch generation with explicit **branch policy resolution**
+* These changes align documentation with actual application orchestration and domain expectations 
+
+### 3. Implementation Documentation Alignment
+
+* Updated approval flow to reflect:
+
+  * dependency on `CustomerRepository`
+  * validation of `customer_id` before account creation
+  * explicit ownership of branch resolution by application layer
+* Adjusted create account flow:
+
+  * branch is no longer a fixed value, but derived from a policy
+* Expanded test coverage section:
+
+  * includes admin handler tests
+* Clarified implementation note:
+
+  * branch policy now belongs to `account/application/account` instead of being hardcoded
+* This resolves inconsistencies between documentation and actual system behavior 
+
+### 4. REST Contract Simplification
+
+* Simplified response of **Approve User endpoint**:
+
+  * removed `email` and `customer_id` from response payload
+* Adjusted error mapping:
+
+  * added `CUSTOMER_NOT_FOUND`
+  * changed `USER_ALREADY_ACTIVE` from 400 → 409
+* Improves contract minimalism and correctness, reducing redundant data exposure
+
+### 5. Architectural Evolution
+
+* Introduced **admin module** as first-class component:
+
+  * added to module list and architectural description
+* Updated architecture documentation:
+
+  * reflects expanded module set (`account`, `admin`, `auth`, `customer`)
+  * includes new use case: `approve user`
+  * registers new route `/admin/users/{id}/approve`
+* Reinforces modular monolith structure and clearer separation of responsibilities 
+
+### 6. Conceptual Improvement — Branch Policy
+
+* Replaced hardcoded branch generation with **explicit branch policy abstraction**
+* Defined ownership at application layer instead of infrastructure or domain
+* This is a subtle but important design improvement:
+
+  * removes hidden assumptions
+  * enables future extensibility without refactoring core flows
+
+### Conclusion
+
+This refactor is primarily **structural and semantic**, not functional. It eliminates inconsistencies between documentation, API contracts, and implementation while introducing clearer boundaries and responsibilities.
+
+The most relevant improvement is the **formalization of application-level policies (such as branch resolution) and the elevation of admin operations into the architecture**, resulting in a more coherent and evolvable system design.
+
+
+## 2026/04/22 — refactor/api-application-structure-03
+
+Refactors the application structure to improve **module separation, dependency clarity, and cross-cutting concerns reuse**, with emphasis on isolating admin responsibilities, centralizing authentication context, and formalizing branch generation as a policy.
+
+### 1. Admin Module Extraction
+
+* Moved `ApproveUserUseCase` from auth module to new `admin` module
+* Introduced:
+
+  * `internal/admin/application`
+  * `internal/admin/delivery`
+* Removed approval responsibility from auth handler
+* Created dedicated `adminHandler` and route wiring
+* Result:
+
+  * clear separation between **authentication concerns** and **administrative workflows**
+  * aligns with use case flow definition for user lifecycle 
+
+### 2. Branch Policy Abstraction
+
+* Introduced `BranchPolicy` interface in account application layer
+* Implemented `DefaultBranchPolicy` (currently fixed as "0001")
+* Injected policy into:
+
+  * `CreateAccount`
+  * `ApproveUserUseCase`
+* Removed hardcoded branch generation function
+* Added explicit validation for missing policy
+* Architectural impact:
+
+  * removes hidden business rule
+  * prepares system for future variability (multi-branch, configuration-driven)
+* Aligns with application layer responsibility of operational rules 
+
+### 3. Auth Context Centralization
+
+* Created shared package: `internal/shared/authctx`
+* Migrated all context-related helpers:
+
+  * `WithAuthenticatedUser`
+  * `GetAuthenticatedUser`
+  * `RequireAuthenticatedUser`
+* Updated:
+
+  * middleware
+  * handlers
+  * tests
+* Eliminated duplication across modules
+* Improves consistency of authentication flow handling 
+
+### 4. Auth Handler Simplification
+
+* Removed approval logic from auth handler
+* Reduced constructor dependencies
+* Eliminated approve-related DTOs and tests
+* Auth module now strictly focused on:
+
+  * register
+  * login
+  * token refresh
+  * current user
+* Reinforces boundary between **identity management** and **domain operations**
+
+### 5. Customer Repository Contract Unification
+
+* Removed legacy `account/domain.CustomerRepository`
+* Consolidated on `customer/domain.CustomerRepository`
+* Standardized interface:
+
+  * `Create`
+  * `Exists`
+  * `GetByID`
+* Updated all consumers and mocks
+* Improves consistency across modules and reduces duplication
+
+### 6. Delivery Layer Adjustments
+
+* Introduced dedicated admin handler with:
+
+  * role validation (admin-only)
+  * UUID parsing
+  * error mapping via shared error system
+* Updated routing:
+
+  * `/admin/users/{id}/approve` now handled by admin module
+* Updated account and customer handlers to use shared auth context
+
+### 7. Error Registration Extension
+
+* Added admin-specific error mappings via `admin/application/errors_registry.go`
+* Integrated into bootstrap
+* Ensures consistency with global error contract 
+
+### 8. Main Wiring Refinement
+
+* Updated `main.go`:
+
+  * introduced `branchPolicy` as shared dependency
+  * separated auth and admin handlers
+  * aligned use case construction with new module boundaries
+* Improves clarity of runtime composition 
+
+### 9. Test Suite Updates
+
+* Updated all tests to:
+
+  * inject `BranchPolicy`
+  * use shared auth context
+  * reflect new module boundaries
+* Added coverage for:
+
+  * missing branch policy scenarios
+  * admin handler behavior
+* Maintains strong validation of transactional and lifecycle flows
+
+### 10. Architectural Impact
+
+This refactor reinforces key architectural principles:
+
+* **Separation of concerns**
+
+  * auth vs admin vs account responsibilities clearly isolated
+* **Explicit dependencies**
+
+  * no hidden rules (branch now injected)
+* **Shared cross-cutting infrastructure**
+
+  * authentication context unified
+* **Consistency across layers**
+
+  * repository contracts and error handling standardized
+
+From a design perspective, this is a meaningful evolution toward a more **cohesive modular monolith**, improving maintainability without introducing unnecessary abstraction.
+
+
+## 2026/04/22 — refactor/api-application-structure-02
+
+Refactors the **application layer structure of the account module**, introducing a clear separation by subdomains (account, transaction, statement) and aligning imports, use cases, and delivery contracts with this new organization. This change improves modularity, reduces implicit coupling, and better reflects the system’s use case boundaries as described in the architecture and application model. 
+
+### 1. Application Layer Restructuring
+
+* Split `internal/account/application` into three focused sub-packages:
+
+  * `account` → account lifecycle (create account, get balance)
+  * `transaction` → financial operations (deposit, withdraw, transfer)
+  * `statement` → read models (account statement)
+* Moved all use cases to their respective domains without changing behavior
+* Renamed imports across the project to reflect the new structure
+
+This change reinforces the idea that the application layer is the orchestration boundary of use cases, not a generic container. 
+
+### 2. Main Wiring Adjustments
+
+* Updated `cmd/api/main.go`:
+
+  * `Deposit`, `Withdraw`, `Transfer` now originate from `transaction`
+  * `GetStatement` now originates from `statement`
+  * `CreateAccount` and `GetAccountBalance` remain under `account`
+* Maintains explicit composition while improving semantic clarity of dependencies
+
+### 3. Access Policy Consolidation per Subdomain
+
+* Introduced `access_policy.go` in:
+
+  * `application/account`
+  * `application/transaction`
+  * `application/statement`
+
+* Provides:
+
+  * `CanAccessCustomer`
+  * `CanAccessAccount`
+
+* Enforces authorization at the application layer, consistent with the system’s model where ownership is derived from JWT context and not from client input 
+
+* Although duplicated across packages, this decision keeps each subdomain **self-contained**, avoiding cross-package coupling at the cost of controlled redundancy
+
+### 4. Delivery Layer Alignment
+
+* Updated handlers to consume the new package structure:
+
+  * `accountapp`, `transactionapp`, `statementapp`
+* Adjusted all DTO mappings to match new package locations
+* Preserved handler responsibilities:
+
+  * request parsing
+  * use case invocation
+  * error mapping to HTTP responses 
+
+### 5. Interface and Contract Updates
+
+* Updated handler interfaces to depend on:
+
+  * `accountapp` inputs/outputs
+  * `transactionapp` inputs/outputs
+  * `statementapp` inputs/outputs
+* Maintains strict separation between use cases and delivery contracts
+
+### 6. Test Suite Adaptation
+
+* Refactored all unit and integration tests to match new package boundaries:
+
+  * mocks updated to use new DTO types
+  * transfer, deposit, withdraw tests now reference `transaction` package
+  * statement tests now reference `statement` package
+* Added shared test helpers (`testCustomerUser`, `testAdminUser`) in each subdomain
+* No behavioral changes, only structural alignment
+
+### 7. Cross-Module Impact
+
+* Updated auth module to use:
+
+  * `account/application/account` instead of the previous flat application package
+* Updated integration tests to reference `transaction` where applicable
+
+### 8. Architectural Implications
+
+This refactor is not cosmetic. It aligns the codebase with a more precise interpretation of:
+
+* **use case boundaries** (transaction vs. account vs. read models)
+* **application layer responsibilities** (orchestration and authorization)
+* **modular monolith principles**, reducing implicit dependencies 
+
+From a design perspective, this is a significant improvement. The previous flat structure was already functional, but it blurred responsibilities. The new structure introduces:
+
+* clearer mental model
+* improved scalability for future features
+* safer evolution of independent use case groups
+
+### Conclusion
+
+This commit restructures the application layer into **cohesive subdomains**, improving clarity, modularity, and alignment with the system’s architectural principles. While introducing some duplication (notably in access policies), the trade-off favors **low coupling and explicit boundaries**, which is a sound decision for a financial system that prioritizes correctness and maintainability.
+
+
+## 2026/04/22 — refactor/api-application-structure-01
+
+Refactors the **application layer structure for the account module**, introducing a clearer separation of concerns between account management, transactions, and statement operations. This change aligns the codebase with a more explicit use-case organization and improves modularity across layers.
+
+### 1. Application Layer — Structural Decomposition
+
+* Split `account/application` into three focused submodules:
+
+  * `account` → account lifecycle (create, balance)
+  * `transaction` → deposit, withdraw, transfer
+  * `statement` → statement retrieval
+* Moved existing use cases into their respective domains without altering behavior
+* Updated all imports to reflect the new structure
+* This refactor reinforces the role of the application layer as an orchestration boundary, as defined in the architecture 
+
+### 2. Access Control — Explicit Policy Duplication per Module
+
+* Introduced `access_policy.go` in:
+
+  * `account`
+  * `transaction`
+  * `statement`
+* Each module now contains:
+
+  * `CanAccessCustomer`
+  * `CanAccessAccount`
+* These policies enforce ownership rules based on authenticated user context
+* Although duplicated, this design favors **locality and independence of use cases**, avoiding cross-module coupling
+
+### 3. Authorization Test Helpers
+
+* Added `auth_test.go` in each application submodule
+* Introduced helper builders:
+
+  * `testCustomerUser`
+  * `testAdminUser`
+* Standardizes test setup for authorization scenarios across modules
+
+### 4. Main Composition Root (cmd/api/main.go)
+
+* Updated use case instantiation to reflect new modular structure:
+
+  * transaction use cases (`Deposit`, `Withdraw`, `Transfer`)
+  * statement use case (`GetStatement`)
+  * account use cases remain in `account`
+* Improves clarity of responsibilities during application wiring
+* Makes the composition root more expressive and aligned with business capabilities
+
+### 5. Delivery Layer — Handler Adaptation
+
+* Updated handler imports to use new module paths:
+
+  * `accountapp`
+  * `transactionapp`
+  * `statementapp`
+* Adjusted all DTO mappings to reference the correct module
+* Ensures that HTTP layer remains a thin adapter over application use cases, consistent with the architecture 
+
+### 6. Delivery Tests — Type Alignment
+
+* Updated all mocks and test cases to use new input/output types per module
+* Adjusted:
+
+  * `CreateAccountInput`
+  * `DepositInput`, `WithdrawInput`, `TransferInput`
+  * `GetStatementInput`
+  * `AccountBalance`, `Statement`, `TransferResult`
+* Maintains full test coverage with the new structure
+
+### 7. Integration Tests
+
+* Updated integration tests to reference:
+
+  * `transaction` module for deposit use case
+* Confirms that runtime wiring remains consistent after refactor
+
+### 8. Auth Module Integration
+
+* Updated `approve_user` use case to import account use cases from the new `account` module
+* Adjusted authorization integration tests to use `transaction` module where applicable
+* Keeps cross-module dependencies aligned with new boundaries
+
+### 9. Architectural Impact
+
+* This refactor makes the application layer explicitly reflect **use case categories**, rather than grouping everything under a single package
+* Improves:
+
+  * readability
+  * maintainability
+  * scalability of the module
+* Reinforces the separation between:
+
+  * account state management
+  * financial operations (transactions)
+  * historical data access (statements)
+
+This structure better matches the defined use case flows and system behavior  and prepares the codebase for future evolution without introducing unnecessary complexity.
+
+### Conclusion
+
+This change significantly improves the **semantic organization of the application layer**, making the system easier to reason about and extend. While it introduces some controlled duplication (access policies), it results in a cleaner, more modular design that aligns closely with the domain and use case boundaries.
+
+
 ## 2026/04/22 — api/balane-01
 
 Adds support for **account balance retrieval** as a first-class use case, exposing a new protected endpoint and ensuring consistency with the existing authorization, domain, and repository contracts.

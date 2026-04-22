@@ -62,9 +62,12 @@ All flows must comply with:
 3. verify user exists
 4. validate current status = `pending`
 5. update status → `active`
-6. create Account with status `active` (balance = 0)
-7. persist changes
-8. commit transaction
+6. verify associated customer exists
+7. generate account number
+8. resolve branch through account branch policy
+9. create Account with status `active` (balance = 0)
+10. persist changes
+11. commit transaction
 
 ### Output
 
@@ -98,7 +101,7 @@ All flows must comply with:
 1. verify user is `active`
 2. verify customer exists
 3. generate account number
-4. generate branch
+4. resolve branch through account branch policy
 5. create Account with status `active`
 6. initial balance = 0
 7. persist to database
@@ -119,11 +122,20 @@ All flows must comply with:
 ### Input
 
 * accountId
+* authenticated user
 
 ### Flow
 
-1. verify account exists
-2. return current balance
+1. validate accountId
+2. load account using snapshot source (`accounts.balance`)
+3. verify authenticated user can access the account
+4. return current balance
+
+### Notes
+
+* reads only from `accounts.balance`
+* does not open an explicit transaction
+* does not query `transactions`
 
 ### Output
 
@@ -131,7 +143,9 @@ All flows must comply with:
 
 ### Possible Errors
 
+* invalid data
 * account not found
+* forbidden
 
 ---
 
@@ -254,10 +268,11 @@ All flows must comply with:
 
 ### Flow
 
-1. verify account exists
-2. retrieve account transactions
-3. sort by date (descending)
-4. apply cursor-based pagination (`created_at` + `id`)
+1. validate input and pagination filters
+2. verify authenticated user can access the account
+3. retrieve account transactions
+4. sort by date (descending)
+5. apply cursor-based pagination (`created_at` + `id`)
 
 ### Output
 

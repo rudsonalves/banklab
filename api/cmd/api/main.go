@@ -6,9 +6,13 @@ import (
 	"os"
 	"time"
 
-	accountApplication "github.com/seu-usuario/bank-api/internal/account/application"
+	accountApplication "github.com/seu-usuario/bank-api/internal/account/application/account"
+	statementApplication "github.com/seu-usuario/bank-api/internal/account/application/statement"
+	transactionApplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	accountDelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	adminApplication "github.com/seu-usuario/bank-api/internal/admin/application"
+	adminDelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authApplication "github.com/seu-usuario/bank-api/internal/auth/application"
 	authDelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authInfrastructure "github.com/seu-usuario/bank-api/internal/auth/infrastructure"
@@ -73,18 +77,20 @@ func main() {
 	// ======================
 	// Use Cases
 	// ======================
-	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo)
-	depositUC := accountApplication.NewDeposit(accountRepo)
-	withdrawUC := accountApplication.NewWithdraw(accountRepo)
-	transferUC := accountApplication.NewTransfer(accountRepo)
-	statementUC := accountApplication.NewGetStatement(accountRepo)
+	branchPolicy := accountApplication.NewDefaultBranchPolicy()
+
+	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
+	depositUC := transactionApplication.NewDeposit(accountRepo)
+	withdrawUC := transactionApplication.NewWithdraw(accountRepo)
+	transferUC := transactionApplication.NewTransfer(accountRepo)
+	statementUC := statementApplication.NewGetStatement(accountRepo)
 	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 
 	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
-	approveUserUC := authApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor)
+	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
 
@@ -92,7 +98,8 @@ func main() {
 	// Handlers
 	// ======================
 	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC, statementUC, balanceUC)
-	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC, approveUserUC)
+	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
+	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 
 	// ======================
@@ -120,7 +127,7 @@ func main() {
 
 	// --- API Router ---
 	apiRouter := http.NewServeMux()
-	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(authHandler.ApproveUser)))
+	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(adminHandler.ApproveUser)))
 
 	apiRouter.Handle("GET /customers/me", withAuth(http.HandlerFunc(customerHandler.Me)))
 

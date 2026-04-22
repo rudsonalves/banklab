@@ -13,10 +13,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	accountapplication "github.com/seu-usuario/bank-api/internal/account/application"
+	accountapplication "github.com/seu-usuario/bank-api/internal/account/application/account"
+	transactionapplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	accountdelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
 	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
 	accountinfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	adminapplication "github.com/seu-usuario/bank-api/internal/admin/application"
+	admindelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authapplication "github.com/seu-usuario/bank-api/internal/auth/application"
 	authdelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
@@ -227,18 +230,22 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
 	accountRepo := accountinfrastructure.New(pool)
-	approveUserUC := authapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor)
-	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC, approveUserUC)
+	branchPolicy := accountapplication.NewDefaultBranchPolicy()
+	approveUserUC := adminapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
+	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
+	adminHandler := admindelivery.New(approveUserUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
-	depositUC := accountapplication.NewDeposit(accountRepo)
-	accountHandler := accountdelivery.New(nil, depositUC, nil, nil, nil, nil)
+	depositUC := transactionapplication.NewDeposit(accountRepo)
+	createAccountUC := accountapplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
+	accountHandler := accountdelivery.New(createAccountUC, depositUC, nil, nil, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", authHandler.Register)
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
 	mux.HandleFunc("POST /auth/refresh", authHandler.Refresh)
 	mux.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
+	mux.Handle("POST /admin/users/{id}/approve", authMiddleware.RequireAuth(http.HandlerFunc(adminHandler.ApproveUser)))
 	mux.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))
 
 	server := httptest.NewServer(mux)

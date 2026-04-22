@@ -7,10 +7,10 @@ import (
 )
 
 type CreateCustomer struct {
-	repo domain.Repository
+	repo domain.CustomerRepository
 }
 
-func NewCreateCustomer(repo domain.Repository) *CreateCustomer {
+func NewCreateCustomer(repo domain.CustomerRepository) *CreateCustomer {
 	return &CreateCustomer{repo: repo}
 }
 

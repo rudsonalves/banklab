@@ -6,13 +6,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
 
 type AuthenticatedUser = domain.AuthenticatedUser
-
-type contextKey string
-
-const authenticatedUserKey contextKey = "authenticatedUser"
 
 type GetCurrentUserUseCase struct {
 	userRepo domain.UserRepository
@@ -30,21 +27,11 @@ type GetCurrentUserOutput struct {
 }
 
 func WithAuthenticatedUser(ctx context.Context, user AuthenticatedUser) context.Context {
-	return context.WithValue(ctx, authenticatedUserKey, user)
+	return sharedauthctx.WithAuthenticatedUser(ctx, user)
 }
 
 func GetAuthenticatedUser(ctx context.Context) (*AuthenticatedUser, bool) {
-	user, ok := ctx.Value(authenticatedUserKey).(AuthenticatedUser)
-	if ok {
-		return &user, true
-	}
-
-	userPtr, ok := ctx.Value(authenticatedUserKey).(*AuthenticatedUser)
-	if !ok || userPtr == nil {
-		return nil, false
-	}
-
-	return userPtr, true
+	return sharedauthctx.GetAuthenticatedUser(ctx)
 }
 
 func (uc *GetCurrentUserUseCase) Execute(ctx context.Context) (*GetCurrentUserOutput, error) {

@@ -5,29 +5,33 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	accountapplication "github.com/seu-usuario/bank-api/internal/account/application"
+	accountapplication "github.com/seu-usuario/bank-api/internal/account/application/account"
 	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
-	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	customerdomain "github.com/seu-usuario/bank-api/internal/customer/domain"
 )
 
 type ApproveUserUseCase struct {
-	userRepo     domain.UserRepository
+	userRepo     authdomain.UserRepository
 	accountRepo  accountdomain.AccountRepository
-	customerRepo accountdomain.CustomerRepository
-	transactor   domain.Transactor
+	customerRepo customerdomain.CustomerRepository
+	transactor   authdomain.Transactor
+	branchPolicy accountapplication.BranchPolicy
 }
 
 func NewApproveUserUseCase(
-	userRepo domain.UserRepository,
+	userRepo authdomain.UserRepository,
 	accountRepo accountdomain.AccountRepository,
-	customerRepo accountdomain.CustomerRepository,
-	transactor domain.Transactor,
+	customerRepo customerdomain.CustomerRepository,
+	transactor authdomain.Transactor,
+	branchPolicy accountapplication.BranchPolicy,
 ) *ApproveUserUseCase {
 	return &ApproveUserUseCase{
 		userRepo:     userRepo,
 		accountRepo:  accountRepo,
 		customerRepo: customerRepo,
 		transactor:   transactor,
+		branchPolicy: branchPolicy,
 	}
 }
 
@@ -50,19 +54,19 @@ func (uc *ApproveUserUseCase) Execute(ctx context.Context, input ApproveUserInpu
 			return fmt.Errorf("load user: %w", err)
 		}
 		if user == nil {
-			return domain.ErrUserNotFound
+			return authdomain.ErrUserNotFound
 		}
-		if user.Status != domain.UserStatusPending {
-			return domain.ErrUserAlreadyActive
+		if user.Status != authdomain.UserStatusPending {
+			return authdomain.ErrUserAlreadyActive
 		}
 
-		if err := uc.userRepo.UpdateStatus(txCtx, user.ID, domain.UserStatusActive); err != nil {
+		if err := uc.userRepo.UpdateStatus(txCtx, user.ID, authdomain.UserStatusActive); err != nil {
 			return fmt.Errorf("update user status: %w", err)
 		}
-		user.Status = domain.UserStatusActive
+		user.Status = authdomain.UserStatusActive
 
 		if user.CustomerID == nil {
-			return domain.ErrInvalidUserState
+			return authdomain.ErrInvalidUserState
 		}
 
 		exists, err := uc.customerRepo.Exists(txCtx, *user.CustomerID)
@@ -77,8 +81,11 @@ func (uc *ApproveUserUseCase) Execute(ctx context.Context, input ApproveUserInpu
 		if err != nil {
 			return fmt.Errorf("generate account number: %w", err)
 		}
+		if uc.branchPolicy == nil {
+			return fmt.Errorf("branch policy not configured")
+		}
 
-		account, err := accountdomain.NewAccount(*user.CustomerID, number, accountapplication.GenerateBranch())
+		account, err := accountdomain.NewAccount(*user.CustomerID, number, uc.branchPolicy.Branch())
 		if err != nil {
 			return fmt.Errorf("create account: %w", err)
 		}
