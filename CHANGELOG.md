@@ -1,5 +1,88 @@
 # Changelog
 
+## 2026/04/22 — refactor/api-application-structure-04
+
+Refines the **API and application structure** to better align documentation, use case flows, and architectural responsibilities with the current implementation, particularly around account lifecycle, admin operations, and branch resolution strategy. 
+
+### 1. API Surface Adjustments
+
+* Added new endpoint:
+
+  * `GET /accounts/{id}/balance`
+* Introduced explicit access control note:
+
+  * `/admin/users/{id}/approve` requires authenticated user with `admin` role
+* Improves clarity of exposed capabilities and security model at the API boundary
+
+### 2. Use Case Flow Corrections
+
+* Refined **Approve User flow**:
+
+  * added explicit validation of associated customer existence
+  * introduced account number generation and branch resolution as distinct steps
+  * clarified transactional sequence and responsibilities
+* Updated **Create Account flow**:
+
+  * replaced implicit branch generation with explicit **branch policy resolution**
+* These changes align documentation with actual application orchestration and domain expectations 
+
+### 3. Implementation Documentation Alignment
+
+* Updated approval flow to reflect:
+
+  * dependency on `CustomerRepository`
+  * validation of `customer_id` before account creation
+  * explicit ownership of branch resolution by application layer
+* Adjusted create account flow:
+
+  * branch is no longer a fixed value, but derived from a policy
+* Expanded test coverage section:
+
+  * includes admin handler tests
+* Clarified implementation note:
+
+  * branch policy now belongs to `account/application/account` instead of being hardcoded
+* This resolves inconsistencies between documentation and actual system behavior 
+
+### 4. REST Contract Simplification
+
+* Simplified response of **Approve User endpoint**:
+
+  * removed `email` and `customer_id` from response payload
+* Adjusted error mapping:
+
+  * added `CUSTOMER_NOT_FOUND`
+  * changed `USER_ALREADY_ACTIVE` from 400 → 409
+* Improves contract minimalism and correctness, reducing redundant data exposure
+
+### 5. Architectural Evolution
+
+* Introduced **admin module** as first-class component:
+
+  * added to module list and architectural description
+* Updated architecture documentation:
+
+  * reflects expanded module set (`account`, `admin`, `auth`, `customer`)
+  * includes new use case: `approve user`
+  * registers new route `/admin/users/{id}/approve`
+* Reinforces modular monolith structure and clearer separation of responsibilities 
+
+### 6. Conceptual Improvement — Branch Policy
+
+* Replaced hardcoded branch generation with **explicit branch policy abstraction**
+* Defined ownership at application layer instead of infrastructure or domain
+* This is a subtle but important design improvement:
+
+  * removes hidden assumptions
+  * enables future extensibility without refactoring core flows
+
+### Conclusion
+
+This refactor is primarily **structural and semantic**, not functional. It eliminates inconsistencies between documentation, API contracts, and implementation while introducing clearer boundaries and responsibilities.
+
+The most relevant improvement is the **formalization of application-level policies (such as branch resolution) and the elevation of admin operations into the architecture**, resulting in a more coherent and evolvable system design.
+
+
 ## 2026/04/22 — refactor/api-application-structure-03
 
 Refactors the application structure to improve **module separation, dependency clarity, and cross-cutting concerns reuse**, with emphasis on isolating admin responsibilities, centralizing authentication context, and formalizing branch generation as a policy.

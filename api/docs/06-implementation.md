@@ -201,12 +201,13 @@ Flow:
 3. Validate user exists (returns ErrNotFound if not)
 4. Validate user status == pending (returns appropriate error if already active or blocked)
 5. Update user.status → active
-6. Generate account number using sequence
-7. Create Account entity (branch fixed as "0001", balance = 0, status = active)
-8. Persist account
-9. Update user.customer_id with newly created account's customer_id (if needed)
-10. Persist user updates
-11. Commit transaction
+6. Validate user has non-nil customer_id
+7. Validate referenced customer exists
+8. Generate account number using sequence
+9. Resolve branch using the account branch policy
+10. Create Account entity (balance = 0, status = active)
+11. Persist account
+12. Commit transaction
 
 Atomicity guarantee:
 - Status transition and account creation happen within same transaction
@@ -214,8 +215,10 @@ Atomicity guarantee:
 
 Dependencies:
 - UserRepository for user lookup and update
+- CustomerRepository for customer existence check
 - AccountRepository for account creation
 - Sequence generator for account number
+- Branch policy owned by account application
 
 ### 6.3 Create Account
 
@@ -229,8 +232,9 @@ Flow:
 4. Validate user owns the customer_id via CanAccessCustomer
 5. Ensure customer exists in the database
 6. Generate account number using sequence
-7. Build account entity (branch currently fixed as "0001")
-8. Persist and return account
+7. Resolve branch using the account branch policy
+8. Build account entity
+9. Persist and return account
 
 Notes:
 - The client MUST NOT and CANNOT provide customer_id — it is ignored if sent.
@@ -488,6 +492,7 @@ Application tests:
 Delivery tests:
 - account handler unit tests for success and error mappings
 - auth handler unit tests
+- admin handler unit tests
 - customer handler unit tests (GET /customers/me)
 - deposit integration test with real PostgreSQL
 
@@ -516,7 +521,7 @@ Server listens on:
 ## 12. Known Implementation Notes
 
 - DB connection string is hard-coded in code and not yet externalized via environment variables.
-- Branch generation for accounts is currently fixed to "0001".
+- The default account branch policy currently returns "0001" and is owned by `account/application/account`.
 - A one-account-per-customer rule is scaffolded but not active.
 - Ledger is single-source (`transactions`) and append-only.
 

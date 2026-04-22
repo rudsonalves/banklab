@@ -4,7 +4,7 @@
 
 Bank API is implemented as a modular monolith with layered boundaries. The architecture prioritizes transactional correctness for financial operations, explicit domain rules, and low accidental coupling.
 
-The service is organized by business modules (account, auth, customer), and each module keeps its own layered split:
+The service is organized by business modules (account, admin, auth, customer), and each module keeps its own layered split:
 
 - delivery: HTTP handlers, request parsing, response mapping
 - application: use case orchestration and transaction boundaries
@@ -45,6 +45,7 @@ This keeps composition centralized and explicit.
 Current top-level modules under [api/internal](../../api/internal):
 
 - account
+- admin
 - auth
 - customer
 - database (shared DB helpers)
@@ -95,7 +96,7 @@ Coordinates use cases and consistency guarantees:
 - manages transaction scope through repository/transactor contracts
 - orchestrates multi-step operations (for example transfers)
 
-Examples include create account, get balance, deposit, withdraw, transfer, get statement, login, register, and refresh token.
+Examples include create account, get balance, deposit, withdraw, transfer, get statement, approve user, login, register, and refresh token.
 
 ### Infrastructure
 
@@ -171,6 +172,7 @@ Registered routes include:
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `GET /auth/me`
+- `POST /admin/users/{id}/approve`
 - `GET /customers/me`
 - `POST /accounts`
 - `POST /accounts/{id}/deposit`

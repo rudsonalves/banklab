@@ -62,9 +62,12 @@ All flows must comply with:
 3. verify user exists
 4. validate current status = `pending`
 5. update status → `active`
-6. create Account with status `active` (balance = 0)
-7. persist changes
-8. commit transaction
+6. verify associated customer exists
+7. generate account number
+8. resolve branch through account branch policy
+9. create Account with status `active` (balance = 0)
+10. persist changes
+11. commit transaction
 
 ### Output
 
@@ -98,7 +101,7 @@ All flows must comply with:
 1. verify user is `active`
 2. verify customer exists
 3. generate account number
-4. generate branch
+4. resolve branch through account branch policy
 5. create Account with status `active`
 6. initial balance = 0
 7. persist to database
