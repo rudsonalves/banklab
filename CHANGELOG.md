@@ -1,5 +1,108 @@
 # Changelog
 
+## 2026/04/22 — refactor/api-application-structure-01
+
+Refactors the **application layer structure for the account module**, introducing a clearer separation of concerns between account management, transactions, and statement operations. This change aligns the codebase with a more explicit use-case organization and improves modularity across layers.
+
+### 1. Application Layer — Structural Decomposition
+
+* Split `account/application` into three focused submodules:
+
+  * `account` → account lifecycle (create, balance)
+  * `transaction` → deposit, withdraw, transfer
+  * `statement` → statement retrieval
+* Moved existing use cases into their respective domains without altering behavior
+* Updated all imports to reflect the new structure
+* This refactor reinforces the role of the application layer as an orchestration boundary, as defined in the architecture 
+
+### 2. Access Control — Explicit Policy Duplication per Module
+
+* Introduced `access_policy.go` in:
+
+  * `account`
+  * `transaction`
+  * `statement`
+* Each module now contains:
+
+  * `CanAccessCustomer`
+  * `CanAccessAccount`
+* These policies enforce ownership rules based on authenticated user context
+* Although duplicated, this design favors **locality and independence of use cases**, avoiding cross-module coupling
+
+### 3. Authorization Test Helpers
+
+* Added `auth_test.go` in each application submodule
+* Introduced helper builders:
+
+  * `testCustomerUser`
+  * `testAdminUser`
+* Standardizes test setup for authorization scenarios across modules
+
+### 4. Main Composition Root (cmd/api/main.go)
+
+* Updated use case instantiation to reflect new modular structure:
+
+  * transaction use cases (`Deposit`, `Withdraw`, `Transfer`)
+  * statement use case (`GetStatement`)
+  * account use cases remain in `account`
+* Improves clarity of responsibilities during application wiring
+* Makes the composition root more expressive and aligned with business capabilities
+
+### 5. Delivery Layer — Handler Adaptation
+
+* Updated handler imports to use new module paths:
+
+  * `accountapp`
+  * `transactionapp`
+  * `statementapp`
+* Adjusted all DTO mappings to reference the correct module
+* Ensures that HTTP layer remains a thin adapter over application use cases, consistent with the architecture 
+
+### 6. Delivery Tests — Type Alignment
+
+* Updated all mocks and test cases to use new input/output types per module
+* Adjusted:
+
+  * `CreateAccountInput`
+  * `DepositInput`, `WithdrawInput`, `TransferInput`
+  * `GetStatementInput`
+  * `AccountBalance`, `Statement`, `TransferResult`
+* Maintains full test coverage with the new structure
+
+### 7. Integration Tests
+
+* Updated integration tests to reference:
+
+  * `transaction` module for deposit use case
+* Confirms that runtime wiring remains consistent after refactor
+
+### 8. Auth Module Integration
+
+* Updated `approve_user` use case to import account use cases from the new `account` module
+* Adjusted authorization integration tests to use `transaction` module where applicable
+* Keeps cross-module dependencies aligned with new boundaries
+
+### 9. Architectural Impact
+
+* This refactor makes the application layer explicitly reflect **use case categories**, rather than grouping everything under a single package
+* Improves:
+
+  * readability
+  * maintainability
+  * scalability of the module
+* Reinforces the separation between:
+
+  * account state management
+  * financial operations (transactions)
+  * historical data access (statements)
+
+This structure better matches the defined use case flows and system behavior  and prepares the codebase for future evolution without introducing unnecessary complexity.
+
+### Conclusion
+
+This change significantly improves the **semantic organization of the application layer**, making the system easier to reason about and extend. While it introduces some controlled duplication (access policies), it results in a cleaner, more modular design that aligns closely with the domain and use case boundaries.
+
+
 ## 2026/04/22 — api/balane-01
 
 Adds support for **account balance retrieval** as a first-class use case, exposing a new protected endpoint and ensuring consistency with the existing authorization, domain, and repository contracts.

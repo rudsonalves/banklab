@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	accountapplication "github.com/seu-usuario/bank-api/internal/account/application"
+	accountapplication "github.com/seu-usuario/bank-api/internal/account/application/account"
 	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 )

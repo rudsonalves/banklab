@@ -6,7 +6,9 @@ import (
 	"os"
 	"time"
 
-	accountApplication "github.com/seu-usuario/bank-api/internal/account/application"
+	accountApplication "github.com/seu-usuario/bank-api/internal/account/application/account"
+	statementApplication "github.com/seu-usuario/bank-api/internal/account/application/statement"
+	transactionApplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	accountDelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
 	authApplication "github.com/seu-usuario/bank-api/internal/auth/application"
@@ -74,10 +76,10 @@ func main() {
 	// Use Cases
 	// ======================
 	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo)
-	depositUC := accountApplication.NewDeposit(accountRepo)
-	withdrawUC := accountApplication.NewWithdraw(accountRepo)
-	transferUC := accountApplication.NewTransfer(accountRepo)
-	statementUC := accountApplication.NewGetStatement(accountRepo)
+	depositUC := transactionApplication.NewDeposit(accountRepo)
+	withdrawUC := transactionApplication.NewWithdraw(accountRepo)
+	transferUC := transactionApplication.NewTransfer(accountRepo)
+	statementUC := statementApplication.NewGetStatement(accountRepo)
 	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 
 	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)

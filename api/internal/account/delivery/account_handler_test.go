@@ -11,41 +11,43 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/application"
+	accountapp "github.com/seu-usuario/bank-api/internal/account/application/account"
+	statementapp "github.com/seu-usuario/bank-api/internal/account/application/statement"
+	transactionapp "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 )
 
 type createAccountUseCaseMock struct {
 	executeCalls int
-	executeFn    func(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error)
+	executeFn    func(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error)
 }
 
 type depositUseCaseMock struct {
 	executeCalls int
-	executeFn    func(ctx context.Context, input application.DepositInput) (*domain.Account, error)
+	executeFn    func(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error)
 }
 
 type withdrawUseCaseMock struct {
 	executeCalls int
-	executeFn    func(ctx context.Context, input application.WithdrawInput) (*domain.Account, error)
+	executeFn    func(ctx context.Context, input transactionapp.WithdrawInput) (*domain.Account, error)
 }
 
 type transferUseCaseMock struct {
 	executeCalls int
-	executeFn    func(ctx context.Context, input application.TransferInput) (*application.TransferResult, error)
+	executeFn    func(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error)
 }
 
 type statementUseCaseMock struct {
 	executeCalls int
-	executeFn    func(ctx context.Context, input application.GetStatementInput) (*application.Statement, error)
+	executeFn    func(ctx context.Context, input statementapp.GetStatementInput) (*statementapp.Statement, error)
 }
 
 type balanceUseCaseMock struct {
 	executeCalls int
-	executeFn    func(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error)
+	executeFn    func(ctx context.Context, input accountapp.GetAccountBalanceInput) (*accountapp.AccountBalance, error)
 }
 
-func (m *createAccountUseCaseMock) Execute(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
+func (m *createAccountUseCaseMock) Execute(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -53,7 +55,7 @@ func (m *createAccountUseCaseMock) Execute(ctx context.Context, input applicatio
 	return m.executeFn(ctx, input)
 }
 
-func (m *depositUseCaseMock) Execute(ctx context.Context, input application.DepositInput) (*domain.Account, error) {
+func (m *depositUseCaseMock) Execute(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -61,7 +63,7 @@ func (m *depositUseCaseMock) Execute(ctx context.Context, input application.Depo
 	return m.executeFn(ctx, input)
 }
 
-func (m *withdrawUseCaseMock) Execute(ctx context.Context, input application.WithdrawInput) (*domain.Account, error) {
+func (m *withdrawUseCaseMock) Execute(ctx context.Context, input transactionapp.WithdrawInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -69,7 +71,7 @@ func (m *withdrawUseCaseMock) Execute(ctx context.Context, input application.Wit
 	return m.executeFn(ctx, input)
 }
 
-func (m *transferUseCaseMock) Execute(ctx context.Context, input application.TransferInput) (*application.TransferResult, error) {
+func (m *transferUseCaseMock) Execute(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -77,7 +79,7 @@ func (m *transferUseCaseMock) Execute(ctx context.Context, input application.Tra
 	return m.executeFn(ctx, input)
 }
 
-func (m *statementUseCaseMock) Execute(ctx context.Context, input application.GetStatementInput) (*application.Statement, error) {
+func (m *statementUseCaseMock) Execute(ctx context.Context, input statementapp.GetStatementInput) (*statementapp.Statement, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -85,7 +87,7 @@ func (m *statementUseCaseMock) Execute(ctx context.Context, input application.Ge
 	return m.executeFn(ctx, input)
 }
 
-func (m *balanceUseCaseMock) Execute(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error) {
+func (m *balanceUseCaseMock) Execute(ctx context.Context, input accountapp.GetAccountBalanceInput) (*accountapp.AccountBalance, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -154,7 +156,7 @@ func TestHandler_CreateAccount_RejectsUnknownField(t *testing.T) {
 
 func TestHandler_CreateAccount_CustomerNotFound(t *testing.T) {
 	uc := &createAccountUseCaseMock{
-		executeFn: func(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
+		executeFn: func(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error) {
 			if input.User == nil {
 				return nil, errors.New("missing user")
 			}
@@ -200,7 +202,7 @@ func TestHandler_CreateAccount_Success(t *testing.T) {
 	}
 
 	uc := &createAccountUseCaseMock{
-		executeFn: func(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
+		executeFn: func(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error) {
 			if input.User == nil || input.User.CustomerID == nil || *input.User.CustomerID != inputCustomerID {
 				return nil, errors.New("unexpected user")
 			}
@@ -271,7 +273,7 @@ func TestHandler_CreateAccount_SuccessWithEmptyBody(t *testing.T) {
 	}
 
 	uc := &createAccountUseCaseMock{
-		executeFn: func(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
+		executeFn: func(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error) {
 			if input.User == nil || input.User.CustomerID == nil || *input.User.CustomerID != inputCustomerID {
 				return nil, errors.New("unexpected user")
 			}
@@ -307,7 +309,7 @@ func TestHandler_Deposit_MissingAuth(t *testing.T) {
 func TestHandler_Deposit_AccountInactive(t *testing.T) {
 	customerID := uuid.New()
 	depositUC := &depositUseCaseMock{
-		executeFn: func(ctx context.Context, input application.DepositInput) (*domain.Account, error) {
+		executeFn: func(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error) {
 			if input.User == nil {
 				return nil, errors.New("missing user")
 			}
@@ -349,7 +351,7 @@ func TestHandler_Deposit_AccountInactive(t *testing.T) {
 
 func TestHandler_Deposit_Forbidden(t *testing.T) {
 	depositUC := &depositUseCaseMock{
-		executeFn: func(ctx context.Context, input application.DepositInput) (*domain.Account, error) {
+		executeFn: func(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error) {
 			return nil, domain.ErrForbidden
 		},
 	}
@@ -384,7 +386,7 @@ func TestHandler_Deposit_Forbidden(t *testing.T) {
 func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
 	customerID := uuid.New()
 	withdrawUC := &withdrawUseCaseMock{
-		executeFn: func(ctx context.Context, input application.WithdrawInput) (*domain.Account, error) {
+		executeFn: func(ctx context.Context, input transactionapp.WithdrawInput) (*domain.Account, error) {
 			if input.User == nil {
 				return nil, errors.New("missing user")
 			}
@@ -423,7 +425,7 @@ func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
 func TestHandler_Transfer_SameAccount(t *testing.T) {
 	customerID := uuid.New()
 	transferUC := &transferUseCaseMock{
-		executeFn: func(ctx context.Context, input application.TransferInput) (*application.TransferResult, error) {
+		executeFn: func(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error) {
 			if input.User == nil {
 				return nil, errors.New("missing user")
 			}
@@ -497,7 +499,7 @@ func TestHandler_Statement_InvalidFromQuery(t *testing.T) {
 func TestHandler_Statement_AccountNotFound(t *testing.T) {
 	customerID := uuid.New()
 	statementUC := &statementUseCaseMock{
-		executeFn: func(ctx context.Context, input application.GetStatementInput) (*application.Statement, error) {
+		executeFn: func(ctx context.Context, input statementapp.GetStatementInput) (*statementapp.Statement, error) {
 			if input.User == nil {
 				return nil, errors.New("missing user")
 			}
@@ -551,7 +553,7 @@ func TestHandler_Statement_Success(t *testing.T) {
 	referenceID := uuid.New().String()
 
 	statementUC := &statementUseCaseMock{
-		executeFn: func(ctx context.Context, input application.GetStatementInput) (*application.Statement, error) {
+		executeFn: func(ctx context.Context, input statementapp.GetStatementInput) (*statementapp.Statement, error) {
 			if input.AccountID != accountID {
 				return nil, errors.New("unexpected account id")
 			}
@@ -574,9 +576,9 @@ func TestHandler_Statement_Success(t *testing.T) {
 				return nil, errors.New("unexpected to")
 			}
 
-			return &application.Statement{
+			return &statementapp.Statement{
 				AccountID: accountID.String(),
-				Items: []application.StatementItem{
+				Items: []statementapp.StatementItem{
 					{
 						TransactionID: transactionID.String(),
 						Type:          string(domain.TransactionDeposit),
@@ -586,7 +588,7 @@ func TestHandler_Statement_Success(t *testing.T) {
 						CreatedAt:     to,
 					},
 				},
-				NextCursor: &application.StatementCursor{CreatedAt: to, ID: transactionID.String()},
+				NextCursor: &statementapp.StatementCursor{CreatedAt: to, ID: transactionID.String()},
 			}, nil
 		},
 	}
@@ -716,7 +718,7 @@ func TestHandler_GetBalance_InvalidUUID(t *testing.T) {
 func TestHandler_GetBalance_AccountNotFound(t *testing.T) {
 	customerID := uuid.New()
 	balanceUC := &balanceUseCaseMock{
-		executeFn: func(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error) {
+		executeFn: func(ctx context.Context, input accountapp.GetAccountBalanceInput) (*accountapp.AccountBalance, error) {
 			if input.User == nil {
 				return nil, errors.New("missing user")
 			}
@@ -741,7 +743,7 @@ func TestHandler_GetBalance_AccountNotFound(t *testing.T) {
 func TestHandler_GetBalance_Forbidden(t *testing.T) {
 	customerID := uuid.New()
 	balanceUC := &balanceUseCaseMock{
-		executeFn: func(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error) {
+		executeFn: func(ctx context.Context, input accountapp.GetAccountBalanceInput) (*accountapp.AccountBalance, error) {
 			if input.User == nil {
 				return nil, errors.New("missing user")
 			}
@@ -767,7 +769,7 @@ func TestHandler_GetBalance_Success(t *testing.T) {
 	accountID := uuid.New()
 	customerID := uuid.New()
 	balanceUC := &balanceUseCaseMock{
-		executeFn: func(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error) {
+		executeFn: func(ctx context.Context, input accountapp.GetAccountBalanceInput) (*accountapp.AccountBalance, error) {
 			if input.AccountID != accountID {
 				return nil, errors.New("unexpected account id")
 			}
@@ -775,7 +777,7 @@ func TestHandler_GetBalance_Success(t *testing.T) {
 				return nil, errors.New("unexpected user")
 			}
 
-			return &application.AccountBalance{
+			return &accountapp.AccountBalance{
 				AccountID: accountID,
 				Balance:   12000,
 			}, nil

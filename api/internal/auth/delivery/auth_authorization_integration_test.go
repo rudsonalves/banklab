@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	accountapplication "github.com/seu-usuario/bank-api/internal/account/application"
+	transactionapplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	accountdelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
 	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
 	accountinfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
@@ -231,7 +231,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC, approveUserUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
-	depositUC := accountapplication.NewDeposit(accountRepo)
+	depositUC := transactionapplication.NewDeposit(accountRepo)
 	accountHandler := accountdelivery.New(nil, depositUC, nil, nil, nil, nil)
 
 	mux := http.NewServeMux()

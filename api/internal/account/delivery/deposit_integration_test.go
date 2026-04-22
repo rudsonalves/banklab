@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	accountApplication "github.com/seu-usuario/bank-api/internal/account/application"
+	transactionApplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
 	auth "github.com/seu-usuario/bank-api/internal/auth/delivery"
@@ -33,7 +33,7 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 	defer cleanupDepositTestData(t, ctx, pool, customerID, accountID)
 
 	repo := accountInfrastructure.New(pool)
-	depositUC := accountApplication.NewDeposit(repo)
+	depositUC := transactionApplication.NewDeposit(repo)
 	handler := New(nil, depositUC, nil, nil, nil, nil)
 
 	mux := http.NewServeMux()

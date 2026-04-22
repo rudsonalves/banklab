@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/application"
+	accountapp "github.com/seu-usuario/bank-api/internal/account/application/account"
+	statementapp "github.com/seu-usuario/bank-api/internal/account/application/statement"
+	transactionapp "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
@@ -31,7 +33,7 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	input := application.CreateAccountInput{
+	input := accountapp.CreateAccountInput{
 		User: user,
 	}
 
@@ -77,7 +79,7 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account, err := h.deposit.Execute(r.Context(), application.DepositInput{
+	account, err := h.deposit.Execute(r.Context(), transactionapp.DepositInput{
 		User:      user,
 		AccountID: accountID,
 		Amount:    req.Amount,
@@ -119,7 +121,7 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account, err := h.withdraw.Execute(r.Context(), application.WithdrawInput{
+	account, err := h.withdraw.Execute(r.Context(), transactionapp.WithdrawInput{
 		User:      user,
 		AccountID: accountID,
 		Amount:    req.Amount,
@@ -166,7 +168,7 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.transfer.Execute(r.Context(), application.TransferInput{
+	result, err := h.transfer.Execute(r.Context(), transactionapp.TransferInput{
 		User:           user,
 		FromAccountID:  fromAccountID,
 		ToAccountID:    toAccountID,
@@ -242,7 +244,7 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.statement.Execute(r.Context(), application.GetStatementInput{
+	result, err := h.statement.Execute(r.Context(), statementapp.GetStatementInput{
 		User:      user,
 		AccountID: accountID,
 		Limit:     limit,
@@ -308,7 +310,7 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.balance.Execute(r.Context(), application.GetAccountBalanceInput{
+	result, err := h.balance.Execute(r.Context(), accountapp.GetAccountBalanceInput{
 		User:      user,
 		AccountID: accountID,
 	})
