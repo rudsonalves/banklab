@@ -22,6 +22,11 @@ type createAccountUseCaseMock struct {
 	executeFn    func(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error)
 }
 
+type listAccountsUseCaseMock struct {
+	executeCalls int
+	executeFn    func(ctx context.Context, input accountapp.ListAccountsInput) ([]domain.Account, error)
+}
+
 type depositUseCaseMock struct {
 	executeCalls int
 	executeFn    func(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error)
@@ -48,6 +53,14 @@ type balanceUseCaseMock struct {
 }
 
 func (m *createAccountUseCaseMock) Execute(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error) {
+	m.executeCalls++
+	if m.executeFn == nil {
+		return nil, nil
+	}
+	return m.executeFn(ctx, input)
+}
+
+func (m *listAccountsUseCaseMock) Execute(ctx context.Context, input accountapp.ListAccountsInput) ([]domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -93,6 +106,142 @@ func (m *balanceUseCaseMock) Execute(ctx context.Context, input accountapp.GetAc
 		return nil, nil
 	}
 	return m.executeFn(ctx, input)
+}
+
+func TestHandler_ListAccounts_MissingAuth(t *testing.T) {
+	h := &Handler{listAccounts: &listAccountsUseCaseMock{}}
+	req := httptest.NewRequest(http.MethodGet, "/accounts", nil)
+	rec := httptest.NewRecorder()
+
+	h.ListAccounts(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+}
+
+func TestHandler_ListAccounts_RejectsQueryParameters(t *testing.T) {
+	listUC := &listAccountsUseCaseMock{}
+	h := &Handler{listAccounts: listUC}
+	req := httptest.NewRequest(http.MethodGet, "/accounts?status=active", nil)
+	req = testAuthenticatedRequest(req, uuid.New())
+	rec := httptest.NewRecorder()
+
+	h.ListAccounts(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	if listUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", listUC.executeCalls)
+	}
+}
+
+func TestHandler_ListAccounts_Forbidden(t *testing.T) {
+	listUC := &listAccountsUseCaseMock{
+		executeFn: func(ctx context.Context, input accountapp.ListAccountsInput) ([]domain.Account, error) {
+			return nil, domain.ErrForbidden
+		},
+	}
+	h := &Handler{listAccounts: listUC}
+	req := httptest.NewRequest(http.MethodGet, "/accounts", nil)
+	req = testAuthenticatedRequest(req, uuid.New())
+	rec := httptest.NewRecorder()
+
+	h.ListAccounts(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "FORBIDDEN" {
+		t.Fatalf("expected error code %q, got %q", "FORBIDDEN", got.Error.Code)
+	}
+}
+
+func TestHandler_ListAccounts_Success(t *testing.T) {
+	customerID := uuid.New()
+	accountID := uuid.New()
+	listUC := &listAccountsUseCaseMock{
+		executeFn: func(ctx context.Context, input accountapp.ListAccountsInput) ([]domain.Account, error) {
+			if input.User == nil || input.User.CustomerID == nil || *input.User.CustomerID != customerID {
+				return nil, errors.New("unexpected user")
+			}
+			return []domain.Account{
+				{
+					ID:         accountID,
+					CustomerID: customerID,
+					Number:     "10000001",
+					Branch:     "0001",
+					Status:     domain.AccountActive,
+				},
+			}, nil
+		},
+	}
+	h := &Handler{listAccounts: listUC}
+	req := httptest.NewRequest(http.MethodGet, "/accounts", nil)
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.ListAccounts(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var got struct {
+		Data []struct {
+			ID         string `json:"id"`
+			CustomerID string `json:"customer_id"`
+			Number     string `json:"number"`
+			Branch     string `json:"branch"`
+			Status     string `json:"status"`
+		} `json:"data"`
+		Error any `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if len(got.Data) != 1 {
+		t.Fatalf("expected 1 account, got %d", len(got.Data))
+	}
+
+	if got.Data[0].ID != accountID.String() {
+		t.Fatalf("expected id %q, got %q", accountID.String(), got.Data[0].ID)
+	}
+
+	if got.Data[0].CustomerID != customerID.String() {
+		t.Fatalf("expected customer_id %q, got %q", customerID.String(), got.Data[0].CustomerID)
+	}
+
+	if got.Data[0].Number != "10000001" {
+		t.Fatalf("expected number %q, got %q", "10000001", got.Data[0].Number)
+	}
+
+	if got.Data[0].Branch != "0001" {
+		t.Fatalf("expected branch %q, got %q", "0001", got.Data[0].Branch)
+	}
+
+	if got.Data[0].Status != string(domain.AccountActive) {
+		t.Fatalf("expected status %q, got %q", domain.AccountActive, got.Data[0].Status)
+	}
+
+	if got.Error != nil {
+		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
 }
 
 func TestHandler_CreateAccount_InvalidJSON(t *testing.T) {

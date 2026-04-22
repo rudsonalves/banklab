@@ -18,6 +18,7 @@ type AccountRepository interface {
 	GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName TransactionType) (*Transaction, error)
 
 	Create(ctx context.Context, account *Account) error
+	ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]Account, error)
 	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)
 	NextAccountNumber(ctx context.Context) (string, error)
 

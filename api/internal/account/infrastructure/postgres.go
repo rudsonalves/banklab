@@ -88,6 +88,48 @@ func (r *Repository) Create(ctx context.Context, acc *domain.Account) error {
 	return r.base.Create(ctx, acc)
 }
 
+func (r *baseRepository) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
+	query := `
+		SELECT id, customer_id, number, branch, balance, status, created_at
+		FROM accounts
+		WHERE customer_id = $1
+		ORDER BY created_at ASC, id ASC
+	`
+
+	rows, err := r.exec.Query(ctx, query, customerID)
+	if err != nil {
+		return nil, fmt.Errorf("list accounts by customer id: %w", err)
+	}
+	defer rows.Close()
+
+	accounts := make([]domain.Account, 0)
+	for rows.Next() {
+		var account domain.Account
+		if err := rows.Scan(
+			&account.ID,
+			&account.CustomerID,
+			&account.Number,
+			&account.Branch,
+			&account.Balance,
+			&account.Status,
+			&account.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan account: %w", err)
+		}
+		accounts = append(accounts, account)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate accounts by customer id: %w", err)
+	}
+
+	return accounts, nil
+}
+
+func (r *Repository) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
+	return r.base.ListByCustomerID(ctx, customerID)
+}
+
 func (r *baseRepository) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
 	query := `
 		INSERT INTO transactions (
@@ -491,6 +533,10 @@ func runInTransaction(ctx context.Context, tx domain.Tx, fn func(tx domain.Tx) e
 
 func (r *txRepository) NextAccountNumber(ctx context.Context) (string, error) {
 	return r.base.NextAccountNumber(ctx)
+}
+
+func (r *txRepository) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
+	return r.base.ListByCustomerID(ctx, customerID)
 }
 
 func (r *txRepository) Create(ctx context.Context, acc *domain.Account) error {

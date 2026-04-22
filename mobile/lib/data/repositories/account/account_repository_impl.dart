@@ -22,20 +22,18 @@ class AccountRepositoryImpl implements AccountRepository {
   final _balanceController = StreamController<BalanceResponseDto>.broadcast();
 
   @override
-  BalanceResponseDto? getCachedBalance(String accountId) {
+  BalanceResponseDto? getCachedBalance() {
     return _balanceCache;
   }
 
   @override
-  Stream<BalanceResponseDto> watchBalance(String accountId) async* {
-    final cached = getCachedBalance(accountId);
+  Stream<BalanceResponseDto> watchBalance() async* {
+    final cached = getCachedBalance();
     if (cached != null) {
       yield cached;
     }
 
-    yield* _balanceController.stream.where(
-      (balance) => balance.accountId == accountId,
-    );
+    yield* _balanceController.stream;
   }
 
   @override

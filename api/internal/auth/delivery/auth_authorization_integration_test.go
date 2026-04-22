@@ -232,13 +232,14 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	accountRepo := accountinfrastructure.New(pool)
 	branchPolicy := accountapplication.NewDefaultBranchPolicy()
 	approveUserUC := adminapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
+	listAccountsUC := accountapplication.NewListAccounts(accountRepo)
 	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	adminHandler := admindelivery.New(approveUserUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
 	depositUC := transactionapplication.NewDeposit(accountRepo)
 	createAccountUC := accountapplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
-	accountHandler := accountdelivery.New(createAccountUC, depositUC, nil, nil, nil, nil)
+	accountHandler := accountdelivery.New(listAccountsUC, createAccountUC, depositUC, nil, nil, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", authHandler.Register)
@@ -246,6 +247,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	mux.HandleFunc("POST /auth/refresh", authHandler.Refresh)
 	mux.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
 	mux.Handle("POST /admin/users/{id}/approve", authMiddleware.RequireAuth(http.HandlerFunc(adminHandler.ApproveUser)))
+	mux.Handle("GET /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.ListAccounts)))
 	mux.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))
 
 	server := httptest.NewServer(mux)

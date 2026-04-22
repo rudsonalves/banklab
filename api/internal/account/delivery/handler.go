@@ -15,6 +15,10 @@ type createAccountUseCase interface {
 	Execute(ctx context.Context, input accountapp.CreateAccountInput) (*domain.Account, error)
 }
 
+type listAccountsUseCase interface {
+	Execute(ctx context.Context, input accountapp.ListAccountsInput) ([]domain.Account, error)
+}
+
 type depositUseCase interface {
 	Execute(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error)
 }
@@ -36,6 +40,7 @@ type getBalanceUseCase interface {
 }
 
 type Handler struct {
+	listAccounts  listAccountsUseCase
 	createAccount createAccountUseCase
 	deposit       depositUseCase
 	withdraw      withdrawUseCase
@@ -45,6 +50,7 @@ type Handler struct {
 }
 
 func New(
+	listAccounts listAccountsUseCase,
 	createAccount createAccountUseCase,
 	deposit depositUseCase,
 	withdraw withdrawUseCase,
@@ -53,6 +59,7 @@ func New(
 	balance getBalanceUseCase,
 ) *Handler {
 	return &Handler{
+		listAccounts:  listAccounts,
 		createAccount: createAccount,
 		deposit:       deposit,
 		withdraw:      withdraw,

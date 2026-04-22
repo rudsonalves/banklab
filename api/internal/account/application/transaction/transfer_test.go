@@ -20,6 +20,10 @@ func (m *transferAccountRepositoryMock) Create(ctx context.Context, account *dom
 	return nil
 }
 
+func (m *transferAccountRepositoryMock) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
+	return nil, nil
+}
+
 func (m *transferAccountRepositoryMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
 	return nil
 }
@@ -116,6 +120,10 @@ type transferTxMock struct {
 
 func (m *transferTxMock) Create(ctx context.Context, account *domain.Account) error {
 	return nil
+}
+
+func (m *transferTxMock) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
+	return nil, nil
 }
 
 func (m *transferTxMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {

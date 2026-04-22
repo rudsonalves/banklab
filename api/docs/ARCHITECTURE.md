@@ -174,6 +174,7 @@ Registered routes include:
 - `GET /auth/me`
 - `POST /admin/users/{id}/approve`
 - `GET /customers/me`
+- `GET /accounts`
 - `POST /accounts`
 - `POST /accounts/{id}/deposit`
 - `POST /accounts/{id}/withdraw`

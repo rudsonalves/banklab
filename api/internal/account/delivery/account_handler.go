@@ -54,6 +54,39 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) ListAccounts(w http.ResponseWriter, r *http.Request) {
+	user, authErr := RequireUser(r.Context())
+	if authErr != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
+		return
+	}
+
+	if len(r.URL.Query()) > 0 {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	accounts, err := h.listAccounts.Execute(r.Context(), accountapp.ListAccountsInput{User: user})
+	if err != nil {
+		log.Printf("event=list_accounts error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	data := make([]AccountSummaryData, 0, len(accounts))
+	for _, account := range accounts {
+		data = append(data, AccountSummaryData{
+			ID:         account.ID.String(),
+			CustomerID: account.CustomerID.String(),
+			Number:     account.Number,
+			Branch:     account.Branch,
+			Status:     string(account.Status),
+		})
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, data)
+}
+
 func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 	if h.deposit == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))

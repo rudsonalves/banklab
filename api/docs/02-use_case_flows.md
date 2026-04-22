@@ -117,7 +117,30 @@ All flows must comply with:
 
 ---
 
-## 5. Get Balance
+## 5. List Accounts
+
+### Input
+
+* authenticated user
+
+### Flow
+
+1. validate authenticated user has non-nil `customer_id`
+2. load all accounts by `customer_id`
+3. order accounts deterministically
+4. return summarized account list
+
+### Output
+
+* list of accounts visible to the authenticated user
+
+### Possible Errors
+
+* forbidden
+
+---
+
+## 6. Get Balance
 
 ### Input
 
@@ -149,7 +172,7 @@ All flows must comply with:
 
 ---
 
-## 6. Deposit
+## 7. Deposit
 
 ### Input
 
@@ -179,7 +202,7 @@ All flows must comply with:
 
 ---
 
-## 7. Withdraw
+## 8. Withdraw
 
 ### Input
 

@@ -79,6 +79,7 @@ func main() {
 	// ======================
 	branchPolicy := accountApplication.NewDefaultBranchPolicy()
 
+	listAccountsUC := accountApplication.NewListAccounts(accountRepo)
 	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
 	depositUC := transactionApplication.NewDeposit(accountRepo)
 	withdrawUC := transactionApplication.NewWithdraw(accountRepo)
@@ -97,7 +98,7 @@ func main() {
 	// ======================
 	// Handlers
 	// ======================
-	accountHandler := accountDelivery.New(createAccountUC, depositUC, withdrawUC, transferUC, statementUC, balanceUC)
+	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, depositUC, withdrawUC, transferUC, statementUC, balanceUC)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
@@ -131,6 +132,7 @@ func main() {
 
 	apiRouter.Handle("GET /customers/me", withAuth(http.HandlerFunc(customerHandler.Me)))
 
+	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
 	apiRouter.Handle("POST /accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccount)))
 	apiRouter.Handle("POST /accounts/{id}/deposit", withAuth(http.HandlerFunc(accountHandler.Deposit)))
 	apiRouter.Handle("POST /accounts/{id}/withdraw", withAuth(http.HandlerFunc(accountHandler.Withdraw)))

@@ -11,6 +11,14 @@ type AccountData struct {
 	Status     string `json:"status"`
 }
 
+type AccountSummaryData struct {
+	ID         string `json:"id"`
+	CustomerID string `json:"customer_id"`
+	Number     string `json:"number"`
+	Branch     string `json:"branch"`
+	Status     string `json:"status"`
+}
+
 type TransferData struct {
 	FromAccountID string `json:"from_account_id"`
 	ToAccountID   string `json:"to_account_id"`
