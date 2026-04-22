@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/base/safe_scaffold.dart';
 import 'viewmodel/home_viewmodel.dart';
+import 'widgets/action_tite.dart';
+import 'widgets/balance_tile.dart';
 
 class HomePage extends StatefulWidget {
   final HomeViewmodel viewModel;
@@ -17,109 +20,57 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  late final HomeViewmodel _viewModel;
+
   @override
   void initState() {
     super.initState();
-    widget.viewModel.initialize(accountId: widget.accountId);
-  }
 
-  @override
-  void dispose() {
-    widget.viewModel.dispose();
-    super.dispose();
+    _viewModel = widget.viewModel;
+
+    _viewModel.initialize.execute();
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Scaffold(
+    return SafeScaffold(
       appBar: AppBar(
         title: const Text('Minha conta'),
         actions: [
           IconButton(
-            onPressed: widget.viewModel.refreshBalance,
+            onPressed: () => _viewModel.initialize.execute(),
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Atualizar saldo',
           ),
         ],
       ),
-      body: AnimatedBuilder(
-        animation: widget.viewModel,
-        builder: (context, _) {
-          return ListView(
-            padding: const EdgeInsets.all(20),
+      body: ListenableBuilder(
+        listenable: _viewModel.initialize,
+        builder: (context, _) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.primary,
-                      colorScheme.primaryContainer,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Saldo em conta',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: colorScheme.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _balanceLabel(),
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            color: colorScheme.onPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _supportingLabel(),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onPrimary.withValues(alpha: 0.86),
-                      ),
-                    ),
-                    if (widget.viewModel.isLoading) ...[
-                      const SizedBox(height: 16),
-                      LinearProgressIndicator(
-                        borderRadius: BorderRadius.circular(999),
-                        minHeight: 6,
-                      ),
-                    ],
-                  ],
+              ListenableBuilder(
+                listenable: _viewModel.initialize,
+                builder: (context, _) => BalanceTile(
+                  balanceLabel: _balanceLabel(),
+                  supportingLabel: _supportingLabel(),
+                  isLoading: _viewModel.initialize.isRunning,
                 ),
               ),
-              const SizedBox(height: 20),
-              if (widget.viewModel.balanceError != null)
-                Card(
-                  color: colorScheme.errorContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      widget.viewModel.balanceError!.message,
-                      style: TextStyle(color: colorScheme.onErrorContainer),
-                    ),
-                  ),
+
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12, top: 20),
+                child: Text(
+                  'Acessos rápidos',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-              const SizedBox(height: 8),
-              Text(
-                'Acessos rápidos',
-                style: Theme.of(context).textTheme.titleMedium,
               ),
-              const SizedBox(height: 12),
+
               Row(
                 children: [
                   Expanded(
-                    child: _ActionTile(
+                    child: ActionTile(
                       icon: Icons.receipt_long_rounded,
                       title: 'Extrato',
                       subtitle: 'Disponibilizar em breve',
@@ -128,7 +79,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _ActionTile(
+                    child: ActionTile(
                       icon: Icons.swap_horiz_rounded,
                       title: 'Transferir',
                       subtitle: 'Disponibilizar em breve',
@@ -138,14 +89,14 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
   String _balanceLabel() {
-    final balance = widget.viewModel.balance;
+    final balance = widget.viewModel.lastBalance;
     if (balance == null) return 'R\$ --';
 
     final value = (balance.balance / 100)
@@ -154,68 +105,15 @@ class _HomePageState extends State<HomePage> {
     return 'R\$ $value';
   }
 
-  String _supportingLabel() {
-    if (!widget.viewModel.hasAccountId) {
-      return 'Nenhuma conta vinculada na sessao atual. Passe o accountId na rota para carregar o saldo.';
-    }
-
-    final lastUpdatedAt = widget.viewModel.lastUpdatedAt;
-    final updatedText = lastUpdatedAt == null
-        ? 'Aguardando primeira leitura do saldo.'
-        : 'Atualizado as ${_twoDigits(lastUpdatedAt.hour)}:${_twoDigits(lastUpdatedAt.minute)}:${_twoDigits(lastUpdatedAt.second)}.';
-
-    return 'Conta ${widget.viewModel.accountId} \u2022 $updatedText';
-  }
-
-  String _twoDigits(int value) => value.toString().padLeft(2, '0');
-
   void _showPendingFeature(String featureName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$featureName sera disponibilizado em breve.')),
     );
   }
-}
 
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
+  String _supportingLabel() {
+    if (_viewModel.initialize.isRunning) return 'Iniciando...';
 
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Ink(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(subtitle),
-          ],
-        ),
-      ),
-    );
+    return 'Conta: ${_viewModel.selectedAccount!.branch} - ${_viewModel.selectedAccount!.number}';
   }
 }

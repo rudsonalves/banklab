@@ -1,5 +1,143 @@
 # Changelog
 
+## 2026/04/22 — mobile/balance-03
+
+Introduces **account balance and statement support in the mobile layer**, including repository abstraction, API integration, caching strategy, and alignment with backend semantics. Also refines documentation to clarify user lifecycle versus account operational status across the system.
+
+### 1. Data Layer — Account Repository
+
+* Added `AccountRepository` interface with:
+
+  * `getBalance`
+  * `watchBalance`
+  * `getStatement`
+  * `getCachedBalance`
+* Implemented `AccountRepositoryImpl`:
+
+  * integrates `BalanceApi` and `StatementApi`
+  * introduces in-memory cache for balance
+  * exposes reactive updates via `StreamController.broadcast`
+* Design choice:
+
+  * repository acts as **single source of truth for account state in the mobile layer**
+  * balances are treated as **event-driven updates**, not just request/response
+
+### 2. API Integration — Balance and Statement
+
+* Added `BalanceApi`:
+
+  * GET `/accounts/{id}/balance`
+  * parses standard API envelope
+  * validates HTTP status and maps errors to `AppError`
+* Added `StatementApi`:
+
+  * GET `/accounts/{id}/statement`
+  * supports query parameters via DTO
+  * handles pagination (`cursor`, `cursor_id`, `limit`, `from`, `to`)
+* Both APIs:
+
+  * follow existing `RestClient` abstraction
+  * enforce explicit parsing and failure handling
+  * align with API contract 
+
+### 3. DTO Layer
+
+* Added balance DTO:
+
+  * `BalanceResponseDto`
+* Added statement DTOs:
+
+  * `StatementResponseDto`
+  * `StatementItemDto`
+  * `StatementNextCursorDto`
+* Added query DTO:
+
+  * `StatementQueryParamsDto`
+* Design observation:
+
+  * DTOs mirror backend payloads closely, preserving **contract fidelity**
+  * avoids premature mapping into domain models
+
+### 4. Dependency Injection
+
+* Registered new services:
+
+  * `BalanceApi`
+  * `StatementApi`
+* Registered new repository:
+
+  * `AccountRepository`
+* Maintains existing injection order and modular structure
+
+### 5. Reactive Balance Flow
+
+* Implemented `watchBalance(accountId)`:
+
+  * emits cached value immediately (if available)
+  * streams future updates filtered by `accountId`
+* Practical implication:
+
+  * UI can subscribe once and react to balance changes
+  * avoids redundant polling
+* Opinion:
+
+  * this is a **clean and scalable approach**, especially aligned with fintech UX expectations
+
+### 6. Documentation — Status Semantics Clarification
+
+* Updated application and auth documentation to explicitly separate:
+
+  * **User lifecycle status (`users.status`)**
+  * **Account operational status (`accounts.status`)**
+* Key clarification:
+
+  * user status controls onboarding and eligibility
+  * account status controls financial operability
+* This aligns:
+
+  * domain model invariants 
+  * application behavior 
+  * database semantics 
+
+### 7. Database Documentation Enhancements
+
+* Added schema diagram reference
+* Documented:
+
+  * `users.status` as lifecycle control
+  * `accounts.status` as operational constraint
+* Reinforces database as **active consistency boundary**, not passive storage 
+
+### 8. Architectural Guides (AGENT.md)
+
+* Introduced structured guidance files for:
+
+  * root mobile layer
+  * core
+  * data
+  * domain
+  * UI
+* Defines:
+
+  * responsibilities per layer
+  * dependency boundaries
+  * coding conventions
+* Opinion:
+
+  * this is a **high-leverage addition** — it reduces architectural drift and enforces consistency, especially when scaling or using AI-assisted development
+
+### Conclusion
+
+This commit establishes the **foundation for account visibility in the mobile client**, combining:
+
+* strong API contract alignment
+* explicit error handling
+* reactive state propagation
+* clear architectural boundaries
+
+From a design standpoint, the separation between **user lifecycle and account operability** is particularly important. It eliminates a common ambiguity in financial systems and aligns the entire stack — API, domain, database, and mobile — under a consistent mental model.
+
+
 ## 2026/04/22 — api/list_accounts-01
 
 Refines the **conceptual separation between user lifecycle and account operational status**, updates documentation to reflect this distinction across layers, and introduces the initial mobile-side infrastructure for account balance and statement consumption.
