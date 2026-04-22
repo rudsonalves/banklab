@@ -4,7 +4,7 @@ banklab is a monorepo built around a simplified banking core with emphasis on **
 
 The system is structured around the premise that financial movements are the central element: balances are derived from ledger records, not treated as the primary source of truth.
 
-The authoritative ledger is persisted in `account_transactions` (append-only). The legacy `transactions` table has been consolidated and is no longer part of the active model.
+The authoritative ledger is persisted in `transactions` (append-only).
 
 It consists of two applications:
 
@@ -43,7 +43,7 @@ The focus is on **reliable transactional control**, not on peripheral features.
 > A balance-control system based on records of financial movements.
 
 - the balance is a consequence
-- ledger entries in `account_transactions` are the source of truth
+- ledger entries in `transactions` are the source of truth
 
 ### In scope
 
@@ -67,7 +67,7 @@ The focus is on **reliable transactional control**, not on peripheral features.
 - **Financial integrity** — no balance inconsistency; every movement is recorded
 - **Atomicity** — critical operations (especially transfers) are indivisible
 - **Traceability** — all operations are auditable; no balance change without a record
-- **Ledger authority** — financial records are persisted in `account_transactions` only
+- **Ledger authority** — financial records are persisted in `transactions` only
 - **Consistency** — system state is always valid, even under concurrency
 - **Synchronous model** — all operations complete at request time; no eventual consistency
 - **Single source of truth** — the relational database is the only authority
@@ -84,7 +84,7 @@ The focus is on **reliable transactional control**, not on peripheral features.
 - account opening, balance query, status control
 - financial operations: deposit, withdraw, transfer between accounts
 - account statement with pagination
-- ledger persistence in `account_transactions` (append-only)
+- ledger persistence in `transactions` (append-only)
 - transactional consistency enforced at the database level
 
 ### Mobile (Flutter)

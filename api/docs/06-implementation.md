@@ -48,7 +48,7 @@ Main entrypoint:
   - application: create account, deposit, withdraw, transfer, statement
   - delivery: HTTP handlers, request parsing, response mapping
   - infrastructure: PostgreSQL repository with transactional and locking support
-- db/schema.sql: baseline schema including customers, accounts, account_transactions, users, user_sessions
+- db/schema.sql: baseline schema including customers, accounts, transactions, users, user_sessions
 - migrations: additive files for account number sequence, ledger consolidation, and transfer pair integrity
 
 ## 4. Bootstrap and Wiring
@@ -243,7 +243,7 @@ Flow:
 3. Load account with row lock (GetByIDForUpdate)
 4. Validate with CanDeposit
 5. Increment balance (UpdateBalance)
-6. Insert ledger row in account_transactions
+6. Insert ledger row in transactions
 7. Commit
 
 Rollback strategy:
@@ -299,7 +299,7 @@ Flow:
 1. Validate account ID and query consistency
 2. Normalize limit (default 50, cap 100)
 3. Ensure account exists
-4. Query account_transactions ordered by created_at desc, id desc
+4. Query transactions ordered by created_at desc, id desc
 5. Map rows to API statement items
 6. Build next cursor if full page returned
 
@@ -385,7 +385,7 @@ internal/database.NewPool creates a pgxpool connection using a hard-coded URL:
 
 Implemented repository behaviors:
 - account creation
-- transaction row insertion in account_transactions
+- transaction row insertion in transactions
 - account lookup and row-lock lookup
 - statement query with cursor pagination
 - balance increment and conditional decrement
@@ -413,18 +413,18 @@ Error conversion:
 Primary relational objects in db/schema.sql:
 - customers
 - accounts
-- account_transactions
+- transactions
 - users
 - user_sessions
 
 Applied migration files include:
 - account_number_seq sequence
-- account_transactions table + immutability trigger + indexes
-- ledger consolidation from `transactions` to `account_transactions`
+- transactions table + immutability trigger + indexes
+- ledger persistence centered on `transactions`
 - transfer pair integrity indexes (`reference_id`, `reference_id+type` unique per transfer leg)
 
 Important implementation detail:
-- account operations persist ledger entries exclusively in `account_transactions`.
+- account operations persist ledger entries exclusively in `transactions`.
 - idempotent transfer replay is reconstructed from ledger rows (`transfer_out` + paired `transfer_in`) using `reference_id`.
 
 ## 9. Consistency and Concurrency Strategy (Implemented)
@@ -490,7 +490,7 @@ Server listens on:
 - DB connection string is hard-coded in code and not yet externalized via environment variables.
 - Branch generation for accounts is currently fixed to "0001".
 - A one-account-per-customer rule is scaffolded but not active.
-- Ledger is single-source (`account_transactions`) and append-only.
+- Ledger is single-source (`transactions`) and append-only.
 
 ## 13. Summary
 

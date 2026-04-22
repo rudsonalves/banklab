@@ -91,7 +91,7 @@ Purpose:
    SELECT * FROM accounts WHERE id = ? FOR UPDATE;
    ```
 3. update balance
-4. insert ledger entry in `account_transactions`
+4. insert ledger entry in `transactions`
 5. commit
 
 ---
@@ -104,7 +104,7 @@ Purpose:
 2. lock account
 3. validate balance
 4. update balance
-5. insert ledger entry in `account_transactions`
+5. insert ledger entry in `transactions`
 6. commit
 
 ---
@@ -119,7 +119,7 @@ Purpose:
 4. validate source balance
 5. update source balance
 6. update destination balance
-7. insert two entries in `account_transactions` (`transfer_out` and `transfer_in`, sharing the same `reference_id`)
+7. insert two entries in `transactions` (`transfer_out` and `transfer_in`, sharing the same `reference_id`)
 8. commit
 
 ---
@@ -235,7 +235,7 @@ Current scope:
 
 * repeated operation → not executed again
 * replay returns the original historical result
-* replay is reconstructed from the ledger (`account_transactions`), independent of current `accounts.balance`
+* replay is reconstructed from the ledger (`transactions`), independent of current `accounts.balance`
 
 ---
 

@@ -1,5 +1,93 @@
 # Changelog
 
+## 2026/04/22 — api/migrate-update-01
+
+Refactors the database migration strategy by consolidating all historical migrations into a single baseline schema and aligning the entire codebase with the `transactions` table as the authoritative ledger.
+
+### 1. Migration Strategy Simplification
+
+* Removed all legacy incremental migration files (000000 → 000010 series)
+* Introduced a new baseline migration:
+
+  * `000001_init_schema.up.sql`
+  * `000001_init_schema.down.sql`
+* The new migration represents the **full current database state**, eliminating unnecessary historical transitions
+* Establishes a clean starting point for future migrations with reduced cognitive overhead and improved reproducibility
+
+### 2. Ledger Standardization
+
+* Definitively replaces `account_transactions` with `transactions` across the entire system
+* Reinforces the architectural decision that:
+
+  * the ledger is **append-only**
+  * the ledger is the **single source of truth for financial state**
+* Aligns with the domain model where all balance changes must be backed by transactions 
+
+### 3. Documentation Alignment
+
+* Updated all documentation references:
+
+  * README
+  * domain model
+  * use case flows
+  * consistency and concurrency strategy
+  * implementation documentation
+  * database documentation
+* Ensures consistency between:
+
+  * conceptual model
+  * implementation
+  * persistence layer
+* All flows now explicitly reference `transactions` as the ledger, including deposit, withdraw, and transfer operations 
+
+### 4. Infrastructure Layer Updates
+
+* Updated PostgreSQL repository queries:
+
+  * `INSERT`, `SELECT`, and query operations now target `transactions`
+* Ensures full compatibility with the new schema without introducing behavioral changes
+
+### 5. Test Suite Adjustments
+
+* Updated integration tests and schema setup:
+
+  * replaced `account_transactions` with `transactions`
+  * adjusted index names and constraints
+* Maintained backward compatibility logic where necessary:
+
+  * conditional column creation for evolving schemas
+* Updated cleanup routines and assertions to reflect the new ledger table
+
+### 6. Schema Evolution Improvements
+
+* New baseline schema includes:
+
+  * enums (`account_status`, `transaction_type`)
+  * sequences (`account_number_seq`)
+  * immutable ledger enforcement via trigger (`prevent_transactions_mutation`)
+  * transfer integrity constraints (`reference_id + type`)
+  * idempotency guarantees via unique index
+* Consolidates previously scattered concerns into a **cohesive and explicit schema definition**
+
+### 7. Removal of Redundant Artifacts
+
+* Deleted legacy `schema.sql` dump file
+* Eliminated outdated migration logic related to:
+
+  * ledger consolidation
+  * user/session evolution steps
+  * incremental schema adjustments
+* Reduces ambiguity about which structure represents the current truth
+
+### Conclusion
+
+This change is a **structural simplification and consistency correction** of the persistence layer.
+
+It eliminates migration noise, enforces a single authoritative ledger (`transactions`), and aligns documentation, code, and database schema under a unified model.
+
+From an architectural standpoint, this is a decisive improvement: it reduces ambiguity, strengthens the ledger model, and makes the system significantly easier to reason about and evolve.
+
+
 ## 2026/04/19 — docs/update-02
 
 Updates documentation, developer workflow, and project structure to reflect the current state of the system, with emphasis on bootstrap automation, ledger-based modeling, and clearer onboarding for both API and mobile applications.

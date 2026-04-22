@@ -231,7 +231,7 @@ Transfer operations may include an `idempotencyKey`.
 
 ## 8. Integrity Rules
 
-* no balance change occurs without a corresponding record in `account_transactions`
+* no balance change occurs without a corresponding record in `transactions`
 * no invalid intermediate states are allowed
 * operations must be atomic (all-or-nothing)
 
@@ -252,7 +252,7 @@ The balance is stored directly in the account for performance reasons.
 
 ### 9.2 Transactions as Source of Truth
 
-Ledger entries (`account_transactions`) are:
+Ledger entries (`transactions`) are:
 
 * immutable
 * auditable

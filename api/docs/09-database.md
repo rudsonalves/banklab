@@ -35,7 +35,7 @@ There is **no eventual consistency** in balance-changing operations.
 
 The system follows a **ledger + snapshot model**:
 
-* `account_transactions` → immutable ledger (source of truth)
+* `transactions` → immutable ledger (source of truth)
 * `accounts.balance` → current state (derived snapshot)
 
 The ledger is authoritative. The snapshot exists for performance.
@@ -80,7 +80,7 @@ Each concept is represented once:
 * `users`
 * `user_sessions`
 * `accounts`
-* `account_transactions`
+* `transactions`
 
 ### Support Tables
 
@@ -166,7 +166,7 @@ Notes:
 
 ---
 
-## 4.5 account_transactions
+## 4.5 transactions
 
 Represents the **financial ledger**.
 
@@ -216,7 +216,7 @@ And contain:
 ### 5.3 Snapshot Relationship
 
 ```text
-accounts.balance = last(account_transactions.balance_after)
+accounts.balance = last(transactions.balance_after)
 ```
 
 ---

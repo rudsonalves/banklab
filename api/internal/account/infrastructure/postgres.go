@@ -90,7 +90,7 @@ func (r *Repository) Create(ctx context.Context, acc *domain.Account) error {
 
 func (r *baseRepository) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
 	query := `
-		INSERT INTO account_transactions (
+		INSERT INTO transactions (
 			id, account_id, type, amount, balance_after, reference_id,
 			related_account_id, idempotency_key, created_at
 		)
@@ -132,7 +132,7 @@ func (r *baseRepository) GetTransactionByIdempotencyKey(ctx context.Context, acc
 	query := `
 		SELECT id, account_id, type, amount, balance_after, reference_id,
 		       related_account_id, idempotency_key, created_at
-		FROM account_transactions
+		FROM transactions
 		WHERE account_id = $1 AND idempotency_key = $2
 		LIMIT 1
 	`
@@ -168,7 +168,7 @@ func (r *baseRepository) GetTransactionByReference(ctx context.Context, accountI
 	query := `
 		SELECT id, account_id, type, amount, balance_after, reference_id,
 		       related_account_id, idempotency_key, created_at
-		FROM account_transactions
+		FROM transactions
 		WHERE account_id = $1 AND reference_id = $2 AND type = $3
 		LIMIT 1
 	`
@@ -307,7 +307,7 @@ func (r *baseRepository) GetTransactions(
 	query := `
 		SELECT id, account_id, type, amount, balance_after, reference_id,
 		       related_account_id, idempotency_key, created_at
-		FROM account_transactions
+		FROM transactions
 		WHERE account_id = $1
 		  AND ($2::timestamptz IS NULL OR created_at >= $2)
 		  AND ($3::timestamptz IS NULL OR created_at <= $3)
