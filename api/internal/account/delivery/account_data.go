@@ -38,3 +38,8 @@ type StatementCursorData struct {
 	CreatedAt time.Time `json:"created_at"`
 	ID        string    `json:"id"`
 }
+
+type AccountBalanceData struct {
+	AccountID string `json:"account_id"`
+	Balance   int64  `json:"balance"`
+}

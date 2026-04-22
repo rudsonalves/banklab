@@ -40,6 +40,11 @@ type statementUseCaseMock struct {
 	executeFn    func(ctx context.Context, input application.GetStatementInput) (*application.Statement, error)
 }
 
+type balanceUseCaseMock struct {
+	executeCalls int
+	executeFn    func(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error)
+}
+
 func (m *createAccountUseCaseMock) Execute(ctx context.Context, input application.CreateAccountInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
@@ -73,6 +78,14 @@ func (m *transferUseCaseMock) Execute(ctx context.Context, input application.Tra
 }
 
 func (m *statementUseCaseMock) Execute(ctx context.Context, input application.GetStatementInput) (*application.Statement, error) {
+	m.executeCalls++
+	if m.executeFn == nil {
+		return nil, nil
+	}
+	return m.executeFn(ctx, input)
+}
+
+func (m *balanceUseCaseMock) Execute(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -634,5 +647,170 @@ func TestHandler_Statement_Success(t *testing.T) {
 
 	if got.Data.NextCursor.ID != transactionID.String() {
 		t.Fatalf("expected next_cursor id %q, got %q", transactionID.String(), got.Data.NextCursor.ID)
+	}
+}
+
+func TestHandler_GetBalance_QueryParamsNotAllowed(t *testing.T) {
+	balanceUC := &balanceUseCaseMock{}
+	h := &Handler{balance: balanceUC}
+	accountID := uuid.New()
+	customerID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountID.String()+"/balance?currency=BRL", nil)
+	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.GetBalance(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	if balanceUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", balanceUC.executeCalls)
+	}
+}
+
+func TestHandler_GetBalance_Unauthorized(t *testing.T) {
+	balanceUC := &balanceUseCaseMock{}
+	h := &Handler{balance: balanceUC}
+	accountID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountID.String()+"/balance", nil)
+	req.SetPathValue("id", accountID.String())
+	rec := httptest.NewRecorder()
+
+	h.GetBalance(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	if balanceUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", balanceUC.executeCalls)
+	}
+}
+
+func TestHandler_GetBalance_InvalidUUID(t *testing.T) {
+	balanceUC := &balanceUseCaseMock{}
+	h := &Handler{balance: balanceUC}
+	customerID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/accounts/invalid-uuid/balance", nil)
+	req.SetPathValue("id", "invalid-uuid")
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.GetBalance(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	if balanceUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", balanceUC.executeCalls)
+	}
+}
+
+func TestHandler_GetBalance_AccountNotFound(t *testing.T) {
+	customerID := uuid.New()
+	balanceUC := &balanceUseCaseMock{
+		executeFn: func(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
+			return nil, domain.ErrAccountNotFound
+		},
+	}
+	h := &Handler{balance: balanceUC}
+	accountID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountID.String()+"/balance", nil)
+	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.GetBalance(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rec.Code)
+	}
+}
+
+func TestHandler_GetBalance_Forbidden(t *testing.T) {
+	customerID := uuid.New()
+	balanceUC := &balanceUseCaseMock{
+		executeFn: func(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
+			return nil, domain.ErrForbidden
+		},
+	}
+	h := &Handler{balance: balanceUC}
+	accountID := uuid.New()
+
+	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountID.String()+"/balance", nil)
+	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.GetBalance(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+}
+
+func TestHandler_GetBalance_Success(t *testing.T) {
+	accountID := uuid.New()
+	customerID := uuid.New()
+	balanceUC := &balanceUseCaseMock{
+		executeFn: func(ctx context.Context, input application.GetAccountBalanceInput) (*application.AccountBalance, error) {
+			if input.AccountID != accountID {
+				return nil, errors.New("unexpected account id")
+			}
+			if input.User == nil || input.User.CustomerID == nil || *input.User.CustomerID != customerID {
+				return nil, errors.New("unexpected user")
+			}
+
+			return &application.AccountBalance{
+				AccountID: accountID,
+				Balance:   12000,
+			}, nil
+		},
+	}
+	h := &Handler{balance: balanceUC}
+
+	req := httptest.NewRequest(http.MethodGet, "/accounts/"+accountID.String()+"/balance", nil)
+	req.SetPathValue("id", accountID.String())
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.GetBalance(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var got struct {
+		Data struct {
+			AccountID string `json:"account_id"`
+			Balance   int64  `json:"balance"`
+		} `json:"data"`
+		Error interface{} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Data.AccountID != accountID.String() {
+		t.Fatalf("expected account_id %q, got %q", accountID.String(), got.Data.AccountID)
+	}
+
+	if got.Data.Balance != 12000 {
+		t.Fatalf("expected balance %d, got %d", 12000, got.Data.Balance)
 	}
 }

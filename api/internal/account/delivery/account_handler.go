@@ -284,6 +284,46 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
+	if h.balance == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	user, authErr := RequireUser(r.Context())
+	if authErr != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
+		return
+	}
+
+	if len(r.URL.Query()) > 0 {
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
+		return
+	}
+
+	accountIDRaw := r.PathValue("id")
+	accountID, err := uuid.Parse(accountIDRaw)
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
+		return
+	}
+
+	result, err := h.balance.Execute(r.Context(), application.GetAccountBalanceInput{
+		User:      user,
+		AccountID: accountID,
+	})
+	if err != nil {
+		log.Printf("event=get_balance error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, AccountBalanceData{
+		AccountID: result.AccountID.String(),
+		Balance:   result.Balance,
+	})
+}
+
 func parseOptionalInt(raw string) (int, error) {
 	if raw == "" {
 		return 0, nil

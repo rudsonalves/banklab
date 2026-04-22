@@ -21,6 +21,8 @@ type AccountRepository interface {
 	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)
 	NextAccountNumber(ctx context.Context) (string, error)
 
+	// GetByID returns ErrAccountNotFound when no account exists for id.
+	// Implementations must never return (nil, nil).
 	GetByID(ctx context.Context, id uuid.UUID) (*Account, error)
 	GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*Account, error)
 	GetTransactions(

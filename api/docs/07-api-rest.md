@@ -484,7 +484,39 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.5 Get Statement
+### 4.5 Get Balance
+
+- Method: GET
+- Path: /accounts/{id}/balance
+- Auth required: yes
+
+Query params:
+- none (any query param returns `400 INVALID_DATA`)
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+    "balance": 12000
+  },
+  "error": null
+}
+```
+
+Notes:
+- `balance` is returned in cents
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid account id or unexpected query params
+- 403 FORBIDDEN: access denied
+- 404 ACCOUNT_NOT_FOUND: account does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 4.6 Get Statement
 
 - Method: GET
 - Path: /accounts/{id}/statement
@@ -852,7 +884,7 @@ Scenario: access denied to source account
 }
 ```
 
-### 9.8 GET /accounts/{id}/statement
+### 9.8 GET /accounts/{id}/balance
 
 Scenario: invalid query/path data
 - Status: 400
@@ -868,7 +900,23 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.9 GET /customers/me
+### 9.9 GET /accounts/{id}/statement
+
+Scenario: invalid query/path data
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+### 9.10 GET /customers/me
 
 Scenario: user has inconsistent state (customer role without customer_id)
 - Status: 409

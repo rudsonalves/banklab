@@ -250,7 +250,15 @@ func (r *baseRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Acc
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	return r.base.GetByID(ctx, id)
+	account, err := r.base.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if account == nil {
+		return nil, domain.ErrAccountNotFound
+	}
+
+	return account, nil
 }
 
 func (r *baseRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
@@ -506,7 +514,15 @@ func (r *txRepository) ExistsByCustomerID(ctx context.Context, customerID uuid.U
 }
 
 func (r *txRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	return r.base.GetByID(ctx, id)
+	account, err := r.base.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if account == nil {
+		return nil, domain.ErrAccountNotFound
+	}
+
+	return account, nil
 }
 
 func (r *txRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {

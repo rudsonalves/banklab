@@ -105,7 +105,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Custome
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, "", nil
+			return nil, "", domain.ErrNotFound
 		}
 
 		return nil, "", fmt.Errorf("customer repository get by id: %w", err)
