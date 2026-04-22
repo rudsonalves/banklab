@@ -22,7 +22,7 @@ type dbExecutor interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-var _ domain.Repository = (*Repository)(nil)
+var _ domain.CustomerRepository = (*Repository)(nil)
 
 func New(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}

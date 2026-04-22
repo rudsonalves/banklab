@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
@@ -37,7 +38,7 @@ func (m *JWTMiddleware) RequireAuth(next http.Handler) http.Handler {
 			CustomerID: claims.CustomerID,
 		}
 
-		ctx := WithAuthenticatedUser(r.Context(), principal)
+		ctx := sharedauthctx.WithAuthenticatedUser(r.Context(), principal)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -68,7 +69,7 @@ func (m *JWTMiddleware) OptionalAuth(next http.Handler) http.Handler {
 			CustomerID: claims.CustomerID,
 		}
 
-		ctx := WithAuthenticatedUser(r.Context(), principal)
+		ctx := sharedauthctx.WithAuthenticatedUser(r.Context(), principal)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

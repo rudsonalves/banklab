@@ -2,29 +2,23 @@ package delivery
 
 import (
 	"context"
-	"errors"
 
-	"github.com/seu-usuario/bank-api/internal/auth/application"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
 
 type AuthenticatedUser = authdomain.AuthenticatedUser
 
-var ErrAuthenticatedUserNotFound = errors.New("authenticated user not found in context")
+var ErrAuthenticatedUserNotFound = sharedauthctx.ErrAuthenticatedUserNotFound
 
 func GetAuthenticatedUser(ctx context.Context) (*AuthenticatedUser, bool) {
-	return application.GetAuthenticatedUser(ctx)
+	return sharedauthctx.GetAuthenticatedUser(ctx)
 }
 
 func WithAuthenticatedUser(ctx context.Context, user AuthenticatedUser) context.Context {
-	return application.WithAuthenticatedUser(ctx, user)
+	return sharedauthctx.WithAuthenticatedUser(ctx, user)
 }
 
 func RequireAuthenticatedUser(ctx context.Context) (*AuthenticatedUser, error) {
-	user, ok := GetAuthenticatedUser(ctx)
-	if !ok {
-		return nil, ErrAuthenticatedUserNotFound
-	}
-
-	return user, nil
+	return sharedauthctx.RequireAuthenticatedUser(ctx)
 }

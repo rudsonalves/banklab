@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	accountapplication "github.com/seu-usuario/bank-api/internal/account/application/account"
 	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	customerdomain "github.com/seu-usuario/bank-api/internal/customer/domain"
 )
 
-// approveUserRepoMock implements domain.UserRepository for ApproveUser tests.
 type approveUserRepoMock struct {
 	findByIDForUpdateUser *domain.User
 	findByIDForUpdateErr  error
@@ -42,14 +43,12 @@ func (m *approveUserRepoMock) ExistsByEmail(ctx context.Context, email string) (
 	return false, nil
 }
 
-// approveTransactorMock implements domain.Transactor for ApproveUser tests.
 type approveTransactorMock struct{}
 
 func (m *approveTransactorMock) RunInTx(ctx context.Context, fn func(context.Context) error) error {
 	return fn(ctx)
 }
 
-// approveAccountRepoMock implements accountdomain.AccountRepository for ApproveUser tests.
 type approveAccountRepoMock struct {
 	nextAccountNumberValue string
 	nextAccountNumberErr   error
@@ -61,8 +60,16 @@ type approveCustomerRepoMock struct {
 	existsErr   error
 }
 
+func (m *approveCustomerRepoMock) Create(ctx context.Context, c *customerdomain.Customer) error {
+	return nil
+}
+
 func (m *approveCustomerRepoMock) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	return m.existsValue, m.existsErr
+}
+
+func (m *approveCustomerRepoMock) GetByID(ctx context.Context, id uuid.UUID) (*customerdomain.Customer, string, error) {
+	return nil, "", nil
 }
 
 func (m *approveAccountRepoMock) Create(ctx context.Context, account *accountdomain.Account) error {
@@ -125,8 +132,6 @@ func (m *approveAccountRepoMock) WithTransaction(ctx context.Context, fn func(tx
 	return nil
 }
 
-// helpers
-
 func newPendingUser() *domain.User {
 	customerID := uuid.New()
 	return &domain.User{
@@ -141,12 +146,10 @@ func newPendingUser() *domain.User {
 func newApproveUseCase(
 	userRepo domain.UserRepository,
 	accountRepo accountdomain.AccountRepository,
-	customerRepo accountdomain.CustomerRepository,
+	customerRepo customerdomain.CustomerRepository,
 ) *ApproveUserUseCase {
-	return NewApproveUserUseCase(userRepo, accountRepo, customerRepo, &approveTransactorMock{})
+	return NewApproveUserUseCase(userRepo, accountRepo, customerRepo, &approveTransactorMock{}, accountapplication.NewDefaultBranchPolicy())
 }
-
-// Tests
 
 func TestApproveUserUseCase_Execute_Success(t *testing.T) {
 	user := newPendingUser()
@@ -232,6 +235,20 @@ func TestApproveUserUseCase_Execute_AccountCreationFails(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestApproveUserUseCase_Execute_BranchPolicyNotConfigured(t *testing.T) {
+	user := newPendingUser()
+	userRepo := &approveUserRepoMock{findByIDForUpdateUser: user}
+	accountRepo := &approveAccountRepoMock{nextAccountNumberValue: "00000001"}
+	customerRepo := &approveCustomerRepoMock{existsValue: true}
+	uc := NewApproveUserUseCase(userRepo, accountRepo, customerRepo, &approveTransactorMock{}, nil)
+
+	_, err := uc.Execute(context.Background(), ApproveUserInput{UserID: user.ID})
+
+	if err == nil || err.Error() != "branch policy not configured" {
+		t.Fatalf("expected error %q, got %v", "branch policy not configured", err)
 	}
 }
 

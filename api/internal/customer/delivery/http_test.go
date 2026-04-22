@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	authdelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	"github.com/seu-usuario/bank-api/internal/bootstrap"
 	"github.com/seu-usuario/bank-api/internal/customer/application"
 	"github.com/seu-usuario/bank-api/internal/customer/domain"
+	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
 
 type getCustomerMeUseCaseMock struct {
@@ -53,7 +53,7 @@ func TestHandler_Me_Success(t *testing.T) {
 	h := &Handler{getMeUC: uc}
 
 	req := httptest.NewRequest(http.MethodGet, "/customers/me", nil)
-	req = req.WithContext(authdelivery.WithAuthenticatedUser(req.Context(), authdelivery.AuthenticatedUser{
+	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
 		UserID:     uuid.New(),
 		Role:       authdomain.RoleCustomer,
 		CustomerID: &customerID,
@@ -104,7 +104,7 @@ func TestHandler_Me_InvalidStateWhenCustomerIDMissing(t *testing.T) {
 
 	h := &Handler{getMeUC: &getCustomerMeUseCaseMock{}}
 	req := httptest.NewRequest(http.MethodGet, "/customers/me", nil)
-	req = req.WithContext(authdelivery.WithAuthenticatedUser(req.Context(), authdelivery.AuthenticatedUser{
+	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
 		UserID: uuid.New(),
 		Role:   authdomain.RoleCustomer,
 	}))
@@ -136,7 +136,7 @@ func TestHandler_Me_NotFound(t *testing.T) {
 	uc := &getCustomerMeUseCaseMock{err: domain.ErrNotFound}
 	h := &Handler{getMeUC: uc}
 	req := httptest.NewRequest(http.MethodGet, "/customers/me", nil)
-	req = req.WithContext(authdelivery.WithAuthenticatedUser(req.Context(), authdelivery.AuthenticatedUser{
+	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
 		UserID:     uuid.New(),
 		Role:       authdomain.RoleCustomer,
 		CustomerID: &customerID,

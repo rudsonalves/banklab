@@ -1,5 +1,140 @@
 # Changelog
 
+## 2026/04/22 — refactor/api-application-structure-03
+
+Refactors the application structure to improve **module separation, dependency clarity, and cross-cutting concerns reuse**, with emphasis on isolating admin responsibilities, centralizing authentication context, and formalizing branch generation as a policy.
+
+### 1. Admin Module Extraction
+
+* Moved `ApproveUserUseCase` from auth module to new `admin` module
+* Introduced:
+
+  * `internal/admin/application`
+  * `internal/admin/delivery`
+* Removed approval responsibility from auth handler
+* Created dedicated `adminHandler` and route wiring
+* Result:
+
+  * clear separation between **authentication concerns** and **administrative workflows**
+  * aligns with use case flow definition for user lifecycle 
+
+### 2. Branch Policy Abstraction
+
+* Introduced `BranchPolicy` interface in account application layer
+* Implemented `DefaultBranchPolicy` (currently fixed as "0001")
+* Injected policy into:
+
+  * `CreateAccount`
+  * `ApproveUserUseCase`
+* Removed hardcoded branch generation function
+* Added explicit validation for missing policy
+* Architectural impact:
+
+  * removes hidden business rule
+  * prepares system for future variability (multi-branch, configuration-driven)
+* Aligns with application layer responsibility of operational rules 
+
+### 3. Auth Context Centralization
+
+* Created shared package: `internal/shared/authctx`
+* Migrated all context-related helpers:
+
+  * `WithAuthenticatedUser`
+  * `GetAuthenticatedUser`
+  * `RequireAuthenticatedUser`
+* Updated:
+
+  * middleware
+  * handlers
+  * tests
+* Eliminated duplication across modules
+* Improves consistency of authentication flow handling 
+
+### 4. Auth Handler Simplification
+
+* Removed approval logic from auth handler
+* Reduced constructor dependencies
+* Eliminated approve-related DTOs and tests
+* Auth module now strictly focused on:
+
+  * register
+  * login
+  * token refresh
+  * current user
+* Reinforces boundary between **identity management** and **domain operations**
+
+### 5. Customer Repository Contract Unification
+
+* Removed legacy `account/domain.CustomerRepository`
+* Consolidated on `customer/domain.CustomerRepository`
+* Standardized interface:
+
+  * `Create`
+  * `Exists`
+  * `GetByID`
+* Updated all consumers and mocks
+* Improves consistency across modules and reduces duplication
+
+### 6. Delivery Layer Adjustments
+
+* Introduced dedicated admin handler with:
+
+  * role validation (admin-only)
+  * UUID parsing
+  * error mapping via shared error system
+* Updated routing:
+
+  * `/admin/users/{id}/approve` now handled by admin module
+* Updated account and customer handlers to use shared auth context
+
+### 7. Error Registration Extension
+
+* Added admin-specific error mappings via `admin/application/errors_registry.go`
+* Integrated into bootstrap
+* Ensures consistency with global error contract 
+
+### 8. Main Wiring Refinement
+
+* Updated `main.go`:
+
+  * introduced `branchPolicy` as shared dependency
+  * separated auth and admin handlers
+  * aligned use case construction with new module boundaries
+* Improves clarity of runtime composition 
+
+### 9. Test Suite Updates
+
+* Updated all tests to:
+
+  * inject `BranchPolicy`
+  * use shared auth context
+  * reflect new module boundaries
+* Added coverage for:
+
+  * missing branch policy scenarios
+  * admin handler behavior
+* Maintains strong validation of transactional and lifecycle flows
+
+### 10. Architectural Impact
+
+This refactor reinforces key architectural principles:
+
+* **Separation of concerns**
+
+  * auth vs admin vs account responsibilities clearly isolated
+* **Explicit dependencies**
+
+  * no hidden rules (branch now injected)
+* **Shared cross-cutting infrastructure**
+
+  * authentication context unified
+* **Consistency across layers**
+
+  * repository contracts and error handling standardized
+
+From a design perspective, this is a meaningful evolution toward a more **cohesive modular monolith**, improving maintainability without introducing unnecessary abstraction.
+
+
 ## 2026/04/22 — refactor/api-application-structure-02
 
 Refactors the **application layer structure of the account module**, introducing a clear separation by subdomains (account, transaction, statement) and aligning imports, use cases, and delivery contracts with this new organization. This change improves modularity, reduces implicit coupling, and better reflects the system’s use case boundaries as described in the architecture and application model. 

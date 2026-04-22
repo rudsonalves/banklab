@@ -20,6 +20,10 @@ func (m *customerRepositoryGetByIDMock) Create(ctx context.Context, c *domain.Cu
 	return nil
 }
 
+func (m *customerRepositoryGetByIDMock) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
+	return false, nil
+}
+
 func (m *customerRepositoryGetByIDMock) GetByID(ctx context.Context, id uuid.UUID) (*domain.Customer, string, error) {
 	if m.err != nil {
 		return nil, "", m.err

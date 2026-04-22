@@ -7,8 +7,8 @@ import (
 	statementapp "github.com/seu-usuario/bank-api/internal/account/application/statement"
 	transactionapp "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
-	authdelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
 
 type createAccountUseCase interface {
@@ -63,7 +63,7 @@ func New(
 }
 
 func RequireUser(ctx context.Context) (*authdomain.AuthenticatedUser, error) {
-	user, ok := authdelivery.GetAuthenticatedUser(ctx)
+	user, ok := sharedauthctx.GetAuthenticatedUser(ctx)
 	if !ok || user == nil {
 		return nil, authdomain.ErrUnauthorized
 	}

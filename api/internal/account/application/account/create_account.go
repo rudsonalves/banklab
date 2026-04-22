@@ -7,23 +7,27 @@ import (
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	customerdomain "github.com/seu-usuario/bank-api/internal/customer/domain"
 )
 
 type CreateAccount struct {
 	accountRepo  domain.AccountRepository
-	customerRepo domain.CustomerRepository
+	customerRepo customerdomain.CustomerRepository
 	userRepo     authdomain.UserRepository
+	branchPolicy BranchPolicy
 }
 
 func NewCreateAccount(
 	accountRepo domain.AccountRepository,
-	customerRepo domain.CustomerRepository,
+	customerRepo customerdomain.CustomerRepository,
 	userRepo authdomain.UserRepository,
+	branchPolicy BranchPolicy,
 ) *CreateAccount {
 	return &CreateAccount{
 		accountRepo:  accountRepo,
 		customerRepo: customerRepo,
 		userRepo:     userRepo,
+		branchPolicy: branchPolicy,
 	}
 }
 
@@ -86,7 +90,11 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 	if err != nil {
 		return nil, fmt.Errorf("generate account number: %w", err)
 	}
-	branch := GenerateBranch()
+
+	if uc.branchPolicy == nil {
+		return nil, fmt.Errorf("branch policy not configured")
+	}
+	branch := uc.branchPolicy.Branch()
 
 	account, err := domain.NewAccount(customerID, number, branch)
 	if err != nil {
@@ -98,8 +106,4 @@ func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) 
 	}
 
 	return account, nil
-}
-
-func GenerateBranch() string {
-	return "0001"
 }
