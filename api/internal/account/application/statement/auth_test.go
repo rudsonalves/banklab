@@ -13,10 +13,3 @@ func testCustomerUser(customerID uuid.UUID) *auth.AuthenticatedUser {
 		CustomerID: &customerID,
 	}
 }
-
-func testAdminUser() *auth.AuthenticatedUser {
-	return &auth.AuthenticatedUser{
-		UserID: uuid.New(),
-		Role:   authdomain.RoleAdmin,
-	}
-}

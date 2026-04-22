@@ -61,6 +61,17 @@ internal/<module>/
 `-- infrastructure/
 ```
 
+In `account`, the application layer is now split by use-case group:
+
+```text
+internal/account/application/
+|-- account/      # create account, get balance
+|-- transaction/  # deposit, withdraw, transfer
+|-- statement/    # get statement
+|-- access_policy.go
+`-- errors_registry.go
+```
+
 ## Layer responsibilities
 
 ### Domain
@@ -84,7 +95,7 @@ Coordinates use cases and consistency guarantees:
 - manages transaction scope through repository/transactor contracts
 - orchestrates multi-step operations (for example transfers)
 
-Examples include create account, deposit, withdraw, transfer, login, register, and refresh token.
+Examples include create account, get balance, deposit, withdraw, transfer, get statement, login, register, and refresh token.
 
 ### Infrastructure
 
@@ -164,6 +175,7 @@ Registered routes include:
 - `POST /accounts`
 - `POST /accounts/{id}/deposit`
 - `POST /accounts/{id}/withdraw`
+- `GET /accounts/{id}/balance`
 - `POST /accounts/transfer`
 - `GET /accounts/{id}/statement`
 

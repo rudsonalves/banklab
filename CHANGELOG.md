@@ -1,5 +1,104 @@
 # Changelog
 
+## 2026/04/22 — refactor/api-application-structure-02
+
+Refactors the **application layer structure of the account module**, introducing a clear separation by subdomains (account, transaction, statement) and aligning imports, use cases, and delivery contracts with this new organization. This change improves modularity, reduces implicit coupling, and better reflects the system’s use case boundaries as described in the architecture and application model. 
+
+### 1. Application Layer Restructuring
+
+* Split `internal/account/application` into three focused sub-packages:
+
+  * `account` → account lifecycle (create account, get balance)
+  * `transaction` → financial operations (deposit, withdraw, transfer)
+  * `statement` → read models (account statement)
+* Moved all use cases to their respective domains without changing behavior
+* Renamed imports across the project to reflect the new structure
+
+This change reinforces the idea that the application layer is the orchestration boundary of use cases, not a generic container. 
+
+### 2. Main Wiring Adjustments
+
+* Updated `cmd/api/main.go`:
+
+  * `Deposit`, `Withdraw`, `Transfer` now originate from `transaction`
+  * `GetStatement` now originates from `statement`
+  * `CreateAccount` and `GetAccountBalance` remain under `account`
+* Maintains explicit composition while improving semantic clarity of dependencies
+
+### 3. Access Policy Consolidation per Subdomain
+
+* Introduced `access_policy.go` in:
+
+  * `application/account`
+  * `application/transaction`
+  * `application/statement`
+
+* Provides:
+
+  * `CanAccessCustomer`
+  * `CanAccessAccount`
+
+* Enforces authorization at the application layer, consistent with the system’s model where ownership is derived from JWT context and not from client input 
+
+* Although duplicated across packages, this decision keeps each subdomain **self-contained**, avoiding cross-package coupling at the cost of controlled redundancy
+
+### 4. Delivery Layer Alignment
+
+* Updated handlers to consume the new package structure:
+
+  * `accountapp`, `transactionapp`, `statementapp`
+* Adjusted all DTO mappings to match new package locations
+* Preserved handler responsibilities:
+
+  * request parsing
+  * use case invocation
+  * error mapping to HTTP responses 
+
+### 5. Interface and Contract Updates
+
+* Updated handler interfaces to depend on:
+
+  * `accountapp` inputs/outputs
+  * `transactionapp` inputs/outputs
+  * `statementapp` inputs/outputs
+* Maintains strict separation between use cases and delivery contracts
+
+### 6. Test Suite Adaptation
+
+* Refactored all unit and integration tests to match new package boundaries:
+
+  * mocks updated to use new DTO types
+  * transfer, deposit, withdraw tests now reference `transaction` package
+  * statement tests now reference `statement` package
+* Added shared test helpers (`testCustomerUser`, `testAdminUser`) in each subdomain
+* No behavioral changes, only structural alignment
+
+### 7. Cross-Module Impact
+
+* Updated auth module to use:
+
+  * `account/application/account` instead of the previous flat application package
+* Updated integration tests to reference `transaction` where applicable
+
+### 8. Architectural Implications
+
+This refactor is not cosmetic. It aligns the codebase with a more precise interpretation of:
+
+* **use case boundaries** (transaction vs. account vs. read models)
+* **application layer responsibilities** (orchestration and authorization)
+* **modular monolith principles**, reducing implicit dependencies 
+
+From a design perspective, this is a significant improvement. The previous flat structure was already functional, but it blurred responsibilities. The new structure introduces:
+
+* clearer mental model
+* improved scalability for future features
+* safer evolution of independent use case groups
+
+### Conclusion
+
+This commit restructures the application layer into **cohesive subdomains**, improving clarity, modularity, and alignment with the system’s architectural principles. While introducing some duplication (notably in access policies), the trade-off favors **low coupling and explicit boundaries**, which is a sound decision for a financial system that prioritizes correctness and maintainability.
+
+
 ## 2026/04/22 — refactor/api-application-structure-01
 
 Refactors the **application layer structure for the account module**, introducing a clearer separation of concerns between account management, transactions, and statement operations. This change aligns the codebase with a more explicit use-case organization and improves modularity across layers.

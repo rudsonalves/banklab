@@ -119,11 +119,20 @@ All flows must comply with:
 ### Input
 
 * accountId
+* authenticated user
 
 ### Flow
 
-1. verify account exists
-2. return current balance
+1. validate accountId
+2. load account using snapshot source (`accounts.balance`)
+3. verify authenticated user can access the account
+4. return current balance
+
+### Notes
+
+* reads only from `accounts.balance`
+* does not open an explicit transaction
+* does not query `transactions`
 
 ### Output
 
@@ -131,7 +140,9 @@ All flows must comply with:
 
 ### Possible Errors
 
+* invalid data
 * account not found
+* forbidden
 
 ---
 
@@ -254,10 +265,11 @@ All flows must comply with:
 
 ### Flow
 
-1. verify account exists
-2. retrieve account transactions
-3. sort by date (descending)
-4. apply cursor-based pagination (`created_at` + `id`)
+1. validate input and pagination filters
+2. verify authenticated user can access the account
+3. retrieve account transactions
+4. sort by date (descending)
+5. apply cursor-based pagination (`created_at` + `id`)
 
 ### Output
 

@@ -28,8 +28,9 @@ Dependency direction:
 ## Features
 
 - auth: register, login, current user
-- customer creation
+- customer self-profile lookup
 - account creation
+- account balance lookup
 - balance-changing operations: deposit, withdraw, transfer
 - account statement listing with pagination support
 
@@ -38,13 +39,15 @@ Dependency direction:
 ```text
 POST   /auth/register
 POST   /auth/login
+POST   /auth/refresh
 GET    /auth/me
 
-POST   /customers
+GET    /customers/me
 
 POST   /accounts
 POST   /accounts/{id}/deposit
 POST   /accounts/{id}/withdraw
+GET    /accounts/{id}/balance
 POST   /accounts/transfer
 GET    /accounts/{id}/statement
 ```
