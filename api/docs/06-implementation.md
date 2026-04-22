@@ -74,6 +74,7 @@ Current route registration:
 - POST /auth/refresh (JWT required)
 - GET /auth/me (JWT required)
 - GET /customers/me (JWT required)
+- GET /accounts (JWT required)
 - POST /accounts (JWT required)
 - POST /accounts/{id}/deposit (JWT required)
 - POST /accounts/{id}/withdraw (JWT required)
@@ -220,7 +221,23 @@ Dependencies:
 - Sequence generator for account number
 - Branch policy owned by account application
 
-### 6.3 Create Account
+### 6.3 List Accounts
+
+Input:
+- authenticated user context (`customer_id` derived from token principal)
+
+Flow:
+1. Validate authenticated user has non-nil customer_id (returns ErrForbidden otherwise)
+2. Query accounts by customer_id
+3. Order results by `created_at` and `id`
+4. Return summarized account list
+
+Notes:
+- No filters are supported yet
+- Any query parameter is treated as invalid input
+- Response omits balance on purpose; balance is retrieved through dedicated flows
+
+### 6.4 Create Account
 
 Input:
 - authenticated user context (customer_id derived from token principal)
@@ -241,7 +258,7 @@ Notes:
 - Optional one-account-per-customer rule exists but is currently commented out.
 - User must be active (enforced at application layer) to create accounts
 
-### 6.4 Deposit
+### 6.5 Deposit
 
 Input:
 - account_id
@@ -259,7 +276,7 @@ Flow:
 Rollback strategy:
 - deferred rollback executes unless commit succeeds.
 
-### 6.5 Withdraw
+### 6.6 Withdraw
 
 Input:
 - account_id
@@ -274,7 +291,7 @@ Flow:
 6. Insert withdraw ledger row
 7. Commit
 
-### 6.6 Transfer
+### 6.7 Transfer
 
 Input:
 - from_account_id

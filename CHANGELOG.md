@@ -1,5 +1,340 @@
 # Changelog
 
+## 2026/04/22 — mobile/balance-03
+
+Introduces **account balance and statement support in the mobile layer**, including repository abstraction, API integration, caching strategy, and alignment with backend semantics. Also refines documentation to clarify user lifecycle versus account operational status across the system.
+
+### 1. Data Layer — Account Repository
+
+* Added `AccountRepository` interface with:
+
+  * `getBalance`
+  * `watchBalance`
+  * `getStatement`
+  * `getCachedBalance`
+* Implemented `AccountRepositoryImpl`:
+
+  * integrates `BalanceApi` and `StatementApi`
+  * introduces in-memory cache for balance
+  * exposes reactive updates via `StreamController.broadcast`
+* Design choice:
+
+  * repository acts as **single source of truth for account state in the mobile layer**
+  * balances are treated as **event-driven updates**, not just request/response
+
+### 2. API Integration — Balance and Statement
+
+* Added `BalanceApi`:
+
+  * GET `/accounts/{id}/balance`
+  * parses standard API envelope
+  * validates HTTP status and maps errors to `AppError`
+* Added `StatementApi`:
+
+  * GET `/accounts/{id}/statement`
+  * supports query parameters via DTO
+  * handles pagination (`cursor`, `cursor_id`, `limit`, `from`, `to`)
+* Both APIs:
+
+  * follow existing `RestClient` abstraction
+  * enforce explicit parsing and failure handling
+  * align with API contract 
+
+### 3. DTO Layer
+
+* Added balance DTO:
+
+  * `BalanceResponseDto`
+* Added statement DTOs:
+
+  * `StatementResponseDto`
+  * `StatementItemDto`
+  * `StatementNextCursorDto`
+* Added query DTO:
+
+  * `StatementQueryParamsDto`
+* Design observation:
+
+  * DTOs mirror backend payloads closely, preserving **contract fidelity**
+  * avoids premature mapping into domain models
+
+### 4. Dependency Injection
+
+* Registered new services:
+
+  * `BalanceApi`
+  * `StatementApi`
+* Registered new repository:
+
+  * `AccountRepository`
+* Maintains existing injection order and modular structure
+
+### 5. Reactive Balance Flow
+
+* Implemented `watchBalance(accountId)`:
+
+  * emits cached value immediately (if available)
+  * streams future updates filtered by `accountId`
+* Practical implication:
+
+  * UI can subscribe once and react to balance changes
+  * avoids redundant polling
+* Opinion:
+
+  * this is a **clean and scalable approach**, especially aligned with fintech UX expectations
+
+### 6. Documentation — Status Semantics Clarification
+
+* Updated application and auth documentation to explicitly separate:
+
+  * **User lifecycle status (`users.status`)**
+  * **Account operational status (`accounts.status`)**
+* Key clarification:
+
+  * user status controls onboarding and eligibility
+  * account status controls financial operability
+* This aligns:
+
+  * domain model invariants 
+  * application behavior 
+  * database semantics 
+
+### 7. Database Documentation Enhancements
+
+* Added schema diagram reference
+* Documented:
+
+  * `users.status` as lifecycle control
+  * `accounts.status` as operational constraint
+* Reinforces database as **active consistency boundary**, not passive storage 
+
+### 8. Architectural Guides (AGENT.md)
+
+* Introduced structured guidance files for:
+
+  * root mobile layer
+  * core
+  * data
+  * domain
+  * UI
+* Defines:
+
+  * responsibilities per layer
+  * dependency boundaries
+  * coding conventions
+* Opinion:
+
+  * this is a **high-leverage addition** — it reduces architectural drift and enforces consistency, especially when scaling or using AI-assisted development
+
+### Conclusion
+
+This commit establishes the **foundation for account visibility in the mobile client**, combining:
+
+* strong API contract alignment
+* explicit error handling
+* reactive state propagation
+* clear architectural boundaries
+
+From a design standpoint, the separation between **user lifecycle and account operability** is particularly important. It eliminates a common ambiguity in financial systems and aligns the entire stack — API, domain, database, and mobile — under a consistent mental model.
+
+
+## 2026/04/22 — api/list_accounts-01
+
+Refines the **conceptual separation between user lifecycle and account operational status**, updates documentation to reflect this distinction across layers, and introduces the initial mobile-side infrastructure for account balance and statement consumption.
+
+### 1. Documentation — Status Semantics Clarification
+
+* Explicitly separates:
+
+  * `users.status` as **user lifecycle status**
+  * `accounts.status` as **account operational status**
+* Clarifies responsibilities:
+
+  * user status governs onboarding and account creation eligibility
+  * account status governs financial operation execution
+* Updates reinforce domain alignment with existing invariants and rules 
+
+### 2. Auth Documentation — Model Refinement
+
+* Reframes the operational model into three distinct concerns:
+
+  * authentication (identity)
+  * authorization (role)
+  * user lifecycle (onboarding eligibility)
+  * account operational state (financial capability)
+* Adjusts invariants:
+
+  * removes ambiguity between “active user” and “operational account”
+  * introduces clearer responsibility boundaries between application and domain layers
+* Aligns documentation with real execution flows already implemented in use cases 
+
+### 3. Database Documentation — Semantic Enrichment
+
+* Adds schema visualization for improved system comprehension
+* Documents meaning of:
+
+  * `users.status` as lifecycle control
+  * `accounts.status` as operational constraint
+* Reinforces database role as consistency boundary and rule enforcer 
+
+### 4. Mobile Layer — Account Data Integration
+
+* Introduces account module in data layer:
+
+  * `AccountRepository` abstraction
+  * `AccountRepositoryImpl` with:
+
+    * balance caching
+    * reactive balance stream
+    * statement retrieval support
+* Adds API clients:
+
+  * `BalanceApi` → `/accounts/{id}/balance`
+  * `StatementApi` → `/accounts/{id}/statement`
+* Implements DTOs:
+
+  * `BalanceResponseDto`
+  * `StatementResponseDto` (+ cursor pagination)
+  * `StatementQueryParamsDto`
+* Ensures adherence to API envelope contract and error handling standard 
+
+### 5. Dependency Injection — Data & Services
+
+* Registers new services and repositories:
+
+  * `BalanceApi`
+  * `StatementApi`
+  * `AccountRepository`
+* Maintains layered dependency flow:
+
+  * UI → Repository → API → RestClient
+
+### 6. Architectural Guidance — Mobile AGENT Files
+
+* Adds structured guidelines for:
+
+  * core, data, domain, and UI layers
+* Defines:
+
+  * responsibilities per layer
+  * dependency rules
+  * error handling conventions
+  * extension boundaries
+* Establishes a consistent development contract for future iterations
+
+### Conclusion
+
+This commit is primarily **semantic and architectural**, not behavioral.
+
+It improves the system by:
+
+* eliminating ambiguity between user and account states
+* aligning documentation with domain and execution reality
+* preparing the mobile layer for real API consumption with a clean repository/API split
+
+From a design perspective, this is a critical step toward **maintaining conceptual integrity across API, database, and client**, which is essential in financial systems where subtle semantic confusion often leads to incorrect business rules.
+
+
+## 2026/04/22 — mobile/balance-01
+
+Introduces the first mobile integration for **account balance and statement retrieval**, while also updating API documentation to clarify status semantics and database representation. The mobile layer now has the minimum data flow needed to consume account read operations from the backend. 
+
+### 1. Mobile architecture guidance
+
+* Added agent guides for:
+
+  * `mobile/`
+  * `mobile/lib/core`
+  * `mobile/lib/data`
+  * `mobile/lib/domain`
+  * `mobile/lib/uis`
+* Documents the current Flutter layering, dependency direction, DI rules, routing conventions, async handling, and boundaries between UI, repositories, and API services
+* Helps preserve the intended structure as the mobile app grows
+
+### 2. Data layer wiring
+
+* Extended dependency registration in `mobile/lib/data/data.dart`
+* Registered new mobile account dependencies:
+
+  * `AccountRepository`
+  * `AccountRepositoryImpl`
+  * `BalanceApi`
+  * `StatementApi`
+* Keeps account read features aligned with the existing injector-based composition model
+
+### 3. Account repository for mobile
+
+* Added `AccountRepository` contract with support for:
+
+  * cached balance access
+  * balance streaming
+  * remote balance retrieval
+  * statement retrieval with query parameters
+* Added `AccountRepositoryImpl` implementing:
+
+  * in-memory balance cache
+  * broadcast stream for balance updates
+  * API delegation for balance and statement endpoints
+* This is a solid first step because it keeps API access out of the UI and establishes the repository as the app-facing entry point
+
+### 4. New account APIs
+
+* Added `BalanceApi`
+* Added `StatementApi`
+* Both APIs:
+
+  * use the existing `RestClient`
+  * parse the standard API envelope
+  * convert transport and parsing failures into `AppError`
+  * return `AsyncResult<T>`
+* This keeps the transport layer consistent with the existing auth implementation and avoids leaking raw HTTP concerns upward
+
+### 5. DTOs for account reading
+
+* Added `BalanceResponseDto`
+* Added `StatementQueryParamsDto`
+* Added `StatementResponseDto`
+* Added statement support types:
+
+  * `StatementItemDto`
+  * `StatementNextCursorDto`
+* The statement DTO structure matches the backend contract for paginated ledger/history reads, including cursor-based pagination
+
+### 6. Service registration
+
+* Updated `mobile/lib/data/services/services.dart`
+* Registered:
+
+  * `BalanceApi`
+  * `StatementApi`
+* Keeps API construction centralized and consistent with the existing `AuthApi` pattern
+
+### 7. API documentation refinements
+
+* Clarified the distinction between:
+
+  * `users.status` as **user lifecycle status**
+  * `accounts.status` as **account operational status**
+* Updated auth/application/database documentation to reflect:
+
+  * onboarding/account-opening eligibility tied to user lifecycle
+  * financial operation eligibility tied to account status
+* This is an important clarification because it removes conceptual ambiguity that could easily leak into both backend rules and mobile assumptions
+
+### 8. Database documentation updates
+
+* Added a schema image reference in `api/docs/09-database.md`
+* Added notes documenting:
+
+  * `users.status` semantics
+  * `accounts.status` semantics
+* Added the new schema image asset under `api/docs/images/databese.png`
+
+### Conclusion
+
+This commit establishes the **mobile read path for account balance and statement**, with proper layering, dependency injection, DTOs, transport handling, and repository orchestration. At the same time, it improves backend documentation by making status responsibilities explicit, which is particularly valuable for keeping mobile and API behavior aligned.
+
+
 ## 2026/04/22 — refactor/api-application-structure-04
 
 Refines the **API and application structure** to better align documentation, use case flows, and architectural responsibilities with the current implementation, particularly around account lifecycle, admin operations, and branch resolution strategy. 

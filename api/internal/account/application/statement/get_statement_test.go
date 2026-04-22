@@ -31,6 +31,10 @@ func (m *statementRepositoryMock) Create(ctx context.Context, account *domain.Ac
 	return nil
 }
 
+func (m *statementRepositoryMock) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
+	return nil, nil
+}
+
 func (m *statementRepositoryMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
 	return nil
 }

@@ -77,6 +77,10 @@ type fakeTx struct {
 
 func (f *fakeTx) Create(ctx context.Context, account *domain.Account) error { return nil }
 
+func (f *fakeTx) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
+	return nil, nil
+}
+
 func (f *fakeTx) CreateTransaction(ctx context.Context, tx *domain.Transaction) error { return nil }
 
 func (f *fakeTx) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {

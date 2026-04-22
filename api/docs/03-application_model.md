@@ -78,6 +78,11 @@ type Customer struct {
 }
 ```
 
+Status semantics in the current model:
+
+* `User.Status` is a **user lifecycle status** used for onboarding and account-opening eligibility
+* `Account.Status` is an **account operational status** used to decide whether a specific account can execute financial operations
+
 ### 2. DTOs (Input and Output)
 
 Transport models used between application layers.
@@ -203,6 +208,11 @@ if user.Status != authdomain.UserStatusActive {
 }
 ```
 
+In practice:
+
+* `users.status` is checked in approval/account-opening flows
+* `accounts.status` is enforced by account-domain rules such as `CanDeposit`, `CanWithdraw`, and `CanTransfer`
+
 ### 5. Mappings
 
 Explicit transformations between domain, persistence, and transport representations.
@@ -275,4 +285,3 @@ With this document well defined, it should be possible to:
 * quickly understand how the code is structured
 * map domain <-> implementation
 * reduce ambiguity between layers
-

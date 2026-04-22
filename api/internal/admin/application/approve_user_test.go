@@ -124,6 +124,10 @@ func (m *approveAccountRepoMock) GetTransactionByReference(ctx context.Context, 
 	return nil, nil
 }
 
+func (m *approveAccountRepoMock) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]accountdomain.Account, error) {
+	return nil, nil
+}
+
 func (m *approveAccountRepoMock) BeginTx(ctx context.Context) (accountdomain.Tx, error) {
 	return nil, nil
 }

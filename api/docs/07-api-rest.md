@@ -13,7 +13,7 @@ Content type:
 
 Authentication:
 - `POST /auth/register` and `POST /auth/login` require header `X-App-Token: <app_token>`
-- `POST /auth/refresh`, `GET /auth/me`, all `/accounts/*`, and all `/customers/*` require JWT Bearer token
+- `POST /auth/refresh`, `GET /auth/me`, all `/accounts` and `/accounts/*`, and all `/customers/*` require JWT Bearer token
 - Send JWT in header `Authorization: Bearer <access_token>`
 
 Access control summary:
@@ -314,7 +314,46 @@ All account routes are protected and require Authorization header with Bearer to
 
 Ownership is enforced automatically. A customer-role user can only access accounts that belong to their own `customer_id`. Admin-role users can access any account.
 
-### 4.1 Create Account
+### 4.1 List Accounts
+
+- Method: GET
+- Path: /accounts
+- Auth required: yes
+
+Returns the list of accounts that belong to the authenticated user.
+
+Query params:
+- none (any query param returns `400 INVALID_DATA`)
+
+Success response (200):
+
+```json
+{
+  "data": [
+    {
+      "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+      "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
+      "number": "10000001",
+      "branch": "0001",
+      "status": "active"
+    }
+  ],
+  "error": null
+}
+```
+
+Notes:
+- The account list is derived from the authenticated user's `customer_id`
+- `balance` is intentionally omitted from this endpoint
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: unexpected query params
+- 403 FORBIDDEN: authenticated user has no customer context
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 4.2 Create Account
 
 - Method: POST
 - Path: /accounts
@@ -356,7 +395,7 @@ Possible errors:
 - 404 CUSTOMER_NOT_FOUND: customer does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.2 Deposit
+### 4.3 Deposit
 
 - Method: POST
 - Path: /accounts/{id}/deposit
@@ -393,7 +432,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.3 Withdraw
+### 4.4 Withdraw
 
 - Method: POST
 - Path: /accounts/{id}/withdraw
@@ -431,7 +470,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.4 Transfer
+### 4.5 Transfer
 
 - Method: POST
 - Path: /accounts/transfer
@@ -481,7 +520,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.5 Get Balance
+### 4.6 Get Balance
 
 - Method: GET
 - Path: /accounts/{id}/balance
@@ -513,7 +552,7 @@ Possible errors:
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.6 Get Statement
+### 4.7 Get Statement
 
 - Method: GET
 - Path: /accounts/{id}/statement
@@ -761,7 +800,37 @@ Scenario: missing/invalid authentication
 }
 ```
 
-### 9.5 POST /accounts
+### 9.5 GET /accounts
+
+Scenario: authenticated user has no customer context
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+Scenario: unexpected query params
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+### 9.6 POST /accounts
 
 Scenario: authenticated user cannot create account for requested context
 - Status: 403
@@ -791,7 +860,7 @@ Scenario: customer does not exist
 }
 ```
 
-### 9.5 POST /accounts/{id}/deposit
+### 9.7 POST /accounts/{id}/deposit
 
 Scenario: invalid amount
 - Status: 400
@@ -835,7 +904,7 @@ Scenario: account inactive
 }
 ```
 
-### 9.6 POST /accounts/{id}/withdraw
+### 9.8 POST /accounts/{id}/withdraw
 
 Scenario: insufficient funds
 - Status: 422
@@ -851,7 +920,7 @@ Scenario: insufficient funds
 }
 ```
 
-### 9.7 POST /accounts/transfer
+### 9.9 POST /accounts/transfer
 
 Scenario: source and destination are the same
 - Status: 400
@@ -881,7 +950,7 @@ Scenario: access denied to source account
 }
 ```
 
-### 9.8 GET /accounts/{id}/balance
+### 9.10 GET /accounts/{id}/balance
 
 Scenario: invalid query/path data
 - Status: 400
@@ -897,7 +966,7 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.9 GET /accounts/{id}/statement
+### 9.11 GET /accounts/{id}/statement
 
 Scenario: invalid query/path data
 - Status: 400
@@ -913,7 +982,7 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.10 GET /customers/me
+### 9.12 GET /customers/me
 
 Scenario: user has inconsistent state (customer role without customer_id)
 - Status: 409

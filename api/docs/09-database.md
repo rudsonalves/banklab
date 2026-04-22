@@ -74,6 +74,8 @@ Each concept is represented once:
 
 ## 3. Schema Overview
 
+![Database Schema](images/databese.png)
+
 ### Core Tables
 
 * `customers`
@@ -128,6 +130,11 @@ Constraints:
 
 * `customer_id` must exist when role = `customer`
 
+Notes:
+
+* `status` is the **user lifecycle status**
+* it controls onboarding progression and eligibility for approval-dependent flows such as account opening
+
 ---
 
 ## 4.3 user_sessions
@@ -163,6 +170,7 @@ Notes:
 
 * `balance` is a derived snapshot
 * must only be modified via transactional operations
+* `status` is the **account operational status** used by account-domain rules to allow or deny financial operations
 
 ---
 

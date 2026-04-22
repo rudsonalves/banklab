@@ -161,11 +161,11 @@ Authorization is based on the authenticated user identity extracted from the JWT
 
 ## 5.1 Operational Status (UserStatus)
 
-**IMPORTANT DISTINCTION:** Authorization and operational capability are separated.
+**IMPORTANT DISTINCTION:** Authorization, user lifecycle, and account operability are separate concerns.
 
 ### Definition
 
-Beyond **authentication** (who you are) and **authorization** (what role you have), the system enforces **operational status** (whether you can act).
+Beyond **authentication** (who you are) and **authorization** (what role you have), the system enforces a **user lifecycle status** (`users.status`) that controls onboarding progression and eligibility to open accounts.
 
 ### Three Layers
 
@@ -179,34 +179,43 @@ Beyond **authentication** (who you are) and **authorization** (what role you hav
    - Enforced at application layer
    - Tied to JWT claims
 
-3. **Operational Status** (UserStatus)
-   - Capability to perform financial operations
+3. **User Lifecycle Status** (UserStatus)
+   - Controls onboarding progression and account-opening eligibility
    - Stored in `users.status` column
    - Values: `pending`, `active`, `blocked`
-   - Required: **user must be `active` to operate in the system**
+   - Required: **user must be `active` to complete approval-dependent flows such as account opening**
+
+4. **Account Operational Status** (AccountStatus)
+   - Controls whether a specific account can execute financial operations
+   - Stored in `accounts.status` column
+   - Values: `active`, `inactive`, `blocked`
+   - Enforced by account-domain rules such as `CanDeposit`, `CanWithdraw`, and `CanTransfer`
 
 ### Invariant
 
 ```text
-Authentication + Authorization ≠ Operational Capability
+Authentication + Authorization ≠ User Lifecycle Eligibility
 
-Only active users can perform financial operations.
+Active user status allows onboarding-complete flows such as account creation.
+Account status governs whether a specific account is operational.
 ```
 
 ### Examples
 
-| Scenario                    | JWT Valid? | Role OK? | Status? | Can Operate? |
-| --------------------------- | ---------- | -------- | ------- | ------------ |
-| Pending user, has valid JWT | ✓          | ✓        | pending | ✗            |
-| Active user, customer role  | ✓          | ✓        | active  | ✓            |
-| Blocked user, valid JWT     | ✓          | ✓        | blocked | ✗            |
-| No JWT                      | ✗          | -        | -       | ✗            |
+| Scenario                                 | JWT Valid? | Role OK? | User Status | Account Status | Can Open Account? | Can Move Funds? |
+| ---------------------------------------- | ---------- | -------- | ----------- | -------------- | ----------------- | --------------- |
+| Pending user, valid JWT                  | ✓          | ✓        | pending     | -              | ✗                 | N/A             |
+| Active user, valid JWT, active account   | ✓          | ✓        | active      | active         | ✓                 | ✓               |
+| Active user, valid JWT, blocked account  | ✓          | ✓        | active      | blocked        | ✓                 | ✗               |
+| Blocked user, valid JWT, active account  | ✓          | ✓        | blocked     | active         | ✗                 | account-defined |
+| No JWT                                   | ✗          | -        | -           | -              | ✗                 | ✗               |
 
 ### Responsibility
 
 * **Authentication**: verified at JWT middleware (HTTP boundary)
 * **Authorization**: enforced at application layer (use cases)
-* **Operational Status**: enforced at application layer (business rules)
+* **User Lifecycle Status**: enforced at application layer where onboarding/account-opening rules apply
+* **Account Operational Status**: enforced in account-domain business rules and account use cases
 
 ---
 
