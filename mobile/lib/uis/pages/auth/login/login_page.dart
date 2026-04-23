@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
+import '../../../core/feedback/app_snackbar.dart';
 import '../../../core/text_form_field/basic_text_form_field.dart';
 import 'viewmodel/login_viewmodel.dart';
 
@@ -200,27 +201,27 @@ class _LoginPageState extends State<LoginPage> {
 
     if (loginCommand.isFailure) {
       final message = loginCommand.error?.message ?? 'Falha ao autenticar.';
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      AppSnackbar.show(
+        context,
+        type: SnackbarType.error,
+        title: 'Erro',
+        message: message,
+      );
+
       return;
     }
 
     if (loginCommand.isSuccess) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text('Login realizado com sucesso.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      AppSnackbar.show(
+        context,
+        type: SnackbarType.success,
+        title: 'Sucesso',
+        message: 'Login realizado com sucesso.',
+      );
     }
+
+    if (!mounted) return;
+    context.goNamed(HomeRoutes.home.name);
   }
 
   Future<void> _submit() async {
@@ -229,29 +230,11 @@ class _LoginPageState extends State<LoginPage> {
 
     FocusScope.of(context).unfocus();
 
-    await _viewModel.login.execute(
+    _viewModel.login.execute(
       LoginRequestDto(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       ),
     );
-
-    final result = _viewModel.login.result!;
-    if (result.isFailure) {
-      final message = result.error?.message ?? 'Falha ao autenticar.';
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      return;
-    }
-
-    if (!mounted) return;
-    context.goNamed(HomeRoutes.home.name);
   }
 }

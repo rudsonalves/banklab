@@ -1,33 +1,73 @@
 import 'package:flutter/material.dart';
 
+import '/core/routing/route_observer.dart';
 import '../../core/base/safe_scaffold.dart';
+import '../../core/feedback/app_snackbar.dart';
 import 'viewmodel/home_viewmodel.dart';
 import 'widgets/action_tite.dart';
 import 'widgets/balance_tile.dart';
 
 class HomePage extends StatefulWidget {
   final HomeViewmodel viewModel;
-  final String? accountId;
 
   const HomePage({
     super.key,
     required this.viewModel,
-    this.accountId,
   });
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with RouteAware {
   late final HomeViewmodel _viewModel;
+  bool _isRouteObserverSubscribed = false;
 
   @override
   void initState() {
     super.initState();
 
     _viewModel = widget.viewModel;
+  }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_isRouteObserverSubscribed) return;
+
+    final route = ModalRoute.of(context);
+    if (route == null) return;
+
+    routeObserver.subscribe(this, route);
+    _isRouteObserverSubscribed = true;
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    _viewModel.dispose();
+
+    super.dispose();
+  }
+
+  @override
+  void didPush() {
+    _viewModel.initialize.execute();
+  }
+
+  @override
+  void didPop() {
+    _viewModel.stopTimer();
+  }
+
+  @override
+  void didPushNext() {
+    _viewModel.stopTimer();
+  }
+
+  @override
+  void didPopNext() {
     _viewModel.initialize.execute();
   }
 
@@ -53,8 +93,8 @@ class _HomePageState extends State<HomePage> {
               ListenableBuilder(
                 listenable: _viewModel.initialize,
                 builder: (context, _) => BalanceTile(
-                  balanceLabel: _balanceLabel(),
-                  supportingLabel: _supportingLabel(),
+                  balance: _viewModel.lastBalance,
+                  account: _viewModel.selectedAccount,
                   isLoading: _viewModel.initialize.isRunning,
                 ),
               ),
@@ -95,25 +135,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  String _balanceLabel() {
-    final balance = widget.viewModel.lastBalance;
-    if (balance == null) return 'R\$ --';
-
-    final value = (balance.balance / 100)
-        .toStringAsFixed(2)
-        .replaceAll('.', ',');
-    return 'R\$ $value';
-  }
-
   void _showPendingFeature(String featureName) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$featureName sera disponibilizado em breve.')),
+    AppSnackbar.show(
+      context,
+      title: 'Em breve',
+      message: '$featureName será disponibilizado em breve.',
     );
-  }
-
-  String _supportingLabel() {
-    if (_viewModel.initialize.isRunning) return 'Iniciando...';
-
-    return 'Conta: ${_viewModel.selectedAccount!.branch} - ${_viewModel.selectedAccount!.number}';
   }
 }

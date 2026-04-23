@@ -9,18 +9,8 @@ List<RouteBase> homeRoutes() => [
   GoRoute(
     path: HomeRoutes.home.path,
     name: HomeRoutes.home.name,
-    builder: (context, state) {
-      final extra = state.extra;
-      final accountId = switch (extra) {
-        String value when value.trim().isNotEmpty => value,
-        Map<String, dynamic> value => value['accountId'] as String?,
-        _ => state.uri.queryParameters['accountId'],
-      };
-
-      return HomePage(
-        viewModel: injector.get<HomeViewmodel>(),
-        accountId: accountId,
-      );
-    },
+    builder: (context, state) => HomePage(
+      viewModel: injector.get<HomeViewmodel>(),
+    ),
   ),
 ];

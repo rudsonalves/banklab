@@ -1,5 +1,67 @@
 # Changelog
 
+## 2026/04/22 — mobile/balance-04
+
+Refines the mobile balance flow by introducing typed money handling, centralized feedback components, and route-aware home refresh behavior. This update improves monetary consistency, simplifies navigation contracts, and makes the home balance experience more reliable after login and route transitions. 
+
+### 1. Monetary handling and parsing
+
+* Added `money2` as a direct dependency and introduced a centralized currency registry in `app_currencies.dart`
+* Defined `BRL` as the default application currency, while keeping `USD`, `EUR`, and `BTC` available for future compatibility
+* Added `ApiParse` helpers to convert API numeric payloads into `BigInt` and `Money`
+* Updated `BalanceResponseDto` and `StatementItemDto` to use `Money` instead of raw integers
+* Centralized conversion from API values to money objects, reducing formatting duplication and improving type safety for balance and statement data
+
+### 2. Home route and navigation behavior
+
+* Added a global `RouteObserver` and registered it in the router
+* Simplified the home route by removing `accountId` extraction from route `extra` and query parameters
+* Adjusted `HomePage` to no longer depend on a route-supplied account id
+* This change makes the home screen less coupled to navigation payload details and more aligned with the authenticated app state
+
+### 3. Home page lifecycle and automatic balance refresh
+
+* Converted `HomePage` state to `RouteAware`
+* Subscribed the page to route lifecycle events through the shared route observer
+* Triggered initialization on `didPush` and `didPopNext`
+* Stopped periodic refresh on `didPop` and `didPushNext`
+* Added a timer in `HomeViewmodel` to reload the balance every 20 seconds after initialization
+* Added explicit `startTimer`, `stopTimer`, and `dispose` methods to manage polling safely
+
+### 4. Balance tile refactor
+
+* Refactored `BalanceTile` to receive typed DTOs instead of preformatted strings
+* Replaced manual currency formatting with `Money.format()`
+* Updated the supporting label to show agency and account information directly from the account DTO
+* Slightly adjusted the card gradient to soften the visual presentation
+
+### 5. Snackbar standardization
+
+* Added reusable `AppSnackbar` with support for `success`, `error`, and `info` variants
+* Centralized snackbar styling, duration, and presentation behavior
+* Replaced direct `ScaffoldMessenger` usage in `LoginPage`
+* Updated pending-feature feedback on the home screen to use the same component
+* This creates a more consistent feedback pattern across the app
+
+### 6. Login flow adjustment
+
+* Updated login result handling to use `AppSnackbar`
+* Moved navigation to `context.goNamed(HomeRoutes.home.name)` after successful command completion handling
+* Changed `_submit()` to trigger the command without duplicating result processing logic afterward
+* Added mounted checks before navigation
+
+### 7. General outcome
+
+* The balance feature now uses a stronger monetary representation end to end
+* The home screen refresh behavior is better synchronized with navigation lifecycle
+* UI feedback is more consistent and reusable
+* The codebase becomes cleaner by removing manual money formatting and reducing route-state complexity
+
+### Conclusion
+
+This commit strengthens the mobile balance experience by combining typed money support, cleaner route handling, periodic balance refresh, and standardized user feedback. The result is a more robust and maintainable implementation for the authenticated home flow.
+
+
 ## 2026/04/22 — mobile/balance-03
 
 Introduces **account balance and statement support in the mobile layer**, including repository abstraction, API integration, caching strategy, and alignment with backend semantics. Also refines documentation to clarify user lifecycle versus account operational status across the system.
