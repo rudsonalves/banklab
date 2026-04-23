@@ -1,8 +1,12 @@
+import 'package:money2/money2.dart';
+
+import '../../core/api_parse.dart';
+
 class StatementItemDto {
   final String transactionId;
   final String type;
-  final int amount;
-  final int balanceAfter;
+  final Money amount;
+  final Money balanceAfter;
   final String? referenceId;
   final String createdAt;
 
@@ -19,8 +23,8 @@ class StatementItemDto {
     return StatementItemDto(
       transactionId: map['transaction_id'] as String,
       type: map['type'] as String,
-      amount: map['amount'] as int,
-      balanceAfter: map['balance_after'] as int,
+      amount: ApiParse.toMoney(map['amount']),
+      balanceAfter: ApiParse.toMoney(map['balance_after']),
       referenceId: map['reference_id'] as String?,
       createdAt: map['created_at'] as String,
     );

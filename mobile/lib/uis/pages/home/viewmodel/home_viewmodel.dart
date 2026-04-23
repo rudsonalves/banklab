@@ -31,6 +31,26 @@ class HomeViewmodel {
     }
 
     await loadBalance();
+
+    startTimer();
     return const Success(unit);
+  }
+
+  Timer? _timer;
+  final Duration _delay = const Duration(seconds: 20);
+
+  void startTimer() {
+    stopTimer();
+
+    _timer = Timer.periodic(_delay, (_) => loadBalance());
+  }
+
+  void stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void dispose() {
+    stopTimer();
   }
 }

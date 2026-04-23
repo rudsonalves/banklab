@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
+import '/data/services/apis/account/dtos/balance_response_dto.dart';
+
 class BalanceTile extends StatelessWidget {
-  final String balanceLabel;
-  final String supportingLabel;
+  final BalanceResponseDto? balance;
+  final AccountSummaryResponseDto? account;
   final bool isLoading;
 
   const BalanceTile({
     super.key,
-    required this.balanceLabel,
-    required this.supportingLabel,
+    this.balance,
+    required this.account,
     required this.isLoading,
   });
 
@@ -22,7 +25,7 @@ class BalanceTile extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             colorScheme.primary,
-            colorScheme.primaryContainer,
+            colorScheme.primary.withValues(alpha: .6),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -40,7 +43,7 @@ class BalanceTile extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            balanceLabel,
+            _balanceLabel(),
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               color: colorScheme.onPrimary,
               fontWeight: FontWeight.w700,
@@ -49,7 +52,7 @@ class BalanceTile extends StatelessWidget {
           const SizedBox(height: 12),
           if (!isLoading) ...[
             Text(
-              supportingLabel,
+              _supportingLabel(),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onPrimary.withValues(alpha: 0.86),
               ),
@@ -66,5 +69,17 @@ class BalanceTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _balanceLabel() {
+    if (balance == null) return 'R\$ ---';
+
+    return balance!.balance.format();
+  }
+
+  String _supportingLabel() {
+    if (isLoading || account == null) return 'Iniciando...';
+
+    return 'Agência: ${account!.branch} - Conta: ${account!.number}';
   }
 }
