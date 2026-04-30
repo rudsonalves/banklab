@@ -42,8 +42,11 @@ POST   /auth/login
 POST   /auth/refresh
 GET    /auth/me
 
+POST   /admin/users/{id}/approve
+
 GET    /customers/me
 
+GET    /accounts
 POST   /accounts
 POST   /accounts/{id}/deposit
 POST   /accounts/{id}/withdraw
@@ -129,6 +132,7 @@ api/
 - [Auth implementation](docs/08-auth_implementation.md)
 - [Database](docs/09-database.md)
 - [Infrastructure](docs/infra.md)
+- [Architecture presentation material](docs/presentation-api-architecture.md)
 
 ## Related docs
 
