@@ -16,6 +16,8 @@ type PostgresSessionRepository struct {
 	db *pgxpool.Pool
 }
 
+// Ensure PostgresSessionRepository implements the SessionRepository interface at
+// compile time.
 var _ domain.SessionRepository = (*PostgresSessionRepository)(nil)
 
 func NewPostgresSessionRepository(db *pgxpool.Pool) *PostgresSessionRepository {

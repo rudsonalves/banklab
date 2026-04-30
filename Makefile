@@ -9,6 +9,8 @@
 # =========================
 DB_URL=postgres://postgres:postgres@localhost:5432/bank?sslmode=disable
 MIGRATIONS_PATH=api/migrations
+BOOK_PT_DIR=api/docs/visao_geral
+TEMPLATE=templates/eisvogel.latex
 
 # =========================
 # Help
@@ -152,3 +154,21 @@ fbuild: ## Build Flutter app for release
 
 fadd: ## Add a Flutter package (make fadd pkg=package_name)
 	cd mobile && flutter pub add $(pkg)
+
+# =========================
+# Documentation
+# =========================
+book-pt: ## Generate the Portuguese book PDF from markdown visao_geral
+	pandoc \
+		$(BOOK_PT_DIR)/chapters/*.md \
+		--filter pandoc-mermaid \
+		--metadata-file=metadata.yaml \
+		--template=$(TEMPLATE) \
+		--pdf-engine=xelatex \
+		--toc \
+		-V toc-depth=2 \
+		-V book=true \
+		-V titlepage=true \
+		-V top-level-division=chapter \
+		--resource-path=.:$(BOOK_PT_DIR) \
+		-o banklab_BR.pdf

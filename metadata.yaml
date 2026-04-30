@@ -1,0 +1,14 @@
+title: "BankLab - Visão Geral"
+subtitle: "Um guia completo para o projeto BankLab"
+author: "Rudson R. Alves"
+date: 2026
+lang: pt-BR
+toc: true
+fontsize: 12pt
+mainfont: "Arial"
+numbersections: true
+book: true
+documentclass: book
+classoption:
+  - oneside
+  - openany

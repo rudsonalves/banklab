@@ -11,3 +11,5 @@ mobile/.flutter-plugins-dependencies
 # General
 .DS_Store
 .env
+
+.pdf

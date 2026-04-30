@@ -1,5 +1,110 @@
 # Changelog
 
+## 2026/04/30 — docs/update-10
+
+Refactors the account infrastructure layer, introduces structured transaction handling, and expands documentation tooling with PDF generation support. Also improves context propagation and architectural clarity across the codebase.
+
+### 1. Infrastructure Layer — Repository Refactor
+
+* Extracted core persistence logic into `baseRepository`
+
+  * isolates SQL operations and shared behavior
+  * removes duplication between transactional and non-transactional flows
+* Introduced new `Repository` implementation:
+
+  * delegates all operations to `baseRepository`
+  * centralizes database pool (`pgxpool.Pool`) usage
+* Introduced `txRepository`:
+
+  * encapsulates transaction-scoped execution (`pgx.Tx`)
+  * enforces boundary: no nested transactions allowed
+* Reorganized transaction control:
+
+  * `BeginTx` returns a domain-level `Tx`
+  * `WithTransaction` executes use cases with commit/rollback guarantees
+* This refactor aligns with the architectural direction of **explicit transaction boundaries at the application layer**, preserving consistency guarantees 
+
+### 2. Removal of Legacy Coupling
+
+* Eliminated duplicated method implementations from previous `Repository`
+* Removed implicit mixing of:
+
+  * connection pool logic
+  * transaction logic
+* Result:
+
+  * clearer separation between execution context (pool vs tx)
+  * improved maintainability and testability
+
+### 3. Context Propagation Enhancements
+
+* Improved `authctx` package:
+
+  * simplified `GetAuthenticatedUser` with early-return pattern
+  * supports both value and pointer storage safely
+  * introduced cleaner `RequireAuthenticatedUser` flow
+* Added comprehensive documentation:
+
+  * clarifies role of authenticated user in request lifecycle
+* These changes reinforce the pattern where **authentication context is explicit and propagated through layers**, not hidden dependencies 
+
+### 4. Database Context Utilities
+
+* Expanded `tx_context.go`:
+
+  * added documentation and usage examples
+  * formalized pattern for embedding `pgx.Tx` into `context.Context`
+* Enables transaction-aware operations without polluting method signatures
+
+### 5. API Documentation Updates
+
+* Updated `README.md`:
+
+  * added new endpoints:
+
+    * `POST /admin/users/{id}/approve`
+    * `GET /accounts`
+  * included architecture presentation material reference
+* Keeps documentation aligned with current API surface and flows 
+
+### 6. Documentation Tooling — Book Generation
+
+* Added Makefile target:
+
+  * `make book-pt` to generate PDF documentation via `pandoc`
+* Introduced:
+
+  * `metadata.yaml` (document metadata)
+  * Eisvogel LaTeX template and supporting files
+* Enables:
+
+  * structured documentation pipeline
+  * reproducible generation of technical material (book format)
+* Added Mermaid diagram assets for architectural visualization
+
+### 7. Project Configuration Improvements
+
+* Updated `.gitignore`:
+
+  * ignores generated `.pdf` artifacts
+* Introduced template directory and LaTeX customization:
+
+  * improves control over formatting, typography, and layout
+
+### 8. Compile-Time Guarantees
+
+* Added explicit interface assertions:
+
+  * ensures repository implementations satisfy domain contracts at compile time
+* Improves reliability and prevents silent contract drift
+
+### Conclusion
+
+This commit significantly improves the **structural integrity of the infrastructure layer** while introducing a robust documentation pipeline.
+
+From an architectural standpoint, the most relevant evolution is the **clear separation between execution context (pool vs transaction)** combined with explicit transaction orchestration. This aligns the implementation more closely with the system’s consistency model and reinforces the database as the central coordination boundary for financial operations.
+
+
 ## 2026/04/22 — mobile/balance-04
 
 Refines the mobile balance flow by introducing typed money handling, centralized feedback components, and route-aware home refresh behavior. This update improves monetary consistency, simplifies navigation contracts, and makes the home balance experience more reliable after login and route transitions. 

@@ -1,0 +1,8 @@
+flowchart LR
+    Client[Mobile / Client<br>Flutter] -->|HTTP| API[Bank API<br>GoLang]
+    API -->|Transactions| DB[(Database<br>PostgreSQL)]
+
+    subgraph Banklab
+        API
+        DB
+    end

@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 )
 
@@ -23,26 +22,6 @@ type baseRepository struct {
 	exec executor
 }
 
-type Repository struct {
-	db   *pgxpool.Pool
-	base baseRepository
-}
-
-type txRepository struct {
-	tx   pgx.Tx
-	base baseRepository
-}
-
-var _ domain.AccountRepository = (*Repository)(nil)
-var _ domain.Tx = (*txRepository)(nil)
-
-func New(db *pgxpool.Pool) *Repository {
-	return &Repository{
-		db:   db,
-		base: baseRepository{exec: db},
-	}
-}
-
 func (r *baseRepository) NextAccountNumber(ctx context.Context) (string, error) {
 	var number int64
 
@@ -54,10 +33,6 @@ func (r *baseRepository) NextAccountNumber(ctx context.Context) (string, error) 
 	}
 
 	return fmt.Sprintf("%08d", number), nil
-}
-
-func (r *Repository) NextAccountNumber(ctx context.Context) (string, error) {
-	return r.base.NextAccountNumber(ctx)
 }
 
 func (r *baseRepository) Create(ctx context.Context, acc *domain.Account) error {
@@ -82,10 +57,6 @@ func (r *baseRepository) Create(ctx context.Context, acc *domain.Account) error 
 	}
 
 	return nil
-}
-
-func (r *Repository) Create(ctx context.Context, acc *domain.Account) error {
-	return r.base.Create(ctx, acc)
 }
 
 func (r *baseRepository) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
@@ -126,10 +97,6 @@ func (r *baseRepository) ListByCustomerID(ctx context.Context, customerID uuid.U
 	return accounts, nil
 }
 
-func (r *Repository) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
-	return r.base.ListByCustomerID(ctx, customerID)
-}
-
 func (r *baseRepository) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
 	query := `
 		INSERT INTO transactions (
@@ -164,10 +131,6 @@ func (r *baseRepository) CreateTransaction(ctx context.Context, tx *domain.Trans
 	return nil
 }
 
-func (r *Repository) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
-	return r.base.CreateTransaction(ctx, tx)
-}
-
 func (r *baseRepository) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
 	var t domain.Transaction
 
@@ -198,10 +161,6 @@ func (r *baseRepository) GetTransactionByIdempotencyKey(ctx context.Context, acc
 	}
 
 	return &t, nil
-}
-
-func (r *Repository) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
-	return r.base.GetTransactionByIdempotencyKey(ctx, accountID, key)
 }
 
 func (r *baseRepository) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
@@ -236,10 +195,6 @@ func (r *baseRepository) GetTransactionByReference(ctx context.Context, accountI
 	return &t, nil
 }
 
-func (r *Repository) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
-	return r.base.GetTransactionByReference(ctx, accountID, referenceID, typeName)
-}
-
 func (r *baseRepository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	query := `
 		SELECT 1
@@ -257,10 +212,6 @@ func (r *baseRepository) ExistsByCustomerID(ctx context.Context, customerID uuid
 	}
 
 	return true, nil
-}
-
-func (r *Repository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
-	return r.base.ExistsByCustomerID(ctx, customerID)
 }
 
 func (r *baseRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
@@ -291,18 +242,6 @@ func (r *baseRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Acc
 	return &account, nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	account, err := r.base.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if account == nil {
-		return nil, domain.ErrAccountNotFound
-	}
-
-	return account, nil
-}
-
 func (r *baseRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	var account domain.Account
 
@@ -330,10 +269,6 @@ func (r *baseRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*d
 	}
 
 	return &account, nil
-}
-
-func (r *Repository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	return r.base.GetByIDForUpdate(ctx, id)
 }
 
 func (r *baseRepository) GetTransactions(
@@ -402,18 +337,6 @@ func (r *baseRepository) GetTransactions(
 	return transactions, nil
 }
 
-func (r *Repository) GetTransactions(
-	ctx context.Context,
-	accountID uuid.UUID,
-	limit int,
-	cursorTime *time.Time,
-	cursorID *uuid.UUID,
-	from *time.Time,
-	to *time.Time,
-) ([]domain.Transaction, error) {
-	return r.base.GetTransactions(ctx, accountID, limit, cursorTime, cursorID, from, to)
-}
-
 func (r *baseRepository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	var balance int64
 
@@ -433,10 +356,6 @@ func (r *baseRepository) IncreaseBalance(ctx context.Context, id uuid.UUID, amou
 	}
 
 	return balance, nil
-}
-
-func (r *Repository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return r.base.IncreaseBalance(ctx, id, amount)
 }
 
 func (r *baseRepository) accountExists(ctx context.Context, id uuid.UUID) (bool, error) {
@@ -485,134 +404,4 @@ func (r *baseRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amou
 	}
 
 	return balance, nil
-}
-
-func (r *Repository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return r.base.DecreaseBalance(ctx, id, amount)
-}
-
-func (r *Repository) BeginTx(ctx context.Context) (domain.Tx, error) {
-	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("begin transaction: %w", err)
-	}
-
-	return &txRepository{
-		tx:   tx,
-		base: baseRepository{exec: tx},
-	}, nil
-}
-
-func (r *Repository) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
-	tx, err := r.BeginTx(ctx)
-	if err != nil {
-		return err
-	}
-
-	return runInTransaction(ctx, tx, fn)
-}
-
-func runInTransaction(ctx context.Context, tx domain.Tx, fn func(tx domain.Tx) error) error {
-
-	if err := fn(tx); err != nil {
-		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-			return fmt.Errorf("rollback transaction: %w", rollbackErr)
-		}
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-			return fmt.Errorf("commit transaction: %w (rollback failed: %v)", err, rollbackErr)
-		}
-		return fmt.Errorf("commit transaction: %w", err)
-	}
-
-	return nil
-}
-
-func (r *txRepository) NextAccountNumber(ctx context.Context) (string, error) {
-	return r.base.NextAccountNumber(ctx)
-}
-
-func (r *txRepository) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
-	return r.base.ListByCustomerID(ctx, customerID)
-}
-
-func (r *txRepository) Create(ctx context.Context, acc *domain.Account) error {
-	return r.base.Create(ctx, acc)
-}
-
-func (r *txRepository) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
-	return r.base.CreateTransaction(ctx, tx)
-}
-
-func (r *txRepository) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
-	return r.base.GetTransactionByIdempotencyKey(ctx, accountID, key)
-}
-
-func (r *txRepository) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
-	return r.base.GetTransactionByReference(ctx, accountID, referenceID, typeName)
-}
-
-func (r *txRepository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
-	return r.base.ExistsByCustomerID(ctx, customerID)
-}
-
-func (r *txRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	account, err := r.base.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if account == nil {
-		return nil, domain.ErrAccountNotFound
-	}
-
-	return account, nil
-}
-
-func (r *txRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	return r.base.GetByIDForUpdate(ctx, id)
-}
-
-func (r *txRepository) GetTransactions(
-	ctx context.Context,
-	accountID uuid.UUID,
-	limit int,
-	cursorTime *time.Time,
-	cursorID *uuid.UUID,
-	from *time.Time,
-	to *time.Time,
-) ([]domain.Transaction, error) {
-	return r.base.GetTransactions(ctx, accountID, limit, cursorTime, cursorID, from, to)
-}
-
-func (r *txRepository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return r.base.IncreaseBalance(ctx, id, amount)
-}
-
-func (r *txRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return r.base.DecreaseBalance(ctx, id, amount)
-}
-
-func (r *txRepository) BeginTx(ctx context.Context) (domain.Tx, error) {
-	return nil, fmt.Errorf("nested transactions are not supported")
-}
-
-func (r *txRepository) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
-	return fmt.Errorf("nested transactions are not supported")
-}
-
-func (r *txRepository) Commit(ctx context.Context) error {
-	if err := r.tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
-	}
-	return nil
-}
-
-func (r *txRepository) Rollback(ctx context.Context) error {
-	if err := r.tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-		return fmt.Errorf("rollback transaction: %w", err)
-	}
-	return nil
 }

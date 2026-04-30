@@ -1,0 +1,28 @@
+flowchart TD
+    Application["Application Layer"]
+
+    subgraph UserManagement["Gestão de Usuário"]
+        Register["Registrar usuário"]
+        Approve["Aprovar usuário"]
+    end
+
+    subgraph AccountManagement["Gestão de Conta"]
+        CreateAccount["Criar conta"]
+        ListAccounts["Listar contas"]
+        Balance["Consultar saldo"]
+    end
+
+    subgraph FinancialOperations["Operações Financeiras"]
+        Deposit["Depositar"]
+        Withdraw["Sacar"]
+        Transfer["Transferir"]
+    end
+
+    subgraph Reporting["Consulta"]
+        Statement["Consultar extrato"]
+    end
+
+    Application --> UserManagement
+    Application --> AccountManagement
+    Application --> FinancialOperations
+    Application --> Reporting
