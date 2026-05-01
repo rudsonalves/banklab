@@ -14,10 +14,14 @@ type JWTMiddleware struct {
 	tokenService authdomain.TokenService
 }
 
+// NewJWTMiddleware creates a new instance of JWTMiddleware with the provided TokenService.
 func NewJWTMiddleware(tokenService authdomain.TokenService) *JWTMiddleware {
 	return &JWTMiddleware{tokenService: tokenService}
 }
 
+// RequireAuth is a middleware that ensures the request has a valid JWT token.
+// If the token is valid, it extracts the user information and adds it to the request context.
+// If the token is missing or invalid, it responds with an appropriate error.
 func (m *JWTMiddleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := bearerToken(r.Header.Get("Authorization"))
@@ -43,6 +47,9 @@ func (m *JWTMiddleware) RequireAuth(next http.Handler) http.Handler {
 	})
 }
 
+// OptionalAuth is a middleware that attempts to authenticate the request using a JWT token if present.
+// If a valid token is provided, it extracts the user information and adds it to the request context.
+// If no token is provided, it simply passes the request through without authentication.
 func (m *JWTMiddleware) OptionalAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authorization := strings.TrimSpace(r.Header.Get("Authorization"))
@@ -74,6 +81,7 @@ func (m *JWTMiddleware) OptionalAuth(next http.Handler) http.Handler {
 	})
 }
 
+// bearerToken extracts the token from the Authorization header if it follows the "
 func bearerToken(authorization string) (string, bool) {
 	parts := strings.Split(strings.TrimSpace(authorization), " ")
 	if len(parts) != 2 {

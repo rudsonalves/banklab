@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	accountApplication "github.com/seu-usuario/bank-api/internal/account/application/account"
@@ -25,35 +24,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Config struct {
-	AppToken  string
-	JWTSecret string
-}
-
-func LoadConfig() Config {
-	appToken := os.Getenv("APP_TOKEN")
-	if appToken == "" {
-		log.Fatal("APP_TOKEN environment variable is required")
-	}
-
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		log.Fatal("JWT_SECRET environment variable is required")
-	}
-
-	return Config{
-		AppToken:  appToken,
-		JWTSecret: jwtSecret,
-	}
-}
-
 func main() {
 	bootstrap.Init()
 
 	// ======================
 	// Config (fail-fast)
 	// ======================
-	config := LoadConfig()
+	config := bootstrap.LoadConfig()
 
 	db := database.NewPool()
 	log.Println("DB connected")
