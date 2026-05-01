@@ -1,17 +1,50 @@
 package bootstrap
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
 
+type Config struct {
+	AppToken  string
+	JWTSecret string
+}
+
+// Init initializes the application by loading environment variables
+// and registering errors.
 func Init() {
 	loadEnv()
 	RegisterErrors()
 }
 
+// LoadConfig reads configuration from environment variables and returns a Config struct.
+// It performs fail-fast checks to ensure required variables are set, logging a fatal error if any are missing.
+func LoadConfig() Config {
+	appToken := os.Getenv("APP_TOKEN")
+	if appToken == "" {
+		log.Fatal("APP_TOKEN environment variable is required")
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is required")
+	}
+
+	return Config{
+		AppToken:  appToken,
+		JWTSecret: jwtSecret,
+	}
+}
+
+// loadEnv attempts to load environment variables from .env files
+// in multiple locations.
+// It checks the current directory, the executable's directory,
+// and the parent of the executable's directory.
+// If no .env file is found in these locations, it falls back to
+// loading from the default location.
 func loadEnv() {
 	candidates := []string{".env", filepath.Join("api", ".env")}
 

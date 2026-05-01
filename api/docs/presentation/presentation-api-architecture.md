@@ -10,18 +10,33 @@ Material de apoio para apresentar a arquitetura, os principais fluxos e as decis
 
 ## Projeto Banklab - Bank API
 
+### Aurix - Fevereiro de 2026
+
+- Artigos de ZTA
+
 ```mermaid
 flowchart LR
-    Client[Mobile / Client<br>Flutter] -->|HTTP| API[Bank API<br>GoLang]
-    API -->|Transactions| DB[(Database<br>PostgreSQL)]
+    subgraph BankLab
+        direction LR
 
-    subgraph Banklab
-        API
-        DB
+        Client[Mobile / Client<br>Flutter] -->|HTTP| API[API<br>GoLang]
+        API -->|Transactions| DB[(Database<br>PostgreSQL)]
+
+        subgraph BankAPI
+            direction LR
+            API
+            DB
+        end
     end
 ```
 
-Licença MIT
+### Licença MIT
+
+> A escolha da licença MIT reflete a intenção de manter o projeto aberto e acessível, sem impor restrições sobre seu uso futuro.
+
+Por se tratar de uma aplicação com características de fintech, optou-se por uma licença permissiva, permitindo que o código seja estudado, modificado e reutilizado em diferentes contextos — inclusive comerciais — sem a obrigatoriedade de abertura de código derivado, como ocorre em licenças copyleft (ex: GPL).
+
+Essa decisão oferece maior flexibilidade para evolução do projeto, tanto no contexto acadêmico quanto em possíveis aplicações práticas, incluindo a base para novos produtos ou serviços.
 
 Por: Rudson R. Alves
 24 de março de 2026
@@ -36,7 +51,7 @@ API em Go para um core bancário simplificado, com foco em:
 
 - autenticação e sessão (Login e senha, token de acesso e refresh, ZTA, ...)
 - cadastro de cliente (Cadastro simples, espandir o onboarding e KYC)
-- aprovação administrativa de usuário (cCriação de conta bancária, expandir para administração de contas, ...)
+- aprovação administrativa de usuário (Criação de conta bancária, expandir para administração de contas, ...)
 - operações financeiras: depósito, saque, transferência, saldo e extrato
   - criação e consulta de contas
   - adicionar suporte a PIX BR e "PIX EU", ...

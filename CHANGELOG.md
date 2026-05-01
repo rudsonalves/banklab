@@ -1,5 +1,117 @@
 # Changelog
 
+## 2026/05/01 — docs/update-11
+
+Refactors application bootstrap, improves infrastructure organization, and enhances internal documentation across authentication, security, and middleware layers. The changes focus on **centralization, clarity, and maintainability**, without altering core business behavior.
+
+### 1. Bootstrap Refactor — Configuration Centralization
+
+* Removed `Config` and `LoadConfig` from `main.go`
+* Introduced `bootstrap.LoadConfig()` as the single source of configuration
+* Enforced **fail-fast validation** for:
+
+  * `APP_TOKEN`
+  * `JWT_SECRET`
+* Consolidates startup concerns into the bootstrap module, aligning with the architectural boundary defined for initialization logic 
+
+### 2. Application Initialization Improvements
+
+* `main.go` now delegates:
+
+  * environment loading
+  * error registration
+  * configuration retrieval
+* Reduces coupling between runtime wiring and infrastructure concerns
+* Improves readability of the application entrypoint
+
+### 3. Documentation — Presentation and Positioning
+
+* Updated API architecture presentation:
+
+  * improved system diagram with clearer module boundaries
+  * explicit separation between **BankLab** and **BankAPI**
+* Added contextual reference to ZTA work (Aurix – Feb 2026)
+* Expanded and refined MIT license justification:
+
+  * clearer positioning for fintech context
+  * explicit trade-off between permissiveness and future flexibility
+
+### 4. Middleware Documentation Enhancements
+
+* Added detailed comments to JWT middleware:
+
+  * `RequireAuth`
+  * `OptionalAuth`
+  * token extraction behavior
+* Clarifies runtime behavior:
+
+  * strict authentication vs opportunistic authentication
+* Improves maintainability and onboarding for future contributors
+
+### 5. Security Infrastructure Documentation
+
+* Added documentation to:
+
+  * `JWTTokenService`
+
+    * access token generation
+    * refresh token generation
+    * parsing logic
+  * `BcryptPasswordHasher`
+
+    * cost handling
+    * hashing and comparison behavior
+* Makes explicit the responsibilities of the infrastructure layer, which is consistent with the architectural separation of concerns 
+
+### 6. Shared Middleware — App Token
+
+* Documented `AppToken` middleware:
+
+  * explains constant-time comparison
+  * clarifies role in onboarding protection
+* Reinforces the boundary between:
+
+  * system entry control (AppToken)
+  * user authentication (JWT) 
+
+### 7. Bootstrap Enhancements
+
+* Added documentation for:
+
+  * `Init()` lifecycle
+  * `RegisterErrors()` centralized mapping
+  * `.env` resolution strategy across multiple paths
+* Strengthens consistency in error handling across the system, aligning with the defined response standard 
+
+### 8. Database Layer Documentation
+
+* Documented `database.NewPool()`:
+
+  * clarifies its role as connection factory
+  * reinforces database as a **first-class architectural component**
+* Aligns with the system’s design principle where the database acts as a consistency boundary 
+
+### 9. Overall Architectural Impact
+
+* No changes to domain rules, use cases, or API contracts
+* Improvements are strictly:
+
+  * structural (bootstrap centralization)
+  * documentary (clarity and intent)
+* Reinforces the modular monolith discipline:
+
+  * clearer boundaries
+  * better separation of responsibilities
+  * improved long-term maintainability
+
+### Conclusion
+
+This commit is a **structural and documentary consolidation step**. It reduces duplication, clarifies responsibilities, and strengthens architectural consistency without introducing behavioral changes.
+
+From an engineering perspective, this is a necessary refinement: the system evolves from “working code” to **explicitly documented and maintainable architecture**, which is critical for scaling both the codebase and collaboration.
+
+
+
 ## 2026/04/30 — docs/update-10
 
 Refactors the account infrastructure layer, introduces structured transaction handling, and expands documentation tooling with PDF generation support. Also improves context propagation and architectural clarity across the codebase.

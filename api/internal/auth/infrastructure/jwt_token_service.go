@@ -28,6 +28,7 @@ type jwtClaims struct {
 
 var _ domain.TokenService = (*JWTTokenService)(nil)
 
+// NewJWTTokenService creates a new JWTTokenService with the given secret and token time-to-live duration.
 func NewJWTTokenService(secret string, ttl time.Duration) *JWTTokenService {
 	return &JWTTokenService{
 		secret: []byte(secret),
@@ -35,6 +36,7 @@ func NewJWTTokenService(secret string, ttl time.Duration) *JWTTokenService {
 	}
 }
 
+// GenerateAccessToken generates a JWT access token with the given claims.
 func (s *JWTTokenService) GenerateAccessToken(claims domain.TokenClaims) (string, error) {
 	now := time.Now().UTC()
 
@@ -64,6 +66,7 @@ func (s *JWTTokenService) GenerateAccessToken(claims domain.TokenClaims) (string
 	return signedToken, nil
 }
 
+// GenerateRefreshToken generates a refresh token for the given user ID.
 func (s *JWTTokenService) GenerateRefreshToken(userID uuid.UUID) (string, error) {
 	nonce := make([]byte, 32)
 	if _, err := rand.Read(nonce); err != nil {
@@ -82,6 +85,7 @@ func (s *JWTTokenService) GenerateRefreshToken(userID uuid.UUID) (string, error)
 	return payloadPart + "." + sigPart, nil
 }
 
+// ParseAccessToken parses the given JWT access token and returns the claims if the token is valid.
 func (s *JWTTokenService) ParseAccessToken(token string) (*domain.TokenClaims, error) {
 	parsedClaims := &jwtClaims{}
 
@@ -129,6 +133,7 @@ func (s *JWTTokenService) ParseAccessToken(token string) (*domain.TokenClaims, e
 	}, nil
 }
 
+// ParseRefreshToken parses the given refresh token and returns the user ID if the token is valid.
 func (s *JWTTokenService) ParseRefreshToken(token string) (uuid.UUID, error) {
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
@@ -162,6 +167,7 @@ func (s *JWTTokenService) ParseRefreshToken(token string) (uuid.UUID, error) {
 	return userID, nil
 }
 
+// signRefreshPayload computes the HMAC-SHA256 signature of the given payload using the provided secret.
 func signRefreshPayload(payload []byte, secret []byte) []byte {
 	mac := hmac.New(sha256.New, secret)
 	_, _ = mac.Write(payload)
