@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026/05/03 — docs/update-12
+
+Introduces a formal definition for project organization in GitHub and refines the system overview diagram to better represent architectural boundaries and composition.
+
+### 1. Contribution Guidelines
+
+* Added `CONTRIBUTING.md` defining the project board structure
+* Established three classification dimensions:
+
+  * **Type**: Feature, Improvement, Bug, Research
+  * **Area**: aligned with system modules (Auth, Account, Ledger, Customer, Mobile, Web, Security, Infra)
+  * **Priority**: High, Medium, Low
+* Clarified that:
+
+  * every issue must include all three dimensions
+  * Research issues precede implementation
+  * Area represents primary ownership, not full impact scope
+* This aligns backlog organization with the modular architecture of the system 
+
+### 2. Documentation — System Overview
+
+* Refactored the main architecture diagram in `00-visao_geral.md`
+* Introduced explicit grouping:
+
+  * **BankLab** as the top-level system boundary
+  * **BankAPI** as an internal subgraph
+* Adjusted flow layout to:
+
+  * emphasize separation between client, API, and database
+  * reflect the modular monolith structure more clearly
+* Improved visual readability by enforcing horizontal flow (`direction LR`)
+
+### 3. Architectural Consistency
+
+* The updated diagram better communicates:
+
+  * the API as a centralized runtime component
+  * the database as a consistency boundary
+  * the client as an external consumer
+* This representation is now more consistent with the documented architecture and execution model, particularly the layered and modular structure described in the implementation and architecture documents 
+
+### Conclusion
+
+This commit strengthens both collaboration and communication aspects of the project by formalizing backlog organization and improving architectural visualization. It reduces ambiguity in issue management while making the system structure clearer for contributors and stakeholders.
+
+
 ## 2026/05/01 — docs/update-11
 
 Refactors application bootstrap, improves infrastructure organization, and enhances internal documentation across authentication, security, and middleware layers. The changes focus on **centralization, clarity, and maintainability**, without altering core business behavior.

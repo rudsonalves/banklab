@@ -6,12 +6,17 @@ A API foi construída em Go e integra um core bancário simplificado dentro do p
 
 ```mermaid
 flowchart LR
-    Client[Mobile / Client<br>Flutter] -->|HTTP| API[Bank API<br>GoLang]
-    API -->|Transactions| DB[(Database<br>PostgreSQL)]
+    subgraph BankLab
+        direction LR
 
-    subgraph Banklab
-        API
-        DB
+        Client[Mobile / Client<br>Flutter] -->|HTTP| API[API<br>GoLang]
+        API -->|Transactions| DB[(Database<br>PostgreSQL)]
+
+        subgraph BankAPI
+            direction LR
+            API
+            DB
+        end
     end
 ```
 
