@@ -126,10 +126,46 @@ make reset
 - The app fails fast if `BASE_URL` is missing or invalid
 - On a physical device, `localhost` points to the device itself, not your machine
 - Keep `APP_MODE` consistent with the chosen environment file
+- Before changing architecture or adding new code, read the closest `AGENT.md`
+  guide for the folder being edited.
+
+Relevant agent guides:
+
+- [mobile/AGENT.md](../AGENT.md): top-level mobile guidance
+- [mobile/lib/core/AGENT.md](../lib/core/AGENT.md): core infrastructure
+- [mobile/lib/data/AGENT.md](../lib/data/AGENT.md): data layer
+- [mobile/lib/data/repositories/AGENT.md](../lib/data/repositories/AGENT.md): repositories
+- [mobile/lib/data/services/apis/AGENT.md](../lib/data/services/apis/AGENT.md): API services and DTOs
+- [mobile/lib/domain/AGENT.md](../lib/domain/AGENT.md): domain models and enums
+- [mobile/lib/domain/usecases/AGENT.md](../lib/domain/usecases/AGENT.md): use cases for complex workflows
+- [mobile/lib/uis/AGENT.md](../lib/uis/AGENT.md): UI layer
+- [mobile/lib/uis/pages/AGENT.md](../lib/uis/pages/AGENT.md): pages and view models
+- [mobile/lib/uis/core/AGENT.md](../lib/uis/core/AGENT.md): shared UI primitives
 
 ---
 
-## 7. Troubleshooting
+## 7. Architecture Notes
+
+Simple user flows currently follow:
+
+```text
+UI -> ViewModel -> Repository -> API/Service -> RestClient -> Dio
+```
+
+When a view model would need to coordinate multiple repositories or a reusable
+multi-step workflow, add a use case under `mobile/lib/domain/usecases` and use:
+
+```text
+UI -> ViewModel -> UseCase -> Repository -> API/Service -> RestClient -> Dio
+```
+
+Keep pages focused on Flutter concerns, view models focused on commands and
+presentation orchestration, repositories focused on app data operations, and API
+services focused on endpoint calls and DTO parsing.
+
+---
+
+## 8. Troubleshooting
 
 ### Startup failure due to missing variable
 

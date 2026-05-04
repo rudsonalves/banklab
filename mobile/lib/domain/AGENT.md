@@ -1,6 +1,19 @@
 # Domain Layer Agent Guide
 
-This directory contains app-facing models and enums shared across layers.
+This directory contains stable app-facing models, enums, and lightweight domain
+types shared across layers.
+
+Use these instructions before creating or editing code under
+`mobile/lib/domain`.
+
+## Role In The Architecture
+
+Current architectural flow:
+
+`UI -> ViewModel -> Repository -> API/Service -> RestClient -> Dio`
+
+The domain layer sits outside transport and presentation details. It defines
+concepts the app can reason about regardless of where the data came from.
 
 Current examples:
 
@@ -11,38 +24,152 @@ Current examples:
 ## Responsibilities
 
 - Represent stable app concepts
-- Provide lightweight parsing or conversion logic when it clearly belongs to the model
-- Hold enums and sealed model variants used across repositories and UI
+- Provide enums and small type hierarchies used across layers
+- Keep app-facing models easy to construct, compare, and reason about
+- Provide lightweight parsing or conversion only when it clearly belongs to the
+  model and matches existing style
 
-## Keep Domain Lightweight
+## Dependency Rules
 
-- Avoid dependencies on Flutter widgets, navigation, Dio, or storage.
-- Keep models easy to construct and reason about.
-- Prefer immutable-like usage patterns, even if the current code does not use formal immutable tooling.
+Domain may depend on:
 
-## What Is Acceptable Here
+- Dart standard library
+- other domain models or enums
+- small, framework-independent helpers from `core` when already established
 
-- Enums
-- Sealed class hierarchies like `AuthUser`
-- `fromMap` factories when they are simple and already part of the current model style
+Domain must not depend on:
 
-## What Should Not Go Here
-
-- HTTP request construction
-- API envelope parsing concerns
+- Flutter widgets or UI packages
+- GoRouter or navigation
+- Dio or HTTP request/response types
+- secure storage
 - dependency injection
-- widget concerns
-- repository orchestration
+- repositories
+- API services
+- backend envelope types
+
+Keep domain as framework-agnostic as practical.
 
 ## Current Model Style
 
-- Models are plain Dart classes.
-- Factories such as `fromMap` are acceptable for direct API payload conversion when the project already uses that style.
-- Keep naming explicit and aligned with backend contracts when appropriate.
+The current domain style uses plain Dart classes and enums:
 
-## When Adding New Models
+- `AuthUser` is a sealed class hierarchy.
+- `LoggedUser` and `NotLoggedUser` model authentication state.
+- `UserProfile` is a plain model with required fields.
+- `UserRole` is an enum with a `byName` factory fallback.
 
-- Put them under a feature-oriented folder if one already exists.
-- Prefer small, focused models over oversized transport-shaped blobs.
-- If a type is only meaningful for one API request/response, it likely belongs in `data/services/apis/.../dtos`, not here.
+Guidelines:
+
+- Prefer final fields.
+- Prefer explicit constructors with required fields.
+- Keep models small and focused.
+- Avoid code generation unless the project explicitly adopts it.
+- Keep naming aligned with app meaning first, backend names second.
+
+## Parsing In Domain Models
+
+Simple `fromMap` factories are acceptable when:
+
+- the project already uses that style for the model
+- the payload maps directly to a stable app concept
+- parsing does not require backend envelope handling
+- the conversion is small and obvious
+
+Do not put these concerns in domain models:
+
+- HTTP status handling
+- request construction
+- API envelope parsing
+- endpoint-specific list parsing
+- transport-only DTO conversion
+- storage reads or writes
+
+If parsing logic is only meaningful for one endpoint payload, put the type under
+`data/services/apis/<feature>/dtos/` instead.
+
+## Domain Models Vs DTOs
+
+Use a domain model when the type represents a stable app concept, for example:
+
+- authenticated user state
+- user profile
+- role or permission concepts
+- app-level account or transaction concepts, if added later
+
+Use a DTO when the type represents a backend contract, for example:
+
+- login request payload
+- registration request payload
+- one endpoint response shape
+- query parameters
+- transport-specific field grouping
+
+Repositories and APIs may map DTOs into domain models when that improves the
+boundary for the UI.
+
+## Auth Domain Conventions
+
+Current auth domain conventions:
+
+- `AuthUser` represents whether the app has a logged-in user.
+- `LoggedUser` contains token-bearing login response data currently needed by
+  the repository.
+- `NotLoggedUser` is the anonymous/default state.
+- `UserProfile` represents profile details fetched after login.
+- `UserRole.byName` maps unknown role strings to `UserRole.none`.
+
+Keep session orchestration out of domain. The repository owns current user
+state, profile caching, and token persistence.
+
+## Folder Placement
+
+Prefer feature-oriented placement for models:
+
+```text
+domain/<feature>/models/<model>.dart
+domain/enums/<enum>.dart
+```
+
+Rules:
+
+- Put broad enums in `domain/enums`.
+- Put feature-specific models under the feature folder.
+- Do not create catch-all files for unrelated models.
+- Avoid moving existing models unless the task explicitly asks for a migration.
+
+## Error Handling
+
+Domain models should not own application error handling.
+
+Guidelines:
+
+- Use simple Dart exceptions only inside parsing when invalid input should fail
+  fast and be caught by the API layer.
+- Convert parsing failures into `AppError` in API services or repositories, not
+  in domain models.
+- Do not import `AppError` into domain models unless there is a deliberate
+  architecture decision to make domain produce app errors.
+
+## Testing
+
+Add or update tests when changing:
+
+- enum parsing/fallback behavior
+- `fromMap` parsing
+- sealed model variants
+- equality or value semantics, if introduced later
+- required field behavior that other layers rely on
+
+Keep tests small and independent from HTTP, storage, and widgets.
+
+## Do Not
+
+- Do not put API request DTOs in domain.
+- Do not parse backend envelopes here.
+- Do not make domain models call repositories or services.
+- Do not add widget, routing, storage, or Dio dependencies.
+- Do not store mutable UI state in domain models.
+- Do not introduce a broad domain/use-case architecture refactor unless the task
+  explicitly asks for it.
 

@@ -1,5 +1,140 @@
 # Changelog
 
+## 2026/05/04 — mobile/docs-01
+
+Introduces a **comprehensive documentation and guidance system for the mobile layer**, consolidating architectural definitions, development rules, and AI-assisted coding guidelines across all layers of the Flutter application.
+
+### 1. Documentation Structure — Expansion and Consolidation
+
+* Expanded `mobile/docs/ARCHITECTURE.md` into a **complete architectural reference**:
+
+  * clarified layer responsibilities (UI, Domain, Data, Core)
+  * introduced explicit flow models for simple and complex workflows
+  * documented dependency graph and injection order
+  * formalized rules for use cases, repositories, and API services
+* Improved readability and structure with:
+
+  * consistent sectioning
+  * clearer separation of responsibilities
+  * explicit conventions for evolution
+
+### 2. Getting Started — Developer Guidance Integration
+
+* Updated `mobile/docs/00-getting_started.md` to include:
+
+  * mandatory reference to `AGENT.md` guides before code changes
+  * direct links to all layer-specific agent documents
+* Added **Architecture Notes section**:
+
+  * defines canonical execution flows:
+
+    * `UI -> ViewModel -> Repository -> API -> RestClient -> Dio`
+    * optional use case insertion for complex workflows
+  * reinforces separation of concerns at runtime
+
+### 3. Agent-Based Development Model (Major Addition)
+
+* Introduced a **full set of `AGENT.md` guides** across the project:
+
+  * `core`, `data`, `domain`, `uis`
+  * sub-guides for repositories, APIs, pages, and shared UI
+* These guides define:
+
+  * strict dependency boundaries
+  * responsibilities per layer
+  * rules for error handling (`Result`, `AppError`)
+  * constraints for Flutter, Dio, and storage usage
+* Establishes a **controlled environment for AI-assisted development**, reducing architectural drift
+
+### 4. Core Layer — Formalization
+
+* Rewrote `mobile/lib/core/AGENT.md` with:
+
+  * explicit role as cross-cutting infrastructure layer
+  * detailed breakdown of:
+
+    * HTTP abstraction (`RestClient`)
+    * interceptors (auth flow, refresh logic)
+    * dependency injection rules
+  * strict prohibition of dependencies on higher layers
+* Formalizes core as **infrastructure boundary**, not a feature layer
+
+### 5. Data Layer — Clear Separation of Concerns
+
+* Reworked `mobile/lib/data/AGENT.md` and added:
+
+  * dedicated repository guide
+  * dedicated API service guide
+* Key improvements:
+
+  * repositories defined as **app-facing orchestration boundary**
+  * APIs defined as **transport-level boundary**
+  * DTO placement and ownership clarified
+* Enforces rule:
+
+  * UI never calls APIs directly
+  * repositories abstract all data operations
+
+### 6. Domain Layer — Stabilization Rules
+
+* Expanded `mobile/lib/domain/AGENT.md`:
+
+  * defines domain as **framework-agnostic layer**
+  * separates domain models from DTOs
+  * clarifies when parsing belongs in domain vs API
+* Added `domain/usecases/AGENT.md`:
+
+  * introduces use cases as **controlled orchestration layer**
+  * defines when to introduce them vs keeping logic in view models
+
+### 7. UI Layer — Strict Presentation Boundaries
+
+* Rewrote `mobile/lib/uis/AGENT.md` and added:
+
+  * `pages/AGENT.md`
+  * `core/AGENT.md` (shared UI primitives)
+* Key rules enforced:
+
+  * UI owns Flutter concerns only
+  * view models coordinate commands, not infrastructure
+  * repositories/use cases are the only data entry points
+* Formalizes:
+
+  * command-based async handling
+  * navigation responsibilities
+  * widget lifecycle ownership
+
+### 8. Architectural Consistency Model
+
+* The documentation now defines a **cohesive end-to-end model**:
+
+  * layered architecture with strict boundaries
+  * predictable data flow
+  * explicit orchestration points (ViewModel vs UseCase)
+* Aligns mobile architecture with backend principles such as:
+
+  * separation of concerns
+  * deterministic flows
+  * controlled evolution paths 
+
+### 9. Development Impact
+
+* Establishes:
+
+  * a **single source of truth** for mobile architecture
+  * enforceable rules for contributors and AI tools
+  * reduced ambiguity in where logic should live
+* Improves:
+
+  * maintainability
+  * onboarding clarity
+  * consistency across features
+
+### Conclusion
+
+This commit transitions the mobile project from **implicit architectural conventions to an explicit, enforceable system**, introducing a structured documentation and agent-guided model that significantly reduces ambiguity and increases long-term scalability.
+
+
 ## 2026/05/03 — docs/update-12
 
 Introduces a formal definition for project organization in GitHub and refines the system overview diagram to better represent architectural boundaries and composition.
