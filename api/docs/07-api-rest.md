@@ -1,5 +1,45 @@
 # REST API Documentation - Bank API
 
+## Table of Contents
+
+- [REST API Documentation - Bank API](#rest-api-documentation---bank-api)
+  - [Table of Contents](#table-of-contents)
+  - [1. Overview](#1-overview)
+  - [2. Response Envelope](#2-response-envelope)
+    - [2.1 Error Payload Examples (Standard)](#21-error-payload-examples-standard)
+  - [3. Authentication Endpoints](#3-authentication-endpoints)
+    - [3.1 Register User](#31-register-user)
+    - [3.2 Login User](#32-login-user)
+    - [3.3 Refresh Access Token](#33-refresh-access-token)
+    - [3.4 Get Current User](#34-get-current-user)
+    - [3.5 Approve User (Admin Only)](#35-approve-user-admin-only)
+  - [4. Account Endpoints](#4-account-endpoints)
+    - [4.1 List Accounts](#41-list-accounts)
+    - [4.2 Create Account](#42-create-account)
+    - [4.3 Deposit](#43-deposit)
+    - [4.4 Withdraw](#44-withdraw)
+    - [4.5 Transfer](#45-transfer)
+    - [4.6 Get Balance](#46-get-balance)
+    - [4.7 Get Statement](#47-get-statement)
+  - [5. Customer Endpoints](#5-customer-endpoints)
+    - [5.1 Get My Customer Profile](#51-get-my-customer-profile)
+  - [6. Authorization Model](#6-authorization-model)
+  - [7. Error Code Reference](#7-error-code-reference)
+  - [8. Domain Notes for API Consumers](#8-domain-notes-for-api-consumers)
+  - [9. Error Scenarios by Endpoint (with Payload)](#9-error-scenarios-by-endpoint-with-payload)
+    - [9.1 POST /auth/register](#91-post-authregister)
+    - [9.2 POST /auth/login](#92-post-authlogin)
+    - [9.3 POST /auth/refresh](#93-post-authrefresh)
+    - [9.4 GET /auth/me](#94-get-authme)
+    - [9.5 GET /accounts](#95-get-accounts)
+    - [9.6 POST /accounts](#96-post-accounts)
+    - [9.7 POST /accounts/{id}/deposit](#97-post-accountsiddeposit)
+    - [9.8 POST /accounts/{id}/withdraw](#98-post-accountsidwithdraw)
+    - [9.9 POST /accounts/transfer](#99-post-accountstransfer)
+    - [9.10 GET /accounts/{id}/balance](#910-get-accountsidbalance)
+    - [9.11 GET /accounts/{id}/statement](#911-get-accountsidstatement)
+    - [9.12 GET /customers/me](#912-get-customersme)
+
 ## 1. Overview
 
 This document describes the HTTP REST contract currently implemented by the service.
