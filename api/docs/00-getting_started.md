@@ -18,7 +18,22 @@ The database is treated as the **source of truth**, and must always be initializ
 
 ### 2.1 Environment variables
 
-Before running the API, create the environment file:
+Before running the API, initialize environment files with:
+
+```bash
+make env-init
+```
+
+This command creates the files below only if they do not exist (existing files are preserved):
+
+```bash
+./api/.env
+./mobile/dev.env
+./mobile/staging.env
+./mobile/prod.env
+```
+
+If you prefer manual setup, create the API environment file:
 
 ```bash
 touch api/.env
@@ -89,6 +104,20 @@ Start the API server:
 
 ```bash
 make run
+```
+
+Or run only the API process:
+
+```bash
+make api-run
+```
+
+`make api-run` automatically executes `make mobile-sync-ip` first, updating `BASE_URL` in mobile `.env` files with the current host LAN IP.
+
+To stop the API process listening on port 8080:
+
+```bash
+make api-stop
 ```
 
 The server will be available at:
@@ -166,3 +195,9 @@ missing required environment variable: JWT_SECRET
 ```
 
 Ensure the file `api/.env` exists and is correctly populated.
+
+If files are missing, regenerate them safely with:
+
+```bash
+make env-init
+```

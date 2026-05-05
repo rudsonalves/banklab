@@ -1,7 +1,7 @@
 .PHONY: help \
 	build test \
-	api-build api-migrate-up api-migrate-down api-test \
-	mobile-test mobile-test-unit \
+	api-build api-migrate-up api-migrate-down api-test api-stop env-init \
+	mobile-test mobile-test-unit mobile-sync-ip \
 	commit diff push pull gitlog
 
 # =========================
@@ -69,6 +69,9 @@ db-wait: ## Wait for the database to be ready
 bootstrap: setup ## Alias semântico
 dev: run ## Alias para desenvolvimento
 
+env-init: ## Create API and Mobile .env files if they do not exist
+	bash infra/scripts/ensure-env-files.sh
+
 # =========================
 # Monorepo
 # =========================
@@ -85,8 +88,17 @@ api-build: ## Build API binary into api/build/
 api-test: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
-api-run: ## Run API server
+api-run: mobile-sync-ip ## Run API server
 	cd api && go run ./cmd/api
+
+api-stop: ## Stop API server running on port 8080
+	@pid=$$(lsof -ti tcp:8080); \
+	if [ -z "$$pid" ]; then \
+		echo "API is not running on port 8080"; \
+	else \
+		echo "Stopping API process $$pid"; \
+		kill $$pid; \
+	fi
 
 # =========================
 # Database Migrations
@@ -108,6 +120,9 @@ mobile-test: ## Run all mobile tests
 
 mobile-test-unit: ## Run mobile unit tests
 	cd mobile && flutter test test/core
+
+mobile-sync-ip: ## Update mobile .env BASE_URL with current host LAN IP
+	bash infra/scripts/update-mobile-env-ip.sh
 
 tests: ## Run all tests
 	make api-test mobile-test
@@ -142,6 +157,9 @@ pull: ## Pull current branch or specified branch (make pull branch=xxx)
 
 gitlog: ## Show git log in one line format
 	git log --oneline
+
+pullmain: ## Pull latest changes from main branch
+	git checkout main && git pull origin main
 
 # =========================
 # Flutter specific
