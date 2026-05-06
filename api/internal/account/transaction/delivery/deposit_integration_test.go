@@ -13,9 +13,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	transactionApplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	transactionApplication "github.com/seu-usuario/bank-api/internal/account/transaction/application"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
@@ -34,7 +34,7 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 
 	repo := accountInfrastructure.New(pool)
 	depositUC := transactionApplication.NewDeposit(repo)
-	handler := New(nil, nil, depositUC, nil, nil, nil, nil)
+	handler := New(depositUC, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /accounts/{id}/deposit", func(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +119,6 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
 		)`,
-		// Repair constraint if a previous test run created it with a broken regex.
 		`DO $$ BEGIN
 			ALTER TABLE customers DROP CONSTRAINT IF EXISTS chk_cpf_format;
 			ALTER TABLE customers ADD CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$');
@@ -155,7 +154,6 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		}
 	}
 
-	// Keep compatibility with pre-existing test databases created before the latest ledger schema.
 	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS related_account_id UUID`); err != nil {
 		t.Fatalf("failed to ensure transactions.related_account_id column: %v", err)
 	}

@@ -14,10 +14,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	accountapplication "github.com/seu-usuario/bank-api/internal/account/application/account"
-	transactionapplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	accountdelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
 	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
 	accountinfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	transactionapplication "github.com/seu-usuario/bank-api/internal/account/transaction/application"
+	transactiondelivery "github.com/seu-usuario/bank-api/internal/account/transaction/delivery"
 	adminapplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	admindelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authapplication "github.com/seu-usuario/bank-api/internal/auth/application"
@@ -239,7 +240,8 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 
 	depositUC := transactionapplication.NewDeposit(accountRepo)
 	createAccountUC := accountapplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
-	accountHandler := accountdelivery.New(listAccountsUC, createAccountUC, depositUC, nil, nil, nil, nil)
+	accountHandler := accountdelivery.New(listAccountsUC, createAccountUC, nil, nil)
+	transactionHandler := transactiondelivery.New(depositUC, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", authHandler.Register)
@@ -248,7 +250,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	mux.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
 	mux.Handle("POST /admin/users/{id}/approve", authMiddleware.RequireAuth(http.HandlerFunc(adminHandler.ApproveUser)))
 	mux.Handle("GET /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.ListAccounts)))
-	mux.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))
+	mux.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(transactionHandler.Deposit)))
 
 	server := httptest.NewServer(mux)
 

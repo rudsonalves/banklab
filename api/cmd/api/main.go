@@ -7,9 +7,10 @@ import (
 
 	accountApplication "github.com/seu-usuario/bank-api/internal/account/application/account"
 	statementApplication "github.com/seu-usuario/bank-api/internal/account/application/statement"
-	transactionApplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
 	accountDelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	transactionApplication "github.com/seu-usuario/bank-api/internal/account/transaction/application"
+	transactionDelivery "github.com/seu-usuario/bank-api/internal/account/transaction/delivery"
 	adminApplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	adminDelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authApplication "github.com/seu-usuario/bank-api/internal/auth/application"
@@ -75,7 +76,8 @@ func main() {
 	// ======================
 	// Handlers
 	// ======================
-	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, depositUC, withdrawUC, transferUC, statementUC, balanceUC)
+	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, statementUC, balanceUC)
+	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
@@ -111,11 +113,11 @@ func main() {
 
 	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
 	apiRouter.Handle("POST /accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccount)))
-	apiRouter.Handle("POST /accounts/{id}/deposit", withAuth(http.HandlerFunc(accountHandler.Deposit)))
-	apiRouter.Handle("POST /accounts/{id}/withdraw", withAuth(http.HandlerFunc(accountHandler.Withdraw)))
+	apiRouter.Handle("POST /accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))
+	apiRouter.Handle("POST /accounts/{id}/withdraw", withAuth(http.HandlerFunc(transactionHandler.Withdraw)))
 	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(accountHandler.Statement)))
 	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
-	apiRouter.Handle("POST /accounts/transfer", withAuth(http.HandlerFunc(accountHandler.Transfer)))
+	apiRouter.Handle("POST /accounts/transfer", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
 
 	// ======================
 	// Main Router

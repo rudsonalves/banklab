@@ -1,5 +1,113 @@
 # Changelog
 
+## 2026/05/06 - api/split-account-01
+
+Refactor transaction operations into a dedicated transaction module and delivery layer.
+
+This change separates deposit, withdraw, and transfer responsibilities from the account delivery layer, introducing a clearer modular boundary for transaction-related operations. The refactor improves package organization, aligns the codebase with the modular monolith architecture, and prepares the project for future expansion of transaction-specific behaviors.
+
+### Main Changes
+
+1. Transaction module extraction
+
+   * Moved transaction application use cases from:
+
+     * `internal/account/application/transaction`
+   * To:
+
+     * `internal/account/transaction/application`
+   * Preserved all existing business logic and tests during the move.
+   * Updated imports throughout the project to reflect the new module structure.
+
+2. Dedicated transaction delivery layer
+
+   * Added:
+
+     * `internal/account/transaction/delivery`
+   * Implemented a dedicated `Handler` responsible for:
+
+     * `Deposit`
+     * `Withdraw`
+     * `Transfer`
+   * Moved request DTOs into the transaction module:
+
+     * `DepositRequest`
+     * `WithdrawRequest`
+     * `TransferRequest`
+   * Moved transaction response DTOs into the transaction module:
+
+     * `TransferData`
+
+3. Account handler simplification
+
+   * Removed transaction-related responsibilities from:
+
+     * `internal/account/delivery/account_handler.go`
+   * The account handler now focuses only on:
+
+     * account creation
+     * account listing
+     * balance retrieval
+     * statement retrieval
+   * Removed transaction use case dependencies from:
+
+     * `internal/account/delivery/handler.go`
+   * Simplified `accountDelivery.New(...)` constructor signature.
+
+4. Application wiring update
+
+   * Updated `cmd/api/main.go`:
+
+     * introduced `transactionHandler`
+     * split route ownership between account and transaction handlers
+   * Transaction routes now use:
+
+     * `transactionHandler.Deposit`
+     * `transactionHandler.Withdraw`
+     * `transactionHandler.Transfer`
+
+5. Test migration and isolation
+
+   * Moved transaction handler unit tests into the new transaction delivery package.
+   * Added:
+
+     * transaction-specific mocks
+     * auth test helpers
+     * test bootstrap setup
+   * Migrated deposit integration tests into:
+
+     * `internal/account/transaction/delivery`
+   * Updated integration server wiring in auth authorization integration tests.
+
+6. Cleanup and modular consistency
+
+   * Removed obsolete transaction DTOs and interfaces from the account delivery package.
+   * Reduced coupling between account delivery and transaction orchestration.
+   * Improved alignment with the documented layered architecture and module boundaries.
+
+### Architectural Impact
+
+This refactor strengthens the modular monolith organization by distinguishing:
+
+* account lifecycle responsibilities
+* transaction execution responsibilities
+
+The new structure better reflects the financial domain model, where transactions are a distinct operational concern with their own request flows, validation rules, and delivery behavior.
+
+The result is a cleaner separation of concerns, improved maintainability, and a more scalable foundation for future transaction features such as:
+
+* transaction-specific middleware
+* auditing
+* fraud analysis
+* transactional security policies
+* asynchronous integrations
+* richer transfer orchestration
+
+### Result
+
+The API now exposes transaction operations through a dedicated transaction delivery module while preserving the existing HTTP contract and transactional behavior. The refactor reduces accidental coupling inside the account module and improves long-term maintainability of the financial operation flows.
+
+
 ## 2026/05/06 - api/docs-04
 
 Add comprehensive GoDoc documentation across account, auth, admin, customer, infrastructure, and shared layers
