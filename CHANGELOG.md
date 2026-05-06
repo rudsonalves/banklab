@@ -1,5 +1,116 @@
 # Changelog
 
+## 2026/05/06 - mobile/docs-03
+
+Add mobile architecture instruction system and Postman integration documentation
+
+This commit introduces a complete instruction-based guidance structure for the Flutter mobile application, expands the mobile architecture documentation, and adds a reusable Postman setup for API validation and onboarding workflows.
+
+1. Added layered mobile instruction system under `.github/instructions`
+
+   * Created top-level mobile architecture guidance with:
+
+     * dependency direction rules
+     * architectural boundaries
+     * routing and state management conventions
+     * dependency injection guidance
+     * Result/AppError usage patterns
+   * Added specialized instruction files for:
+
+     * core infrastructure layer
+     * data layer
+     * repositories
+     * API services
+     * domain layer
+     * use cases
+     * UI layer
+     * pages/view models
+     * shared UI core components
+   * Standardized architecture expectations around:
+
+     * `UI -> ViewModel -> Repository -> API/Service -> RestClient -> Dio`
+     * constructor injection
+     * Result-based error handling
+     * separation of UI, orchestration, and transport concerns
+   * Documented:
+
+     * folder placement rules
+     * DTO responsibilities
+     * AppError mapping
+     * Command usage
+     * route lifecycle handling
+     * repository ownership rules
+     * caching and session ownership
+     * shared UI promotion rules
+   * Added `applyTo` patterns for coding-agent-aware contextual guidance.
+
+2. Expanded `mobile/docs/ARCHITECTURE.md`
+
+   * Added a full table of contents for navigation.
+   * Added the new “Copilot Instructions Mirror (.github/instructions)” section.
+   * Documented:
+
+     * relationship between `AGENT.md` files and `.github/instructions`
+     * maintenance synchronization expectations
+     * layer-specific instruction file references
+   * Improved discoverability of architecture and coding conventions.
+
+3. Added Postman collection and environment support
+
+   * Added `tools/postman/Banklab_API.postman_collection.json`.
+   * Added `tools/postman/Environment.postman_environment.json`.
+   * Added `tools/postman/README.md`.
+   * Included ready-to-use requests for:
+
+     * register
+     * login
+     * refresh
+     * auth/me
+     * admin approval
+   * Added environment variables for:
+
+     * `base_url`
+     * `app_token`
+     * `access_token`
+     * `refresh_token`
+     * `account_id`
+     * `account_id_2`
+     * `id`
+   * Standardized onboarding/testing flow for local API validation.
+
+4. Updated API REST documentation
+
+   * Added a new “Postman Setup” section to `api/docs/07-api-rest.md`.
+   * Documented:
+
+     * repository Postman files
+     * environment variables
+     * import/configuration flow
+     * recommended request execution order
+   * Added operational notes for:
+
+     * `X-App-Token`
+     * Bearer authentication
+     * token refresh behavior
+
+5. Documentation alignment improvements
+
+   * Reinforced consistency between:
+
+     * architecture documentation
+     * coding-agent instructions
+     * mobile layer responsibilities
+     * API onboarding workflow
+   * Improved onboarding support for:
+
+     * contributors
+     * coding agents
+     * API consumers
+     * mobile/frontend development workflows
+
+This update significantly improves project maintainability, architectural clarity, and contributor onboarding while establishing a consistent instruction-driven workflow for the Flutter mobile application and API integration ecosystem.
+
+
 ## 2026/05/04 — mobile/docs-01
 
 Introduces a **comprehensive documentation and guidance system for the mobile layer**, consolidating architectural definitions, development rules, and AI-assisted coding guidelines across all layers of the Flutter application.

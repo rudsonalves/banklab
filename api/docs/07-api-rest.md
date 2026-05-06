@@ -39,6 +39,11 @@
     - [9.10 GET /accounts/{id}/balance](#910-get-accountsidbalance)
     - [9.11 GET /accounts/{id}/statement](#911-get-accountsidstatement)
     - [9.12 GET /customers/me](#912-get-customersme)
+  - [10. Postman Setup](#10-postman-setup)
+    - [10.1 Files in Repository](#101-files-in-repository)
+    - [10.2 Environment Variables](#102-environment-variables)
+    - [10.3 How to Import and Configure](#103-how-to-import-and-configure)
+    - [10.4 Recommended Execution Flow](#104-recommended-execution-flow)
 
 ## 1. Overview
 
@@ -1051,3 +1056,49 @@ Scenario: customer not found
   }
 }
 ```
+
+## 10. Postman Setup
+
+The repository includes a ready-to-use Postman collection and environment under `tools/postman`.
+
+### 10.1 Files in Repository
+
+- `tools/postman/Banklab_API.postman_collection.json`
+- `tools/postman/Environment.postman_environment.json`
+- `tools/postman/README.md`
+
+### 10.2 Environment Variables
+
+The environment file defines the following variables:
+
+- `base_url`: API base URL (default: `http://localhost:8080`)
+- `app_token`: application token used by auth entry routes (`/auth/register` and `/auth/login`)
+- `access_token`: JWT used for protected routes
+- `refresh_token`: opaque refresh token used by `/auth/refresh`
+- `account_id`: account UUID for account operations
+- `account_id_2`: second account UUID (for transfer scenarios)
+- `id`: user UUID used by admin approval route (`/admin/users/{id}/approve`)
+
+### 10.3 How to Import and Configure
+
+1. Import `tools/postman/Banklab_API.postman_collection.json` into Postman.
+2. Import `tools/postman/Environment.postman_environment.json` into Postman.
+3. Select the imported environment in Postman.
+4. Adjust `base_url` if your API is not running on `http://localhost:8080`.
+5. Confirm `app_token` matches the value configured in your local API environment.
+6. Run auth requests to obtain tokens and update `access_token` / `refresh_token`.
+
+### 10.4 Recommended Execution Flow
+
+Use this flow to bootstrap test data and credentials quickly:
+
+1. `Auth/Register`
+2. `Auth/Login` (copy `access_token` and `refresh_token` from response)
+3. `Auth/Me` (validate JWT)
+4. `Account/User/Approve` (admin only, using `id`)
+5. Account endpoints using `account_id` and `account_id_2` as needed
+
+Notes:
+- Keep `X-App-Token` for register/login requests as documented in this file.
+- For protected routes, send `Authorization: Bearer <access_token>`.
+- If a request returns `401 INVALID_TOKEN`, run `Auth/Refresh` and update tokens.
