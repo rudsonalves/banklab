@@ -8,8 +8,8 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	accountapp "github.com/seu-usuario/bank-api/internal/account/application/account"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	accountapp "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
+	"github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	accountapplication "github.com/seu-usuario/bank-api/internal/account/application/account"
-	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
+	accountapplication "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
+	accountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 	customerdomain "github.com/seu-usuario/bank-api/internal/customer/domain"
 )

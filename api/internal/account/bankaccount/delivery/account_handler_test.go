@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	accountapp "github.com/seu-usuario/bank-api/internal/account/application/account"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	accountapp "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
+	"github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 )
 
 type createAccountUseCaseMock struct {

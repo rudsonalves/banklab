@@ -2,7 +2,7 @@ package application
 
 import (
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	"github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
@@ -34,4 +34,15 @@ func CanAccessAccount(user *authdomain.AuthenticatedUser, account *domain.Accoun
 	}
 
 	return CanAccessCustomer(user, account.CustomerID)
+}
+
+// CanListOwnAccounts reports whether the authenticated user is allowed to list
+// their own accounts. Only customers with an associated CustomerID may do so;
+// admin users must use a scoped admin endpoint.
+func CanListOwnAccounts(user *authdomain.AuthenticatedUser) bool {
+	if user == nil {
+		return false
+	}
+
+	return user.CustomerID != nil
 }

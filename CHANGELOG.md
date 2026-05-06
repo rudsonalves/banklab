@@ -1,6 +1,161 @@
 # Changelog
 
-2026/05/06 - api/split-account-02
+## 2026/05/06 - api/split-account-03
+
+Refactor the account module structure by introducing the `bankaccount` bounded package separation and isolating transactional repository responsibilities from account lifecycle operations.
+
+This change reorganizes the account-related codebase to better distinguish:
+
+* account lifecycle management
+* transactional balance operations
+* delivery/application/domain boundaries
+
+The refactor reinforces the modular monolith direction already established in the architecture and prepares the project for stronger feature isolation inside the `account` module.
+
+1. Updated runtime wiring and dependency composition
+
+   * Refactored imports in `api/cmd/api/main.go`
+   * Migrated account lifecycle dependencies to:
+
+     * `internal/account/bankaccount/application`
+     * `internal/account/bankaccount/delivery`
+     * `internal/account/bankaccount/infrastructure`
+   * Introduced a dedicated transaction repository instance:
+
+     * `transactionAccountRepo := accountTransactionInfrastructure.New(db)`
+   * Updated transaction use cases (`Deposit`, `Withdraw`, `Transfer`) to use the transaction-oriented repository instead of the generic account repository
+
+2. Removed obsolete duplicated application-layer files
+
+   * Removed old duplicated files from:
+
+     * `internal/account/application`
+   * Deleted:
+
+     * `access_policy.go`
+     * `access_policy_test.go`
+     * `auth_test.go`
+   * Consolidated responsibility into the new `bankaccount` structure
+
+3. Introduced the new `bankaccount` module structure
+
+   * Migrated account lifecycle components to:
+
+     * `internal/account/bankaccount/application`
+     * `internal/account/bankaccount/delivery`
+     * `internal/account/bankaccount/domain`
+     * `internal/account/bankaccount/infrastructure`
+   * Renamed and relocated:
+
+     * access policies
+     * branch policy
+     * create account use case
+     * balance use case
+     * account listing use case
+     * HTTP handlers
+     * request/response DTOs
+     * tests
+
+4. Updated imports to reflect the new domain boundary
+
+   * Replaced imports from:
+
+     * `internal/account/domain`
+   * With:
+
+     * `internal/account/bankaccount/domain`
+   * Applied across:
+
+     * application layer
+     * delivery layer
+     * admin approval flow
+     * auth integration tests
+
+5. Added a dedicated `bankaccount/domain` compatibility layer
+
+   * Created:
+
+     * `bankaccount/domain/account.go`
+     * `bankaccount/domain/repository.go`
+   * Introduced type aliases for:
+
+     * `Account`
+     * `Transaction`
+     * `AccountStatus`
+     * `TransactionType`
+     * `Tx`
+   * Re-exported:
+
+     * account status constants
+     * domain errors
+     * `NewAccount`
+   * Added the new repository contract abstraction:
+
+     * `Repository`
+     * `AccountRepository`
+
+6. Added a dedicated bank account repository implementation
+
+   * Implemented:
+
+     * `internal/account/bankaccount/infrastructure/repository.go`
+   * Added support for:
+
+     * account creation
+     * account lookup
+     * customer account listing
+     * existence checks
+     * account number generation
+   * Introduced a generic `executor` abstraction supporting:
+
+     * pooled connections
+     * transactional execution compatibility
+   * Improved repository separation between:
+
+     * account state persistence
+     * financial transaction orchestration
+
+7. Updated admin approval flow dependencies
+
+   * Refactored `ApproveUser` use case imports
+   * Updated tests to use the new `bankaccount` package hierarchy
+   * Preserved atomic account creation behavior during approval flow
+
+8. Updated auth integration setup
+
+   * Adjusted integration server wiring to use:
+
+     * `bankaccount` repository for account lifecycle
+     * transaction repository for balance-changing operations
+   * Improved dependency clarity in integration tests
+
+9. Architectural impact
+
+   * Strengthens feature-oriented modularization inside `internal/account`
+   * Separates:
+
+     * account aggregate responsibilities
+     * transaction processing responsibilities
+   * Reduces accidental coupling between:
+
+     * account lifecycle operations
+     * ledger/balance mutation logic
+   * Moves the project closer to:
+
+     * clearer bounded contexts
+     * more explicit repository contracts
+     * safer future extraction paths if the module evolves further
+
+10. Test and compatibility considerations
+
+* Preserved existing behavior through type aliasing compatibility
+* Updated affected tests and imports
+* Maintained runtime compatibility while reorganizing package ownership
+
+This refactor significantly improves the internal organization of the account module while preserving the current runtime behavior and transactional guarantees of the banking operations.
+
+
+## 2026/05/06 - api/split-account-02
 
 Refactor statement feature into an isolated account statement module.
 

@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	accountApplication "github.com/seu-usuario/bank-api/internal/account/application/account"
-	accountDelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
-	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	accountApplication "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
+	accountDelivery "github.com/seu-usuario/bank-api/internal/account/bankaccount/delivery"
+	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/bankaccount/infrastructure"
+	accountTransactionInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
 	statementApplication "github.com/seu-usuario/bank-api/internal/account/statement/application"
 	statementDelivery "github.com/seu-usuario/bank-api/internal/account/statement/delivery"
 	statementInfrastructure "github.com/seu-usuario/bank-api/internal/account/statement/infrastructure"
@@ -43,6 +44,7 @@ func main() {
 	// ======================
 	customerRepo := customerInfrastructure.New(db)
 	accountRepo := accountInfrastructure.New(db)
+	transactionAccountRepo := accountTransactionInfrastructure.New(db)
 	statementRepo := statementInfrastructure.New(db)
 
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
@@ -62,9 +64,9 @@ func main() {
 
 	listAccountsUC := accountApplication.NewListAccounts(accountRepo)
 	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
-	depositUC := transactionApplication.NewDeposit(accountRepo)
-	withdrawUC := transactionApplication.NewWithdraw(accountRepo)
-	transferUC := transactionApplication.NewTransfer(accountRepo)
+	depositUC := transactionApplication.NewDeposit(transactionAccountRepo)
+	withdrawUC := transactionApplication.NewWithdraw(transactionAccountRepo)
+	transferUC := transactionApplication.NewTransfer(transactionAccountRepo)
 	statementUC := statementApplication.NewGetStatement(statementRepo)
 	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 

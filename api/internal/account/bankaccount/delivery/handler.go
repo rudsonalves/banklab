@@ -3,8 +3,8 @@ package delivery
 import (
 	"context"
 
-	accountapp "github.com/seu-usuario/bank-api/internal/account/application/account"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	accountapp "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
+	"github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
