@@ -13,11 +13,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	accountapplication "github.com/seu-usuario/bank-api/internal/account/application/account"
-	transactionapplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
-	accountdelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
-	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
-	accountinfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	accountapplication "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
+	accountdelivery "github.com/seu-usuario/bank-api/internal/account/bankaccount/delivery"
+	accountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
+	accountinfrastructure "github.com/seu-usuario/bank-api/internal/account/bankaccount/infrastructure"
+	transactionapplication "github.com/seu-usuario/bank-api/internal/account/transaction/application"
+	transactiondelivery "github.com/seu-usuario/bank-api/internal/account/transaction/delivery"
+	transactioninfrastructure "github.com/seu-usuario/bank-api/internal/account/transaction/infrastructure"
 	adminapplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	admindelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authapplication "github.com/seu-usuario/bank-api/internal/auth/application"
@@ -233,13 +235,15 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	branchPolicy := accountapplication.NewDefaultBranchPolicy()
 	approveUserUC := adminapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 	listAccountsUC := accountapplication.NewListAccounts(accountRepo)
+	transactionRepo := transactioninfrastructure.New(pool)
 	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	adminHandler := admindelivery.New(approveUserUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
-	depositUC := transactionapplication.NewDeposit(accountRepo)
+	depositUC := transactionapplication.NewDeposit(transactionRepo)
 	createAccountUC := accountapplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
-	accountHandler := accountdelivery.New(listAccountsUC, createAccountUC, depositUC, nil, nil, nil, nil)
+	accountHandler := accountdelivery.New(listAccountsUC, createAccountUC, nil)
+	transactionHandler := transactiondelivery.New(depositUC, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", authHandler.Register)
@@ -248,7 +252,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	mux.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
 	mux.Handle("POST /admin/users/{id}/approve", authMiddleware.RequireAuth(http.HandlerFunc(adminHandler.ApproveUser)))
 	mux.Handle("GET /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.ListAccounts)))
-	mux.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.Deposit)))
+	mux.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(transactionHandler.Deposit)))
 
 	server := httptest.NewServer(mux)
 

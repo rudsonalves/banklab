@@ -5,11 +5,15 @@ import (
 	"net/http"
 	"time"
 
-	accountApplication "github.com/seu-usuario/bank-api/internal/account/application/account"
-	statementApplication "github.com/seu-usuario/bank-api/internal/account/application/statement"
-	transactionApplication "github.com/seu-usuario/bank-api/internal/account/application/transaction"
-	accountDelivery "github.com/seu-usuario/bank-api/internal/account/delivery"
-	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
+	accountApplication "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
+	accountDelivery "github.com/seu-usuario/bank-api/internal/account/bankaccount/delivery"
+	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/bankaccount/infrastructure"
+	statementApplication "github.com/seu-usuario/bank-api/internal/account/statement/application"
+	statementDelivery "github.com/seu-usuario/bank-api/internal/account/statement/delivery"
+	statementInfrastructure "github.com/seu-usuario/bank-api/internal/account/statement/infrastructure"
+	transactionApplication "github.com/seu-usuario/bank-api/internal/account/transaction/application"
+	transactionDelivery "github.com/seu-usuario/bank-api/internal/account/transaction/delivery"
+	transactionInfrastructure "github.com/seu-usuario/bank-api/internal/account/transaction/infrastructure"
 	adminApplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	adminDelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authApplication "github.com/seu-usuario/bank-api/internal/auth/application"
@@ -40,6 +44,8 @@ func main() {
 	// ======================
 	customerRepo := customerInfrastructure.New(db)
 	accountRepo := accountInfrastructure.New(db)
+	transactionRepo := transactionInfrastructure.New(db)
+	statementRepo := statementInfrastructure.New(db)
 
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
 	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
@@ -58,10 +64,10 @@ func main() {
 
 	listAccountsUC := accountApplication.NewListAccounts(accountRepo)
 	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
-	depositUC := transactionApplication.NewDeposit(accountRepo)
-	withdrawUC := transactionApplication.NewWithdraw(accountRepo)
-	transferUC := transactionApplication.NewTransfer(accountRepo)
-	statementUC := statementApplication.NewGetStatement(accountRepo)
+	depositUC := transactionApplication.NewDeposit(transactionRepo)
+	withdrawUC := transactionApplication.NewWithdraw(transactionRepo)
+	transferUC := transactionApplication.NewTransfer(transactionRepo)
+	statementUC := statementApplication.NewGetStatement(statementRepo)
 	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 
 	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
@@ -75,7 +81,9 @@ func main() {
 	// ======================
 	// Handlers
 	// ======================
-	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, depositUC, withdrawUC, transferUC, statementUC, balanceUC)
+	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC)
+	statementHandler := statementDelivery.New(statementUC)
+	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
@@ -111,11 +119,11 @@ func main() {
 
 	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
 	apiRouter.Handle("POST /accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccount)))
-	apiRouter.Handle("POST /accounts/{id}/deposit", withAuth(http.HandlerFunc(accountHandler.Deposit)))
-	apiRouter.Handle("POST /accounts/{id}/withdraw", withAuth(http.HandlerFunc(accountHandler.Withdraw)))
-	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(accountHandler.Statement)))
+	apiRouter.Handle("POST /accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))
+	apiRouter.Handle("POST /accounts/{id}/withdraw", withAuth(http.HandlerFunc(transactionHandler.Withdraw)))
+	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(statementHandler.Statement)))
 	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
-	apiRouter.Handle("POST /accounts/transfer", withAuth(http.HandlerFunc(accountHandler.Transfer)))
+	apiRouter.Handle("POST /accounts/transfer", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
 
 	// ======================
 	// Main Router
