@@ -31,18 +31,6 @@ func (m *accountRepositoryMock) ListByCustomerID(ctx context.Context, customerID
 	return nil, nil
 }
 
-func (m *accountRepositoryMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
-	return nil
-}
-
-func (m *accountRepositoryMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
-	return nil, nil
-}
-
-func (m *accountRepositoryMock) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
-	return nil, nil
-}
-
 func (m *accountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	m.existsByCustomerIDCalls++
 	return false, nil
@@ -55,38 +43,6 @@ func (m *accountRepositoryMock) NextAccountNumber(ctx context.Context) (string, 
 
 func (m *accountRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	return nil, nil
-}
-
-func (m *accountRepositoryMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	return nil, nil
-}
-
-func (m *accountRepositoryMock) GetTransactions(
-	ctx context.Context,
-	accountID uuid.UUID,
-	limit int,
-	cursorTime *time.Time,
-	cursorID *uuid.UUID,
-	from *time.Time,
-	to *time.Time,
-) ([]domain.Transaction, error) {
-	return nil, nil
-}
-
-func (m *accountRepositoryMock) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return 0, nil
-}
-
-func (m *accountRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return 0, nil
-}
-
-func (m *accountRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error) {
-	return nil, nil
-}
-
-func (m *accountRepositoryMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
-	return errors.New("transactions are not used in this test")
 }
 
 type customerRepositoryMock struct {

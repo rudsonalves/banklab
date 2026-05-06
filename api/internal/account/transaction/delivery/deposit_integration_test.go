@@ -13,9 +13,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
-	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
 	transactionApplication "github.com/seu-usuario/bank-api/internal/account/transaction/application"
+	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
+	transactionInfrastructure "github.com/seu-usuario/bank-api/internal/account/transaction/infrastructure"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 )
@@ -32,7 +32,7 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 	seedDepositTestData(t, ctx, pool, customerID, accountID, 100, domain.AccountActive)
 	defer cleanupDepositTestData(t, ctx, pool, customerID, accountID)
 
-	repo := accountInfrastructure.New(pool)
+	repo := transactionInfrastructure.New(pool)
 	depositUC := transactionApplication.NewDeposit(repo)
 	handler := New(depositUC, nil, nil)
 

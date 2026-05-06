@@ -7,16 +7,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	bankaccountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
+	transactiondomain "github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 )
 
 type statementRepositoryMock struct {
 	getByIDCalls           int
 	getByIDErr             error
-	account                *domain.Account
+	account                *bankaccountdomain.Account
 	getTransactionsCalls   int
 	getTransactionsErr     error
-	getTransactionsResult  []domain.Transaction
+	getTransactionsResult  []transactiondomain.Transaction
 	lastGetTransactionsArg struct {
 		accountID  uuid.UUID
 		limit      int
@@ -27,35 +28,7 @@ type statementRepositoryMock struct {
 	}
 }
 
-func (m *statementRepositoryMock) Create(ctx context.Context, account *domain.Account) error {
-	return nil
-}
-
-func (m *statementRepositoryMock) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]domain.Account, error) {
-	return nil, nil
-}
-
-func (m *statementRepositoryMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
-	return nil
-}
-
-func (m *statementRepositoryMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
-	return nil, nil
-}
-
-func (m *statementRepositoryMock) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
-	return nil, nil
-}
-
-func (m *statementRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
-	return false, nil
-}
-
-func (m *statementRepositoryMock) NextAccountNumber(ctx context.Context) (string, error) {
-	return "", nil
-}
-
-func (m *statementRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+func (m *statementRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*bankaccountdomain.Account, error) {
 	m.getByIDCalls++
 	if m.getByIDErr != nil {
 		return nil, m.getByIDErr
@@ -64,11 +37,7 @@ func (m *statementRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*d
 		return m.account, nil
 	}
 
-	return &domain.Account{ID: id}, nil
-}
-
-func (m *statementRepositoryMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
-	return nil, nil
+	return &bankaccountdomain.Account{ID: id}, nil
 }
 
 func (m *statementRepositoryMock) GetTransactions(
@@ -79,7 +48,7 @@ func (m *statementRepositoryMock) GetTransactions(
 	cursorID *uuid.UUID,
 	from *time.Time,
 	to *time.Time,
-) ([]domain.Transaction, error) {
+) ([]transactiondomain.Transaction, error) {
 	m.getTransactionsCalls++
 	m.lastGetTransactionsArg.accountID = accountID
 	m.lastGetTransactionsArg.limit = limit
@@ -95,30 +64,14 @@ func (m *statementRepositoryMock) GetTransactions(
 	return m.getTransactionsResult, nil
 }
 
-func (m *statementRepositoryMock) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return 0, nil
-}
-
-func (m *statementRepositoryMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return 0, nil
-}
-
-func (m *statementRepositoryMock) BeginTx(ctx context.Context) (domain.Tx, error) {
-	return nil, nil
-}
-
-func (m *statementRepositoryMock) WithTransaction(ctx context.Context, fn func(tx domain.Tx) error) error {
-	return errors.New("transactions are not used in this test")
-}
-
 func TestGetStatement_Execute_InvalidAccountID(t *testing.T) {
 	repo := &statementRepositoryMock{}
 	uc := NewGetStatement(repo)
 
 	result, err := uc.Execute(context.Background(), GetStatementInput{})
 
-	if !errors.Is(err, domain.ErrInvalidData) {
-		t.Fatalf("expected error %v, got %v", domain.ErrInvalidData, err)
+	if !errors.Is(err, bankaccountdomain.ErrInvalidData) {
+		t.Fatalf("expected error %v, got %v", bankaccountdomain.ErrInvalidData, err)
 	}
 
 	if result != nil {
@@ -135,7 +88,7 @@ func TestGetStatement_Execute_DefaultAndCappedLimit(t *testing.T) {
 	uc := NewGetStatement(repo)
 	accountID := uuid.New()
 	customerID := uuid.New()
-	repo.account = &domain.Account{ID: accountID, CustomerID: customerID}
+	repo.account = &bankaccountdomain.Account{ID: accountID, CustomerID: customerID}
 
 	_, err := uc.Execute(context.Background(), GetStatementInput{User: testCustomerUser(customerID), AccountID: accountID})
 	if err != nil {
@@ -157,13 +110,13 @@ func TestGetStatement_Execute_DefaultAndCappedLimit(t *testing.T) {
 }
 
 func TestGetStatement_Execute_AccountNotFound(t *testing.T) {
-	repo := &statementRepositoryMock{getByIDErr: domain.ErrAccountNotFound}
+	repo := &statementRepositoryMock{getByIDErr: bankaccountdomain.ErrAccountNotFound}
 	uc := NewGetStatement(repo)
 
 	result, err := uc.Execute(context.Background(), GetStatementInput{AccountID: uuid.New()})
 
-	if !errors.Is(err, domain.ErrAccountNotFound) {
-		t.Fatalf("expected error %v, got %v", domain.ErrAccountNotFound, err)
+	if !errors.Is(err, bankaccountdomain.ErrAccountNotFound) {
+		t.Fatalf("expected error %v, got %v", bankaccountdomain.ErrAccountNotFound, err)
 	}
 
 	if result != nil {
@@ -176,16 +129,16 @@ func TestGetStatement_Execute_AccountNotFound(t *testing.T) {
 }
 
 func TestGetStatement_Execute_GetTransactionsAccountNotFoundPropagates(t *testing.T) {
-	repo := &statementRepositoryMock{getTransactionsErr: domain.ErrAccountNotFound}
+	repo := &statementRepositoryMock{getTransactionsErr: bankaccountdomain.ErrAccountNotFound}
 	uc := NewGetStatement(repo)
 	accountID := uuid.New()
 	customerID := uuid.New()
-	repo.account = &domain.Account{ID: accountID, CustomerID: customerID}
+	repo.account = &bankaccountdomain.Account{ID: accountID, CustomerID: customerID}
 
 	result, err := uc.Execute(context.Background(), GetStatementInput{User: testCustomerUser(customerID), AccountID: accountID})
 
-	if !errors.Is(err, domain.ErrAccountNotFound) {
-		t.Fatalf("expected error %v, got %v", domain.ErrAccountNotFound, err)
+	if !errors.Is(err, bankaccountdomain.ErrAccountNotFound) {
+		t.Fatalf("expected error %v, got %v", bankaccountdomain.ErrAccountNotFound, err)
 	}
 
 	if result != nil {
@@ -204,12 +157,12 @@ func TestGetStatement_Execute_Success(t *testing.T) {
 	to := now
 
 	repo := &statementRepositoryMock{
-		account: &domain.Account{ID: accountID, CustomerID: customerID},
-		getTransactionsResult: []domain.Transaction{
+		account: &bankaccountdomain.Account{ID: accountID, CustomerID: customerID},
+		getTransactionsResult: []transactiondomain.Transaction{
 			{
 				ID:           txID,
 				AccountID:    accountID,
-				Type:         domain.TransactionTransferIn,
+				Type:         transactiondomain.TransactionTransferIn,
 				Amount:       250,
 				BalanceAfter: 1250,
 				ReferenceID:  &refID,
@@ -268,7 +221,7 @@ func TestGetStatement_Execute_Success(t *testing.T) {
 func TestGetStatement_Execute_ForbiddenForDifferentCustomer(t *testing.T) {
 	accountID := uuid.New()
 	repo := &statementRepositoryMock{
-		account: &domain.Account{ID: accountID, CustomerID: uuid.New()},
+		account: &bankaccountdomain.Account{ID: accountID, CustomerID: uuid.New()},
 	}
 	uc := NewGetStatement(repo)
 
@@ -277,8 +230,8 @@ func TestGetStatement_Execute_ForbiddenForDifferentCustomer(t *testing.T) {
 		AccountID: accountID,
 	})
 
-	if !errors.Is(err, domain.ErrForbidden) {
-		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
+	if !errors.Is(err, bankaccountdomain.ErrForbidden) {
+		t.Fatalf("expected error %v, got %v", bankaccountdomain.ErrForbidden, err)
 	}
 
 	if result != nil {

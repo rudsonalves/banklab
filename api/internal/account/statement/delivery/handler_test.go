@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	"github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	statementapp "github.com/seu-usuario/bank-api/internal/account/statement/application"
+	transactiondomain "github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 )
 
 type statementUseCaseMock struct {
@@ -148,7 +149,7 @@ func TestHandler_Statement_Success(t *testing.T) {
 				Items: []statementapp.StatementItem{
 					{
 						TransactionID: transactionID.String(),
-						Type:          string(domain.TransactionDeposit),
+						Type:          string(transactiondomain.TransactionDeposit),
 						Amount:        100,
 						BalanceAfter:  500,
 						ReferenceID:   &referenceID,

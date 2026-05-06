@@ -10,8 +10,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
+	bankaccountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	statementdomain "github.com/seu-usuario/bank-api/internal/account/statement/domain"
+	transactiondomain "github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 )
 
 type executor interface {
@@ -30,8 +31,8 @@ func New(db *pgxpool.Pool) *Repository {
 	return &Repository{exec: db}
 }
 
-func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*accountdomain.Account, error) {
-	var account accountdomain.Account
+func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*bankaccountdomain.Account, error) {
+	var account bankaccountdomain.Account
 
 	query := `
 		SELECT id, customer_id, number, branch, balance, status, created_at
@@ -50,7 +51,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*accountdomain.
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, accountdomain.ErrAccountNotFound
+			return nil, bankaccountdomain.ErrAccountNotFound
 		}
 		return nil, fmt.Errorf("get account by id: %w", err)
 	}
@@ -66,7 +67,7 @@ func (r *Repository) GetTransactions(
 	cursorID *uuid.UUID,
 	from *time.Time,
 	to *time.Time,
-) ([]accountdomain.Transaction, error) {
+) ([]transactiondomain.Transaction, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
@@ -97,9 +98,9 @@ func (r *Repository) GetTransactions(
 	}
 	defer rows.Close()
 
-	transactions := make([]accountdomain.Transaction, 0, limit)
+	transactions := make([]transactiondomain.Transaction, 0, limit)
 	for rows.Next() {
-		var transaction accountdomain.Transaction
+		var transaction transactiondomain.Transaction
 		if err := rows.Scan(
 			&transaction.ID,
 			&transaction.AccountID,

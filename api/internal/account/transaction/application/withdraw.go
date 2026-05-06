@@ -6,17 +6,17 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type Withdraw struct {
-	accountRepo domain.AccountRepository
+	accountRepo domain.Repository
 }
 
 // NewWithdraw creates a new instance of the Withdraw use case with
 // the provided account repository.
-func NewWithdraw(accountRepo domain.AccountRepository) *Withdraw {
+func NewWithdraw(accountRepo domain.Repository) *Withdraw {
 	return &Withdraw{accountRepo: accountRepo}
 }
 

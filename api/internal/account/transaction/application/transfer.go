@@ -7,18 +7,18 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 var errTransferDuplicateConflict = errors.New("transfer duplicate conflict")
 
 type Transfer struct {
-	accountRepo domain.AccountRepository
+	accountRepo domain.Repository
 }
 
 // NewTransfer creates a new instance of the Transfer use case with the provided account repository.
-func NewTransfer(accountRepo domain.AccountRepository) *Transfer {
+func NewTransfer(accountRepo domain.Repository) *Transfer {
 	return &Transfer{accountRepo: accountRepo}
 }
 

@@ -1,67 +1,83 @@
-package application
+package accounterrors
 
 import (
 	"net/http"
 
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	bankaccountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
+	transactiondomain "github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 )
 
-// RegisterErrors registers the domain errors of the account application
-// with the shared error registry. This allows for consistent error handling
-// and mapping to HTTP status codes.
 func RegisterErrors() {
 	sharederrors.RegisterDomainError(
-		domain.ErrInvalidData,
+		bankaccountdomain.ErrInvalidData,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+	sharederrors.RegisterDomainError(
+		transactiondomain.ErrInvalidData,
 		sharederrors.ErrCodeInvalidData,
 		"Invalid data",
 		http.StatusBadRequest,
 	)
 
 	sharederrors.RegisterDomainError(
-		domain.ErrInvalidAmount,
+		transactiondomain.ErrInvalidAmount,
 		sharederrors.ErrCodeInvalidAmount,
 		"Invalid amount",
 		http.StatusBadRequest,
 	)
 
 	sharederrors.RegisterDomainError(
-		domain.ErrAccountNotFound,
+		bankaccountdomain.ErrAccountNotFound,
+		sharederrors.ErrCodeAccountNotFound,
+		"Account not found",
+		http.StatusNotFound,
+	)
+	sharederrors.RegisterDomainError(
+		transactiondomain.ErrAccountNotFound,
 		sharederrors.ErrCodeAccountNotFound,
 		"Account not found",
 		http.StatusNotFound,
 	)
 
 	sharederrors.RegisterDomainError(
-		domain.ErrCustomerNotFound,
+		bankaccountdomain.ErrCustomerNotFound,
 		sharederrors.ErrCodeCustomerNotFound,
 		"Customer not found",
 		http.StatusNotFound,
 	)
 
 	sharederrors.RegisterDomainError(
-		domain.ErrInsufficientBalance,
+		transactiondomain.ErrInsufficientBalance,
 		sharederrors.ErrCodeInsufficientFunds,
 		"Insufficient balance",
 		http.StatusUnprocessableEntity,
 	)
 
 	sharederrors.RegisterDomainError(
-		domain.ErrAccountInactive,
+		transactiondomain.ErrAccountInactive,
 		sharederrors.ErrCodeAccountInactive,
 		"Account is not active",
 		http.StatusUnprocessableEntity,
 	)
 
 	sharederrors.RegisterDomainError(
-		domain.ErrSameAccountTransfer,
+		transactiondomain.ErrSameAccountTransfer,
 		sharederrors.ErrCodeSameAccount,
 		"Source and destination accounts must be different",
 		http.StatusBadRequest,
 	)
 
 	sharederrors.RegisterDomainError(
-		domain.ErrForbidden,
+		bankaccountdomain.ErrForbidden,
+		sharederrors.ErrCodeForbidden,
+		"Access denied",
+		http.StatusForbidden,
+	)
+	sharederrors.RegisterDomainError(
+		transactiondomain.ErrForbidden,
 		sharederrors.ErrCodeForbidden,
 		"Access denied",
 		http.StatusForbidden,

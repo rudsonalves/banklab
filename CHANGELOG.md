@@ -1,5 +1,136 @@
 # Changelog
 
+## 2026/05/06 - api/split-account-04
+
+Refactor the account module by separating bank account and transaction responsibilities into distinct bounded domains and infrastructure layers.
+
+This change removes the old shared `internal/account/domain` abstraction and establishes clearer ownership boundaries between:
+
+* `bankaccount`
+* `transaction`
+* `statement`
+
+The refactor also reduces interface coupling, simplifies repository contracts, and aligns the implementation more closely with the modular monolith architecture.
+
+### Main Changes
+
+1. Account Domain Separation
+
+   * Moved account entity ownership to `internal/account/bankaccount/domain`
+   * Moved transaction entity ownership to `internal/account/transaction/domain`
+   * Removed the old shared `internal/account/domain` package entirely
+   * Split domain errors between bank account and transaction contexts
+   * Preserved business invariants while reducing cross-module coupling
+
+2. Transaction Module Isolation
+
+   * Introduced dedicated transaction repository contracts:
+
+     * `Repository`
+     * `Tx`
+   * Created standalone transaction infrastructure layer:
+
+     * `transaction/infrastructure/base_repository.go`
+     * `transaction/infrastructure/repository.go`
+   * Migrated:
+
+     * balance updates
+     * row locking
+     * idempotency handling
+     * transaction persistence
+     * transaction orchestration
+   * Isolated transfer consistency logic inside the transaction module
+
+3. Infrastructure Refactor
+
+   * Removed old generic account infrastructure:
+
+     * `base_repository.go`
+     * `repository.go`
+     * `tx_repository.go`
+   * Updated runtime wiring in `cmd/api/main.go`
+   * Replaced shared repository initialization with dedicated transaction repository initialization
+   * Simplified repository responsibilities per module
+
+4. Error Registry Reorganization
+
+   * Moved account error registry to:
+
+     * `internal/account/errors/registry.go`
+   * Added independent registration for:
+
+     * bank account errors
+     * transaction errors
+   * Updated bootstrap initialization to use the new registry package
+
+5. Statement Module Decoupling
+
+   * Updated statement application and infrastructure layers to:
+
+     * consume bank account entities from `bankaccount/domain`
+     * consume ledger transactions from `transaction/domain`
+   * Adjusted repository contracts accordingly
+   * Preserved cursor pagination and statement semantics
+
+6. Test Cleanup and Simplification
+
+   * Removed obsolete mock implementations from:
+
+     * account tests
+     * statement tests
+     * admin tests
+   * Eliminated unnecessary transaction-related methods from bank account mocks
+   * Reduced unused imports and dead test code
+   * Updated tests to use the new domain package boundaries
+
+7. Runtime and Dependency Wiring
+
+   * Updated all transaction use cases:
+
+     * Deposit
+     * Withdraw
+     * Transfer
+   * Rewired use cases to depend on:
+
+     * `transaction/domain.Repository`
+   * Updated integration tests and delivery handlers to use the new infrastructure path
+
+8. Architectural Improvements
+
+   * Reinforced modular monolith boundaries
+   * Reduced accidental coupling between read/write concerns
+   * Clarified ownership of:
+
+     * account lifecycle
+     * transaction ledger
+     * statement queries
+   * Improved long-term maintainability for future evolution of:
+
+     * ledger consistency
+     * transactional security
+     * financial operations
+
+### Removed Components
+
+The following legacy structures were removed:
+
+* `internal/account/domain`
+* old shared account repository contracts
+* old generic account transaction infrastructure
+* duplicated repository responsibilities
+* obsolete transaction-related test scaffolding
+
+### Result
+
+The account subsystem is now structured around explicit module boundaries:
+
+* `bankaccount` handles account lifecycle and ownership
+* `transaction` handles financial mutations and ledger consistency
+* `statement` handles read/query behavior
+
+This significantly improves separation of concerns while preserving the existing transactional guarantees and consistency model already defined by the system architecture.
+
+
 ## 2026/05/06 - api/split-account-03
 
 Refactor the account module structure by introducing the `bankaccount` bounded package separation and isolating transactional repository responsibilities from account lifecycle operations.

@@ -17,9 +17,9 @@ import (
 	accountdelivery "github.com/seu-usuario/bank-api/internal/account/bankaccount/delivery"
 	accountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	accountinfrastructure "github.com/seu-usuario/bank-api/internal/account/bankaccount/infrastructure"
-	accounttransactioninfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
 	transactionapplication "github.com/seu-usuario/bank-api/internal/account/transaction/application"
 	transactiondelivery "github.com/seu-usuario/bank-api/internal/account/transaction/delivery"
+	transactioninfrastructure "github.com/seu-usuario/bank-api/internal/account/transaction/infrastructure"
 	adminapplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	admindelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authapplication "github.com/seu-usuario/bank-api/internal/auth/application"
@@ -235,12 +235,12 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	branchPolicy := accountapplication.NewDefaultBranchPolicy()
 	approveUserUC := adminapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 	listAccountsUC := accountapplication.NewListAccounts(accountRepo)
-	transactionAccountRepo := accounttransactioninfrastructure.New(pool)
+	transactionRepo := transactioninfrastructure.New(pool)
 	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	adminHandler := admindelivery.New(approveUserUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
-	depositUC := transactionapplication.NewDeposit(transactionAccountRepo)
+	depositUC := transactionapplication.NewDeposit(transactionRepo)
 	createAccountUC := accountapplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
 	accountHandler := accountdelivery.New(listAccountsUC, createAccountUC, nil)
 	transactionHandler := transactiondelivery.New(depositUC, nil, nil)

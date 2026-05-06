@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
 	transactionapp "github.com/seu-usuario/bank-api/internal/account/transaction/application"
+	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"

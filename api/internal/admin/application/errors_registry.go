@@ -3,7 +3,7 @@ package application
 import (
 	"net/http"
 
-	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
+	accountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 )

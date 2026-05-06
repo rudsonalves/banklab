@@ -1,7 +1,7 @@
 package bootstrap
 
 import (
-	accountapplication "github.com/seu-usuario/bank-api/internal/account/application"
+	accounterrors "github.com/seu-usuario/bank-api/internal/account/errors"
 	adminapplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	authapplication "github.com/seu-usuario/bank-api/internal/auth/application"
 	customerapplication "github.com/seu-usuario/bank-api/internal/customer/application"
@@ -14,7 +14,7 @@ import (
 func RegisterErrors() {
 	// Register application errors
 	// 1. Generic errors
-	accountapplication.RegisterErrors()
+	accounterrors.RegisterErrors()
 	adminapplication.RegisterErrors()
 	// 2. Domain-specific errors
 	customerapplication.RegisterErrors()

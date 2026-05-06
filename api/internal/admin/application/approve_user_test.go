@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	accountapplication "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
@@ -88,52 +87,8 @@ func (m *approveAccountRepoMock) GetByID(ctx context.Context, id uuid.UUID) (*ac
 	return nil, nil
 }
 
-func (m *approveAccountRepoMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*accountdomain.Account, error) {
-	return nil, nil
-}
-
-func (m *approveAccountRepoMock) GetTransactions(
-	ctx context.Context,
-	accountID uuid.UUID,
-	limit int,
-	cursorTime *time.Time,
-	cursorID *uuid.UUID,
-	from *time.Time,
-	to *time.Time,
-) ([]accountdomain.Transaction, error) {
-	return nil, nil
-}
-
-func (m *approveAccountRepoMock) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return 0, nil
-}
-
-func (m *approveAccountRepoMock) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
-	return 0, nil
-}
-
-func (m *approveAccountRepoMock) CreateTransaction(ctx context.Context, tx *accountdomain.Transaction) error {
-	return nil
-}
-
-func (m *approveAccountRepoMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*accountdomain.Transaction, error) {
-	return nil, nil
-}
-
-func (m *approveAccountRepoMock) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName accountdomain.TransactionType) (*accountdomain.Transaction, error) {
-	return nil, nil
-}
-
 func (m *approveAccountRepoMock) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]accountdomain.Account, error) {
 	return nil, nil
-}
-
-func (m *approveAccountRepoMock) BeginTx(ctx context.Context) (accountdomain.Tx, error) {
-	return nil, nil
-}
-
-func (m *approveAccountRepoMock) WithTransaction(ctx context.Context, fn func(tx accountdomain.Tx) error) error {
-	return nil
 }
 
 func newPendingUser() *domain.User {

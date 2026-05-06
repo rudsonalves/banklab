@@ -6,15 +6,15 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
 type Deposit struct {
-	accountRepo domain.AccountRepository
+	accountRepo domain.Repository
 }
 
-func NewDeposit(accountRepo domain.AccountRepository) *Deposit {
+func NewDeposit(accountRepo domain.Repository) *Deposit {
 	return &Deposit{accountRepo: accountRepo}
 }
 

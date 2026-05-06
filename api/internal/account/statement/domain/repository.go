@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	accountdomain "github.com/seu-usuario/bank-api/internal/account/domain"
+	bankaccountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
+	transactiondomain "github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 )
 
 type Repository interface {
-	GetByID(ctx context.Context, id uuid.UUID) (*accountdomain.Account, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*bankaccountdomain.Account, error)
 	GetTransactions(
 		ctx context.Context,
 		accountID uuid.UUID,
@@ -18,5 +19,5 @@ type Repository interface {
 		cursorID *uuid.UUID,
 		from *time.Time,
 		to *time.Time,
-	) ([]accountdomain.Transaction, error)
+	) ([]transactiondomain.Transaction, error)
 }

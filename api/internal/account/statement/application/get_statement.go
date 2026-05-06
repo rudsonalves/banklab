@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
+	bankaccountdomain "github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
 	statementdomain "github.com/seu-usuario/bank-api/internal/account/statement/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
@@ -66,15 +66,15 @@ func NewGetStatement(repo statementdomain.Repository) *GetStatement {
 // containing the transaction history and pagination information.
 func (uc *GetStatement) Execute(ctx context.Context, input GetStatementInput) (*Statement, error) {
 	if input.AccountID == uuid.Nil {
-		return nil, domain.ErrInvalidData
+		return nil, bankaccountdomain.ErrInvalidData
 	}
 
 	if input.From != nil && input.To != nil && input.From.After(*input.To) {
-		return nil, domain.ErrInvalidData
+		return nil, bankaccountdomain.ErrInvalidData
 	}
 
 	if (input.Cursor == nil) != (input.CursorID == nil) {
-		return nil, domain.ErrInvalidData
+		return nil, bankaccountdomain.ErrInvalidData
 	}
 
 	limit := input.Limit
@@ -82,7 +82,7 @@ func (uc *GetStatement) Execute(ctx context.Context, input GetStatementInput) (*
 		limit = defaultStatementLimit
 	}
 	if limit < 0 {
-		return nil, domain.ErrInvalidData
+		return nil, bankaccountdomain.ErrInvalidData
 	}
 	if limit > maxStatementLimit {
 		limit = maxStatementLimit
@@ -94,7 +94,7 @@ func (uc *GetStatement) Execute(ctx context.Context, input GetStatementInput) (*
 	}
 
 	if !CanAccessAccount(input.User, account) {
-		return nil, domain.ErrForbidden
+		return nil, bankaccountdomain.ErrForbidden
 	}
 
 	transactions, err := uc.repo.GetTransactions(
@@ -107,7 +107,7 @@ func (uc *GetStatement) Execute(ctx context.Context, input GetStatementInput) (*
 		input.To,
 	)
 	if err != nil {
-		if errors.Is(err, domain.ErrAccountNotFound) {
+		if errors.Is(err, bankaccountdomain.ErrAccountNotFound) {
 			return nil, err
 		}
 		return nil, fmt.Errorf("get account transactions: %w", err)

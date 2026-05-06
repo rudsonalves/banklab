@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/seu-usuario/bank-api/internal/account/domain"
 	transactionapp "github.com/seu-usuario/bank-api/internal/account/transaction/application"
+	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 )
 
 type depositUseCaseMock struct {

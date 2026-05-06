@@ -8,12 +8,12 @@ import (
 	accountApplication "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
 	accountDelivery "github.com/seu-usuario/bank-api/internal/account/bankaccount/delivery"
 	accountInfrastructure "github.com/seu-usuario/bank-api/internal/account/bankaccount/infrastructure"
-	accountTransactionInfrastructure "github.com/seu-usuario/bank-api/internal/account/infrastructure"
 	statementApplication "github.com/seu-usuario/bank-api/internal/account/statement/application"
 	statementDelivery "github.com/seu-usuario/bank-api/internal/account/statement/delivery"
 	statementInfrastructure "github.com/seu-usuario/bank-api/internal/account/statement/infrastructure"
 	transactionApplication "github.com/seu-usuario/bank-api/internal/account/transaction/application"
 	transactionDelivery "github.com/seu-usuario/bank-api/internal/account/transaction/delivery"
+	transactionInfrastructure "github.com/seu-usuario/bank-api/internal/account/transaction/infrastructure"
 	adminApplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	adminDelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authApplication "github.com/seu-usuario/bank-api/internal/auth/application"
@@ -44,7 +44,7 @@ func main() {
 	// ======================
 	customerRepo := customerInfrastructure.New(db)
 	accountRepo := accountInfrastructure.New(db)
-	transactionAccountRepo := accountTransactionInfrastructure.New(db)
+	transactionRepo := transactionInfrastructure.New(db)
 	statementRepo := statementInfrastructure.New(db)
 
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
@@ -64,9 +64,9 @@ func main() {
 
 	listAccountsUC := accountApplication.NewListAccounts(accountRepo)
 	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
-	depositUC := transactionApplication.NewDeposit(transactionAccountRepo)
-	withdrawUC := transactionApplication.NewWithdraw(transactionAccountRepo)
-	transferUC := transactionApplication.NewTransfer(transactionAccountRepo)
+	depositUC := transactionApplication.NewDeposit(transactionRepo)
+	withdrawUC := transactionApplication.NewWithdraw(transactionRepo)
+	transferUC := transactionApplication.NewTransfer(transactionRepo)
 	statementUC := statementApplication.NewGetStatement(statementRepo)
 	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 
