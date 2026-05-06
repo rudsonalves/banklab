@@ -1,5 +1,28 @@
 # Mobile Architecture
 
+## Table of Contents
+
+- [Mobile Architecture](#mobile-architecture)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Architectural Principles](#architectural-principles)
+  - [Project Structure](#project-structure)
+  - [Agent Documentation](#agent-documentation)
+  - [Copilot Instructions Mirror (.github/instructions)](#copilot-instructions-mirror-githubinstructions)
+  - [Dependency Graph](#dependency-graph)
+  - [Flow Models](#flow-models)
+  - [Layer Responsibilities](#layer-responsibilities)
+    - [Core Layer](#core-layer)
+    - [Data Layer](#data-layer)
+    - [Domain Layer](#domain-layer)
+    - [UI Layer](#ui-layer)
+  - [Request And Authentication Flow](#request-and-authentication-flow)
+  - [Routing Model](#routing-model)
+  - [State And Error Model](#state-and-error-model)
+  - [Configuration Model](#configuration-model)
+  - [Known Constraints And Future Improvements](#known-constraints-and-future-improvements)
+  - [Suggested Evolution Path](#suggested-evolution-path)
+
 ## Overview
 
 The BankFlow mobile app follows a layered architecture organized by
@@ -61,6 +84,32 @@ code changes:
 - [mobile/lib/uis/AGENT.md](../../mobile/lib/uis/AGENT.md): UI layer
 - [mobile/lib/uis/pages/AGENT.md](../../mobile/lib/uis/pages/AGENT.md): pages and view models
 - [mobile/lib/uis/core/AGENT.md](../../mobile/lib/uis/core/AGENT.md): shared UI primitives
+
+## Copilot Instructions Mirror (.github/instructions)
+
+The project also includes instruction files under
+[.github/instructions](../../.github/instructions) that mirror the guidance
+from the mobile `AGENT.md` files. These files are used by coding agents to
+apply folder-specific rules automatically via `applyTo` patterns.
+
+Current mobile instruction files:
+
+- [mobile-overview.instructions.md](../../.github/instructions/mobile-overview.instructions.md): top-level rules for all files under `mobile/**`
+- [mobile-core.instructions.md](../../.github/instructions/mobile-core.instructions.md): core infrastructure under `mobile/lib/core/**`
+- [mobile-data.instructions.md](../../.github/instructions/mobile-data.instructions.md): data layer under `mobile/lib/data/**`
+- [mobile-api-services.instructions.md](../../.github/instructions/mobile-api-services.instructions.md): API services and DTO rules under `mobile/lib/data/services/apis/**`
+- [mobile-repositories.instructions.md](../../.github/instructions/mobile-repositories.instructions.md): repository rules under `mobile/lib/data/repositories/**`
+- [mobile-domain.instructions.md](../../.github/instructions/mobile-domain.instructions.md): domain model rules under `mobile/lib/domain/**`
+- [mobile-usecases.instructions.md](../../.github/instructions/mobile-usecases.instructions.md): use case rules under `mobile/lib/domain/usecases/**`
+- [mobile-uis.instructions.md](../../.github/instructions/mobile-uis.instructions.md): UI layer rules under `mobile/lib/uis/**`
+- [mobile-pages.instructions.md](../../.github/instructions/mobile-pages.instructions.md): page and view model rules under `mobile/lib/uis/pages/**`
+- [mobile-uis-core.instructions.md](../../.github/instructions/mobile-uis-core.instructions.md): shared UI primitives under `mobile/lib/uis/core/**`
+
+Maintenance note:
+
+- When updating any mobile `AGENT.md`, update the corresponding instruction
+  file in `.github/instructions` to keep both sources aligned.
+- Keep `applyTo` patterns specific to avoid leaking rules between layers.
 
 ## Dependency Graph
 
