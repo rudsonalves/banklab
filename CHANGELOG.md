@@ -1,5 +1,119 @@
 # Changelog
 
+## 2026/05/06 - api/transfer-by-account-number-01
+
+Refactor transfer identification to use `(branch, account_number)` instead of account UUIDs and align repository, database, and API contracts with the new transfer model.
+
+### Documentation Updates
+
+1. Updated REST API documentation (`api/docs/07-api-rest.md`)
+
+   * Replaced transfer payload fields from `from_account_id` / `to_account_id` to:
+
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * Documented that transfers are currently internal-only.
+   * Clarified that account resolution is performed through `(branch, account_number)`.
+   * Updated idempotency scope to:
+
+     * `(from_branch, from_account_number, idempotency_key)`
+   * Adjusted transfer response examples to expose branch and account number instead of UUIDs.
+   * Refined `INVALID_DATA` semantics for malformed branch/account information.
+   * Improved ownership and authorization documentation for admin behavior and customer-scoped account listing.
+   * Standardized unexpected query parameter errors from `INVALID_DATA` to `INVALID_REQUEST`.
+
+### Domain and Repository Changes
+
+2. Extended transaction repository contract (`api/internal/account/transaction/domain/domain.go`)
+
+   * Added:
+
+     * `GetByBranchAndNumberForUpdate(ctx, branch, number)`
+   * Enables transactional account resolution using business identifiers instead of UUIDs.
+
+3. Updated PostgreSQL repository implementation
+
+   * Added `GetByBranchAndNumberForUpdate` to:
+
+     * `base_repository.go`
+     * `repository.go`
+   * Implemented row locking with:
+
+     * `SELECT ... FOR UPDATE`
+   * Added proper error mapping to `ErrAccountNotFound`.
+
+4. Improved infrastructure documentation/comments
+
+   * Added explanatory comments for:
+
+     * account locking
+     * balance updates
+     * transaction persistence
+     * idempotency replay lookups
+     * helper methods
+
+### Transfer Delivery Layer Preparation
+
+5. Added new transfer request/response transport models
+
+   * `NewTransferRequest`
+   * `NewTransferData`
+   * Introduced branch/account-number-based payload structures while preserving existing transfer DTOs during migration.
+
+6. Improved delivery handler readability
+
+   * Added documentation comment to `requireUser`.
+
+### Database Migration
+
+7. Added migration to support branch-scoped account uniqueness
+
+   * New migration:
+
+     * `000002_account_number_key.up.sql`
+     * `000002_account_number_key.down.sql`
+   * Replaced:
+
+     * `UNIQUE(number)`
+   * With:
+
+     * `UNIQUE(branch, number)`
+
+This enables reuse of account numbers across different branches and aligns the schema with the new transfer lookup strategy.
+
+### Test Adjustments
+
+8. Updated transaction-related mocks/tests
+
+   * Added `GetByBranchAndNumberForUpdate` support to:
+
+     * deposit mocks
+     * transfer mocks
+     * transactional repository mocks
+   * Keeps repository interfaces compatible after contract expansion.
+
+### Tooling Improvements
+
+9. Enhanced mobile/Postman environment synchronization script
+
+   * Updated `infra/scripts/update-mobile-env-ip.sh`
+   * Added automatic Postman environment synchronization for:
+
+     * `base_url`
+     * `app_token`
+   * Added safe handling for:
+
+     * missing environment files
+     * missing `jq`
+   * Extracts token values automatically from `mobile/dev.env`.
+
+### Result
+
+This change begins the transition from internal UUID-based transfers to bank-style account addressing using branch and account number identifiers. It also prepares the persistence and API layers for future inter-bank evolution while preserving transactional consistency and idempotent replay semantics.
+
+
 ## 2026/05/06 - api/split-account-04
 
 Refactor the account module by separating bank account and transaction responsibilities into distinct bounded domains and infrastructure layers.

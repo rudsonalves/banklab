@@ -357,7 +357,7 @@ Possible errors:
 
 All account routes are protected and require Authorization header with Bearer token.
 
-Ownership is enforced automatically. A customer-role user can only access accounts that belong to their own `customer_id`. Admin-role users can access any account.
+Ownership is enforced automatically. A customer-role user can only access accounts that belong to their own `customer_id`. Admin-role users can access account-scoped operations, but `GET /accounts` is customer-context scoped and requires a non-nil `customer_id` in the authenticated principal.
 
 ### 4.1 List Accounts
 
@@ -368,7 +368,7 @@ Ownership is enforced automatically. A customer-role user can only access accoun
 Returns the list of accounts that belong to the authenticated user.
 
 Query params:
-- none (any query param returns `400 INVALID_DATA`)
+- none (any query param returns `400 INVALID_REQUEST`)
 
 Success response (200):
 
@@ -394,7 +394,7 @@ Notes:
 Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: unexpected query params
+- 400 INVALID_REQUEST: unexpected query params
 - 403 FORBIDDEN: authenticated user has no customer context
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -525,16 +525,20 @@ Request body:
 
 ```json
 {
-  "from_account_id": "7e2a56a4-b56c-44aa-9204-5e6c2df659d5",
-  "to_account_id": "f2ec464e-dd1d-4b89-9f29-bf45dcbf16ff",
+  "from_branch": "0001",
+  "from_account_number": "00012345",
+  "to_branch": "0001",
+  "to_account_number": "00067890",
   "amount": 2500,
   "idempotency_key": "optional-client-key"
 }
 ```
 
 Notes:
+- The bank is currently implicit.
+- The transfer is internal only and resolves accounts by `(branch, account_number)`.
 - `idempotency_key` is optional.
-- Idempotency scope is `(from_account_id, idempotency_key)`.
+- Idempotency scope is `(from_branch, from_account_number, idempotency_key)`.
 - Replay responses return the historical transfer result from ledger data (not current account balances).
 
 Success response (200):
@@ -542,8 +546,10 @@ Success response (200):
 ```json
 {
   "data": {
-    "from_account_id": "7e2a56a4-b56c-44aa-9204-5e6c2df659d5",
-    "to_account_id": "f2ec464e-dd1d-4b89-9f29-bf45dcbf16ff",
+    "from_branch": "0001",
+    "from_account_number": "00012345",
+    "to_branch": "0001",
+    "to_account_number": "00067890",
     "amount": 2500,
     "from_balance": 97500,
     "to_balance": 32500
@@ -556,7 +562,7 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: invalid UUID data
+- 400 INVALID_DATA: missing or malformed branch/account number data
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
 - 403 FORBIDDEN: access denied
@@ -695,7 +701,8 @@ All account and customer operations enforce ownership based on the authenticated
 
 Rules:
 - A user with role `customer` can only access resources where `resource.customer_id == user.customer_id`
-- A user with role `admin` can access any resource
+- A user with role `admin` can access account/customer scoped resources when identifiers are provided
+- `GET /accounts` is scoped to the authenticated principal's `customer_id` and returns `403 FORBIDDEN` when `customer_id` is absent
 - The `customer_id` is never accepted from the client — it is always read from the JWT token
 - Cross-customer access returns `403 FORBIDDEN`
 - Any operation where the user has no `customer_id` returns `409 INVALID_USER_STATE`
@@ -863,14 +870,14 @@ Scenario: authenticated user has no customer context
 
 Scenario: unexpected query params
 - Status: 400
-- Code: INVALID_DATA
+- Code: INVALID_REQUEST
 
 ```json
 {
   "data": null,
   "error": {
-    "code": "INVALID_DATA",
-    "message": "Invalid data"
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request body"
   }
 }
 ```

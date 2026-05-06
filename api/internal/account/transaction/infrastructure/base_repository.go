@@ -14,6 +14,7 @@ type baseRepository struct {
 	exec executor
 }
 
+// GetByIDForUpdate retrieves an account by its ID and locks it for update.
 func (r *baseRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*transactiondomain.Account, error) {
 	var account transactiondomain.Account
 
@@ -40,6 +41,34 @@ func (r *baseRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*t
 	return &account, nil
 }
 
+func (r *baseRepository) GetByBranchAndNumberForUpdate(ctx context.Context, branch, number string) (*transactiondomain.Account, error) {
+	var account transactiondomain.Account
+
+	query := `
+		SELECT id, customer_id, balance, status
+		FROM accounts
+		WHERE branch = $1 AND number = $2
+		FOR UPDATE
+	`
+
+	err := r.exec.QueryRow(ctx, query, branch, number).Scan(
+		&account.ID,
+		&account.CustomerID,
+		&account.Balance,
+		&account.Status,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, transactiondomain.ErrAccountNotFound
+		}
+		return nil, fmt.Errorf("get account by branch and number for update: %w", err)
+	}
+
+	return &account, nil
+}
+
+// IncreaseBalance increases the balance of the specified account by the
+// given amount and returns the new balance.
 func (r *baseRepository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	var balance int64
 
@@ -61,6 +90,8 @@ func (r *baseRepository) IncreaseBalance(ctx context.Context, id uuid.UUID, amou
 	return balance, nil
 }
 
+// DecreaseBalance decreases the balance of the specified account by the
+// given amount and returns the new balance.
 func (r *baseRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
 	var balance int64
 
@@ -90,6 +121,8 @@ func (r *baseRepository) DecreaseBalance(ctx context.Context, id uuid.UUID, amou
 	return balance, nil
 }
 
+// accountExists checks if an account with the given ID exists in the
+// database.
 func (r *baseRepository) accountExists(ctx context.Context, id uuid.UUID) (bool, error) {
 	var dummy int
 	query := `
@@ -109,6 +142,9 @@ func (r *baseRepository) accountExists(ctx context.Context, id uuid.UUID) (bool,
 	return true, nil
 }
 
+// CreateTransaction inserts a new transaction record into the database.
+// If a transaction with the same idempotency key already exists for the
+// account, it returns a specific error.
 func (r *baseRepository) CreateTransaction(ctx context.Context, tx *transactiondomain.Transaction) error {
 	query := `
 		INSERT INTO transactions (
@@ -143,6 +179,9 @@ func (r *baseRepository) CreateTransaction(ctx context.Context, tx *transactiond
 	return nil
 }
 
+// GetTransactionByIdempotencyKey retrieves a transaction by its
+// idempotency key for a specific account. It returns nil if no such
+// transaction exists.
 func (r *baseRepository) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*transactiondomain.Transaction, error) {
 	var t transactiondomain.Transaction
 
@@ -175,6 +214,9 @@ func (r *baseRepository) GetTransactionByIdempotencyKey(ctx context.Context, acc
 	return &t, nil
 }
 
+// GetTransactionByReference retrieves a transaction by its reference ID
+// for a specific account and type. It returns nil if no such transaction
+// exists.
 func (r *baseRepository) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName transactiondomain.TransactionType) (*transactiondomain.Transaction, error) {
 	var t transactiondomain.Transaction
 

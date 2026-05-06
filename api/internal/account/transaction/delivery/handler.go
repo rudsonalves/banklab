@@ -178,6 +178,8 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// requireUser retrieves the authenticated user from the context and returns an
+// error if not found.
 func requireUser(ctx context.Context) (*authdomain.AuthenticatedUser, error) {
 	user, ok := sharedauthctx.GetAuthenticatedUser(ctx)
 	if !ok || user == nil {

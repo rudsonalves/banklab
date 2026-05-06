@@ -52,6 +52,10 @@ func (m *transferAccountRepositoryMock) GetByIDForUpdate(ctx context.Context, id
 	return nil, nil
 }
 
+func (m *transferAccountRepositoryMock) GetByBranchAndNumberForUpdate(ctx context.Context, branch, number string) (*domain.Account, error) {
+	return nil, nil
+}
+
 func (m *transferAccountRepositoryMock) GetTransactions(
 	ctx context.Context,
 	accountID uuid.UUID,
@@ -200,6 +204,10 @@ func (m *transferTxMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*d
 		return nil, domain.ErrAccountNotFound
 	}
 	return account, nil
+}
+
+func (m *transferTxMock) GetByBranchAndNumberForUpdate(ctx context.Context, branch, number string) (*domain.Account, error) {
+	return nil, nil
 }
 
 func (m *transferTxMock) GetTransactions(

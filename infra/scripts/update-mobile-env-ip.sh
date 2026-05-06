@@ -97,6 +97,42 @@ update_env_file() {
   echo "Updated $file -> BASE_URL=$BASE_URL_VALUE"
 }
 
+update_postman_environment() {
+  local postman_env_file="$REPO_ROOT/tools/postman/Environment.postman_environment.json"
+  local app_token="$1"
+
+  if [[ ! -f "$postman_env_file" ]]; then
+    echo "Skipping missing Postman environment file: $postman_env_file"
+    return 0
+  fi
+
+  if ! command -v jq &> /dev/null; then
+    echo "Warning: jq is not installed. Skipping Postman environment update." >&2
+    return 0
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+
+  jq --arg base_url "$BASE_URL_VALUE" \
+     --arg app_token "$app_token" \
+     '.values |= map(
+       if .key == "base_url" then .value = $base_url
+       elif .key == "app_token" then .value = $app_token
+       else .
+       end
+     )' "$postman_env_file" > "$tmp"
+
+  mv "$tmp" "$postman_env_file"
+  echo "Updated $postman_env_file -> base_url=$BASE_URL_VALUE, app_token=$app_token"
+}
+
 update_env_file "$MOBILE_DIR/dev.env"
+
+# Extract APP_ACCESS_TOKEN from dev.env
+APP_ACCESS_TOKEN=$(grep '^APP_ACCESS_TOKEN=' "$MOBILE_DIR/dev.env" | cut -d'=' -f2)
+if [[ -n "$APP_ACCESS_TOKEN" ]]; then
+  update_postman_environment "$APP_ACCESS_TOKEN"
+fi
 update_env_file "$MOBILE_DIR/staging.env"
 update_env_file "$MOBILE_DIR/prod.env"
