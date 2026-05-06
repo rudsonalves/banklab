@@ -247,3 +247,65 @@ func (r *baseRepository) GetTransactionByReference(ctx context.Context, accountI
 
 	return &t, nil
 }
+
+// GetTransferReceiptByReference retrieves the transfer receipt associated with
+// the given reference ID. It returns a detailed receipt of the transfer
+// operation, including information about the source and destination accounts,
+// the amount transferred, and the status of the transfer.
+func (r *baseRepository) GetTransferReceiptByReference(ctx context.Context, referenceID uuid.UUID) (*transactiondomain.TransferReceipt, error) {
+	var receipt transactiondomain.TransferReceipt
+
+	query := `
+		SELECT
+			transfer_out.type,
+			transfer_out.amount,
+			transfer_out.reference_id,
+			transfer_out.created_at,
+			source_account.id,
+			source_account.customer_id,
+			source_account.branch,
+			source_account.number,
+			destination_account.id,
+			destination_account.customer_id,
+			destination_account.branch,
+			destination_account.number,
+			recipient_customer.name
+		FROM transactions transfer_out
+		JOIN transactions transfer_in
+		  ON transfer_in.reference_id = transfer_out.reference_id
+		 AND transfer_in.type = 'transfer_in'
+		JOIN accounts source_account
+		  ON source_account.id = transfer_out.account_id
+		JOIN accounts destination_account
+		  ON destination_account.id = transfer_in.account_id
+		JOIN customers recipient_customer
+		  ON recipient_customer.id = destination_account.customer_id
+		WHERE transfer_out.reference_id = $1
+		  AND transfer_out.type = 'transfer_out'
+	`
+
+	err := r.exec.QueryRow(ctx, query, referenceID).Scan(
+		&receipt.OperationType,
+		&receipt.Amount,
+		&receipt.TransactionReference,
+		&receipt.OperationDate,
+		&receipt.SourceAccountID,
+		&receipt.SourceCustomerID,
+		&receipt.SourceBranch,
+		&receipt.SourceAccountNumber,
+		&receipt.DestinationAccountID,
+		&receipt.DestinationCustomerID,
+		&receipt.DestinationBranch,
+		&receipt.DestinationAccountNumber,
+		&receipt.RecipientName,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, transactiondomain.ErrTransactionNotFound
+		}
+		return nil, fmt.Errorf("get transfer receipt by reference: %w", err)
+	}
+
+	receipt.Status = "completed"
+	return &receipt, nil
+}

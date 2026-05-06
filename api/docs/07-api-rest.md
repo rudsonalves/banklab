@@ -19,8 +19,9 @@
     - [4.3 Deposit](#43-deposit)
     - [4.4 Withdraw](#44-withdraw)
     - [4.5 Transfer](#45-transfer)
-    - [4.6 Get Balance](#46-get-balance)
-    - [4.7 Get Statement](#47-get-statement)
+    - [4.6 Transfer Receipt](#46-transfer-receipt)
+    - [4.7 Get Balance](#47-get-balance)
+    - [4.8 Get Statement](#48-get-statement)
   - [5. Customer Endpoints](#5-customer-endpoints)
     - [5.1 Get My Customer Profile](#51-get-my-customer-profile)
   - [6. Authorization Model](#6-authorization-model)
@@ -36,9 +37,10 @@
     - [9.7 POST /accounts/{id}/deposit](#97-post-accountsiddeposit)
     - [9.8 POST /accounts/{id}/withdraw](#98-post-accountsidwithdraw)
     - [9.9 POST /accounts/transfer](#99-post-accountstransfer)
-    - [9.10 GET /accounts/{id}/balance](#910-get-accountsidbalance)
-    - [9.11 GET /accounts/{id}/statement](#911-get-accountsidstatement)
-    - [9.12 GET /customers/me](#912-get-customersme)
+    - [9.10 GET /accounts/transfer/{transaction_reference}/receipt](#910-get-accountstransfertransaction_referencereceipt)
+    - [9.11 GET /accounts/{id}/balance](#911-get-accountsidbalance)
+    - [9.12 GET /accounts/{id}/statement](#912-get-accountsidstatement)
+    - [9.13 GET /customers/me](#913-get-customersme)
   - [10. Postman Setup](#10-postman-setup)
     - [10.1 Files in Repository](#101-files-in-repository)
     - [10.2 Environment Variables](#102-environment-variables)
@@ -548,6 +550,7 @@ Success response (200):
   "data": {
     "from_branch": "0001",
     "from_account_number": "00012345",
+    "transaction_reference": "2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31",
     "to_branch": "0001",
     "to_account_number": "00067890",
     "amount": 2500,
@@ -571,7 +574,46 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.6 Get Balance
+### 4.6 Transfer Receipt
+
+- Method: GET
+- Path: /accounts/transfer/{transaction_reference}/receipt
+- Auth required: yes
+
+Returns persisted receipt details for an internal transfer.
+
+Path params:
+- `transaction_reference`: public transfer reference returned by `POST /accounts/transfer`
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "operation_type": "transfer_out",
+    "amount": 2500,
+    "status": "completed",
+    "transaction_reference": "2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31",
+    "operation_date": "2026-05-06T12:30:00Z",
+    "source_branch": "0001",
+    "source_account_number": "00012345",
+    "destination_branch": "0001",
+    "destination_account_number": "00067890",
+    "recipient_name": "Maria Silva"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: missing or malformed transaction reference
+- 403 FORBIDDEN: authenticated user cannot access this receipt
+- 404 TRANSACTION_NOT_FOUND: transfer receipt does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 4.7 Get Balance
 
 - Method: GET
 - Path: /accounts/{id}/balance
@@ -603,7 +645,7 @@ Possible errors:
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.7 Get Statement
+### 4.8 Get Statement
 
 - Method: GET
 - Path: /accounts/{id}/statement
@@ -727,6 +769,7 @@ Common error codes currently used by handlers:
 - ACCOUNT_INACTIVE
 - INSUFFICIENT_FUNDS
 - SAME_ACCOUNT_TRANSFER
+- TRANSACTION_NOT_FOUND
 - INTERNAL_ERROR
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when `POST /auth/register` or `POST /auth/login` is called without `X-App-Token` or with an invalid app token.
@@ -1002,7 +1045,37 @@ Scenario: access denied to source account
 }
 ```
 
-### 9.10 GET /accounts/{id}/balance
+### 9.10 GET /accounts/transfer/{transaction_reference}/receipt
+
+Scenario: receipt not found
+- Status: 404
+- Code: TRANSACTION_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "TRANSACTION_NOT_FOUND",
+    "message": "Transaction not found"
+  }
+}
+```
+
+Scenario: access denied to receipt
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+### 9.11 GET /accounts/{id}/balance
 
 Scenario: invalid query/path data
 - Status: 400
@@ -1018,7 +1091,7 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.11 GET /accounts/{id}/statement
+### 9.12 GET /accounts/{id}/statement
 
 Scenario: invalid query/path data
 - Status: 400
@@ -1034,7 +1107,7 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.12 GET /customers/me
+### 9.13 GET /customers/me
 
 Scenario: user has inconsistent state (customer role without customer_id)
 - Status: 409

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	transactionapp "github.com/seu-usuario/bank-api/internal/account/transaction/application"
@@ -29,6 +30,11 @@ type transferUseCaseMock struct {
 	executeFn    func(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error)
 }
 
+type transferReceiptUseCaseMock struct {
+	executeCalls int
+	executeFn    func(ctx context.Context, input transactionapp.GetTransferReceiptInput) (*transactionapp.TransferReceiptResult, error)
+}
+
 func (m *depositUseCaseMock) Execute(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
@@ -46,6 +52,14 @@ func (m *withdrawUseCaseMock) Execute(ctx context.Context, input transactionapp.
 }
 
 func (m *transferUseCaseMock) Execute(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error) {
+	m.executeCalls++
+	if m.executeFn == nil {
+		return nil, nil
+	}
+	return m.executeFn(ctx, input)
+}
+
+func (m *transferReceiptUseCaseMock) Execute(ctx context.Context, input transactionapp.GetTransferReceiptInput) (*transactionapp.TransferReceiptResult, error) {
 	m.executeCalls++
 	if m.executeFn == nil {
 		return nil, nil
@@ -222,6 +236,7 @@ func TestHandler_Transfer_SameAccount(t *testing.T) {
 
 func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 	customerID := uuid.New()
+	transactionReference := uuid.New()
 	transferUC := &transferUseCaseMock{
 		executeFn: func(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error) {
 			if input.User == nil {
@@ -241,9 +256,10 @@ func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 			}
 
 			return &transactionapp.TransferResult{
-				Amount:      100,
-				FromBalance: 900,
-				ToBalance:   1100,
+				TransactionReference: transactionReference,
+				Amount:               100,
+				FromBalance:          900,
+				ToBalance:            1100,
 			}, nil
 		},
 	}
@@ -261,13 +277,14 @@ func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 
 	var got struct {
 		Data struct {
-			FromAccountBranch string `json:"from_branch"`
-			FromAccountNumber string `json:"from_account_number"`
-			ToAccountBranch   string `json:"to_branch"`
-			ToAccountNumber   string `json:"to_account_number"`
-			Amount            int64  `json:"amount"`
-			FromBalance       int64  `json:"from_balance"`
-			ToBalance         int64  `json:"to_balance"`
+			FromAccountBranch    string `json:"from_branch"`
+			FromAccountNumber    string `json:"from_account_number"`
+			TransactionReference string `json:"transaction_reference"`
+			ToAccountBranch      string `json:"to_branch"`
+			ToAccountNumber      string `json:"to_account_number"`
+			Amount               int64  `json:"amount"`
+			FromBalance          int64  `json:"from_balance"`
+			ToBalance            int64  `json:"to_balance"`
 		} `json:"data"`
 	}
 
@@ -281,6 +298,10 @@ func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 
 	if got.Data.ToAccountBranch != "0002" || got.Data.ToAccountNumber != "654321" {
 		t.Fatalf("unexpected destination account in response: %+v", got)
+	}
+
+	if got.Data.TransactionReference != transactionReference.String() {
+		t.Fatalf("expected transaction_reference %q, got %q", transactionReference.String(), got.Data.TransactionReference)
 	}
 
 	if got.Data.Amount != 100 || got.Data.FromBalance != 900 || got.Data.ToBalance != 1100 {
@@ -425,5 +446,143 @@ func TestHandler_Transfer_LegacyPayloadRejected(t *testing.T) {
 
 	if transferUC.executeCalls != 0 {
 		t.Fatalf("expected use case Execute not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
+func TestHandler_TransferReceipt_Success(t *testing.T) {
+	customerID := uuid.New()
+	referenceID := uuid.New()
+	operationDate := time.Date(2026, 5, 6, 12, 30, 0, 0, time.UTC)
+	receiptUC := &transferReceiptUseCaseMock{
+		executeFn: func(ctx context.Context, input transactionapp.GetTransferReceiptInput) (*transactionapp.TransferReceiptResult, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
+			if input.TransactionReference != referenceID {
+				return nil, errors.New("unexpected transaction reference")
+			}
+			return &transactionapp.TransferReceiptResult{
+				OperationType:            string(domain.TransactionTransferOut),
+				Amount:                   2500,
+				Status:                   "completed",
+				TransactionReference:     referenceID.String(),
+				OperationDate:            operationDate,
+				SourceBranch:             "0001",
+				SourceAccountNumber:      "123456",
+				DestinationBranch:        "0002",
+				DestinationAccountNumber: "654321",
+				RecipientName:            "Maria Silva",
+			}, nil
+		},
+	}
+	h := &Handler{receipt: receiptUC}
+	req := httptest.NewRequest(http.MethodGet, "/accounts/transfer/"+referenceID.String()+"/receipt", nil)
+	req.SetPathValue("transaction_reference", referenceID.String())
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.TransferReceipt(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var got struct {
+		Data TransferReceiptData `json:"data"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Data.TransactionReference != referenceID.String() {
+		t.Fatalf("expected transaction_reference %q, got %q", referenceID.String(), got.Data.TransactionReference)
+	}
+	if got.Data.OperationDate != operationDate.Format(time.RFC3339) {
+		t.Fatalf("expected operation_date %q, got %q", operationDate.Format(time.RFC3339), got.Data.OperationDate)
+	}
+	if got.Data.RecipientName != "Maria Silva" {
+		t.Fatalf("expected recipient name %q, got %q", "Maria Silva", got.Data.RecipientName)
+	}
+	if receiptUC.executeCalls != 1 {
+		t.Fatalf("expected use case Execute once, got %d calls", receiptUC.executeCalls)
+	}
+}
+
+func TestHandler_TransferReceipt_MissingAuth(t *testing.T) {
+	referenceID := uuid.New()
+	receiptUC := &transferReceiptUseCaseMock{}
+	h := &Handler{receipt: receiptUC}
+	req := httptest.NewRequest(http.MethodGet, "/accounts/transfer/"+referenceID.String()+"/receipt", nil)
+	req.SetPathValue("transaction_reference", referenceID.String())
+	rec := httptest.NewRecorder()
+
+	h.TransferReceipt(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+	if receiptUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", receiptUC.executeCalls)
+	}
+}
+
+func TestHandler_TransferReceipt_InvalidReference(t *testing.T) {
+	customerID := uuid.New()
+	receiptUC := &transferReceiptUseCaseMock{}
+	h := &Handler{receipt: receiptUC}
+	req := httptest.NewRequest(http.MethodGet, "/accounts/transfer/not-a-uuid/receipt", nil)
+	req.SetPathValue("transaction_reference", "not-a-uuid")
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.TransferReceipt(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+	if receiptUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", receiptUC.executeCalls)
+	}
+}
+
+func TestHandler_TransferReceipt_NotFound(t *testing.T) {
+	customerID := uuid.New()
+	referenceID := uuid.New()
+	receiptUC := &transferReceiptUseCaseMock{
+		executeFn: func(ctx context.Context, input transactionapp.GetTransferReceiptInput) (*transactionapp.TransferReceiptResult, error) {
+			return nil, domain.ErrTransactionNotFound
+		},
+	}
+	h := &Handler{receipt: receiptUC}
+	req := httptest.NewRequest(http.MethodGet, "/accounts/transfer/"+referenceID.String()+"/receipt", nil)
+	req.SetPathValue("transaction_reference", referenceID.String())
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.TransferReceipt(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rec.Code)
+	}
+}
+
+func TestHandler_TransferReceipt_Forbidden(t *testing.T) {
+	customerID := uuid.New()
+	referenceID := uuid.New()
+	receiptUC := &transferReceiptUseCaseMock{
+		executeFn: func(ctx context.Context, input transactionapp.GetTransferReceiptInput) (*transactionapp.TransferReceiptResult, error) {
+			return nil, domain.ErrForbidden
+		},
+	}
+	h := &Handler{receipt: receiptUC}
+	req := httptest.NewRequest(http.MethodGet, "/accounts/transfer/"+referenceID.String()+"/receipt", nil)
+	req.SetPathValue("transaction_reference", referenceID.String())
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.TransferReceipt(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
 	}
 }

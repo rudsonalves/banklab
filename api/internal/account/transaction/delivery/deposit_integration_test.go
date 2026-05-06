@@ -34,7 +34,7 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 
 	repo := transactionInfrastructure.New(pool)
 	depositUC := transactionApplication.NewDeposit(repo)
-	handler := New(depositUC, nil, nil)
+	handler := New(depositUC, nil, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /accounts/{id}/deposit", func(w http.ResponseWriter, r *http.Request) {

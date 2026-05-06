@@ -33,11 +33,12 @@ type TransferInput struct {
 }
 
 type TransferResult struct {
-	FromAccountID uuid.UUID
-	ToAccountID   uuid.UUID
-	Amount        int64
-	FromBalance   int64
-	ToBalance     int64
+	FromAccountID        uuid.UUID
+	ToAccountID          uuid.UUID
+	TransactionReference uuid.UUID
+	Amount               int64
+	FromBalance          int64
+	ToBalance            int64
 }
 
 // Execute performs a transfer transaction from one account to another with the specified amount.
@@ -201,11 +202,12 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		}
 
 		result = &TransferResult{
-			FromAccountID: fromAccountID,
-			ToAccountID:   toAccountID,
-			Amount:        input.Amount,
-			FromBalance:   fromAccount.Balance,
-			ToBalance:     toAccount.Balance,
+			FromAccountID:        fromAccountID,
+			ToAccountID:          toAccountID,
+			TransactionReference: referenceID,
+			Amount:               input.Amount,
+			FromBalance:          fromAccount.Balance,
+			ToBalance:            toAccount.Balance,
 		}
 		return nil
 	})
@@ -258,11 +260,12 @@ func transferResultFromLedger(ctx context.Context, tx domain.Tx, outgoing *domai
 	}
 
 	return &TransferResult{
-		FromAccountID: outgoing.AccountID,
-		ToAccountID:   *outgoing.RelatedAccountID,
-		Amount:        outgoing.Amount,
-		FromBalance:   outgoing.BalanceAfter,
-		ToBalance:     incoming.BalanceAfter,
+		FromAccountID:        outgoing.AccountID,
+		ToAccountID:          *outgoing.RelatedAccountID,
+		TransactionReference: *outgoing.ReferenceID,
+		Amount:               outgoing.Amount,
+		FromBalance:          outgoing.BalanceAfter,
+		ToBalance:            incoming.BalanceAfter,
 	}, nil
 }
 

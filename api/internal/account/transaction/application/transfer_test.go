@@ -36,6 +36,10 @@ func (m *transferAccountRepositoryMock) GetTransactionByReference(ctx context.Co
 	return nil, nil
 }
 
+func (m *transferAccountRepositoryMock) GetTransferReceiptByReference(ctx context.Context, referenceID uuid.UUID) (*domain.TransferReceipt, error) {
+	return nil, nil
+}
+
 func (m *transferAccountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -188,6 +192,10 @@ func (m *transferTxMock) GetTransactionByReference(ctx context.Context, accountI
 		}
 	}
 
+	return nil, nil
+}
+
+func (m *transferTxMock) GetTransferReceiptByReference(ctx context.Context, referenceID uuid.UUID) (*domain.TransferReceipt, error) {
 	return nil, nil
 }
 
@@ -635,6 +643,17 @@ func TestTransfer_Execute_Success(t *testing.T) {
 		t.Fatalf("expected destination balance %d, got %d", 70, result.ToBalance)
 	}
 
+	outgoing := tx.createdTransactions[0]
+	incoming := tx.createdTransactions[1]
+
+	if result.TransactionReference == uuid.Nil {
+		t.Fatal("expected transaction reference to be populated")
+	}
+
+	if outgoing.ReferenceID == nil || result.TransactionReference != *outgoing.ReferenceID {
+		t.Fatalf("expected result transaction reference to match outgoing reference id")
+	}
+
 	if tx.decreaseCalls != 1 {
 		t.Fatalf("expected debit once, got %d", tx.decreaseCalls)
 	}
@@ -646,9 +665,6 @@ func TestTransfer_Execute_Success(t *testing.T) {
 	if tx.createTransactionCalls != 2 {
 		t.Fatalf("expected two ledger writes, got %d", tx.createTransactionCalls)
 	}
-
-	outgoing := tx.createdTransactions[0]
-	incoming := tx.createdTransactions[1]
 
 	if outgoing.Type != domain.TransactionTransferOut {
 		t.Fatalf("expected first ledger type %s, got %s", domain.TransactionTransferOut, outgoing.Type)
@@ -756,6 +772,10 @@ func TestTransfer_Execute_IdempotencyKeyAlreadyProcessed(t *testing.T) {
 		t.Fatalf("expected balances from replay to be 50 and 70, got %d and %d", result.FromBalance, result.ToBalance)
 	}
 
+	if result.TransactionReference != referenceID {
+		t.Fatalf("expected replay transaction reference %s, got %s", referenceID, result.TransactionReference)
+	}
+
 	if tx.decreaseCalls != 0 || tx.updateCalls != 0 {
 		t.Fatalf("expected no balance mutation calls, got decrease=%d increase=%d", tx.decreaseCalls, tx.updateCalls)
 	}
@@ -835,6 +855,10 @@ func TestTransfer_Execute_IdempotencyConflictRollsBackDuplicateMutation(t *testi
 
 	if result == nil {
 		t.Fatal("expected result to be non-nil")
+	}
+
+	if result.TransactionReference != referenceID {
+		t.Fatalf("expected conflict replay transaction reference %s, got %s", referenceID, result.TransactionReference)
 	}
 
 	if tx.decreaseCalls != 1 || tx.updateCalls != 1 {

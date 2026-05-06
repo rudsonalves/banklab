@@ -1,5 +1,97 @@
 # Changelog
 
+## 2026/05/06 - api/transfer-by-account-number-03
+
+Implemented transfer receipt retrieval flow and exposed transaction references across transfer operations.
+
+1. Added transfer receipt use case and delivery endpoint
+
+   * Created `GetTransferReceipt` application use case
+   * Added ownership validation for transfer receipts
+   * Implemented `GET /accounts/transfer/{transaction_reference}/receipt`
+   * Added transfer receipt response DTOs
+   * Registered new route in API bootstrap
+   * Added HTTP handler for receipt retrieval
+   * Added support for `TRANSACTION_NOT_FOUND`
+
+2. Extended transfer result contract with transaction references
+
+   * Added `TransactionReference` to `TransferResult`
+   * Returned transfer reference from successful operations
+   * Preserved transaction reference during idempotency replay
+   * Exposed `transaction_reference` in transfer HTTP responses
+
+3. Implemented transfer receipt persistence query
+
+   * Added `GetTransferReceiptByReference` repository contract
+   * Implemented PostgreSQL query joining:
+
+     * transfer_out
+     * transfer_in
+     * accounts
+     * customers
+   * Reconstructed persisted receipt data from ledger entries
+   * Added transaction not found mapping from `pgx.ErrNoRows`
+
+4. Expanded domain model for receipt support
+
+   * Added `TransferReceipt` domain structure
+   * Added `ErrTransactionNotFound`
+   * Updated repository interfaces
+   * Improved domain documentation comments for:
+
+     * account validation methods
+     * transaction constructors
+
+5. Improved delivery layer and response contracts
+
+   * Added `TransferReceiptData`
+   * Added RFC3339 formatting for operation dates
+   * Added authorization enforcement for receipt access
+   * Added invalid UUID validation for transaction references
+
+6. Expanded test coverage
+
+   * Added application tests for:
+
+     * source customer access
+     * destination customer access
+     * forbidden access
+     * invalid reference
+     * transaction not found
+   * Added delivery tests for:
+
+     * successful receipt retrieval
+     * unauthorized access
+     * invalid references
+     * forbidden access
+     * not found responses
+   * Updated transfer tests to validate transaction references
+   * Updated mocks to support receipt repository contract
+
+7. Updated API documentation
+
+   * Added Transfer Receipt endpoint documentation
+   * Added new error scenarios and payload examples
+   * Added `TRANSACTION_NOT_FOUND` to error catalog
+   * Updated table of contents and endpoint indexes
+   * Updated transfer success payload examples with `transaction_reference`
+
+8. Improved repository documentation and transaction comments
+
+   * Added descriptive comments for repository methods
+   * Added transaction lifecycle documentation
+   * Added commit/rollback behavior documentation
+   * Added repository delegation comments
+
+9. Updated Postman environment
+
+   * Updated `base_url` to local network IP for external device testing
+   * Reformatted exported environment JSON
+
+This change completes the first version of persisted transfer receipt retrieval, enabling clients to recover transfer metadata from immutable ledger data using the public transaction reference identifier.
+
+
 ## 2026/05/06 - api/transfer-by-account-number-02
 
 Refactor internal transfer identification to use `(branch, account_number)` instead of UUID-based account references, while aligning API documentation, repository contracts, database constraints, and tooling behavior with the new transfer model.

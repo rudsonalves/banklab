@@ -10,6 +10,13 @@ import (
 
 func RegisterErrors() {
 	sharederrors.RegisterDomainError(
+		transactiondomain.ErrTransactionNotFound,
+		sharederrors.ErrCodeTransactionNotFound,
+		"Transaction not found",
+		http.StatusNotFound,
+	)
+
+	sharederrors.RegisterDomainError(
 		bankaccountdomain.ErrInvalidData,
 		sharederrors.ErrCodeInvalidData,
 		"Invalid data",

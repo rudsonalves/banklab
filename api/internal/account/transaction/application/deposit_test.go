@@ -36,6 +36,10 @@ func (m *depositAccountRepositoryMock) GetTransactionByReference(ctx context.Con
 	return nil, nil
 }
 
+func (m *depositAccountRepositoryMock) GetTransferReceiptByReference(ctx context.Context, referenceID uuid.UUID) (*domain.TransferReceipt, error) {
+	return nil, nil
+}
+
 func (m *depositAccountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -138,6 +142,10 @@ func (m *txMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID u
 }
 
 func (m *txMock) GetTransactionByReference(ctx context.Context, accountID uuid.UUID, referenceID uuid.UUID, typeName domain.TransactionType) (*domain.Transaction, error) {
+	return nil, nil
+}
+
+func (m *txMock) GetTransferReceiptByReference(ctx context.Context, referenceID uuid.UUID) (*domain.TransferReceipt, error) {
 	return nil, nil
 }
 
