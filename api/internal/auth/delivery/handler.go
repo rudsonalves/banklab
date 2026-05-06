@@ -73,6 +73,9 @@ type refreshAccessTokenData struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// New creates a new instance of the Handler with the provided use cases.
+// It requires use cases for registering a user, logging in a user, getting the
+// current user, and refreshing an access token.
 func New(
 	registerUser registerUserUseCase,
 	loginUser loginUserUseCase,
@@ -87,6 +90,11 @@ func New(
 	}
 }
 
+// Handler is responsible for handling HTTP requests related to authentication,
+// including user registration, login, retrieving the current authenticated user's
+// information, and refreshing access tokens. It uses the provided use cases to
+// perform the necessary operations and returns appropriate HTTP responses based
+// on the outcome of each operation.
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if h.registerUser == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -129,6 +137,12 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// isValidRegisterRequest validates the registration request by checking if the
+// email, password, name, and CPF fields are not empty. It trims any leading or
+// trailing whitespace from the input values before performing the validation. If
+// any of the required fields are empty after trimming, it returns false, indicating
+// that the request is invalid. Otherwise, it returns true, indicating that the
+// request is valid and can be processed further.
 func isValidRegisterRequest(req registerUserRequest) bool {
 	email := strings.TrimSpace(req.Email)
 	password := strings.TrimSpace(req.Password)
@@ -142,6 +156,10 @@ func isValidRegisterRequest(req registerUserRequest) bool {
 	return true
 }
 
+// Login handles the HTTP request for user login. It validates the input, calls the
+// loginUser use case to perform the login operation, and returns the access token,
+// refresh token, and user information in the response. If any step in the process
+// fails, it returns an appropriate error response.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.loginUser == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -181,6 +199,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Me handles the HTTP request for retrieving the current authenticated user's
+// information. It calls the getCurrentUser use case to fetch the user's details
+// and returns them in the response. If any step in the process fails, it returns
+// an appropriate error response.
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	if h.getCurrentUser == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -202,6 +224,9 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Refresh handles the HTTP request for refreshing the access token. It validates the input, calls the
+// refreshAccessToken use case to perform the token refresh operation, and returns the new access token
+// and refresh token in the response. If any step in the process fails, it returns an appropriate error response.
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if h.refreshAccessToken == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))

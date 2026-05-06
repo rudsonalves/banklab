@@ -42,10 +42,16 @@ type createCustomerData struct {
 	CreatedAt string `json:"created_at"`
 }
 
+// New creates a new instance of the customer Handler with the provided use cases.
 func New(createUC createCustomerUseCase, getMeUC getCustomerMeUseCase) *Handler {
 	return &Handler{createUC: createUC, getMeUC: getMeUC}
 }
 
+// Create handles the HTTP request for creating a new customer. It decodes the
+// request body, validates the input, and calls the create customer use case.
+// If the creation is successful, it responds with the created customer data.
+// If there is an error, it logs the error and responds with an appropriate
+// error message and status code.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if h.createUC == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -84,6 +90,11 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Me handles the HTTP request for retrieving the authenticated customer's information.
+// It checks for the authenticated user in the request context, validates the user
+// state, and calls the getMe use case to fetch the customer data. If successful,
+// it responds with the customer information; otherwise, it logs the error and
+// responds with an appropriate error message and status code.
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	if h.getMeUC == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))

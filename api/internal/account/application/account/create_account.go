@@ -17,6 +17,8 @@ type CreateAccount struct {
 	branchPolicy BranchPolicy
 }
 
+// NewCreateAccount creates a new instance of the CreateAccount use case with the
+// provided dependencies.
 func NewCreateAccount(
 	accountRepo domain.AccountRepository,
 	customerRepo customerdomain.CustomerRepository,
@@ -35,6 +37,10 @@ type CreateAccountInput struct {
 	User *authdomain.AuthenticatedUser
 }
 
+// Execute creates a new bank account for the authenticated user. It performs
+// necessary validations, checks access permissions, and ensures that the associated customer exists before creating the account. The account number is
+// generated using the account repository, and the branch is determined by the
+// branch policy.
 func (uc *CreateAccount) Execute(ctx context.Context, input CreateAccountInput) (*domain.Account, error) {
 	if input.User == nil || input.User.CustomerID == nil {
 		return nil, domain.ErrForbidden

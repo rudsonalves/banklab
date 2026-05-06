@@ -19,6 +19,8 @@ type ApproveUserUseCase struct {
 	branchPolicy accountapplication.BranchPolicy
 }
 
+// NewApproveUserUseCase creates a new instance of the ApproveUserUseCase with the
+// provided dependencies.
 func NewApproveUserUseCase(
 	userRepo authdomain.UserRepository,
 	accountRepo accountdomain.AccountRepository,
@@ -45,6 +47,11 @@ type ApproveUserOutput struct {
 	AccountID uuid.UUID
 }
 
+// Execute approves a pending user by updating their status to active and creating
+// a new bank account for them. It performs necessary validations, checks the
+// existence of the associated customer, generates an account number, and
+// determines the branch using the branch policy. The entire operation is
+// executed within a transaction to ensure data consistency.
 func (uc *ApproveUserUseCase) Execute(ctx context.Context, input ApproveUserInput) (*ApproveUserOutput, error) {
 	var output *ApproveUserOutput
 

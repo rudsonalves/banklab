@@ -7,6 +7,9 @@ import (
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 )
 
+// RegisterErrors registers the domain errors of the account application
+// with the shared error registry. This allows for consistent error handling
+// and mapping to HTTP status codes.
 func RegisterErrors() {
 	sharederrors.RegisterDomainError(
 		domain.ErrInvalidData,

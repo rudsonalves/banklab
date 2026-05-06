@@ -15,10 +15,15 @@ type PostgresTransactor struct {
 
 var _ domain.Transactor = (*PostgresTransactor)(nil)
 
+// NewPostgresTransactor creates a new instance of PostgresTransactor with the
+// provided database connection pool.
 func NewPostgresTransactor(db *pgxpool.Pool) *PostgresTransactor {
 	return &PostgresTransactor{db: db}
 }
 
+// RunInTx executes the provided function within a database transaction. It begins
+// a new transaction, and if the function returns an error, the transaction is
+// rolled back.
 func (t *PostgresTransactor) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	tx, err := t.db.Begin(ctx)
 	if err != nil {

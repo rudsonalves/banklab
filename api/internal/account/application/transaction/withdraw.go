@@ -14,6 +14,8 @@ type Withdraw struct {
 	accountRepo domain.AccountRepository
 }
 
+// NewWithdraw creates a new instance of the Withdraw use case with
+// the provided account repository.
 func NewWithdraw(accountRepo domain.AccountRepository) *Withdraw {
 	return &Withdraw{accountRepo: accountRepo}
 }
@@ -24,6 +26,10 @@ type WithdrawInput struct {
 	Amount    int64
 }
 
+// Execute performs a withdraw transaction on the specified account
+// with the given amount. It checks for valid input, verifies access
+// permissions, ensures sufficient balance, and creates a ledger entry
+// for the transaction.
 func (uc *Withdraw) Execute(ctx context.Context, input WithdrawInput) (_ *domain.Account, err error) {
 	if input.AccountID == uuid.Nil {
 		return nil, domain.ErrInvalidData

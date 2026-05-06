@@ -6,6 +6,8 @@ import (
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
+// CanAccessCustomer checks if the authenticated user has access to the
+// specified customer.
 func CanAccessCustomer(user *authdomain.AuthenticatedUser, customerID uuid.UUID) bool {
 	if user == nil {
 		return false
@@ -22,6 +24,8 @@ func CanAccessCustomer(user *authdomain.AuthenticatedUser, customerID uuid.UUID)
 	return *user.CustomerID == customerID
 }
 
+// CanAccessAccount checks if the authenticated user has access to the
+// specified account.
 func CanAccessAccount(user *authdomain.AuthenticatedUser, account *domain.Account) bool {
 	if account == nil {
 		return false

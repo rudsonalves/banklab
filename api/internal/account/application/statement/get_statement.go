@@ -53,10 +53,16 @@ type GetStatement struct {
 	repo domain.AccountRepository
 }
 
+// NewGetStatement creates a new instance of the GetStatement use case with
+// the provided account repository.
 func NewGetStatement(repo domain.AccountRepository) *GetStatement {
 	return &GetStatement{repo: repo}
 }
 
+// Execute retrieves the account statement for the specified account ID, applying
+// pagination and date filtering based on the input parameters. It checks for
+// valid input, verifies access permissions, and returns a structured statement
+// containing the transaction history and pagination information.
 func (uc *GetStatement) Execute(ctx context.Context, input GetStatementInput) (*Statement, error) {
 	if input.AccountID == uuid.Nil {
 		return nil, domain.ErrInvalidData

@@ -24,6 +24,8 @@ type DepositInput struct {
 	Amount    int64
 }
 
+// Execute performs a deposit transaction on the specified account
+// with the given amount.
 func (uc *Deposit) Execute(ctx context.Context, input DepositInput) (_ *domain.Account, err error) {
 	if input.AccountID == uuid.Nil {
 		return nil, domain.ErrInvalidData

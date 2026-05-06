@@ -17,6 +17,7 @@ type Transfer struct {
 	accountRepo domain.AccountRepository
 }
 
+// NewTransfer creates a new instance of the Transfer use case with the provided account repository.
 func NewTransfer(accountRepo domain.AccountRepository) *Transfer {
 	return &Transfer{accountRepo: accountRepo}
 }
@@ -37,6 +38,7 @@ type TransferResult struct {
 	ToBalance     int64
 }
 
+// Execute performs a transfer transaction from one account to another with the specified amount.
 func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *TransferResult, err error) {
 	if input.FromAccountID == uuid.Nil || input.ToAccountID == uuid.Nil {
 		return nil, domain.ErrInvalidData
@@ -193,6 +195,9 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 	return result, nil
 }
 
+// transferResultFromLedger reconstructs a TransferResult from the ledger
+// transactions of a completed transfer. It validates the consistency of the
+// ledger entries to ensure the integrity of the transfer data.
 func transferResultFromLedger(ctx context.Context, tx domain.Tx, outgoing *domain.Transaction) (*TransferResult, error) {
 	if outgoing == nil {
 		return nil, fmt.Errorf("ledger inconsistency: outgoing transaction is nil")
@@ -237,6 +242,8 @@ func transferResultFromLedger(ctx context.Context, tx domain.Tx, outgoing *domai
 	}, nil
 }
 
+// orderedUUIDs returns the two UUIDs in a consistent order (lowest first). This is used to ensure that when locking two accounts for a transfer, we always
+// lock them in the same order to reduce the risk of deadlocks.
 func orderedUUIDs(left, right uuid.UUID) (uuid.UUID, uuid.UUID) {
 	if bytes.Compare(left[:], right[:]) <= 0 {
 		return left, right
@@ -245,6 +252,9 @@ func orderedUUIDs(left, right uuid.UUID) (uuid.UUID, uuid.UUID) {
 	return right, left
 }
 
+// mapTransferAccounts takes the fromAccountID and the two accounts locked
+// in deterministic order, and returns them mapped to fromAccount and
+// toAccount based on the IDs.
 func mapTransferAccounts(fromID uuid.UUID, first, second *domain.Account) (*domain.Account, *domain.Account) {
 	if first.ID == fromID {
 		return first, second

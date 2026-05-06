@@ -20,10 +20,19 @@ type PostgresSessionRepository struct {
 // compile time.
 var _ domain.SessionRepository = (*PostgresSessionRepository)(nil)
 
+// NewPostgresSessionRepository creates a new instance of PostgresSessionRepository
+// with the provided pgxpool.Pool. This repository will be used to manage user
+// sessions in a PostgreSQL database. It provides methods for creating sessions, finding sessions by token hash,
+// and revoking sessions. The repository uses the pgx library to interact with
+// the database and supports transactions through the context.
 func NewPostgresSessionRepository(db *pgxpool.Pool) *PostgresSessionRepository {
 	return &PostgresSessionRepository{db: db}
 }
 
+// executor returns the appropriate database executor based on the context. If a
+// transaction is present in the context, it returns the transaction; otherwise,
+// it returns the main database connection pool. This allows the repository methods
+// to work seamlessly with both transactional and non-transactional contexts.
 func (r *PostgresSessionRepository) executor(ctx context.Context) dbExecutor {
 	if tx, ok := database.TxFromContext(ctx); ok {
 		return tx
@@ -32,6 +41,10 @@ func (r *PostgresSessionRepository) executor(ctx context.Context) dbExecutor {
 	return r.db
 }
 
+// Create inserts a new session record into the user_sessions table with the provided
+// user ID, token hash, and expiration time. It generates a new UUID for the session
+// and executes the SQL query to store the session information in the database. If
+// the operation is successful, it returns nil; otherwise, it returns an error.
 func (r *PostgresSessionRepository) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
 	query := `
 		INSERT INTO user_sessions (
@@ -47,6 +60,11 @@ func (r *PostgresSessionRepository) Create(ctx context.Context, userID uuid.UUID
 	return err
 }
 
+// FindByTokenHash retrieves a session from the user_sessions table based on the
+// provided token hash. It returns the user ID, expiration time, a boolean indicating
+// whether the session has been revoked, and an error if the operation fails.
+// If no session is found with the given token hash, it returns a zero UUID,
+// zero time, false for revoked, and nil for error.
 func (r *PostgresSessionRepository) FindByTokenHash(ctx context.Context, tokenHash string) (uuid.UUID, time.Time, bool, error) {
 	query := `
 		SELECT user_id, expires_at, revoked_at
@@ -69,6 +87,10 @@ func (r *PostgresSessionRepository) FindByTokenHash(ctx context.Context, tokenHa
 	return userID, expiresAt, revokedAt != nil, nil
 }
 
+// Revoke sets the revoked_at timestamp for a session in the user_sessions table
+// based on the provided token hash. If the session is successfully revoked, it
+// returns nil; if no session is found with the given token hash, it returns
+// domain.ErrSessionNotFound; otherwise, it returns an error.
 func (r *PostgresSessionRepository) Revoke(ctx context.Context, tokenHash string) error {
 	query := `
 		UPDATE user_sessions

@@ -27,6 +27,7 @@ type Transaction struct {
 	CreatedAt        time.Time
 }
 
+// NewTransaction creates a new Transaction with the given parameters.
 func NewTransaction(
 	accountID uuid.UUID,
 	ttype TransactionType,
@@ -45,6 +46,7 @@ func NewTransaction(
 	}
 }
 
+// NewTransactionWithIdempotency creates a new Transaction with the given parameters
 func NewTransactionWithIdempotency(
 	accountID uuid.UUID,
 	ttype TransactionType,

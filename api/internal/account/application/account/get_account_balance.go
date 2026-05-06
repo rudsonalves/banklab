@@ -23,10 +23,16 @@ type GetAccountBalance struct {
 	repo domain.AccountRepository
 }
 
+// NewGetAccountBalance creates a new instance of the GetAccountBalance use case
+// with the provided account repository.
 func NewGetAccountBalance(repo domain.AccountRepository) *GetAccountBalance {
 	return &GetAccountBalance{repo: repo}
 }
 
+// Execute retrieves the current balance of the specified account. It checks for
+// valid input, verifies access permissions, and returns the account balance if
+// the user has access to the account. If the account is not found or the user
+// does not have permission, it returns an appropriate error.
 func (uc *GetAccountBalance) Execute(ctx context.Context, input GetAccountBalanceInput) (*AccountBalance, error) {
 	if input.AccountID == uuid.Nil {
 		return nil, domain.ErrInvalidData
