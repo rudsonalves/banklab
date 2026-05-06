@@ -41,14 +41,13 @@ func (r *baseRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*t
 	return &account, nil
 }
 
-func (r *baseRepository) GetByBranchAndNumberForUpdate(ctx context.Context, branch, number string) (*transactiondomain.Account, error) {
+func (r *baseRepository) GetByBranchAndNumber(ctx context.Context, branch, number string) (*transactiondomain.Account, error) {
 	var account transactiondomain.Account
 
 	query := `
 		SELECT id, customer_id, balance, status
 		FROM accounts
 		WHERE branch = $1 AND number = $2
-		FOR UPDATE
 	`
 
 	err := r.exec.QueryRow(ctx, query, branch, number).Scan(
@@ -61,7 +60,7 @@ func (r *baseRepository) GetByBranchAndNumberForUpdate(ctx context.Context, bran
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, transactiondomain.ErrAccountNotFound
 		}
-		return nil, fmt.Errorf("get account by branch and number for update: %w", err)
+		return nil, fmt.Errorf("get account by branch and number: %w", err)
 	}
 
 	return &account, nil

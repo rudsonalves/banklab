@@ -139,29 +139,39 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req TransferRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}
 
-	fromAccountID, err := uuid.Parse(req.FromAccountID)
-	if err != nil {
-		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
+	if req.Amount <= 0 {
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidAmount))
 		return
 	}
 
-	toAccountID, err := uuid.Parse(req.ToAccountID)
-	if err != nil {
+	// if req.IdempotencyKey == "" {
+	// 	sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
+	// 	return
+	// }
+
+	if req.FromAccountBranch == "" ||
+		req.FromAccountNumber == "" ||
+		req.ToAccountBranch == "" ||
+		req.ToAccountNumber == "" {
 		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	result, err := h.transfer.Execute(r.Context(), transactionapp.TransferInput{
-		User:           user,
-		FromAccountID:  fromAccountID,
-		ToAccountID:    toAccountID,
-		Amount:         req.Amount,
-		IdempotencyKey: req.IdempotencyKey,
+		User:              user,
+		FromAccountBranch: req.FromAccountBranch,
+		FromAccountNumber: req.FromAccountNumber,
+		ToAccountBranch:   req.ToAccountBranch,
+		ToAccountNumber:   req.ToAccountNumber,
+		Amount:            req.Amount,
+		IdempotencyKey:    req.IdempotencyKey,
 	})
 	if err != nil {
 		log.Printf("event=transfer error=%v", err)
@@ -170,11 +180,13 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sharedhttp.WriteJSON(w, http.StatusOK, TransferData{
-		FromAccountID: result.FromAccountID.String(),
-		ToAccountID:   result.ToAccountID.String(),
-		Amount:        result.Amount,
-		FromBalance:   result.FromBalance,
-		ToBalance:     result.ToBalance,
+		FromAccountBranch: req.FromAccountBranch,
+		FromAccountNumber: req.FromAccountNumber,
+		ToAccountBranch:   req.ToAccountBranch,
+		ToAccountNumber:   req.ToAccountNumber,
+		Amount:            result.Amount,
+		FromBalance:       result.FromBalance,
+		ToBalance:         result.ToBalance,
 	})
 }
 

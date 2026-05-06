@@ -134,7 +134,7 @@ func NewTransactionWithIdempotency(
 
 type Repository interface {
 	GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*Account, error)
-	GetByBranchAndNumberForUpdate(ctx context.Context, branch, number string) (*Account, error)
+	GetByBranchAndNumber(ctx context.Context, branch, number string) (*Account, error)
 	IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
 	DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
 	CreateTransaction(ctx context.Context, tx *Transaction) error

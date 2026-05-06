@@ -35,8 +35,8 @@ func (r *Repository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*trans
 	return r.base.GetByIDForUpdate(ctx, id)
 }
 
-func (r *Repository) GetByBranchAndNumberForUpdate(ctx context.Context, branch, number string) (*transactiondomain.Account, error) {
-	return r.base.GetByBranchAndNumberForUpdate(ctx, branch, number)
+func (r *Repository) GetByBranchAndNumber(ctx context.Context, branch, number string) (*transactiondomain.Account, error) {
+	return r.base.GetByBranchAndNumber(ctx, branch, number)
 }
 
 func (r *Repository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {
@@ -109,8 +109,8 @@ func (r *txRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*tra
 	return r.base.GetByIDForUpdate(ctx, id)
 }
 
-func (r *txRepository) GetByBranchAndNumberForUpdate(ctx context.Context, branch, number string) (*transactiondomain.Account, error) {
-	return r.base.GetByBranchAndNumberForUpdate(ctx, branch, number)
+func (r *txRepository) GetByBranchAndNumber(ctx context.Context, branch, number string) (*transactiondomain.Account, error) {
+	return r.base.GetByBranchAndNumber(ctx, branch, number)
 }
 
 func (r *txRepository) IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error) {

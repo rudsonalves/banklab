@@ -194,9 +194,8 @@ func TestHandler_Transfer_SameAccount(t *testing.T) {
 		},
 	}
 	h := &Handler{transfer: transferUC}
-	accountID := uuid.New()
 
-	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_account_id":"`+accountID.String()+`","to_account_id":"`+accountID.String()+`","amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0001","to_account_number":"123456","amount":100}`))
 	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
@@ -218,5 +217,213 @@ func TestHandler_Transfer_SameAccount(t *testing.T) {
 
 	if got.Error.Code != "SAME_ACCOUNT_TRANSFER" {
 		t.Fatalf("expected error code %q, got %q", "SAME_ACCOUNT_TRANSFER", got.Error.Code)
+	}
+}
+
+func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
+	customerID := uuid.New()
+	transferUC := &transferUseCaseMock{
+		executeFn: func(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error) {
+			if input.User == nil {
+				return nil, errors.New("missing user")
+			}
+
+			if input.FromAccountBranch != "0001" || input.FromAccountNumber != "123456" {
+				return nil, errors.New("unexpected source account")
+			}
+
+			if input.ToAccountBranch != "0002" || input.ToAccountNumber != "654321" {
+				return nil, errors.New("unexpected destination account")
+			}
+
+			if input.Amount != 100 {
+				return nil, errors.New("unexpected amount")
+			}
+
+			return &transactionapp.TransferResult{
+				Amount:      100,
+				FromBalance: 900,
+				ToBalance:   1100,
+			}, nil
+		},
+	}
+	h := &Handler{transfer: transferUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100}`))
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var got struct {
+		Data struct {
+			FromAccountBranch string `json:"from_branch"`
+			FromAccountNumber string `json:"from_account_number"`
+			ToAccountBranch   string `json:"to_branch"`
+			ToAccountNumber   string `json:"to_account_number"`
+			Amount            int64  `json:"amount"`
+			FromBalance       int64  `json:"from_balance"`
+			ToBalance         int64  `json:"to_balance"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Data.FromAccountBranch != "0001" || got.Data.FromAccountNumber != "123456" {
+		t.Fatalf("unexpected source account in response: %+v", got)
+	}
+
+	if got.Data.ToAccountBranch != "0002" || got.Data.ToAccountNumber != "654321" {
+		t.Fatalf("unexpected destination account in response: %+v", got)
+	}
+
+	if got.Data.Amount != 100 || got.Data.FromBalance != 900 || got.Data.ToBalance != 1100 {
+		t.Fatalf("unexpected balances/amount in response: %+v", got)
+	}
+
+	if transferUC.executeCalls != 1 {
+		t.Fatalf("expected use case Execute to be called once, got %d calls", transferUC.executeCalls)
+	}
+}
+
+func TestHandler_Transfer_InvalidJSON(t *testing.T) {
+	customerID := uuid.New()
+	transferUC := &transferUseCaseMock{}
+	h := &Handler{transfer: transferUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001",`))
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INVALID_REQUEST" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_REQUEST", got.Error.Code)
+	}
+
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
+func TestHandler_Transfer_InvalidAmount(t *testing.T) {
+	customerID := uuid.New()
+	transferUC := &transferUseCaseMock{}
+	h := &Handler{transfer: transferUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":0}`))
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INVALID_AMOUNT" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_AMOUNT", got.Error.Code)
+	}
+
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
+func TestHandler_Transfer_EmptyToAccountNumber(t *testing.T) {
+	customerID := uuid.New()
+	transferUC := &transferUseCaseMock{}
+	h := &Handler{transfer: transferUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"","amount":100}`))
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INVALID_DATA" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_DATA", got.Error.Code)
+	}
+
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
+func TestHandler_Transfer_LegacyPayloadRejected(t *testing.T) {
+	customerID := uuid.New()
+	transferUC := &transferUseCaseMock{}
+	h := &Handler{transfer: transferUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_account_id":"11111111-1111-1111-1111-111111111111","to_account_id":"22222222-2222-2222-2222-222222222222","amount":100}`))
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INVALID_REQUEST" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_REQUEST", got.Error.Code)
+	}
+
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", transferUC.executeCalls)
 	}
 }

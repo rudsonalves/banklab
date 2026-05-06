@@ -1,5 +1,157 @@
 # Changelog
 
+## 2026/05/06 - api/transfer-by-account-number-02
+
+Refactor internal transfer identification to use `(branch, account_number)` instead of UUID-based account references, while aligning API documentation, repository contracts, database constraints, and tooling behavior with the new transfer model.
+
+### Documentation
+
+1. Updated `api/docs/07-api-rest.md`
+
+   * Replaced transfer request and response payloads from:
+
+     * `from_account_id`
+     * `to_account_id`
+       to:
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * Clarified that transfers are currently internal-only and bank resolution is implicit.
+   * Updated idempotency scope from:
+
+     * `(from_account_id, idempotency_key)`
+       to:
+     * `(from_branch, from_account_number, idempotency_key)`
+   * Refined ownership documentation for admin users and `GET /accounts` customer-context behavior.
+   * Standardized invalid query parameter handling from `INVALID_DATA` to `INVALID_REQUEST`.
+   * Updated transfer validation error descriptions to reflect branch/account-number semantics instead of UUID validation.
+
+### Transaction Delivery Layer
+
+2. Updated `api/internal/account/transaction/delivery/data.go`
+
+   * Added `NewTransferData` DTO using:
+
+     * branch
+     * account number
+     * amount
+     * resulting balances
+
+3. Updated `api/internal/account/transaction/delivery/request.go`
+
+   * Added `NewTransferRequest` with transfer identification based on:
+
+     * branch
+     * account number
+     * idempotency key
+
+4. Updated `api/internal/account/transaction/delivery/handler.go`
+
+   * Added documentation comment to `requireUser`.
+
+### Domain and Repository Contracts
+
+5. Updated `api/internal/account/transaction/domain/domain.go`
+
+   * Extended repository contract with:
+
+     * `GetByBranchAndNumberForUpdate(ctx, branch, number)`
+
+### Infrastructure Layer
+
+6. Updated `api/internal/account/transaction/infrastructure/base_repository.go`
+
+   * Implemented:
+
+     * `GetByBranchAndNumberForUpdate`
+   * Added row-locking lookup using:
+
+     * `WHERE branch = $1 AND number = $2 FOR UPDATE`
+   * Preserved transactional locking semantics for transfer consistency.
+   * Added repository-level documentation comments for:
+
+     * account locking
+     * balance updates
+     * transaction creation
+     * idempotency replay lookups
+     * reference-based transaction retrieval
+
+7. Updated `api/internal/account/transaction/infrastructure/repository.go`
+
+   * Exposed `GetByBranchAndNumberForUpdate` through:
+
+     * `Repository`
+     * `txRepository`
+
+### Tests
+
+8. Updated `deposit_test.go`
+
+   * Added mock implementation for:
+
+     * `GetByBranchAndNumberForUpdate`
+
+9. Updated `transfer_test.go`
+
+   * Added mock implementation for:
+
+     * `GetByBranchAndNumberForUpdate`
+
+### Database Migrations
+
+10. Added `api/migrations/000002_account_number_key.up.sql`
+
+    * Replaced unique constraint:
+
+      * `accounts_number_key`
+        with:
+      * `accounts_branch_number_key`
+        enforcing uniqueness on:
+      * `(branch, number)`
+
+11. Added `api/migrations/000002_account_number_key.down.sql`
+
+    * Restored previous unique constraint on:
+
+      * `number`
+
+### Tooling and Environment Automation
+
+12. Updated `infra/scripts/update-mobile-env-ip.sh`
+
+* Added automatic Postman environment synchronization.
+* Added support for updating:
+
+  * `base_url`
+  * `app_token`
+    inside:
+  * `tools/postman/Environment.postman_environment.json`
+* Added `jq`-based JSON update flow.
+* Added automatic extraction of `APP_ACCESS_TOKEN` from `mobile/dev.env`.
+* Improved developer workflow consistency between:
+
+  * mobile
+  * API
+  * Postman environments
+
+### Architectural Impact
+
+This change shifts transfer addressing from opaque UUID references toward banking-oriented identifiers, preparing the API for more realistic transfer semantics while preserving:
+
+* transactional integrity
+* deterministic locking
+* ledger consistency
+* idempotent replay behavior
+
+The new `(branch, account_number)` lookup model also creates a cleaner path for future expansion into:
+
+* inter-bank routing
+* PIX-style abstractions
+* external transfer gateways
+* customer-facing account operations.
+
+
 ## 2026/05/06 - api/transfer-by-account-number-01
 
 Refactor transfer identification to use `(branch, account_number)` instead of account UUIDs and align repository, database, and API contracts with the new transfer model.
