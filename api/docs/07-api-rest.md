@@ -540,7 +540,8 @@ Notes:
 - The bank is currently implicit.
 - The transfer is internal only and resolves accounts by `(branch, account_number)`.
 - `idempotency_key` is optional.
-- Idempotency scope is `(from_branch, from_account_number, idempotency_key)`.
+- Idempotency is scoped to the resolved source account and `idempotency_key`.
+- Different source accounts may reuse the same `idempotency_key` independently.
 - Replay responses return the historical transfer result from ledger data (not current account balances).
 
 Success response (200):
@@ -1017,6 +1018,48 @@ Scenario: insufficient funds
 
 ### 9.9 POST /accounts/transfer
 
+Scenario: invalid JSON or unknown public request field
+- Status: 400
+- Code: INVALID_REQUEST
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request"
+  }
+}
+```
+
+Scenario: invalid amount
+- Status: 400
+- Code: INVALID_AMOUNT
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_AMOUNT",
+    "message": "Invalid amount"
+  }
+}
+```
+
+Scenario: missing or malformed branch/account number data
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
 Scenario: source and destination are the same
 - Status: 400
 - Code: SAME_ACCOUNT_TRANSFER
@@ -1045,7 +1088,63 @@ Scenario: access denied to source account
 }
 ```
 
+Scenario: source or destination account not found
+- Status: 404
+- Code: ACCOUNT_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_NOT_FOUND",
+    "message": "Account not found"
+  }
+}
+```
+
+Scenario: insufficient funds
+- Status: 422
+- Code: INSUFFICIENT_FUNDS
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INSUFFICIENT_FUNDS",
+    "message": "Insufficient balance"
+  }
+}
+```
+
+Scenario: inactive account
+- Status: 422
+- Code: ACCOUNT_INACTIVE
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_INACTIVE",
+    "message": "Account is not active"
+  }
+}
+```
+
 ### 9.10 GET /accounts/transfer/{transaction_reference}/receipt
+
+Scenario: malformed transaction reference
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
 
 Scenario: receipt not found
 - Status: 404
@@ -1149,14 +1248,18 @@ The repository includes a ready-to-use Postman collection and environment under 
 
 ### 10.2 Environment Variables
 
-The environment file defines the following variables:
+Use these variables when configuring the Postman environment:
 
 - `base_url`: API base URL (default: `http://localhost:8080`)
 - `app_token`: application token used by auth entry routes (`/auth/register` and `/auth/login`)
 - `access_token`: JWT used for protected routes
 - `refresh_token`: opaque refresh token used by `/auth/refresh`
 - `account_id`: account UUID for account operations
-- `account_id_2`: second account UUID (for transfer scenarios)
+- `from_branch`: source account branch used by transfer requests
+- `from_account_number`: source account number used by transfer requests
+- `to_branch`: destination account branch used by transfer requests
+- `to_account_number`: destination account number used by transfer requests
+- `transaction_reference`: public reference returned by successful transfer requests
 - `id`: user UUID used by admin approval route (`/admin/users/{id}/approve`)
 
 ### 10.3 How to Import and Configure
@@ -1176,7 +1279,9 @@ Use this flow to bootstrap test data and credentials quickly:
 2. `Auth/Login` (copy `access_token` and `refresh_token` from response)
 3. `Auth/Me` (validate JWT)
 4. `Account/User/Approve` (admin only, using `id`)
-5. Account endpoints using `account_id` and `account_id_2` as needed
+5. Account endpoints using `account_id` as needed
+6. Transfer endpoint using `from_branch`, `from_account_number`, `to_branch`, and `to_account_number`
+7. Receipt endpoint using `transaction_reference` from a successful transfer response
 
 Notes:
 - Keep `X-App-Token` for register/login requests as documented in this file.

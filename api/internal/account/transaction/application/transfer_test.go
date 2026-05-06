@@ -112,6 +112,7 @@ type transferTxMock struct {
 	updateBalanceValues      map[uuid.UUID]int64
 	updateBalanceErr         error
 	createTransactionErr     error
+	getTransactionByKeyFn    func(accountID uuid.UUID, key string) (*domain.Transaction, error)
 	getTransactionResult     *domain.Transaction
 	getTransactionResults    []*domain.Transaction
 	getTransactionErr        error
@@ -158,6 +159,10 @@ func (m *transferTxMock) CreateTransaction(ctx context.Context, tx *domain.Trans
 
 func (m *transferTxMock) GetTransactionByIdempotencyKey(ctx context.Context, accountID uuid.UUID, key string) (*domain.Transaction, error) {
 	m.getTransactionByKeyCalls++
+	if m.getTransactionByKeyFn != nil {
+		return m.getTransactionByKeyFn(accountID, key)
+	}
+
 	if m.getTransactionErr != nil {
 		return nil, m.getTransactionErr
 	}
@@ -786,6 +791,89 @@ func TestTransfer_Execute_IdempotencyKeyAlreadyProcessed(t *testing.T) {
 
 	if tx.commitCalls != 1 {
 		t.Fatalf("expected commit once, got %d", tx.commitCalls)
+	}
+}
+
+func TestTransfer_Execute_IdempotencyKeyScopedByResolvedSourceAccount(t *testing.T) {
+	sourceAID := uuid.New()
+	sourceBID := uuid.New()
+	toID := uuid.New()
+	customerID := uuid.New()
+	fromBranchA := "0001"
+	fromNumberA := "111111"
+	fromBranchB := "0001"
+	fromNumberB := "333333"
+	toBranch := "0001"
+	toNumber := "222222"
+	key := "shared-idempotency-key"
+	historicalReferenceID := uuid.New()
+	tx := &transferTxMock{
+		accounts: map[uuid.UUID]*domain.Account{
+			sourceBID: {ID: sourceBID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
+			toID:      {ID: toID, Status: domain.AccountActive, Balance: 20},
+		},
+		accountsByBranchNumber: map[string]*domain.Account{
+			branchNumberKey(fromBranchA, fromNumberA): {ID: sourceAID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
+			branchNumberKey(fromBranchB, fromNumberB): {ID: sourceBID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
+			branchNumberKey(toBranch, toNumber):       {ID: toID, Status: domain.AccountActive, Balance: 20},
+		},
+		getTransactionByKeyFn: func(accountID uuid.UUID, gotKey string) (*domain.Transaction, error) {
+			if gotKey != key {
+				t.Fatalf("expected idempotency key %q, got %q", key, gotKey)
+			}
+
+			if accountID == sourceAID {
+				return &domain.Transaction{
+					ID:             uuid.New(),
+					AccountID:      sourceAID,
+					Type:           domain.TransactionTransferOut,
+					Amount:         50,
+					BalanceAfter:   50,
+					ReferenceID:    &historicalReferenceID,
+					IdempotencyKey: &key,
+				}, nil
+			}
+
+			return nil, nil
+		},
+		decreaseBalanceValue: 50,
+		updateBalanceValues:  map[uuid.UUID]int64{toID: 70},
+	}
+	repo := &transferAccountRepositoryMock{tx: tx}
+	useCase := NewTransfer(repo)
+
+	result, err := useCase.Execute(context.Background(), TransferInput{
+		User:              testCustomerUser(customerID),
+		FromAccountBranch: fromBranchB,
+		FromAccountNumber: fromNumberB,
+		ToAccountBranch:   toBranch,
+		ToAccountNumber:   toNumber,
+		Amount:            50,
+		IdempotencyKey:    key,
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result == nil {
+		t.Fatal("expected result to be non-nil")
+	}
+
+	if result.FromAccountID != sourceBID {
+		t.Fatalf("expected transfer to execute from source B %s, got %s", sourceBID, result.FromAccountID)
+	}
+
+	if result.TransactionReference == historicalReferenceID {
+		t.Fatalf("expected a new transaction reference for different source account, got historical reference %s", historicalReferenceID)
+	}
+
+	if tx.decreaseCalls != 1 || tx.updateCalls != 1 {
+		t.Fatalf("expected financial effects once, got decrease=%d increase=%d", tx.decreaseCalls, tx.updateCalls)
+	}
+
+	if tx.createTransactionCalls != 2 {
+		t.Fatalf("expected two ledger writes, got %d", tx.createTransactionCalls)
 	}
 }
 

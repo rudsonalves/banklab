@@ -234,6 +234,79 @@ func TestHandler_Transfer_SameAccount(t *testing.T) {
 	}
 }
 
+func TestHandler_Transfer_MissingAuth(t *testing.T) {
+	transferUC := &transferUseCaseMock{}
+	h := &Handler{transfer: transferUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100}`))
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
+func TestHandler_Transfer_UseCaseErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantCode   string
+	}{
+		{name: "forbidden", err: domain.ErrForbidden, wantStatus: http.StatusForbidden, wantCode: "FORBIDDEN"},
+		{name: "account not found", err: domain.ErrAccountNotFound, wantStatus: http.StatusNotFound, wantCode: "ACCOUNT_NOT_FOUND"},
+		{name: "insufficient funds", err: domain.ErrInsufficientBalance, wantStatus: http.StatusUnprocessableEntity, wantCode: "INSUFFICIENT_FUNDS"},
+		{name: "inactive account", err: domain.ErrAccountInactive, wantStatus: http.StatusUnprocessableEntity, wantCode: "ACCOUNT_INACTIVE"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			transferUC := &transferUseCaseMock{
+				executeFn: func(ctx context.Context, input transactionapp.TransferInput) (*transactionapp.TransferResult, error) {
+					if input.User == nil {
+						return nil, errors.New("missing user")
+					}
+					return nil, tt.err
+				},
+			}
+			h := &Handler{transfer: transferUC}
+
+			req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100}`))
+			req = testAuthenticatedRequest(req, uuid.New())
+			rec := httptest.NewRecorder()
+
+			h.Transfer(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("expected status %d, got %d", tt.wantStatus, rec.Code)
+			}
+
+			var got struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+			if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+				t.Fatalf("failed to decode response body: %v", err)
+			}
+
+			if got.Error.Code != tt.wantCode {
+				t.Fatalf("expected error code %q, got %q", tt.wantCode, got.Error.Code)
+			}
+
+			if transferUC.executeCalls != 1 {
+				t.Fatalf("expected use case Execute once, got %d calls", transferUC.executeCalls)
+			}
+		})
+	}
+}
+
 func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 	customerID := uuid.New()
 	transactionReference := uuid.New()

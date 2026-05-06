@@ -1,5 +1,99 @@
 # Changelog
 
+## 2026/05/06 - api/transfer-by-account-number-04
+
+Refine transfer-by-account-number behavior, strengthen idempotency validation, and expand transfer integration coverage.
+
+1. Updated transfer API documentation
+
+   * Clarified idempotency semantics for transfer operations:
+
+     * idempotency is now explicitly scoped to the resolved source account plus `idempotency_key`
+     * different source accounts may reuse the same key independently
+   * Added detailed error scenarios for:
+
+     * invalid request payloads
+     * invalid amount values
+     * malformed branch/account number data
+     * account not found
+     * insufficient funds
+     * inactive account
+     * malformed transfer receipt reference
+   * Updated Postman environment documentation:
+
+     * replaced transfer account UUID variables with public branch/account number variables
+     * documented `transaction_reference` usage for receipt retrieval
+   * Updated onboarding/testing flow examples to reflect transfer-by-account-number behavior.
+
+2. Expanded transfer application test coverage
+
+   * Added support for custom idempotency lookup behavior in `transferTxMock` through `getTransactionByKeyFn`
+   * Added regression coverage validating:
+
+     * identical idempotency keys are allowed across different source accounts
+     * idempotency replay remains scoped to the resolved source account only
+     * financial effects execute exactly once for valid independent transfers
+     * new ledger references are generated for distinct source accounts.
+
+3. Added transfer integration test suite
+
+   * Implemented full integration coverage for:
+
+     * transfer execution
+     * idempotent replay behavior
+     * persisted balance validation
+     * transfer receipt retrieval
+   * Added end-to-end validation for:
+
+     * transfer requests using branch/account number resolution
+     * replay preservation of historical balances
+     * transaction reference propagation
+     * receipt endpoint correctness
+     * recipient name and account number mapping
+   * Added response safety validation ensuring internal account IDs are not exposed in transfer responses.
+
+4. Added transfer integration test infrastructure helpers
+
+   * Added helpers for:
+
+     * transfer test customer/account seeding
+     * account insertion
+     * customer insertion
+     * transfer cleanup
+     * transfer request execution
+     * unique CPF/account number generation
+   * Added cleanup handling for:
+
+     * transfer ledger rows
+     * accounts
+     * customers.
+
+5. Expanded transfer delivery handler tests
+
+   * Added authentication validation coverage:
+
+     * transfer endpoint now explicitly tested for missing authenticated user context
+   * Added error mapping validation for:
+
+     * forbidden access
+     * account not found
+     * insufficient funds
+     * inactive account
+   * Verified proper HTTP status mapping and stable API error codes.
+
+6. Improved transfer API robustness and contract validation
+
+   * Reinforced public transfer flow centered on:
+
+     * branch + account number resolution
+     * ledger-backed deterministic replay
+     * account-scoped idempotency
+     * receipt retrieval through transaction reference
+   * Strengthened validation around transport-layer contract behavior and protected internal identifiers from API consumers.
+
+This update consolidates the transfer-by-account-number flow as the public transfer contract while improving idempotency correctness, integration reliability, and API-level validation coverage.
+
+
 ## 2026/05/06 - api/transfer-by-account-number-03
 
 Implemented transfer receipt retrieval flow and exposed transaction references across transfer operations.
