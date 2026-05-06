@@ -1,5 +1,457 @@
 # Changelog
 
+## 2026/05/06 - api/transfer-by-account-number-04
+
+Refine transfer-by-account-number behavior, strengthen idempotency validation, and expand transfer integration coverage.
+
+1. Updated transfer API documentation
+
+   * Clarified idempotency semantics for transfer operations:
+
+     * idempotency is now explicitly scoped to the resolved source account plus `idempotency_key`
+     * different source accounts may reuse the same key independently
+   * Added detailed error scenarios for:
+
+     * invalid request payloads
+     * invalid amount values
+     * malformed branch/account number data
+     * account not found
+     * insufficient funds
+     * inactive account
+     * malformed transfer receipt reference
+   * Updated Postman environment documentation:
+
+     * replaced transfer account UUID variables with public branch/account number variables
+     * documented `transaction_reference` usage for receipt retrieval
+   * Updated onboarding/testing flow examples to reflect transfer-by-account-number behavior.
+
+2. Expanded transfer application test coverage
+
+   * Added support for custom idempotency lookup behavior in `transferTxMock` through `getTransactionByKeyFn`
+   * Added regression coverage validating:
+
+     * identical idempotency keys are allowed across different source accounts
+     * idempotency replay remains scoped to the resolved source account only
+     * financial effects execute exactly once for valid independent transfers
+     * new ledger references are generated for distinct source accounts.
+
+3. Added transfer integration test suite
+
+   * Implemented full integration coverage for:
+
+     * transfer execution
+     * idempotent replay behavior
+     * persisted balance validation
+     * transfer receipt retrieval
+   * Added end-to-end validation for:
+
+     * transfer requests using branch/account number resolution
+     * replay preservation of historical balances
+     * transaction reference propagation
+     * receipt endpoint correctness
+     * recipient name and account number mapping
+   * Added response safety validation ensuring internal account IDs are not exposed in transfer responses.
+
+4. Added transfer integration test infrastructure helpers
+
+   * Added helpers for:
+
+     * transfer test customer/account seeding
+     * account insertion
+     * customer insertion
+     * transfer cleanup
+     * transfer request execution
+     * unique CPF/account number generation
+   * Added cleanup handling for:
+
+     * transfer ledger rows
+     * accounts
+     * customers.
+
+5. Expanded transfer delivery handler tests
+
+   * Added authentication validation coverage:
+
+     * transfer endpoint now explicitly tested for missing authenticated user context
+   * Added error mapping validation for:
+
+     * forbidden access
+     * account not found
+     * insufficient funds
+     * inactive account
+   * Verified proper HTTP status mapping and stable API error codes.
+
+6. Improved transfer API robustness and contract validation
+
+   * Reinforced public transfer flow centered on:
+
+     * branch + account number resolution
+     * ledger-backed deterministic replay
+     * account-scoped idempotency
+     * receipt retrieval through transaction reference
+   * Strengthened validation around transport-layer contract behavior and protected internal identifiers from API consumers.
+
+This update consolidates the transfer-by-account-number flow as the public transfer contract while improving idempotency correctness, integration reliability, and API-level validation coverage.
+
+
+## 2026/05/06 - api/transfer-by-account-number-03
+
+Implemented transfer receipt retrieval flow and exposed transaction references across transfer operations.
+
+1. Added transfer receipt use case and delivery endpoint
+
+   * Created `GetTransferReceipt` application use case
+   * Added ownership validation for transfer receipts
+   * Implemented `GET /accounts/transfer/{transaction_reference}/receipt`
+   * Added transfer receipt response DTOs
+   * Registered new route in API bootstrap
+   * Added HTTP handler for receipt retrieval
+   * Added support for `TRANSACTION_NOT_FOUND`
+
+2. Extended transfer result contract with transaction references
+
+   * Added `TransactionReference` to `TransferResult`
+   * Returned transfer reference from successful operations
+   * Preserved transaction reference during idempotency replay
+   * Exposed `transaction_reference` in transfer HTTP responses
+
+3. Implemented transfer receipt persistence query
+
+   * Added `GetTransferReceiptByReference` repository contract
+   * Implemented PostgreSQL query joining:
+
+     * transfer_out
+     * transfer_in
+     * accounts
+     * customers
+   * Reconstructed persisted receipt data from ledger entries
+   * Added transaction not found mapping from `pgx.ErrNoRows`
+
+4. Expanded domain model for receipt support
+
+   * Added `TransferReceipt` domain structure
+   * Added `ErrTransactionNotFound`
+   * Updated repository interfaces
+   * Improved domain documentation comments for:
+
+     * account validation methods
+     * transaction constructors
+
+5. Improved delivery layer and response contracts
+
+   * Added `TransferReceiptData`
+   * Added RFC3339 formatting for operation dates
+   * Added authorization enforcement for receipt access
+   * Added invalid UUID validation for transaction references
+
+6. Expanded test coverage
+
+   * Added application tests for:
+
+     * source customer access
+     * destination customer access
+     * forbidden access
+     * invalid reference
+     * transaction not found
+   * Added delivery tests for:
+
+     * successful receipt retrieval
+     * unauthorized access
+     * invalid references
+     * forbidden access
+     * not found responses
+   * Updated transfer tests to validate transaction references
+   * Updated mocks to support receipt repository contract
+
+7. Updated API documentation
+
+   * Added Transfer Receipt endpoint documentation
+   * Added new error scenarios and payload examples
+   * Added `TRANSACTION_NOT_FOUND` to error catalog
+   * Updated table of contents and endpoint indexes
+   * Updated transfer success payload examples with `transaction_reference`
+
+8. Improved repository documentation and transaction comments
+
+   * Added descriptive comments for repository methods
+   * Added transaction lifecycle documentation
+   * Added commit/rollback behavior documentation
+   * Added repository delegation comments
+
+9. Updated Postman environment
+
+   * Updated `base_url` to local network IP for external device testing
+   * Reformatted exported environment JSON
+
+This change completes the first version of persisted transfer receipt retrieval, enabling clients to recover transfer metadata from immutable ledger data using the public transaction reference identifier.
+
+
+## 2026/05/06 - api/transfer-by-account-number-02
+
+Refactor internal transfer identification to use `(branch, account_number)` instead of UUID-based account references, while aligning API documentation, repository contracts, database constraints, and tooling behavior with the new transfer model.
+
+### Documentation
+
+1. Updated `api/docs/07-api-rest.md`
+
+   * Replaced transfer request and response payloads from:
+
+     * `from_account_id`
+     * `to_account_id`
+       to:
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * Clarified that transfers are currently internal-only and bank resolution is implicit.
+   * Updated idempotency scope from:
+
+     * `(from_account_id, idempotency_key)`
+       to:
+     * `(from_branch, from_account_number, idempotency_key)`
+   * Refined ownership documentation for admin users and `GET /accounts` customer-context behavior.
+   * Standardized invalid query parameter handling from `INVALID_DATA` to `INVALID_REQUEST`.
+   * Updated transfer validation error descriptions to reflect branch/account-number semantics instead of UUID validation.
+
+### Transaction Delivery Layer
+
+2. Updated `api/internal/account/transaction/delivery/data.go`
+
+   * Added `NewTransferData` DTO using:
+
+     * branch
+     * account number
+     * amount
+     * resulting balances
+
+3. Updated `api/internal/account/transaction/delivery/request.go`
+
+   * Added `NewTransferRequest` with transfer identification based on:
+
+     * branch
+     * account number
+     * idempotency key
+
+4. Updated `api/internal/account/transaction/delivery/handler.go`
+
+   * Added documentation comment to `requireUser`.
+
+### Domain and Repository Contracts
+
+5. Updated `api/internal/account/transaction/domain/domain.go`
+
+   * Extended repository contract with:
+
+     * `GetByBranchAndNumberForUpdate(ctx, branch, number)`
+
+### Infrastructure Layer
+
+6. Updated `api/internal/account/transaction/infrastructure/base_repository.go`
+
+   * Implemented:
+
+     * `GetByBranchAndNumberForUpdate`
+   * Added row-locking lookup using:
+
+     * `WHERE branch = $1 AND number = $2 FOR UPDATE`
+   * Preserved transactional locking semantics for transfer consistency.
+   * Added repository-level documentation comments for:
+
+     * account locking
+     * balance updates
+     * transaction creation
+     * idempotency replay lookups
+     * reference-based transaction retrieval
+
+7. Updated `api/internal/account/transaction/infrastructure/repository.go`
+
+   * Exposed `GetByBranchAndNumberForUpdate` through:
+
+     * `Repository`
+     * `txRepository`
+
+### Tests
+
+8. Updated `deposit_test.go`
+
+   * Added mock implementation for:
+
+     * `GetByBranchAndNumberForUpdate`
+
+9. Updated `transfer_test.go`
+
+   * Added mock implementation for:
+
+     * `GetByBranchAndNumberForUpdate`
+
+### Database Migrations
+
+10. Added `api/migrations/000002_account_number_key.up.sql`
+
+    * Replaced unique constraint:
+
+      * `accounts_number_key`
+        with:
+      * `accounts_branch_number_key`
+        enforcing uniqueness on:
+      * `(branch, number)`
+
+11. Added `api/migrations/000002_account_number_key.down.sql`
+
+    * Restored previous unique constraint on:
+
+      * `number`
+
+### Tooling and Environment Automation
+
+12. Updated `infra/scripts/update-mobile-env-ip.sh`
+
+* Added automatic Postman environment synchronization.
+* Added support for updating:
+
+  * `base_url`
+  * `app_token`
+    inside:
+  * `tools/postman/Environment.postman_environment.json`
+* Added `jq`-based JSON update flow.
+* Added automatic extraction of `APP_ACCESS_TOKEN` from `mobile/dev.env`.
+* Improved developer workflow consistency between:
+
+  * mobile
+  * API
+  * Postman environments
+
+### Architectural Impact
+
+This change shifts transfer addressing from opaque UUID references toward banking-oriented identifiers, preparing the API for more realistic transfer semantics while preserving:
+
+* transactional integrity
+* deterministic locking
+* ledger consistency
+* idempotent replay behavior
+
+The new `(branch, account_number)` lookup model also creates a cleaner path for future expansion into:
+
+* inter-bank routing
+* PIX-style abstractions
+* external transfer gateways
+* customer-facing account operations.
+
+
+## 2026/05/06 - api/transfer-by-account-number-01
+
+Refactor transfer identification to use `(branch, account_number)` instead of account UUIDs and align repository, database, and API contracts with the new transfer model.
+
+### Documentation Updates
+
+1. Updated REST API documentation (`api/docs/07-api-rest.md`)
+
+   * Replaced transfer payload fields from `from_account_id` / `to_account_id` to:
+
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * Documented that transfers are currently internal-only.
+   * Clarified that account resolution is performed through `(branch, account_number)`.
+   * Updated idempotency scope to:
+
+     * `(from_branch, from_account_number, idempotency_key)`
+   * Adjusted transfer response examples to expose branch and account number instead of UUIDs.
+   * Refined `INVALID_DATA` semantics for malformed branch/account information.
+   * Improved ownership and authorization documentation for admin behavior and customer-scoped account listing.
+   * Standardized unexpected query parameter errors from `INVALID_DATA` to `INVALID_REQUEST`.
+
+### Domain and Repository Changes
+
+2. Extended transaction repository contract (`api/internal/account/transaction/domain/domain.go`)
+
+   * Added:
+
+     * `GetByBranchAndNumberForUpdate(ctx, branch, number)`
+   * Enables transactional account resolution using business identifiers instead of UUIDs.
+
+3. Updated PostgreSQL repository implementation
+
+   * Added `GetByBranchAndNumberForUpdate` to:
+
+     * `base_repository.go`
+     * `repository.go`
+   * Implemented row locking with:
+
+     * `SELECT ... FOR UPDATE`
+   * Added proper error mapping to `ErrAccountNotFound`.
+
+4. Improved infrastructure documentation/comments
+
+   * Added explanatory comments for:
+
+     * account locking
+     * balance updates
+     * transaction persistence
+     * idempotency replay lookups
+     * helper methods
+
+### Transfer Delivery Layer Preparation
+
+5. Added new transfer request/response transport models
+
+   * `NewTransferRequest`
+   * `NewTransferData`
+   * Introduced branch/account-number-based payload structures while preserving existing transfer DTOs during migration.
+
+6. Improved delivery handler readability
+
+   * Added documentation comment to `requireUser`.
+
+### Database Migration
+
+7. Added migration to support branch-scoped account uniqueness
+
+   * New migration:
+
+     * `000002_account_number_key.up.sql`
+     * `000002_account_number_key.down.sql`
+   * Replaced:
+
+     * `UNIQUE(number)`
+   * With:
+
+     * `UNIQUE(branch, number)`
+
+This enables reuse of account numbers across different branches and aligns the schema with the new transfer lookup strategy.
+
+### Test Adjustments
+
+8. Updated transaction-related mocks/tests
+
+   * Added `GetByBranchAndNumberForUpdate` support to:
+
+     * deposit mocks
+     * transfer mocks
+     * transactional repository mocks
+   * Keeps repository interfaces compatible after contract expansion.
+
+### Tooling Improvements
+
+9. Enhanced mobile/Postman environment synchronization script
+
+   * Updated `infra/scripts/update-mobile-env-ip.sh`
+   * Added automatic Postman environment synchronization for:
+
+     * `base_url`
+     * `app_token`
+   * Added safe handling for:
+
+     * missing environment files
+     * missing `jq`
+   * Extracts token values automatically from `mobile/dev.env`.
+
+### Result
+
+This change begins the transition from internal UUID-based transfers to bank-style account addressing using branch and account number identifiers. It also prepares the persistence and API layers for future inter-bank evolution while preserving transactional consistency and idempotent replay semantics.
+
+
 ## 2026/05/06 - api/split-account-04
 
 Refactor the account module by separating bank account and transaction responsibilities into distinct bounded domains and infrastructure layers.

@@ -36,6 +36,10 @@ func (m *depositAccountRepositoryMock) GetTransactionByReference(ctx context.Con
 	return nil, nil
 }
 
+func (m *depositAccountRepositoryMock) GetTransferReceiptByReference(ctx context.Context, referenceID uuid.UUID) (*domain.TransferReceipt, error) {
+	return nil, nil
+}
+
 func (m *depositAccountRepositoryMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -49,6 +53,10 @@ func (m *depositAccountRepositoryMock) GetByID(ctx context.Context, id uuid.UUID
 }
 
 func (m *depositAccountRepositoryMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	return nil, nil
+}
+
+func (m *depositAccountRepositoryMock) GetByBranchAndNumber(ctx context.Context, branch, number string) (*domain.Account, error) {
 	return nil, nil
 }
 
@@ -137,6 +145,10 @@ func (m *txMock) GetTransactionByReference(ctx context.Context, accountID uuid.U
 	return nil, nil
 }
 
+func (m *txMock) GetTransferReceiptByReference(ctx context.Context, referenceID uuid.UUID) (*domain.TransferReceipt, error) {
+	return nil, nil
+}
+
 func (m *txMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -159,6 +171,10 @@ func (m *txMock) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Ac
 		return nil, m.getByIDErr
 	}
 	return m.account, nil
+}
+
+func (m *txMock) GetByBranchAndNumber(ctx context.Context, branch, number string) (*domain.Account, error) {
+	return nil, nil
 }
 
 func (m *txMock) GetTransactions(

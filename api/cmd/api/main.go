@@ -67,6 +67,7 @@ func main() {
 	depositUC := transactionApplication.NewDeposit(transactionRepo)
 	withdrawUC := transactionApplication.NewWithdraw(transactionRepo)
 	transferUC := transactionApplication.NewTransfer(transactionRepo)
+	transferReceiptUC := transactionApplication.NewGetTransferReceipt(transactionRepo)
 	statementUC := statementApplication.NewGetStatement(statementRepo)
 	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 
@@ -83,7 +84,7 @@ func main() {
 	// ======================
 	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC)
 	statementHandler := statementDelivery.New(statementUC)
-	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC)
+	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC, transferReceiptUC)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
@@ -124,6 +125,7 @@ func main() {
 	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(statementHandler.Statement)))
 	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
 	apiRouter.Handle("POST /accounts/transfer", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
+	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
 
 	// ======================
 	// Main Router

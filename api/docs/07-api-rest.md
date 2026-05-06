@@ -19,8 +19,9 @@
     - [4.3 Deposit](#43-deposit)
     - [4.4 Withdraw](#44-withdraw)
     - [4.5 Transfer](#45-transfer)
-    - [4.6 Get Balance](#46-get-balance)
-    - [4.7 Get Statement](#47-get-statement)
+    - [4.6 Transfer Receipt](#46-transfer-receipt)
+    - [4.7 Get Balance](#47-get-balance)
+    - [4.8 Get Statement](#48-get-statement)
   - [5. Customer Endpoints](#5-customer-endpoints)
     - [5.1 Get My Customer Profile](#51-get-my-customer-profile)
   - [6. Authorization Model](#6-authorization-model)
@@ -36,9 +37,10 @@
     - [9.7 POST /accounts/{id}/deposit](#97-post-accountsiddeposit)
     - [9.8 POST /accounts/{id}/withdraw](#98-post-accountsidwithdraw)
     - [9.9 POST /accounts/transfer](#99-post-accountstransfer)
-    - [9.10 GET /accounts/{id}/balance](#910-get-accountsidbalance)
-    - [9.11 GET /accounts/{id}/statement](#911-get-accountsidstatement)
-    - [9.12 GET /customers/me](#912-get-customersme)
+    - [9.10 GET /accounts/transfer/{transaction_reference}/receipt](#910-get-accountstransfertransaction_referencereceipt)
+    - [9.11 GET /accounts/{id}/balance](#911-get-accountsidbalance)
+    - [9.12 GET /accounts/{id}/statement](#912-get-accountsidstatement)
+    - [9.13 GET /customers/me](#913-get-customersme)
   - [10. Postman Setup](#10-postman-setup)
     - [10.1 Files in Repository](#101-files-in-repository)
     - [10.2 Environment Variables](#102-environment-variables)
@@ -357,7 +359,7 @@ Possible errors:
 
 All account routes are protected and require Authorization header with Bearer token.
 
-Ownership is enforced automatically. A customer-role user can only access accounts that belong to their own `customer_id`. Admin-role users can access any account.
+Ownership is enforced automatically. A customer-role user can only access accounts that belong to their own `customer_id`. Admin-role users can access account-scoped operations, but `GET /accounts` is customer-context scoped and requires a non-nil `customer_id` in the authenticated principal.
 
 ### 4.1 List Accounts
 
@@ -368,7 +370,7 @@ Ownership is enforced automatically. A customer-role user can only access accoun
 Returns the list of accounts that belong to the authenticated user.
 
 Query params:
-- none (any query param returns `400 INVALID_DATA`)
+- none (any query param returns `400 INVALID_REQUEST`)
 
 Success response (200):
 
@@ -394,7 +396,7 @@ Notes:
 Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: unexpected query params
+- 400 INVALID_REQUEST: unexpected query params
 - 403 FORBIDDEN: authenticated user has no customer context
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -525,16 +527,21 @@ Request body:
 
 ```json
 {
-  "from_account_id": "7e2a56a4-b56c-44aa-9204-5e6c2df659d5",
-  "to_account_id": "f2ec464e-dd1d-4b89-9f29-bf45dcbf16ff",
+  "from_branch": "0001",
+  "from_account_number": "00012345",
+  "to_branch": "0001",
+  "to_account_number": "00067890",
   "amount": 2500,
   "idempotency_key": "optional-client-key"
 }
 ```
 
 Notes:
+- The bank is currently implicit.
+- The transfer is internal only and resolves accounts by `(branch, account_number)`.
 - `idempotency_key` is optional.
-- Idempotency scope is `(from_account_id, idempotency_key)`.
+- Idempotency is scoped to the resolved source account and `idempotency_key`.
+- Different source accounts may reuse the same `idempotency_key` independently.
 - Replay responses return the historical transfer result from ledger data (not current account balances).
 
 Success response (200):
@@ -542,8 +549,11 @@ Success response (200):
 ```json
 {
   "data": {
-    "from_account_id": "7e2a56a4-b56c-44aa-9204-5e6c2df659d5",
-    "to_account_id": "f2ec464e-dd1d-4b89-9f29-bf45dcbf16ff",
+    "from_branch": "0001",
+    "from_account_number": "00012345",
+    "transaction_reference": "2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31",
+    "to_branch": "0001",
+    "to_account_number": "00067890",
     "amount": 2500,
     "from_balance": 97500,
     "to_balance": 32500
@@ -556,7 +566,7 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: invalid UUID data
+- 400 INVALID_DATA: missing or malformed branch/account number data
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
 - 403 FORBIDDEN: access denied
@@ -565,7 +575,46 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.6 Get Balance
+### 4.6 Transfer Receipt
+
+- Method: GET
+- Path: /accounts/transfer/{transaction_reference}/receipt
+- Auth required: yes
+
+Returns persisted receipt details for an internal transfer.
+
+Path params:
+- `transaction_reference`: public transfer reference returned by `POST /accounts/transfer`
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "operation_type": "transfer_out",
+    "amount": 2500,
+    "status": "completed",
+    "transaction_reference": "2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31",
+    "operation_date": "2026-05-06T12:30:00Z",
+    "source_branch": "0001",
+    "source_account_number": "00012345",
+    "destination_branch": "0001",
+    "destination_account_number": "00067890",
+    "recipient_name": "Maria Silva"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: missing or malformed transaction reference
+- 403 FORBIDDEN: authenticated user cannot access this receipt
+- 404 TRANSACTION_NOT_FOUND: transfer receipt does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 4.7 Get Balance
 
 - Method: GET
 - Path: /accounts/{id}/balance
@@ -597,7 +646,7 @@ Possible errors:
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.7 Get Statement
+### 4.8 Get Statement
 
 - Method: GET
 - Path: /accounts/{id}/statement
@@ -695,7 +744,8 @@ All account and customer operations enforce ownership based on the authenticated
 
 Rules:
 - A user with role `customer` can only access resources where `resource.customer_id == user.customer_id`
-- A user with role `admin` can access any resource
+- A user with role `admin` can access account/customer scoped resources when identifiers are provided
+- `GET /accounts` is scoped to the authenticated principal's `customer_id` and returns `403 FORBIDDEN` when `customer_id` is absent
 - The `customer_id` is never accepted from the client — it is always read from the JWT token
 - Cross-customer access returns `403 FORBIDDEN`
 - Any operation where the user has no `customer_id` returns `409 INVALID_USER_STATE`
@@ -720,6 +770,7 @@ Common error codes currently used by handlers:
 - ACCOUNT_INACTIVE
 - INSUFFICIENT_FUNDS
 - SAME_ACCOUNT_TRANSFER
+- TRANSACTION_NOT_FOUND
 - INTERNAL_ERROR
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when `POST /auth/register` or `POST /auth/login` is called without `X-App-Token` or with an invalid app token.
@@ -863,14 +914,14 @@ Scenario: authenticated user has no customer context
 
 Scenario: unexpected query params
 - Status: 400
-- Code: INVALID_DATA
+- Code: INVALID_REQUEST
 
 ```json
 {
   "data": null,
   "error": {
-    "code": "INVALID_DATA",
-    "message": "Invalid data"
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request body"
   }
 }
 ```
@@ -967,6 +1018,48 @@ Scenario: insufficient funds
 
 ### 9.9 POST /accounts/transfer
 
+Scenario: invalid JSON or unknown public request field
+- Status: 400
+- Code: INVALID_REQUEST
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request"
+  }
+}
+```
+
+Scenario: invalid amount
+- Status: 400
+- Code: INVALID_AMOUNT
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_AMOUNT",
+    "message": "Invalid amount"
+  }
+}
+```
+
+Scenario: missing or malformed branch/account number data
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
 Scenario: source and destination are the same
 - Status: 400
 - Code: SAME_ACCOUNT_TRANSFER
@@ -995,7 +1088,93 @@ Scenario: access denied to source account
 }
 ```
 
-### 9.10 GET /accounts/{id}/balance
+Scenario: source or destination account not found
+- Status: 404
+- Code: ACCOUNT_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_NOT_FOUND",
+    "message": "Account not found"
+  }
+}
+```
+
+Scenario: insufficient funds
+- Status: 422
+- Code: INSUFFICIENT_FUNDS
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INSUFFICIENT_FUNDS",
+    "message": "Insufficient balance"
+  }
+}
+```
+
+Scenario: inactive account
+- Status: 422
+- Code: ACCOUNT_INACTIVE
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_INACTIVE",
+    "message": "Account is not active"
+  }
+}
+```
+
+### 9.10 GET /accounts/transfer/{transaction_reference}/receipt
+
+Scenario: malformed transaction reference
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+Scenario: receipt not found
+- Status: 404
+- Code: TRANSACTION_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "TRANSACTION_NOT_FOUND",
+    "message": "Transaction not found"
+  }
+}
+```
+
+Scenario: access denied to receipt
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+### 9.11 GET /accounts/{id}/balance
 
 Scenario: invalid query/path data
 - Status: 400
@@ -1011,7 +1190,7 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.11 GET /accounts/{id}/statement
+### 9.12 GET /accounts/{id}/statement
 
 Scenario: invalid query/path data
 - Status: 400
@@ -1027,7 +1206,7 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.12 GET /customers/me
+### 9.13 GET /customers/me
 
 Scenario: user has inconsistent state (customer role without customer_id)
 - Status: 409
@@ -1069,14 +1248,18 @@ The repository includes a ready-to-use Postman collection and environment under 
 
 ### 10.2 Environment Variables
 
-The environment file defines the following variables:
+Use these variables when configuring the Postman environment:
 
 - `base_url`: API base URL (default: `http://localhost:8080`)
 - `app_token`: application token used by auth entry routes (`/auth/register` and `/auth/login`)
 - `access_token`: JWT used for protected routes
 - `refresh_token`: opaque refresh token used by `/auth/refresh`
 - `account_id`: account UUID for account operations
-- `account_id_2`: second account UUID (for transfer scenarios)
+- `from_branch`: source account branch used by transfer requests
+- `from_account_number`: source account number used by transfer requests
+- `to_branch`: destination account branch used by transfer requests
+- `to_account_number`: destination account number used by transfer requests
+- `transaction_reference`: public reference returned by successful transfer requests
 - `id`: user UUID used by admin approval route (`/admin/users/{id}/approve`)
 
 ### 10.3 How to Import and Configure
@@ -1096,7 +1279,9 @@ Use this flow to bootstrap test data and credentials quickly:
 2. `Auth/Login` (copy `access_token` and `refresh_token` from response)
 3. `Auth/Me` (validate JWT)
 4. `Account/User/Approve` (admin only, using `id`)
-5. Account endpoints using `account_id` and `account_id_2` as needed
+5. Account endpoints using `account_id` as needed
+6. Transfer endpoint using `from_branch`, `from_account_number`, `to_branch`, and `to_account_number`
+7. Receipt endpoint using `transaction_reference` from a successful transfer response
 
 Notes:
 - Keep `X-App-Token` for register/login requests as documented in this file.

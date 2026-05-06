@@ -17,6 +17,7 @@ var (
 	ErrAccountInactive     = errors.New("account inactive")
 	ErrForbidden           = errors.New("forbidden")
 	ErrTransferDuplicate   = errors.New("transfer already processed")
+	ErrTransactionNotFound = errors.New("transaction not found")
 )
 
 type AccountStatus string
@@ -34,6 +35,8 @@ type Account struct {
 	Status     AccountStatus
 }
 
+// CanDeposit checks if a deposit can be made to the account with the specified
+// amount. It validates that the amount is positive and the account is active.
 func (a *Account) CanDeposit(amount int64) error {
 	if amount <= 0 {
 		return ErrInvalidAmount
@@ -46,6 +49,9 @@ func (a *Account) CanDeposit(amount int64) error {
 	return nil
 }
 
+// CanWithdraw checks if a withdrawal can be made from the account with the specified
+// amount. It validates that the amount is positive, the account is active, and has
+// sufficient balance for the withdrawal.
 func (a *Account) CanWithdraw(amount int64) error {
 	if amount <= 0 {
 		return ErrInvalidAmount
@@ -62,6 +68,10 @@ func (a *Account) CanWithdraw(amount int64) error {
 	return nil
 }
 
+// CanTransfer checks if a transfer can be made from the current account to the
+// destination account with the specified amount. It validates that the source and
+// destination accounts are different, the amount is positive, the source account is
+// active, and has sufficient balance for the transfer.
 func (a *Account) CanTransfer(amount int64, destinationID uuid.UUID) error {
 	if a.ID == destinationID {
 		return ErrSameAccountTransfer
@@ -91,6 +101,7 @@ type Transaction struct {
 	CreatedAt        time.Time
 }
 
+// NewTransaction creates a new Transaction with the given parameters.
 func NewTransaction(
 	accountID uuid.UUID,
 	ttype TransactionType,
@@ -109,6 +120,10 @@ func NewTransaction(
 	}
 }
 
+// NewTransactionWithIdempotency creates a new Transaction with the given parameters
+// and an idempotency key. The idempotency key is used to ensure that if the same
+// transfer is attempted multiple times (e.g., due to retries), only one transaction
+// will be created.
 func NewTransactionWithIdempotency(
 	accountID uuid.UUID,
 	ttype TransactionType,
@@ -132,8 +147,28 @@ func NewTransactionWithIdempotency(
 	}
 }
 
+type TransferReceipt struct {
+	OperationType            TransactionType
+	Amount                   int64
+	Status                   string
+	TransactionReference     uuid.UUID
+	OperationDate            time.Time
+	SourceAccountID          uuid.UUID
+	SourceCustomerID         uuid.UUID
+	SourceBranch             string
+	SourceAccountNumber      string
+	DestinationAccountID     uuid.UUID
+	DestinationCustomerID    uuid.UUID
+	DestinationBranch        string
+	DestinationAccountNumber string
+	RecipientName            string
+	Description              *string
+}
+
 type Repository interface {
 	GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*Account, error)
+	GetByBranchAndNumber(ctx context.Context, branch, number string) (*Account, error)
+	GetTransferReceiptByReference(ctx context.Context, referenceID uuid.UUID) (*TransferReceipt, error)
 	IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
 	DecreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)
 	CreateTransaction(ctx context.Context, tx *Transaction) error
