@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
+	statementdomain "github.com/seu-usuario/bank-api/internal/account/statement/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
@@ -50,12 +51,12 @@ type Statement struct {
 }
 
 type GetStatement struct {
-	repo domain.AccountRepository
+	repo statementdomain.Repository
 }
 
 // NewGetStatement creates a new instance of the GetStatement use case with
-// the provided account repository.
-func NewGetStatement(repo domain.AccountRepository) *GetStatement {
+// the provided statement repository.
+func NewGetStatement(repo statementdomain.Repository) *GetStatement {
 	return &GetStatement{repo: repo}
 }
 

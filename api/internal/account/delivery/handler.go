@@ -4,7 +4,6 @@ import (
 	"context"
 
 	accountapp "github.com/seu-usuario/bank-api/internal/account/application/account"
-	statementapp "github.com/seu-usuario/bank-api/internal/account/application/statement"
 	"github.com/seu-usuario/bank-api/internal/account/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
@@ -18,10 +17,6 @@ type listAccountsUseCase interface {
 	Execute(ctx context.Context, input accountapp.ListAccountsInput) ([]domain.Account, error)
 }
 
-type statementUseCase interface {
-	Execute(ctx context.Context, input statementapp.GetStatementInput) (*statementapp.Statement, error)
-}
-
 type getBalanceUseCase interface {
 	Execute(ctx context.Context, input accountapp.GetAccountBalanceInput) (*accountapp.AccountBalance, error)
 }
@@ -29,7 +24,6 @@ type getBalanceUseCase interface {
 type Handler struct {
 	listAccounts  listAccountsUseCase
 	createAccount createAccountUseCase
-	statement     statementUseCase
 	balance       getBalanceUseCase
 }
 
@@ -37,13 +31,11 @@ type Handler struct {
 func New(
 	listAccounts listAccountsUseCase,
 	createAccount createAccountUseCase,
-	statement statementUseCase,
 	balance getBalanceUseCase,
 ) *Handler {
 	return &Handler{
 		listAccounts:  listAccounts,
 		createAccount: createAccount,
-		statement:     statement,
 		balance:       balance,
 	}
 }

@@ -1,5 +1,114 @@
 # Changelog
 
+2026/05/06 - api/split-account-02
+
+Refactor statement feature into an isolated account statement module.
+
+This change separates statement responsibilities from the core account module, introducing dedicated `statement` application, delivery, domain, and infrastructure layers. The refactor strengthens module boundaries and aligns the implementation with the modular monolith architecture adopted by the project.
+
+Implemented changes:
+
+1. Refactored statement package structure
+
+   * Moved statement application use cases from:
+
+     * `internal/account/application/statement`
+     * to `internal/account/statement/application`
+   * Added dedicated statement layers:
+
+     * `statement/domain`
+     * `statement/delivery`
+     * `statement/infrastructure`
+   * Isolated statement responsibilities from account delivery and repository concerns
+
+2. Introduced dedicated statement repository contract
+
+   * Added `statement/domain.Repository`
+   * Extracted statement-specific operations from `domain.AccountRepository`
+   * Removed transaction query responsibilities from the account repository abstraction
+   * Reduced coupling between account balance operations and statement retrieval
+
+3. Added dedicated statement infrastructure repository
+
+   * Implemented `statement/infrastructure.Repository`
+   * Moved transaction query logic from account infrastructure into the new statement repository
+   * Preserved cursor pagination, date filtering, and transaction mapping behavior
+   * Kept statement query semantics unchanged
+
+4. Introduced dedicated statement delivery handler
+
+   * Created `statement/delivery.Handler`
+   * Moved:
+
+     * statement endpoint logic
+     * query parsing
+     * cursor validation
+     * response mapping
+     * authenticated user extraction
+   * Added statement-specific DTOs:
+
+     * `StatementData`
+     * `StatementItemData`
+     * `StatementCursorData`
+
+5. Simplified account delivery layer
+
+   * Removed statement endpoint handling from:
+
+     * `account_handler.go`
+     * `handler.go`
+   * Removed statement DTOs from `account_data.go`
+   * Removed statement parsing helpers from account delivery
+   * Simplified `accountdelivery.New(...)` constructor signature
+
+6. Updated runtime composition and route registration
+
+   * Added statement repository initialization in `cmd/api/main.go`
+   * Injected statement repository into `NewGetStatement`
+   * Added dedicated `statementHandler`
+   * Redirected:
+
+     * `GET /accounts/{id}/statement`
+     * to the new statement delivery module
+
+7. Migrated and reorganized tests
+
+   * Moved statement handler tests into:
+
+     * `internal/account/statement/delivery`
+   * Added isolated statement delivery test setup
+   * Added local auth helper for statement delivery tests
+   * Removed statement-related mocks and tests from account handler tests
+   * Preserved existing statement behavior validation
+
+8. Reduced account module responsibilities
+
+   * Removed `GetTransactions(...)` from:
+
+     * `domain.AccountRepository`
+     * account infrastructure repositories
+     * transactional repositories
+   * Reinforced separation between:
+
+     * balance mutation operations
+     * ledger query operations
+
+9. Architectural impact
+
+   * Reinforces feature-oriented modularization inside the account bounded context
+   * Improves cohesion by grouping statement-specific concerns together
+   * Reduces accidental coupling between transactional account operations and ledger querying
+   * Creates a cleaner evolution path for future statement-specific features:
+
+     * exports
+     * filters
+     * analytics
+     * caching
+     * asynchronous projections
+
+The resulting structure better reflects the architectural direction of the project: a layered modular monolith with explicit responsibility boundaries and domain-oriented organization.
+
+
 ## 2026/05/06 - api/split-account-01
 
 Refactor transaction operations into a dedicated transaction module and delivery layer.

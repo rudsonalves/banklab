@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -39,17 +38,6 @@ type AccountRepository interface {
 	// It returns ErrAccountNotFound when no account exists for the given id.
 	// Implementations must never return (nil, nil).
 	GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*Account, error)
-	// GetTransactions returns a list of transactions for the specified account, applying pagination and optional time filtering.
-	// It returns ErrAccountNotFound when no account exists for the given id.
-	GetTransactions(
-		ctx context.Context,
-		accountID uuid.UUID,
-		limit int,
-		cursorTime *time.Time,
-		cursorID *uuid.UUID,
-		from *time.Time,
-		to *time.Time,
-	) ([]Transaction, error)
 	// IncreaseBalance performs an atomic balance increment.
 	// It returns ErrAccountNotFound when the account does not exist.
 	IncreaseBalance(ctx context.Context, id uuid.UUID, amount int64) (int64, error)

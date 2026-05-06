@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -93,23 +92,6 @@ func (r *txRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Accou
 // was not found.
 func (r *txRepository) GetByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
 	return r.base.GetByIDForUpdate(ctx, id)
-}
-
-// GetTransactions retrieves a list of transactions for the specified account ID, applying
-// pagination and date filtering based on the input parameters. It takes a context,
-// account ID, limit, cursor time, cursor ID, from date, and to date as input and
-// returns a slice of transaction domain objects or an error if the operation fails. If the account is not found, it returns a specific error indicating that the
-// account was not found.
-func (r *txRepository) GetTransactions(
-	ctx context.Context,
-	accountID uuid.UUID,
-	limit int,
-	cursorTime *time.Time,
-	cursorID *uuid.UUID,
-	from *time.Time,
-	to *time.Time,
-) ([]domain.Transaction, error) {
-	return r.base.GetTransactions(ctx, accountID, limit, cursorTime, cursorID, from, to)
 }
 
 // IncreaseBalance increases the balance of the specified account by the given amount.
