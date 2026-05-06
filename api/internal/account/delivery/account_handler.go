@@ -18,6 +18,9 @@ import (
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
 
+// CreateAccount handles the HTTP request for creating a new account.
+// It validates the request, checks user authentication, and delegates
+// the account creation to the application layer.
 func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	user, authErr := RequireUser(r.Context())
 	if authErr != nil {
@@ -54,6 +57,9 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ListAccounts handles the HTTP request for listing accounts. It validates
+// the request, checks user authentication, and retrieves the list of accounts
+// accessible to the user from the application layer.
 func (h *Handler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 	user, authErr := RequireUser(r.Context())
 	if authErr != nil {
@@ -87,6 +93,9 @@ func (h *Handler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 	sharedhttp.WriteJSON(w, http.StatusOK, data)
 }
 
+// Deposit handles the HTTP request for depositing funds into an account.
+// It validates the request, checks user authentication, and delegates
+// the deposit operation to the application layer.
 func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 	if h.deposit == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -129,6 +138,9 @@ func (h *Handler) Deposit(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Withdraw handles the HTTP request for withdrawing funds from an account.
+// It validates the request, checks user authentication, and delegates
+// the withdraw operation to the application layer.
 func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	if h.withdraw == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -171,6 +183,9 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Transfer handles the HTTP request for transferring funds between accounts.
+// It validates the request, checks user authentication, and delegates
+// the transfer operation to the application layer.
 func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	if h.transfer == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -223,6 +238,9 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Statement handles the HTTP request for retrieving an account statement.
+// It validates the request, checks user authentication, and delegates
+// the statement retrieval to the application layer.
 func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 	if h.statement == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -319,6 +337,9 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetBalance handles the HTTP request for retrieving the balance of an account.
+// It validates the request, checks user authentication, and delegates
+// the balance retrieval to the application layer.
 func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	if h.balance == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -359,6 +380,10 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// parseOptionalInt parses an optional integer query parameter. If the
+// input string is empty, it returns 0 and no error. Otherwise, it attempts
+// to parse the string as an integer and returns the result or an error if
+// the parsing fails.
 func parseOptionalInt(raw string) (int, error) {
 	if raw == "" {
 		return 0, nil
@@ -372,6 +397,10 @@ func parseOptionalInt(raw string) (int, error) {
 	return value, nil
 }
 
+// parseOptionalTime parses an optional time query parameter in RFC3339 format.
+// If the input string is empty, it returns nil and no error. Otherwise, it attempts
+// to parse the string as a time.Time and returns the result or an error if
+// the parsing fails.
 func parseOptionalTime(raw string) (*time.Time, error) {
 	if raw == "" {
 		return nil, nil
@@ -385,6 +414,9 @@ func parseOptionalTime(raw string) (*time.Time, error) {
 	return &parsed, nil
 }
 
+// parseOptionalUUID parses an optional UUID query parameter. If the input string
+// is empty, it returns nil and no error. Otherwise, it attempts to parse the
+// string as a uuid.UUID and returns the result or an error if the parsing fails.
 func parseOptionalUUID(raw string) (*uuid.UUID, error) {
 	if raw == "" {
 		return nil, nil

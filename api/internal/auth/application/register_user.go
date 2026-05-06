@@ -18,6 +18,14 @@ type RegisterUserUseCase struct {
 	hasher       domain.PasswordHasher
 }
 
+// NewRegisterUserUseCase creates a new instance of the RegisterUserUseCase with the
+// provided dependencies. It requires a user repository for managing user data, a
+// customer repository for managing customer data, a password hasher for securely
+// hashing user passwords, and a transactor for executing database operations within
+// a transaction. This use case is responsible for handling the registration of new
+// users, including validating input data, creating associated customer records, and
+// ensuring that the entire operation is performed atomically to maintain data
+// integrity.
 func NewRegisterUserUseCase(
 	userRepo domain.UserRepository,
 	customerRepo customerdomain.CustomerRepository,
@@ -46,6 +54,9 @@ type RegisterUserOutput struct {
 	CustomerID *uuid.UUID
 }
 
+// Execute performs the user registration process. It validates the provided email
+// and password, creates a new customer record, hashes the password, and creates
+// a new user record.
 func (uc *RegisterUserUseCase) Execute(
 	ctx context.Context,
 	input RegisterUserInput,
@@ -116,10 +127,15 @@ func (uc *RegisterUserUseCase) Execute(
 	}, nil
 }
 
+// normalizeEmail trims whitespace and converts the email to lowercase to ensure
+// a consistent format for storage and comparison.
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
+// isValidEmail performs basic validation to check if the email has a valid
+// format. It checks for the presence of an "@" symbol, ensures that there are
+// local and domain parts, and that the domain part contains a dot.
 func isValidEmail(email string) bool {
 	if email == "" {
 		return false
@@ -143,6 +159,9 @@ func isValidEmail(email string) bool {
 	return strings.Contains(domainPart, ".")
 }
 
+// isValidPassword checks if the provided password meets the minimum requirements.
+// In this case, it ensures that the password is not empty and has a minimum
+// length of 8 characters.
 func isValidPassword(password string) bool {
 	if strings.TrimSpace(password) == "" {
 		return false

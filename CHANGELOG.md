@@ -1,5 +1,151 @@
 # Changelog
 
+## 2026/05/06 - api/docs-04
+
+Add comprehensive GoDoc documentation across account, auth, admin, customer, infrastructure, and shared layers
+
+This commit improves the internal documentation quality of the Bank API by adding extensive GoDoc comments throughout the codebase. The changes focus on clarifying responsibilities, execution flow, transactional guarantees, authorization behavior, repository contracts, and HTTP handler semantics.
+
+Key improvements include:
+
+1. Account module documentation
+
+   * Added documentation for access policies (`CanAccessCustomer`, `CanAccessAccount`)
+   * Documented account creation, balance retrieval, statement retrieval, deposit, withdraw, and transfer use cases
+   * Added explanations for concurrency helpers such as deterministic UUID ordering and transfer ledger reconstruction
+   * Documented branch policy responsibilities
+   * Added repository interface documentation covering:
+
+     * transaction lookup
+     * idempotency behavior
+     * transactional execution
+     * balance mutation semantics
+     * statement pagination behavior
+   * Added GoDoc to domain entities and business rule methods:
+
+     * `NewAccount`
+     * `CanDeposit`
+     * `CanWithdraw`
+     * `CanTransfer`
+     * transaction constructors
+   * Documented HTTP handlers and parsing helpers for:
+
+     * deposits
+     * withdrawals
+     * transfers
+     * statements
+     * balances
+     * query parameter parsing
+   * Added infrastructure repository documentation for:
+
+     * SQL persistence behavior
+     * row locking semantics
+     * transaction creation
+     * account existence checks
+     * atomic balance updates
+
+2. Transaction and consistency clarification
+
+   * Added comments explaining:
+
+     * ledger replay strategy
+     * transfer pair reconstruction
+     * deadlock reduction through deterministic lock ordering
+     * transactional guarantees
+   * Reinforced append-only ledger concepts already described in architecture documentation 
+   * Clarified consistency strategy aligned with the concurrency documentation 
+
+3. Auth module documentation
+
+   * Added detailed GoDoc for:
+
+     * login flow
+     * registration flow
+     * refresh token rotation
+     * current user retrieval
+     * JWT middleware behavior
+     * authenticated context helpers
+   * Documented repository behavior for:
+
+     * users
+     * sessions
+     * transactions
+   * Clarified executor resolution logic for transactional contexts
+   * Added explanations for:
+
+     * email normalization
+     * password validation
+     * session revocation
+     * refresh token persistence
+   * Improved middleware documentation for bearer token extraction and authentication context propagation
+
+4. Admin module documentation
+
+   * Added GoDoc for:
+
+     * user approval use case
+     * approval transaction semantics
+     * admin handler behavior
+     * error registry registration
+   * Clarified atomic relationship between:
+
+     * user activation
+     * account creation
+   * Reinforced guarantees already defined in the lifecycle and consistency documentation 
+
+5. Customer module documentation
+
+   * Added documentation for:
+
+     * customer creation flow
+     * authenticated customer retrieval
+     * customer repository behavior
+     * customer entity construction
+     * HTTP handlers
+   * Clarified PostgreSQL error handling and validation mapping behavior
+
+6. Shared infrastructure and error handling documentation
+
+   * Added GoDoc for:
+
+     * shared error registry
+     * error mapping strategy
+     * internal error fallback behavior
+     * JSON response helpers
+   * Clarified response standardization and mapping rules aligned with the API error specification 
+
+7. Repository and transaction infrastructure improvements
+
+   * Added extensive documentation for:
+
+     * `Repository`
+     * `txRepository`
+     * transactional execution helpers
+     * commit and rollback semantics
+     * nested transaction protection
+   * Clarified responsibilities of:
+
+     * `BeginTx`
+     * `WithTransaction`
+     * `runInTransaction`
+
+8. General architectural alignment
+
+   * The added documentation now better reflects the implemented architecture and layer responsibilities described in the architecture and implementation documents:
+
+     * modular monolith structure 
+     * application orchestration model
+     * transactional use case execution
+
+The result is a substantially more self-documented codebase, improving:
+
+* onboarding for contributors
+* maintainability
+* IDE-assisted navigation
+* architectural clarity
+* long-term documentation consistency between implementation and project docs.
+
+
 ## 2026/05/06 - mobile/docs-03
 
 Add mobile architecture instruction system and Postman integration documentation

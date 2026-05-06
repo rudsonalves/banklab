@@ -21,6 +21,12 @@ type LoginUserUseCase struct {
 
 const refreshSessionTTL = 30 * 24 * time.Hour
 
+// NewLoginUserUseCase creates a new instance of the LoginUserUseCase with the
+// provided dependencies. It requires a user repository for fetching user data, a
+// password hasher for verifying passwords, a token service for generating access
+// and refresh tokens, and a session repository for managing user sessions. This
+// use case is responsible for handling the login process, including validating
+// credentials, generating tokens, and creating sessions.
 func NewLoginUserUseCase(
 	userRepo domain.UserRepository,
 	hasher domain.PasswordHasher,
@@ -49,6 +55,12 @@ type LoginUserOutput struct {
 	CustomerID   *uuid.UUID
 }
 
+// Execute performs the login operation for a user. It validates the provided email
+// and password, checks the user's credentials against the database, and if valid,
+// generates an access token and a refresh token. It also creates a session for the
+// user with the refresh token's hash. The output includes the access token, refresh
+// token, and user information. If any step in the process fails, it returns an
+// appropriate error.
 func (uc *LoginUserUseCase) Execute(
 	ctx context.Context,
 	input LoginUserInput,

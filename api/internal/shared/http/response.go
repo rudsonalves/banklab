@@ -19,6 +19,11 @@ type ErrorBody struct {
 	Details interface{} `json:"details,omitempty"`
 }
 
+// WriteJSON writes a successful JSON response with the given status code and
+// data. It sets the Content-Type header to application/json and encodes the
+// response payload as JSON. If there is an error during encoding, it logs the
+// error but does not return it to the caller, as this function is intended for
+// writing responses rather than handling errors.
 func WriteJSON(w http.ResponseWriter, status int, data any) {
 	writeResponse(w, status, Response{
 		Data:  data,
@@ -26,6 +31,11 @@ func WriteJSON(w http.ResponseWriter, status int, data any) {
 	})
 }
 
+// WriteError writes an error response in JSON format using the provided AppError.
+// It sets the Content-Type header to application/json and encodes the error
+// details in the response body. The HTTP status code is determined by the Status field of the AppError. If there is an error during encoding, it logs the
+// error but does not return it to the caller, as this function is intended for
+// writing responses rather than handling errors.
 func WriteError(w http.ResponseWriter, appErr sharederrors.AppError) {
 	writeResponse(w, appErr.Status, Response{
 		Data: nil,
@@ -36,6 +46,11 @@ func WriteError(w http.ResponseWriter, appErr sharederrors.AppError) {
 	})
 }
 
+// writeResponse is a helper function that writes a JSON response with the specified
+// HTTP status code and payload. It sets the Content-Type header to application/json
+// and encodes the payload as JSON. If there is an error during encoding, it logs
+// the error but does not return it to the caller, as this function is intended for
+// writing responses rather than handling errors.
 func writeResponse(w http.ResponseWriter, status int, payload Response) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

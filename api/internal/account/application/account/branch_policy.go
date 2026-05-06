@@ -8,10 +8,12 @@ type BranchPolicy interface {
 
 type DefaultBranchPolicy struct{}
 
+// NewDefaultBranchPolicy creates a new instance of the DefaultBranchPolicy.
 func NewDefaultBranchPolicy() DefaultBranchPolicy {
 	return DefaultBranchPolicy{}
 }
 
+// Branch returns the default branch code.
 func (DefaultBranchPolicy) Branch() string {
 	return defaultBranch
 }

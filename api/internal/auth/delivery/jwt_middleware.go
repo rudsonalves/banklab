@@ -81,7 +81,10 @@ func (m *JWTMiddleware) OptionalAuth(next http.Handler) http.Handler {
 	})
 }
 
-// bearerToken extracts the token from the Authorization header if it follows the "
+// bearerToken extracts the token from the Authorization header if it follows
+// the "Bearer <token>" format. It returns the token and a boolean indicating
+// whether the extraction was successful. If the header does not follow the expected
+// format, it returns an empty string and false.
 func bearerToken(authorization string) (string, bool) {
 	parts := strings.Split(strings.TrimSpace(authorization), " ")
 	if len(parts) != 2 {

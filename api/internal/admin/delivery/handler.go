@@ -27,10 +27,15 @@ type approveUserData struct {
 	AccountID string `json:"account_id"`
 }
 
+// New creates a new instance of the account Handler with the provided use cases.
 func New(approveUser approveUserUseCase) *Handler {
 	return &Handler{approveUser: approveUser}
 }
 
+// ApproveUser handles the HTTP request for approving a pending user. It checks for
+// authentication and authorization, validates the input, and calls the approveUser
+// use case to perform the approval. The response is returned in JSON format, and
+// appropriate error handling is performed for various failure scenarios.
 func (h *Handler) ApproveUser(w http.ResponseWriter, r *http.Request) {
 	if h.approveUser == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))

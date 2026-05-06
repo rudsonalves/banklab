@@ -19,6 +19,12 @@ type RefreshAccessTokenUseCase struct {
 	transactor   domain.Transactor
 }
 
+// NewRefreshAccessTokenUseCase creates a new instance of the RefreshAccessTokenUseCase with the
+// provided dependencies. It requires a user repository for fetching user data, a token
+// service for parsing and generating tokens, a session repository for managing user
+// sessions, and a transactor for executing database operations within a transaction. This
+// use case is responsible for handling the process of refreshing an access token using a valid refresh token, including validating the refresh token, checking the associated session,
+// generating a new access token and refresh token, and updating the session accordingly.
 func NewRefreshAccessTokenUseCase(
 	userRepo domain.UserRepository,
 	tokenService domain.TokenService,
@@ -42,6 +48,12 @@ type RefreshAccessTokenOutput struct {
 	RefreshToken string
 }
 
+// Execute performs the operation of refreshing an access token using a provided
+// refresh token. It validates the refresh token, checks the associated session
+// for validity, retrieves the user information, generates a new access token and
+// refresh token, and updates the session with the new refresh token. If any step
+// in the process fails, it returns an appropriate error indicating the reason for
+// failure.
 func (uc *RefreshAccessTokenUseCase) Execute(
 	ctx context.Context,
 	input RefreshAccessTokenInput,
