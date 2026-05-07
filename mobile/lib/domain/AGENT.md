@@ -17,9 +17,15 @@ concepts the app can reason about regardless of where the data came from.
 
 Current examples:
 
-- `auth/models/auth_user.dart`
-- `auth/models/user_profile.dart`
-- `enums/user_role.dart`
+- `common/auth/models/auth_user.dart`
+- `common/auth/models/user_profile.dart`
+- `common/user/enums/user_role.dart`
+- `common/receipt/enums/transfer_receipt_status.dart`
+
+Current domain root structure:
+
+- `common/`: stable app-facing models and enums grouped by area/context
+- `usecases/`: domain workflow orchestration use cases
 
 ## Responsibilities
 
@@ -124,17 +130,21 @@ state, profile caching, and token persistence.
 
 ## Folder Placement
 
-Prefer feature-oriented placement for models:
+Keep stable app-facing concepts grouped under `domain/common` to avoid growing
+the `domain` root with many small top-level feature folders.
 
 ```text
-domain/<feature>/models/<model>.dart
-domain/enums/<enum>.dart
+domain/common/<area>/models/<model>.dart
+domain/common/<area>/enums/<enum>.dart
 ```
 
 Rules:
 
-- Put broad enums in `domain/enums`.
-- Put feature-specific models under the feature folder.
+- Put broad or shared app enums under the closest `domain/common/<area>/enums`.
+- Put app-facing models under the closest `domain/common/<area>/models`.
+- Keep workflow orchestration under `domain/usecases`.
+- Keep `domain` top-level limited to `common` and `usecases` unless a migration
+  is explicitly requested.
 - Do not create catch-all files for unrelated models.
 - Avoid moving existing models unless the task explicitly asks for a migration.
 
@@ -172,4 +182,3 @@ Keep tests small and independent from HTTP, storage, and widgets.
 - Do not store mutable UI state in domain models.
 - Do not introduce a broad domain/use-case architecture refactor unless the task
   explicitly asks for it.
-

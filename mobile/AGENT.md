@@ -10,7 +10,9 @@ The app currently follows a layered structure:
 
 - `lib/core`: cross-cutting infrastructure and app plumbing
 - `lib/data`: APIs and repository implementations
-- `lib/domain`: app-facing models and enums
+- `lib/domain`: domain root organized for growth
+- `lib/domain/common`: app-facing models and enums grouped by context
+- `lib/domain/usecases`: app workflow orchestration use cases
 - `lib/uis`: pages, view models, themes, and UI building blocks
 - `test`: unit tests for core services and adapters
 
@@ -23,6 +25,7 @@ The practical flow in the current codebase is:
 - Preserve the current layered architecture. Do not make UI call API classes directly.
 - Prefer constructor injection and align new dependencies with `lib/core/config/dependencies.dart`.
 - Keep error handling explicit with `Result`, `AppError`, and `Command`. Do not spread raw exceptions through the app.
+- Standardize money scalar conversions across the app: use `ApiParse.toInt` for `Money -> int64` and `ApiParse.toMoney` for backend numeric scalar -> `Money`.
 - Reuse existing abstractions before creating new ones.
 - Match the naming and file placement already used by neighboring code.
 - Avoid introducing a new “use case” layer unless the task explicitly includes that refactor. The architecture doc lists it as future work, not current structure.
@@ -72,7 +75,8 @@ Check whether the project already has an established place for the change:
 
 - New HTTP contract: `lib/data/services/apis/...`
 - New repository behavior: `lib/data/repositories/...`
-- New app model/enum: `lib/domain/...`
+- New app model/enum: `lib/domain/common/<area>/{models|enums}/...`
+- New domain workflow orchestration: `lib/domain/usecases/...`
 - New screen/view model: `lib/uis/pages/...`
 - New shared UI primitive: `lib/uis/core/...`
 - New cross-cutting infra utility: `lib/core/...`

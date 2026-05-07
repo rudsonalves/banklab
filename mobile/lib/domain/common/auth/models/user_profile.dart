@@ -1,5 +1,5 @@
 import '/core/extensions/datetime_extension.dart';
-import '/domain/enums/user_role.dart';
+import '/domain/common/user/enums/user_role.dart';
 
 class UserProfile {
   final String userId;

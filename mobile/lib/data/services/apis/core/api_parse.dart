@@ -47,5 +47,5 @@ abstract final class ApiParse {
     return Money.fromBigIntWithCurrency(bigIntValue, currency);
   }
 
-  static BigInt moneyToBigInt(Money value) => value.minorUnits;
+  static int toInt(Money value) => value.minorUnits.toInt();
 }

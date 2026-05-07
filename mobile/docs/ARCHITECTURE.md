@@ -61,8 +61,10 @@ Main layers:
   commands, HTTP client, secure storage, logging, and platform services
 - [mobile/lib/data](../../mobile/lib/data): API services, DTOs, and repository
   implementations
-- [mobile/lib/domain](../../mobile/lib/domain): domain models, enums, and use
-  cases
+- [mobile/lib/domain](../../mobile/lib/domain): domain root for app-facing
+  types and workflow orchestration
+- [mobile/lib/domain/common](../../mobile/lib/domain/common): stable
+  app-facing models and enums grouped by context
 - [mobile/lib/domain/usecases](../../mobile/lib/domain/usecases): use cases for
   complex application workflows
 - [mobile/lib/uis](../../mobile/lib/uis): app widget, pages, shared UI
@@ -210,11 +212,14 @@ Data may depend on `core` and `domain`, but must not depend on `uis`.
 
 ### Domain Layer
 
-Contains domain-centric models, enums, and use cases used across layers:
+Contains domain-centric models, enums, and use cases used across layers.
+For growth, the domain root is organized by context under `common/` plus
+workflow orchestration under `usecases/`:
 
-- [mobile/lib/domain/auth/models/auth_user.dart](../../mobile/lib/domain/auth/models/auth_user.dart)
-- [mobile/lib/domain/auth/models/user_profile.dart](../../mobile/lib/domain/auth/models/user_profile.dart)
-- [mobile/lib/domain/enums/user_role.dart](../../mobile/lib/domain/enums/user_role.dart)
+- [mobile/lib/domain/common/auth/models/auth_user.dart](../../mobile/lib/domain/common/auth/models/auth_user.dart)
+- [mobile/lib/domain/common/auth/models/user_profile.dart](../../mobile/lib/domain/common/auth/models/user_profile.dart)
+- [mobile/lib/domain/common/user/enums/user_role.dart](../../mobile/lib/domain/common/user/enums/user_role.dart)
+- [mobile/lib/domain/common/receipt/enums/transfer_receipt_status.dart](../../mobile/lib/domain/common/receipt/enums/transfer_receipt_status.dart)
 - [mobile/lib/domain/usecases](../../mobile/lib/domain/usecases)
 
 Domain models should remain lightweight and framework-agnostic. Use cases should

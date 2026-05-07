@@ -27,6 +27,7 @@ The practical flow in the current codebase is:
 - Preserve the current layered architecture. Do not make UI call API classes directly.
 - Prefer constructor injection and align new dependencies with `lib/core/config/dependencies.dart`.
 - Keep error handling explicit with `Result`, `AppError`, and `Command`. Do not spread raw exceptions through the app.
+- Standardize money scalar conversions across the app: use `ApiParse.toInt` for `Money -> int64` and `ApiParse.toMoney` for backend numeric scalar -> `Money`.
 - Reuse existing abstractions before creating new ones.
 - Match the naming and file placement already used by neighboring code.
 - Avoid introducing a new "use case" layer unless the task explicitly includes that refactor. The architecture doc lists it as future work, not current structure.

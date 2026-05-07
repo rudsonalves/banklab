@@ -1,5 +1,159 @@
 # Changelog
 
+## 2026/05/07 - mobile/internal-transfer-01
+
+Introduced the first complete mobile-side internal transfer API integration layer, including transfer execution, transfer receipt retrieval, DTO validation coverage, and domain structure normalization for future growth.
+
+### Mobile API and DTO Enhancements
+
+1. Added transfer API service infrastructure:
+
+   * Created `ApiTransfer` for `POST /accounts/transfer`
+   * Implemented envelope parsing and HTTP error handling
+   * Added parsing failure protection with structured `AppError`
+
+2. Added transfer receipt API service:
+
+   * Created `ApiReceipt` for `GET /accounts/transfer/{transaction_reference}/receipt`
+   * Implemented envelope parsing and status validation
+   * Added standardized HTTP/parsing error handling
+
+3. Added transfer request DTO:
+
+   * Created `TransferRequestDto`
+   * Added serialization via `toMap`
+   * Added optional `idempotency_key` support
+   * Standardized monetary serialization using `ApiParse.toInt`
+
+4. Added transfer response DTO:
+
+   * Created `TransferResponseDto`
+   * Added parsing for balances and transferred amount
+   * Standardized monetary parsing using `ApiParse.toMoney`
+
+5. Added transfer receipt response DTO:
+
+   * Created `TransferReceiptResponseDto`
+   * Added parsing for:
+
+     * transfer status
+     * operation metadata
+     * source/destination account presentation data
+     * transaction reference
+     * operation timestamp
+   * Added conversion to `TransferReceiptStatus`
+
+6. Updated API parsing utilities:
+
+   * Replaced `moneyToBigInt` with `ApiParse.toInt`
+   * Standardized transport scalar conversion strategy for Money types
+
+### Domain Structure Refactor
+
+1. Reorganized domain root structure for scalability:
+
+   * Introduced:
+
+     * `domain/common`
+     * `domain/usecases`
+   * Documented the new structure across architecture and agent files
+
+2. Moved auth models into contextual domain folders:
+
+   * `domain/auth/models/auth_user.dart`
+     → `domain/common/auth/models/auth_user.dart`
+   * `domain/auth/models/user_profile.dart`
+     → `domain/common/auth/models/user_profile.dart`
+
+3. Moved and normalized user role enum:
+
+   * `domain/enums/user_role.dart`
+     → `domain/common/user/enums/user_role.dart`
+
+4. Added transfer receipt domain enum:
+
+   * Created `TransferReceiptStatus`
+   * Added:
+
+     * parsing helper
+     * semantic helpers (`isSuccess`, `isPending`, `isFailed`)
+     * documented operational semantics
+
+5. Updated imports throughout repositories, APIs, and UI layers to follow the new domain structure.
+
+### Dependency Injection and Service Registration
+
+1. Updated service registration:
+
+   * Added `ApiTransfer`
+   * Added `ApiReceipt`
+   * Registered both in `mobile/lib/data/services/services.dart`
+
+### Documentation and Architecture Updates
+
+1. Updated mobile architecture documentation:
+
+   * Documented new domain folder strategy
+   * Clarified separation between:
+
+     * stable app-facing models
+     * workflow orchestration use cases
+
+2. Updated AGENT instructions:
+
+   * Added standardized Money conversion rules
+   * Enforced usage of:
+
+     * `ApiParse.toInt`
+     * `ApiParse.toMoney`
+   * Added domain placement conventions for:
+
+     * `common/<area>/models`
+     * `common/<area>/enums`
+     * `usecases`
+
+3. Updated REST API documentation:
+
+   * Added transfer receipt status semantics
+   * Documented current and future-compatible status values
+   * Clarified backend behavior for persisted receipts
+
+4. Fixed markdown anchor escaping for:
+
+   * `/accounts/transfer/{transaction_reference}/receipt`
+
+5. Relocated generated Mermaid assets:
+
+   * moved `mermaid-images/*`
+     → `docs/mermaid-images/*`
+
+### Test Coverage
+
+1. Added `TransferRequestDto` tests:
+
+   * serialization validation
+   * Money conversion validation
+   * idempotency serialization behavior
+   * prevention of internal ID exposure
+
+2. Added `TransferResponseDto` tests:
+
+   * Money parsing validation
+   * payload validation
+   * protection against leaking internal account IDs
+
+3. Added `TransferReceiptResponseDto` tests:
+
+   * status parsing
+   * Money parsing
+   * timestamp parsing
+   * required field validation
+   * unknown status rejection
+   * protection against internal account/customer ID leakage
+
+This commit establishes the first complete mobile transfer transport layer, standardizes Money transport serialization rules, and reorganizes the mobile domain structure into a scalable context-oriented layout aligned with future workflow orchestration growth.
+
+
 ## 2026/05/06 - api/transfer-by-account-number-04
 
 Refine transfer-by-account-number behavior, strengthen idempotency validation, and expand transfer integration coverage.

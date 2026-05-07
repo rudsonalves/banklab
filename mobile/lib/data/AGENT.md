@@ -81,6 +81,9 @@ Rules:
 - API services should not coordinate session state or selected account state.
 - API services should not read or write secure storage directly in normal
   feature work.
+- For money transport scalars, always convert with `ApiParse`: use
+  `ApiParse.toInt` for `Money -> int64` and `ApiParse.toMoney` for
+  backend numeric scalar -> `Money`.
 - API services should return `AsyncResult<T>`.
 
 ### `repositories/...`

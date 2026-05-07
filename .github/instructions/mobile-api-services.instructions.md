@@ -129,6 +129,9 @@ Rules:
 - Extend `apis/core` only for reusable API parsing concerns.
 - Do not put feature-specific DTOs in `apis/core`.
 - Do not put repository state or UI formatting in `apis/core`.
+- For money transport scalars, always use `ApiParse` conversions:
+  `ApiParse.toInt` for `Money -> int64` and `ApiParse.toMoney` for
+  backend numeric scalar -> `Money`.
 
 ## DTO Rules
 
@@ -140,6 +143,8 @@ Guidelines:
 - Use `fromMap` for response DTO parsing.
 - Use `toMap` for request DTO serialization.
 - Keep DTO field names aligned with backend payloads when practical.
+- Do not hand-roll money scalar conversions in DTOs; use
+  `ApiParse.toInt` and `ApiParse.toMoney`.
 - Validate required fields during parsing by failing loudly inside the API
   method's `try/catch`, so parsing failures become `AppErrorCode.parsingError`.
 - Avoid leaking DTOs into UI when a stable domain model exists.

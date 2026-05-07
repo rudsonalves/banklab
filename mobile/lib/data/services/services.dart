@@ -5,6 +5,8 @@ import 'apis/account/balance_api.dart';
 import 'apis/account/list_accounts_api.dart';
 import 'apis/account/statement_api.dart';
 import 'apis/auth/auth_api.dart';
+import 'apis/receipt/api_receipt.dart';
+import 'apis/transfer/api_transfer.dart';
 
 class Services {
   static void add(AutoInjector injector) {
@@ -20,6 +22,12 @@ class Services {
       )
       ..addSingleton<StatementApi>(
         () => StatementApi(injector.get<RestClient>()),
+      )
+      ..addSingleton<ApiTransfer>(
+        () => ApiTransfer(injector.get<RestClient>()),
+      )
+      ..addSingleton<ApiReceipt>(
+        () => ApiReceipt(injector.get<RestClient>()),
       );
   }
 }

@@ -37,7 +37,7 @@
     - [9.7 POST /accounts/{id}/deposit](#97-post-accountsiddeposit)
     - [9.8 POST /accounts/{id}/withdraw](#98-post-accountsidwithdraw)
     - [9.9 POST /accounts/transfer](#99-post-accountstransfer)
-    - [9.10 GET /accounts/transfer/{transaction_reference}/receipt](#910-get-accountstransfertransaction_referencereceipt)
+    - [9.10 GET /accounts/transfer/{transaction\_reference}/receipt](#910-get-accountstransfertransaction_referencereceipt)
     - [9.11 GET /accounts/{id}/balance](#911-get-accountsidbalance)
     - [9.12 GET /accounts/{id}/statement](#912-get-accountsidstatement)
     - [9.13 GET /customers/me](#913-get-customersme)
@@ -606,6 +606,17 @@ Success response (200):
 }
 ```
 
+Status semantics (`data.status`):
+- `completed`: transfer executed successfully (terminal success)
+- `pending`: transfer accepted and still processing (intermediate)
+- `failed`: transfer failed due to technical/system error (terminal failure)
+- `cancelled`: transfer cancelled before completion (terminal failure)
+- `rejected`: transfer rejected by validation/business rules (terminal failure)
+
+Current behavior:
+- The current backend implementation returns `completed` for persisted receipts.
+- Additional status values are documented here for upcoming backend evolution.
+
 Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
@@ -1131,6 +1142,11 @@ Scenario: inactive account
 ```
 
 ### 9.10 GET /accounts/transfer/{transaction_reference}/receipt
+
+Scenario: receipt found
+- Status: 200
+- `data.status` currently returned as `completed`
+- Future-compatible values for `data.status`: `completed`, `pending`, `failed`, `cancelled`, `rejected`
 
 Scenario: malformed transaction reference
 - Status: 400
