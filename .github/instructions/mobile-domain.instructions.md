@@ -112,6 +112,13 @@ Use a DTO when the type represents a backend contract, for example:
 Repositories and APIs may map DTOs into domain models when that improves the
 boundary for the UI.
 
+Do not create domain models only for architectural purity. If a DTO is already
+an app-facing contract from this mobile API, uses idiomatic Dart names and app
+types, and matches what view models need, it can remain the type crossing the
+repository/view-model boundary. Add a domain model when it adds behavior,
+combines multiple sources, hides an unstable/non-app-specific contract, or
+represents meaning beyond one endpoint payload.
+
 ## Auth Domain Conventions
 
 Current auth domain conventions:

@@ -147,7 +147,10 @@ Guidelines:
   `ApiParse.toInt` and `ApiParse.toMoney`.
 - Validate required fields during parsing by failing loudly inside the API
   method's `try/catch`, so parsing failures become `AppErrorCode.parsingError`.
-- Avoid leaking DTOs into UI when a stable domain model exists.
+- DTOs may be consumed by repositories and view models when they are curated
+  app-facing API contracts and already expose idiomatic Dart fields and app
+  types. Create a domain model only when it adds meaning, combines sources, or
+  decouples the app from a non-app-specific/unstable contract.
 
 ## Error Handling
 

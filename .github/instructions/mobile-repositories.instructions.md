@@ -159,7 +159,13 @@ Use the existing boundary intentionally:
 - Prefer domain models when the type represents app meaning beyond a single
   endpoint payload.
 
-Do not leak low-level transport envelopes into UI or view models.
+DTOs are acceptable repository outputs when the backend contract is designed for
+the app and the DTO is already a curated app-facing type. Avoid adding a domain
+model that simply mirrors the DTO without changing meaning, behavior, or
+stability.
+
+Do not leak low-level transport envelopes, raw maps, HTTP status handling, Dio
+types, or snake_case backend payloads into UI or view models.
 
 ## Registration
 

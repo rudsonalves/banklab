@@ -155,7 +155,13 @@ Rules:
 - Prefer domain models when a type represents app meaning beyond one backend
   payload.
 
-Do not leak raw backend envelopes into UI or view models.
+DTOs may be used by repositories and view models when they are intentionally
+app-facing contracts for this mobile API and already expose idiomatic Dart
+fields and app types such as `Money`, `DateTime`, or enums. Do not create a
+domain model that merely duplicates a DTO with the same fields and meaning.
+
+Do not leak raw backend envelopes, JSON maps, HTTP status handling, Dio types,
+or snake_case transport payloads into UI or view models.
 
 ## Current Auth Conventions
 
@@ -230,4 +236,3 @@ calls in unit tests.
 - Do not introduce a use case layer unless the task explicitly asks for that
   architecture change.
 - Do not perform broad folder migrations while implementing a narrow feature.
-

@@ -190,6 +190,14 @@ Contains integration and persistence orchestration:
 - DTOs stay close to their owning API service
 - API and repository methods return `AsyncResult<T>`
 
+DTOs may cross from repositories into view models when they are intentionally
+app-facing contracts for this mobile API and already expose idiomatic Dart
+fields and app types. Domain models are introduced when they add meaning,
+combine sources, or shield the app from an unstable/non-app-specific contract,
+not merely to duplicate DTO fields. Raw JSON maps, backend envelopes, HTTP
+status handling, Dio types, and snake_case transport payloads stay inside the
+data/API layers.
+
 Auth example:
 
 - API:
@@ -361,4 +369,3 @@ If `BASE_URL` is missing or invalid, app startup fails fast with a `StateError`.
 - Add navigation guards for authenticated routes
 - Expand automated tests around interceptor refresh behavior, repository cache
   semantics, and use case orchestration
-

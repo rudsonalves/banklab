@@ -1,5 +1,148 @@
 # Changelog
 
+## 2026/05/07 — mobile/internal-transfer-02
+
+Refine mobile transfer architecture, repository boundaries, and DTO usage strategy while introducing the first transaction repository implementation for internal transfers and receipts.
+
+### Architectural and Documentation Updates
+
+* Updated mobile architecture and agent instruction documents to clarify when DTOs are acceptable across repository and view model boundaries.
+* Standardized the guidance that domain models should only exist when they add semantic meaning, behavior, aggregation, or decoupling from unstable contracts.
+* Explicitly documented that curated app-facing DTOs using idiomatic Dart types (`Money`, `DateTime`, enums) are valid application-facing contracts.
+* Reinforced the restriction against leaking low-level transport concerns such as:
+
+  * raw JSON maps
+  * backend envelopes
+  * Dio types
+  * HTTP handling details
+  * snake_case payload structures
+* Updated:
+
+  * `.github/instructions/*`
+  * `mobile/lib/data/AGENT.md`
+  * `mobile/lib/domain/AGENT.md`
+  * `mobile/lib/data/repositories/AGENT.md`
+  * `mobile/lib/data/services/apis/AGENT.md`
+  * `mobile/docs/ARCHITECTURE.md`
+
+### Result API Improvements
+
+#### `mobile/lib/core/result/result.dart`
+
+* Added nullable `value` getter documentation explaining its intended use for lightweight success access patterns such as caching successful responses without explicit folding.
+
+### Transaction Repository Layer
+
+#### `mobile/lib/data/repositories/transaction/transaction_repository.dart`
+
+Added the new transaction repository contract responsible for:
+
+* transfer execution
+* transfer receipt retrieval
+* exposing cached transfer state
+
+Introduced:
+
+* `lastTransfer`
+* `lastReceipt`
+* `transfer()`
+* `getTransferReceipt()`
+
+The repository intentionally exposes DTOs directly as curated app-facing contracts aligned with the updated architectural direction.
+
+### Transaction Repository Implementation
+
+#### `mobile/lib/data/repositories/transaction/transaction_repository_impl.dart`
+
+Implemented the first transaction repository orchestration layer.
+
+Features include:
+
+* integration with:
+
+  * `ApiTransfer`
+  * `ApiReceipt`
+* lightweight application-level validation before API execution
+* transfer success caching
+* receipt success caching
+* automatic cache invalidation on failures
+
+Added defensive validations for:
+
+* missing source account
+* missing destination account
+* zero or negative amounts
+
+Implemented consistent failure propagation using `Result` and `AppError`.
+
+### Dependency Injection Wiring
+
+#### `mobile/lib/data/data.dart`
+
+Registered:
+
+* `TransactionRepository`
+* `TransactionRepositoryImpl`
+* `ApiTransfer`
+* `ApiReceipt`
+
+into the mobile dependency injection graph.
+
+This completes the first transaction orchestration vertical slice for the Flutter client.
+
+### Automated Tests
+
+#### `mobile/test/data/repositories/transaction/transaction_repository_impl_test.dart`
+
+Added extensive repository test coverage for:
+
+#### Transfer Flow
+
+* successful transfer execution
+* cache persistence after success
+* cache clearing after failure
+* validation failures before API execution
+* source account validation
+* destination account validation
+* amount validation
+
+#### Receipt Flow
+
+* successful receipt retrieval
+* receipt cache persistence
+* cache invalidation after backend failures
+* propagation of:
+
+  * 404 not found
+  * 403 forbidden
+  * generic backend failures
+
+#### Test Infrastructure
+
+Added:
+
+* fake API implementations
+* noop HTTP client
+* reusable DTO builders
+* helper money factory methods
+
+The tests validate both repository orchestration behavior and architectural boundary expectations.
+
+### Architectural Direction
+
+This commit formalizes an important mobile architecture decision:
+
+* DTOs are now treated as first-class application-facing contracts when:
+
+  * the backend contract is intentionally designed for the mobile app
+  * fields are already idiomatic in Dart
+  * no additional semantic abstraction is necessary
+
+This avoids redundant domain model duplication while preserving clear transport isolation boundaries.
+
+The result is a leaner and more pragmatic mobile architecture with lower mapping overhead and clearer repository/view-model contracts.
+
+
 ## 2026/05/07 - api/transfer-description-01
 
 Expanded transfer and receipt support across the mobile layer while refining transfer receipt semantics and standardizing money transport conversions.
