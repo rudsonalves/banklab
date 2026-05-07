@@ -9,6 +9,8 @@ abstract class AccountRepository {
 
   AccountSummaryResponseDto? get selectedAccount;
 
+  List<AccountSummaryResponseDto>? get accounts;
+
   Stream<BalanceResponseDto> balance();
 
   AsyncResult<Unit> loadBalance();

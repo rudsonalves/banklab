@@ -21,7 +21,7 @@ class _AppWidgetState extends State<AppWidget> {
     super.didChangeDependencies();
 
     // Initialize once with context-dependent resources
-    final textTheme = createTextTheme(context, "Quicksand", "EB Garamond");
+    final textTheme = createTextTheme(context, "Quicksand", "Google Sans");
 
     _materialTheme = MaterialTheme(textTheme);
   }

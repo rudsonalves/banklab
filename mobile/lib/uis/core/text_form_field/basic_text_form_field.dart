@@ -28,15 +28,15 @@ class BasicTextFormField extends TextFormField {
 
            filled: true,
            border: OutlineInputBorder(
-             borderRadius: BorderRadius.circular(24),
+             borderRadius: BorderRadius.circular(8),
              borderSide: BorderSide.none,
            ),
            enabledBorder: OutlineInputBorder(
-             borderRadius: BorderRadius.circular(24),
+             borderRadius: BorderRadius.circular(8),
              borderSide: BorderSide.none,
            ),
            focusedBorder: OutlineInputBorder(
-             borderRadius: BorderRadius.circular(24),
+             borderRadius: BorderRadius.circular(8),
              borderSide: BorderSide.none,
            ),
          ),

@@ -1,5 +1,128 @@
 # Changelog
 
+## 2026/05/07 - mobile/internal-transfer-03
+
+Implemented the first complete internal transfer flow structure in the Flutter mobile application, including routing, UI foundation, transfer orchestration, account selection support, and idempotency preparation aligned with the backend transactional model.
+
+Also improved local development ergonomics for macOS environments using Colima.
+
+### Infrastructure and Development Environment
+
+1. Updated `Makefile`
+
+   * Added automatic Colima detection before `docker compose up`
+   * Ensured Docker daemon startup in macOS environments using Colima
+   * Improved local developer experience and reduced manual environment setup friction
+
+### Routing and Navigation
+
+2. Updated `mobile/lib/core/routing/routes.dart`
+
+   * Added `HomeRoutes.transfer`
+   * Introduced dedicated navigation path for transfer operations
+
+3. Updated `mobile/lib/core/routing/routes/home_routes.dart`
+
+   * Registered `TransferPage`
+   * Added dependency injection wiring for `TransferViewmodel`
+   * Extended GoRouter configuration with transfer navigation support
+
+4. Updated `mobile/lib/uis/pages/home/home_page.dart`
+
+   * Replaced placeholder transfer action with actual navigation flow
+   * Added initialization execution during `initState`
+   * Removed redundant `didPush` initialization logic
+   * Integrated navigation using `context.pushNamed`
+
+### Transfer Domain and Use Case Layer
+
+5. Added `mobile/lib/domain/usecases/transfer/inputs/transfer_draft.dart`
+
+   * Introduced immutable transfer draft structure
+   * Added support for:
+
+     * origin/destination data
+     * amount handling with `money2`
+     * optional description
+     * idempotency key propagation
+   * Implemented `copyWith` pattern for immutable state evolution
+
+6. Added `mobile/lib/domain/usecases/transfer/transfer_usecase.dart`
+
+   * Implemented transfer orchestration use case
+   * Connected account and transaction repositories
+   * Added DTO conversion from domain draft to API request
+   * Centralized transfer execution logic
+   * Exposed selected account and available accounts from repository layer
+
+### Repository Improvements
+
+7. Updated `mobile/lib/data/repositories/account/account_repository.dart`
+
+   * Added cached accounts exposure through `accounts` getter
+
+8. Updated `mobile/lib/data/repositories/account/account_repository_impl.dart`
+
+   * Added in-memory account cache
+   * Persisted loaded accounts for reuse across flows
+   * Prepared repository layer for account-origin selection in transfers
+
+### Transfer UI Foundation
+
+9. Added `mobile/lib/uis/pages/home/transfer/transfer_page.dart`
+
+   * Created initial transfer screen
+   * Added structured sections for:
+
+     * origin account
+     * beneficiary data
+     * transfer amount
+   * Implemented:
+
+     * dropdown account selection
+     * branch/account input fields
+     * amount input
+     * beneficiary input
+   * Added confirmation action placeholder
+   * Used reusable `BasicTextFormField` components
+   * Structured layout for future validation and execution integration
+
+10. Added `mobile/lib/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart`
+
+    * Introduced transfer state orchestration layer
+    * Integrated `Command1` async execution pattern
+    * Added UUID v7 idempotency generation
+    * Prepared deterministic retry behavior aligned with backend transfer guarantees
+    * Centralized transfer command execution logic
+
+### Dependency Injection
+
+11. Updated `mobile/lib/uis/uis.dart`
+
+    * Registered `TransferViewmodel` in dependency injection container
+
+### UI and Theme Refinements
+
+12. Updated `mobile/lib/uis/app_widget.dart`
+
+    * Replaced `EB Garamond` with `Google Sans`
+    * Improved overall visual consistency for application typography
+
+13. Updated `mobile/lib/uis/core/text_form_field/basic_text_form_field.dart`
+
+    * Reduced border radius from `24` to `8`
+    * Improved visual alignment with banking-style UI patterns
+    * Standardized input appearance for future financial flows
+
+### Tooling and API Testing
+
+14. Updated `tools/postman/Environment.postman_environment.json`
+
+    * Updated local API base URL for current development environment
+
+This commit establishes the initial mobile transfer architecture and prepares the application for full transactional integration with the backend transfer pipeline, including idempotent execution semantics and reusable account context handling.
+
+
 ## 2026/05/07 — mobile/internal-transfer-02
 
 Refine mobile transfer architecture, repository boundaries, and DTO usage strategy while introducing the first transaction repository implementation for internal transfers and receipts.
