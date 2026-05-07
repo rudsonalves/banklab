@@ -80,14 +80,21 @@ class AccountRepositoryImpl implements AccountRepository {
   }
 
   @override
-  void selectAccount(AccountSummaryResponseDto account) {
-    _selectedAccount = account;
-    loadBalance();
+  void selectAccount(String accountId) {
+    if (_accountsCache == null) return;
+
+    for (final account in _accountsCache!) {
+      if (account.id == accountId) {
+        _selectedAccount = account;
+        return;
+      }
+    }
   }
 
   @override
   void clearSelectedAccount() {
     _selectedAccount = null;
+    _balanceCache = null;
   }
 
   @override

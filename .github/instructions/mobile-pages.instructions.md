@@ -1,5 +1,5 @@
 ---
-description: "Use when creating or editing page files, view models, page-local widgets, or route builders under mobile/lib/uis/pages. Covers the page/ViewModel split, Command usage, forms, navigation with GoRouter, route lifecycle, local widget promotion rules, and view model registration."
+description: "Use when creating or editing page files, view models, page-local widgets, or route builders under mobile/lib/uis/pages. Covers the page/ViewModel split, Command usage, forms, navigation with GoRouter, route lifecycle, local widget promotion rules, and view model registration in viewmodels.dart."
 applyTo: "mobile/lib/uis/pages/**"
 ---
 # Pages Agent Guide
@@ -234,7 +234,7 @@ Avoid one-off styling systems inside page files.
 
 ## Registration And Construction
 
-View models are registered in `uis/uis.dart` and resolved in route builders.
+View models are registered in `uis/viewmodels.dart` and resolved in route builders.
 
 Rules:
 

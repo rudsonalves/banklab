@@ -1,5 +1,135 @@
 # Changelog
 
+## 2026/05/07 — mobile/internal-transfer-04
+
+Refined the Flutter mobile architecture organization by formalizing dependency injection entrypoints, consolidating use case orchestration patterns, and improving transfer workflow coordination across repositories, use cases, and view models.
+
+Updated the dependency injection structure and naming conventions across the mobile architecture.
+
+1. Dependency injection and module organization
+
+   * Renamed `data/data.dart` to `data/repositories.dart`
+   * Renamed `uis/uis.dart` to `uis/viewmodels.dart`
+   * Introduced `domain/usecases/usecases.dart` as the dedicated registration entrypoint for domain workflows
+   * Updated `core/config/dependencies.dart` to use the new registration pipeline:
+
+     * `CoreServices`
+     * `Services`
+     * `Repositories`
+     * `Usecases`
+     * `Viewmodels`
+   * Added explicit `Usecases.add(injector)` bootstrap integration
+   * Standardized dependency registration terminology across the project
+
+2. Use case architecture consolidation
+
+   * Expanded the architectural guidance for `domain/usecases`
+   * Formalized the intended orchestration flow:
+
+     * `UI -> ViewModel -> UseCase -> Repository -> API/Service -> RestClient -> Dio`
+   * Clarified when workflows should remain in repositories versus when they should become dedicated use cases
+   * Added implementation guidance for:
+
+     * reusable orchestration
+     * multi-repository coordination
+     * app-facing workflow inputs
+     * request mapping ownership
+   * Added architectural restrictions preventing:
+
+     * UI state leakage into use cases
+     * repository duplication
+     * transport-layer dependencies inside use cases
+
+3. Domain organization improvements
+
+   * Reorganized the conceptual structure of `domain/common`
+   * Updated references from:
+
+     * `domain/auth/...`
+     * `domain/enums/...`
+   * To:
+
+     * `domain/common/auth/...`
+     * `domain/common/user/...`
+     * `domain/common/receipt/...`
+   * Clarified separation between:
+
+     * stable app-facing domain models
+     * workflow orchestration use cases
+   * Added stronger framework isolation rules for `domain/common`
+
+4. Transfer workflow improvements
+
+   * Improved `TransferUsecase` validation flow
+   * Added defensive validation for missing selected accounts
+   * Replaced unsafe nullable access on `selectedAccount`
+   * Added transfer receipt retrieval orchestration:
+
+     * `getTransferReceipt`
+   * Added account selection workflow orchestration:
+
+     * `selectAccount`
+   * Added validation and error handling for invalid account selection
+   * Delegated balance loading after account selection through the use case layer
+
+5. Transfer view model enhancements
+
+   * Added transfer receipt command support
+   * Added account selection command support
+   * Connected new use case operations into the view model command system
+   * Extended transfer workflow state orchestration
+
+6. Repository API refinements
+
+   * Refactored `AccountRepository.selectAccount`
+
+     * changed from object-based selection to ID-based selection
+   * Improved account cache lookup behavior
+   * Prevented unnecessary balance loading during account selection
+   * Added cache cleanup when clearing selected account
+   * Reset balance cache during account deselection
+
+7. Repository documentation improvements
+
+   * Added detailed documentation comments to:
+
+     * `AccountRepository`
+     * `AuthRepository`
+     * `TransactionRepository`
+   * Clarified:
+
+     * cache semantics
+     * session behavior
+     * authentication invariants
+     * transfer constraints
+     * statement retrieval behavior
+   * Improved repository contract readability for future contributors
+
+8. Mobile architecture documentation updates
+
+   * Updated:
+
+     * `.github/instructions/*`
+     * `mobile/lib/*/AGENT.md`
+     * `mobile/docs/ARCHITECTURE.md`
+     * `mobile/README.md`
+   * Standardized references to:
+
+     * `repositories.dart`
+     * `viewmodels.dart`
+     * `usecases/usecases.dart`
+   * Documented the new dependency registration flow and architectural responsibilities
+   * Added clearer guidance about use case placement and orchestration responsibilities
+
+9. Import and structure cleanup
+
+   * Normalized import ordering in repositories
+   * Fixed relative import inconsistencies
+   * Improved readability and architectural consistency across modules
+
+This commit consolidates the mobile architecture around explicit dependency registration boundaries, establishes a clearer use case orchestration model, and strengthens the internal transfer workflow foundation for future transactional and security-related features.
+
+
 ## 2026/05/07 - mobile/internal-transfer-03
 
 Implemented the first complete internal transfer flow structure in the Flutter mobile application, including routing, UI foundation, transfer orchestration, account selection support, and idempotency preparation aligned with the backend transactional model.

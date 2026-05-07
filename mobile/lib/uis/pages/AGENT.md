@@ -230,7 +230,7 @@ Avoid one-off styling systems inside page files.
 
 ## Registration And Construction
 
-View models are registered in `uis/uis.dart` and resolved in route builders.
+View models are registered in `uis/viewmodels.dart` and resolved in route builders.
 
 Rules:
 

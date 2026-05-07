@@ -32,7 +32,7 @@ data layer.
 ## Current Structure
 
 - `app_widget.dart`: root `MaterialApp.router`, theme selection, and app shell
-- `uis.dart`: registers UI view models in the dependency injector
+- `viewmodels.dart`: registers UI view models in the dependency injector
 - `pages/`: screens, page-local widgets, and page view models
 - `core/`: shared UI primitives, input formatters, feedback helpers, and themes
 
@@ -208,7 +208,7 @@ For feedback:
 
 ## Registration And Construction
 
-UI dependencies are registered in `uis.dart`.
+UI dependencies are registered in `viewmodels.dart`.
 
 Current registrations include:
 
@@ -218,7 +218,7 @@ Current registrations include:
 
 Rules:
 
-- Register new view models in `uis.dart`.
+- Register new view models in `viewmodels.dart`.
 - Inject repositories through view model constructors for simple workflows.
 - Inject use cases through view model constructors for complex workflows that
   coordinate multiple repositories.

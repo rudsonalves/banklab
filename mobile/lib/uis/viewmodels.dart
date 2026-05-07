@@ -5,7 +5,7 @@ import 'pages/auth/register/viewmodel/register_viewmodel.dart';
 import 'pages/home/transfer/viewmodel/transfer_viewmodel.dart';
 import 'pages/home/viewmodel/home_viewmodel.dart';
 
-class Uis {
+class Viewmodels {
   static void add(AutoInjector injector) {
     injector
       ..add<HomeViewmodel>(HomeViewmodel.new)

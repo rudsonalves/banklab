@@ -1,5 +1,5 @@
 ---
-description: "Use when creating or editing data layer files: repositories, API services, DTOs, data.dart, services.dart. Covers orchestration, error handling, Result model, dependency injection, auth and account conventions for the mobile Flutter data layer."
+description: "Use when creating or editing data layer files: repositories, API services, DTOs, repositories.dart, services.dart. Covers orchestration, error handling, Result model, dependency injection, auth and account conventions for the mobile Flutter data layer."
 applyTo: "mobile/lib/data/**"
 ---
 # Data Layer Agent Guide
@@ -38,7 +38,7 @@ turns app operations into API calls, local persistence actions, typed DTOs, and
 
 ## Folder Map
 
-- `data.dart`: registers repository implementations in the dependency injector
+- `repositories.dart`: registers repository implementations in the dependency injector
 - `repositories/`: app-facing repository contracts and implementations
 - `services/services.dart`: registers API service classes in the injector
 - `services/apis/`: endpoint-oriented API services and DTOs
@@ -114,20 +114,21 @@ Rules:
 Data dependencies are registered in two module entrypoints:
 
 - `services/services.dart`: API service registrations
-- `data.dart`: repository registrations
+- `repositories.dart`: repository registrations
 
 Current bootstrap order from `core/config/dependencies.dart`:
 
 1. `CoreServices`
 2. `Services`
-3. `Data`
-4. `Uis`
+3. `Repositories`
+4. `Usecases`
+5. `Viewmodels`
 
 When adding a new API or repository:
 
 1. Register the API in `services/services.dart`.
 2. Inject the API into the repository implementation.
-3. Register the repository in `data.dart`.
+3. Register the repository in `repositories.dart`.
 4. Inject the repository into a view model through the existing UI module.
 
 Do not instantiate APIs or repositories directly in pages.

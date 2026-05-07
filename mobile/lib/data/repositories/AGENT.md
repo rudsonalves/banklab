@@ -51,7 +51,7 @@ Guidelines:
 - Keep the interface focused on app use cases, not HTTP endpoints.
 - Name methods after user/app operations, not transport details.
 - Keep implementation details in `*RepositoryImpl`.
-- Register implementations in `data/data.dart`.
+- Register implementations in `data/repositories.dart`.
 - Inject repositories into view models through `AutoInjector`.
 
 ## Dependency Rules
@@ -169,8 +169,8 @@ When adding a repository:
 
 1. Create the contract and implementation under `data/repositories/<feature>/`.
 2. Add constructor dependencies for required APIs or core services.
-3. Register the repository in `data/data.dart`.
-4. Inject the repository into the relevant view model in `uis/uis.dart` or via
+3. Register the repository in `data/repositories.dart`.
+4. Inject the repository into the relevant view model in `uis/viewmodels.dart` or via
    the existing constructor injection pattern.
 
 Never instantiate repository implementations directly inside pages.

@@ -91,6 +91,12 @@ mobile/
 `-- pubspec.yaml
 ```
 
+Dependency injection entrypoints currently live in:
+
+- `lib/data/repositories.dart`
+- `lib/domain/usecases/usecases.dart`
+- `lib/uis/viewmodels.dart`
+
 ## Related docs
 
 - Monorepo overview: [../README.md](../README.md)

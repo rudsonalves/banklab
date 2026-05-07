@@ -14,7 +14,7 @@ import 'repositories/transaction/transaction_repository_impl.dart';
 import 'services/apis/receipt/api_receipt.dart';
 import 'services/apis/transfer/api_transfer.dart';
 
-class Data {
+class Repositories {
   static void add(AutoInjector injector) {
     injector
       ..addSingleton<AuthRepository>(

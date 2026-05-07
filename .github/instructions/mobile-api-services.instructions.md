@@ -203,7 +203,7 @@ When adding an API service:
 1. Create the service under `data/services/apis/<feature>/`.
 2. Add request/response DTOs under the feature's `dtos/` folder.
 3. Register the service in `data/services/services.dart`.
-4. Inject it into the relevant repository in `data/data.dart`.
+4. Inject it into the relevant repository in `data/repositories.dart`.
 
 Do not instantiate API services directly inside view models or pages.
 

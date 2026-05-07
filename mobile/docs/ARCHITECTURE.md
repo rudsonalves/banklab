@@ -127,15 +127,16 @@ Current registration order in the injector:
 
 1. `CoreServices`
 2. `Services`
-3. `Data`
-4. `Uis`
+3. `Repositories`
+4. `Usecases`
+5. `Viewmodels`
 
 This ensures UI view models can resolve their dependencies, repositories can
 resolve APIs and platform services, and API services can resolve the shared
 `RestClient`.
 
-When use cases are introduced, register them in dependency setup before the UI
-view models that consume them.
+This also ensures use cases resolve repository dependencies before UI view
+models that consume them are constructed.
 
 ## Flow Models
 
@@ -185,6 +186,8 @@ Core must not depend on `data`, `domain`, or `uis`.
 
 Contains integration and persistence orchestration:
 
+- Dependency entrypoint:
+  [mobile/lib/data/repositories.dart](../../mobile/lib/data/repositories.dart)
 - API services map transport payloads into DTOs or app models
 - Repositories implement app-oriented operations and local data state
 - DTOs stay close to their owning API service
@@ -224,6 +227,8 @@ Contains domain-centric models, enums, and use cases used across layers.
 For growth, the domain root is organized by context under `common/` plus
 workflow orchestration under `usecases/`:
 
+- Dependency entrypoint:
+  [mobile/lib/domain/usecases/usecases.dart](../../mobile/lib/domain/usecases/usecases.dart)
 - [mobile/lib/domain/common/auth/models/auth_user.dart](../../mobile/lib/domain/common/auth/models/auth_user.dart)
 - [mobile/lib/domain/common/auth/models/user_profile.dart](../../mobile/lib/domain/common/auth/models/user_profile.dart)
 - [mobile/lib/domain/common/user/enums/user_role.dart](../../mobile/lib/domain/common/user/enums/user_role.dart)
@@ -249,7 +254,7 @@ Contains presentation and interaction state:
 - App shell:
   [mobile/lib/uis/app_widget.dart](../../mobile/lib/uis/app_widget.dart)
 - UI dependency registration:
-  [mobile/lib/uis/uis.dart](../../mobile/lib/uis/uis.dart)
+  [mobile/lib/uis/viewmodels.dart](../../mobile/lib/uis/viewmodels.dart)
 - Pages and page view models:
   [mobile/lib/uis/pages](../../mobile/lib/uis/pages)
 - Shared UI primitives:

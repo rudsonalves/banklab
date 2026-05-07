@@ -43,18 +43,22 @@ Domain may depend on:
 - other domain models or enums
 - small, framework-independent helpers from `core` when already established
 
-Domain must not depend on:
+Domain models under `common/` must not depend on:
 
 - Flutter widgets or UI packages
 - GoRouter or navigation
 - Dio or HTTP request/response types
 - secure storage
-- dependency injection
-- repositories
-- API services
 - backend envelope types
 
-Keep domain as framework-agnostic as practical.
+Use cases under `usecases/` are the exception:
+
+- they may depend on repository contracts
+- they may be registered through `usecases/usecases.dart`
+- they must still stay free of Flutter widgets, navigation, and transport
+  clients
+
+Keep domain as framework-agnostic as practical, especially under `common/`.
 
 ## Current Model Style
 
@@ -184,8 +188,7 @@ Keep tests small and independent from HTTP, storage, and widgets.
 
 - Do not put API request DTOs in domain.
 - Do not parse backend envelopes here.
-- Do not make domain models call repositories or services.
+- Do not make domain models under `common/` call repositories or services.
 - Do not add widget, routing, storage, or Dio dependencies.
 - Do not store mutable UI state in domain models.
-- Do not introduce a broad domain/use-case architecture refactor unless the task
-  explicitly asks for it.
+- Do not turn `domain/usecases` into a second repository or transport layer.

@@ -1,5 +1,5 @@
 ---
-description: "Use when creating or editing files under mobile/lib/uis: app_widget.dart, uis.dart, pages, view models, themes, feedback helpers, shared UI primitives. Covers the UI/ViewModel split, Command usage, navigation, routing, shared widgets, and dependency rules for the Flutter presentation layer."
+description: "Use when creating or editing files under mobile/lib/uis: app_widget.dart, viewmodels.dart, pages, view models, themes, feedback helpers, shared UI primitives. Covers the UI/ViewModel split, Command usage, navigation, routing, shared widgets, and dependency rules for the Flutter presentation layer."
 applyTo: "mobile/lib/uis/**"
 ---
 # UI Layer Agent Guide
@@ -33,7 +33,7 @@ data layer.
 ## Current Structure
 
 - `app_widget.dart`: root `MaterialApp.router`, theme selection, and app shell
-- `uis.dart`: registers UI view models in the dependency injector
+- `viewmodels.dart`: registers UI view models in the dependency injector
 - `pages/`: screens, page-local widgets, and page view models
 - `core/`: shared UI primitives, input formatters, feedback helpers, and themes
 
@@ -208,7 +208,7 @@ For feedback:
 
 ## Registration
 
-View models are registered in `uis/uis.dart`.
+View models are registered in `uis/viewmodels.dart`.
 
 Rules:
 
