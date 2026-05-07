@@ -49,6 +49,21 @@ void main() {
       expect(dto.amount, _brl(2500));
     });
 
+    test('parses optional description when present', () {
+      final map = _validPayload();
+      map['description'] = 'Aluguel de maio';
+
+      final dto = TransferReceiptResponseDto.fromMap(map);
+
+      expect(dto.description, 'Aluguel de maio');
+    });
+
+    test('keeps description null when absent', () {
+      final dto = TransferReceiptResponseDto.fromMap(_validPayload());
+
+      expect(dto.description, isNull);
+    });
+
     test('parses status to TransferReceiptStatus enum', () {
       final dto = TransferReceiptResponseDto.fromMap(_validPayload());
 

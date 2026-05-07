@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -203,10 +204,10 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if req.IdempotencyKey == "" {
-	// 	sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
-	// 	return
-	// }
+	if strings.TrimSpace(req.IdempotencyKey) == "" {
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
+		return
+	}
 
 	if req.FromAccountBranch == "" ||
 		req.FromAccountNumber == "" ||
@@ -224,6 +225,7 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 		ToAccountNumber:   req.ToAccountNumber,
 		Amount:            req.Amount,
 		IdempotencyKey:    req.IdempotencyKey,
+		Description:       req.Description,
 	})
 	if err != nil {
 		log.Printf("event=transfer error=%v", err)

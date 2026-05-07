@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
@@ -30,6 +31,7 @@ type TransferInput struct {
 	ToAccountNumber   string
 	Amount            int64
 	IdempotencyKey    string
+	Description       *string
 }
 
 type TransferResult struct {
@@ -54,6 +56,12 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		return nil, domain.ErrInvalidData
 	}
 
+	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
+	if idempotencyKey == "" {
+		return nil, domain.ErrInvalidData
+	}
+
+	description := normalizeTransferDescription(input.Description)
 	var result *TransferResult
 
 	err = uc.accountRepo.WithTransaction(ctx, func(tx domain.Tx) error {
@@ -80,19 +88,17 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		}
 
 		// Idempotency check: if a ledger entry already exists for this key, replay result.
-		if input.IdempotencyKey != "" {
-			existing, err := tx.GetTransactionByIdempotencyKey(ctx, fromAccountID, input.IdempotencyKey)
-			if err != nil {
-				return fmt.Errorf("get transaction by idempotency key: %w", err)
-			}
+		existing, err := tx.GetTransactionByIdempotencyKey(ctx, fromAccountID, idempotencyKey)
+		if err != nil {
+			return fmt.Errorf("get transaction by idempotency key: %w", err)
+		}
 
-			if existing != nil {
-				result, err = transferResultFromLedger(ctx, tx, existing)
-				if err != nil {
-					return err
-				}
-				return nil
+		if existing != nil {
+			result, err = transferResultFromLedger(ctx, tx, existing)
+			if err != nil {
+				return err
 			}
+			return nil
 		}
 
 		// Lock both accounts in deterministic UUID order to reduce deadlock risk
@@ -149,30 +155,19 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		referenceID := uuid.New()
 
 		// Origin side carries idempotency_key and related_account_id.
-		var outgoing *domain.Transaction
-		if input.IdempotencyKey != "" {
-			outgoing = domain.NewTransactionWithIdempotency(
-				fromAccountID,
-				domain.TransactionTransferOut,
-				input.Amount,
-				fromAccount.Balance,
-				&referenceID,
-				&toAccountID,
-				input.IdempotencyKey,
-			)
-		} else {
-			outgoing = domain.NewTransaction(
-				fromAccountID,
-				domain.TransactionTransferOut,
-				input.Amount,
-				fromAccount.Balance,
-				&referenceID,
-			)
-			outgoing.RelatedAccountID = &toAccountID
-		}
+		outgoing := domain.NewTransactionWithIdempotency(
+			fromAccountID,
+			domain.TransactionTransferOut,
+			input.Amount,
+			fromAccount.Balance,
+			&referenceID,
+			&toAccountID,
+			idempotencyKey,
+		)
+		outgoing.Description = description
 		if err := tx.CreateTransaction(ctx, outgoing); err != nil {
 			if errors.Is(err, domain.ErrTransferDuplicate) {
-				existing, getErr := tx.GetTransactionByIdempotencyKey(ctx, fromAccountID, input.IdempotencyKey)
+				existing, getErr := tx.GetTransactionByIdempotencyKey(ctx, fromAccountID, idempotencyKey)
 				if getErr != nil {
 					return fmt.Errorf("reload transaction by idempotency key: %w", getErr)
 				}
@@ -277,6 +272,19 @@ func orderedUUIDs(left, right uuid.UUID) (uuid.UUID, uuid.UUID) {
 	}
 
 	return right, left
+}
+
+func normalizeTransferDescription(description *string) *string {
+	if description == nil {
+		return nil
+	}
+
+	normalized := strings.TrimSpace(*description)
+	if normalized == "" {
+		return nil
+	}
+
+	return &normalized
 }
 
 // mapTransferAccounts takes the fromAccountID and the two accounts locked

@@ -1,5 +1,113 @@
 # Changelog
 
+## 2026/05/07 - api/transfer-description-01
+
+Expanded transfer and receipt support across the mobile layer while refining transfer receipt semantics and standardizing money transport conversions.
+
+1. Transfer and receipt API services
+
+   * Added `ApiTransfer` service for `POST /accounts/transfer`
+   * Added `ApiReceipt` service for `GET /accounts/transfer/{transaction_reference}/receipt`
+   * Registered both services in dependency injection
+   * Standardized API envelope parsing and HTTP error handling for transfer flows
+   * Added parsing failure handling with explicit `AppErrorCode.parsingError`
+
+2. Transfer DTO contracts
+
+   * Added `TransferRequestDto` with branch/account-number-based transfer identity
+   * Added `TransferResponseDto` for transfer result parsing
+   * Added `TransferReceiptResponseDto` for transfer receipt parsing
+   * Standardized money scalar serialization/deserialization using:
+
+     * `ApiParse.toInt`
+     * `ApiParse.toMoney`
+   * Preserved transport identity through branch + account number instead of internal UUID exposure
+   * Added optional `idempotency_key` serialization support
+
+3. Transfer receipt domain modeling
+
+   * Added `TransferReceiptStatus` enum with:
+
+     * `completed`
+     * `pending`
+     * `failed`
+     * `cancelled`
+     * `rejected`
+   * Added semantic helpers:
+
+     * `isSuccess`
+     * `isPending`
+     * `isFailed`
+   * Added strict parsing through `TransferReceiptStatus.fromString`
+   * Documented future-compatible receipt status evolution
+
+4. Mobile domain reorganization
+
+   * Migrated domain models into `domain/common/...`
+   * Added:
+
+     * `domain/common/auth/models`
+     * `domain/common/user/enums`
+     * `domain/common/receipt/enums`
+   * Moved `UserRole` into `domain/common/user/enums/user_role.dart`
+   * Updated imports across repositories, APIs, view models, and domain models
+   * Refined architecture documentation for:
+
+     * `domain/common`
+     * `domain/usecases`
+     * future domain growth organization
+
+5. API parsing standardization
+
+   * Replaced manual money serialization helpers with:
+
+     * `ApiParse.toInt(Money)`
+   * Standardized guidance across:
+
+     * AGENT instructions
+     * architecture docs
+     * mobile data layer instructions
+     * API service instructions
+   * Explicitly documented that DTOs must not hand-roll money scalar conversions
+
+6. Transfer and receipt DTO test coverage
+
+   * Added `TransferRequestDto` serialization tests
+   * Added `TransferResponseDto` parsing tests
+   * Added `TransferReceiptResponseDto` parsing tests
+   * Validated:
+
+     * money parsing semantics
+     * enum parsing behavior
+     * UTC date parsing
+     * idempotency key serialization
+     * absence of internal account/customer identifiers
+     * required field failures
+     * runtime protection against accidental DTO field leakage
+
+7. API documentation updates
+
+   * Expanded transfer receipt status documentation in `api/docs/07-api-rest.md`
+   * Added explicit status semantics for:
+
+     * `completed`
+     * `pending`
+     * `failed`
+     * `cancelled`
+     * `rejected`
+   * Documented current backend behavior returning `completed`
+   * Added forward-compatibility notes for future receipt state evolution
+   * Fixed transfer receipt route anchor escaping in the table of contents
+
+8. Repository and documentation organization
+
+   * Moved Mermaid-generated assets into `docs/mermaid-images`
+   * Updated mobile architecture documentation to reflect the new domain structure
+   * Refined agent guidance for domain placement and application organization
+
+This commit establishes the first complete mobile-side transfer and receipt integration baseline, introduces explicit receipt lifecycle semantics, and standardizes financial scalar handling across the API contract and Flutter data layer.
+
+
 ## 2026/05/07 - mobile/internal-transfer-01
 
 Introduced the first complete mobile-side internal transfer API integration layer, including transfer execution, transfer receipt retrieval, DTO validation coverage, and domain structure normalization for future growth.

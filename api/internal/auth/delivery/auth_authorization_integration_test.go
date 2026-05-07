@@ -321,6 +321,7 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			reference_id UUID,
 			related_account_id UUID,
 			idempotency_key VARCHAR(100),
+			description TEXT,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS users (
@@ -356,6 +357,10 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 
 	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100)`); err != nil {
 		t.Fatalf("failed to ensure transactions.idempotency_key column: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description TEXT`); err != nil {
+		t.Fatalf("failed to ensure transactions.description column: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_idempotency

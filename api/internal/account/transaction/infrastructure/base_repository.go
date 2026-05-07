@@ -148,9 +148,9 @@ func (r *baseRepository) CreateTransaction(ctx context.Context, tx *transactiond
 	query := `
 		INSERT INTO transactions (
 			id, account_id, type, amount, balance_after, reference_id,
-			related_account_id, idempotency_key, created_at
+			related_account_id, idempotency_key, description, created_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (account_id, idempotency_key)
 		WHERE idempotency_key IS NOT NULL
 		DO NOTHING
@@ -165,6 +165,7 @@ func (r *baseRepository) CreateTransaction(ctx context.Context, tx *transactiond
 		tx.ReferenceID,
 		tx.RelatedAccountID,
 		tx.IdempotencyKey,
+		tx.Description,
 		tx.CreatedAt,
 	)
 	if err != nil {
@@ -186,7 +187,7 @@ func (r *baseRepository) GetTransactionByIdempotencyKey(ctx context.Context, acc
 
 	query := `
 		SELECT id, account_id, type, amount, balance_after, reference_id,
-		       related_account_id, idempotency_key, created_at
+		       related_account_id, idempotency_key, description, created_at
 		FROM transactions
 		WHERE account_id = $1 AND idempotency_key = $2
 		LIMIT 1
@@ -201,6 +202,7 @@ func (r *baseRepository) GetTransactionByIdempotencyKey(ctx context.Context, acc
 		&t.ReferenceID,
 		&t.RelatedAccountID,
 		&t.IdempotencyKey,
+		&t.Description,
 		&t.CreatedAt,
 	)
 	if err != nil {
@@ -221,7 +223,7 @@ func (r *baseRepository) GetTransactionByReference(ctx context.Context, accountI
 
 	query := `
 		SELECT id, account_id, type, amount, balance_after, reference_id,
-		       related_account_id, idempotency_key, created_at
+		       related_account_id, idempotency_key, description, created_at
 		FROM transactions
 		WHERE account_id = $1 AND reference_id = $2 AND type = $3
 		LIMIT 1
@@ -236,6 +238,7 @@ func (r *baseRepository) GetTransactionByReference(ctx context.Context, accountI
 		&t.ReferenceID,
 		&t.RelatedAccountID,
 		&t.IdempotencyKey,
+		&t.Description,
 		&t.CreatedAt,
 	)
 	if err != nil {
@@ -269,7 +272,8 @@ func (r *baseRepository) GetTransferReceiptByReference(ctx context.Context, refe
 			destination_account.customer_id,
 			destination_account.branch,
 			destination_account.number,
-			recipient_customer.name
+			recipient_customer.name,
+			transfer_out.description
 		FROM transactions transfer_out
 		JOIN transactions transfer_in
 		  ON transfer_in.reference_id = transfer_out.reference_id
@@ -298,6 +302,7 @@ func (r *baseRepository) GetTransferReceiptByReference(ctx context.Context, refe
 		&receipt.DestinationBranch,
 		&receipt.DestinationAccountNumber,
 		&receipt.RecipientName,
+		&receipt.Description,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

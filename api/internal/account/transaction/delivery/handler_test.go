@@ -67,6 +67,10 @@ func (m *transferReceiptUseCaseMock) Execute(ctx context.Context, input transact
 	return m.executeFn(ctx, input)
 }
 
+func stringPtr(value string) *string {
+	return &value
+}
+
 func TestHandler_Deposit_MissingAuth(t *testing.T) {
 	h := &Handler{deposit: &depositUseCaseMock{}}
 	accountID := uuid.New()
@@ -209,7 +213,7 @@ func TestHandler_Transfer_SameAccount(t *testing.T) {
 	}
 	h := &Handler{transfer: transferUC}
 
-	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0001","to_account_number":"123456","amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0001","to_account_number":"123456","amount":100,"idempotency_key":"same-account-key"}`))
 	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
@@ -238,7 +242,7 @@ func TestHandler_Transfer_MissingAuth(t *testing.T) {
 	transferUC := &transferUseCaseMock{}
 	h := &Handler{transfer: transferUC}
 
-	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100,"idempotency_key":"missing-auth-key"}`))
 	rec := httptest.NewRecorder()
 
 	h.Transfer(rec, req)
@@ -277,7 +281,7 @@ func TestHandler_Transfer_UseCaseErrors(t *testing.T) {
 			}
 			h := &Handler{transfer: transferUC}
 
-			req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100}`))
+			req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100,"idempotency_key":"use-case-error-key"}`))
 			req = testAuthenticatedRequest(req, uuid.New())
 			rec := httptest.NewRecorder()
 
@@ -328,6 +332,14 @@ func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 				return nil, errors.New("unexpected amount")
 			}
 
+			if input.IdempotencyKey != "success-key" {
+				return nil, errors.New("unexpected idempotency key")
+			}
+
+			if input.Description == nil || *input.Description != "Aluguel de maio" {
+				return nil, errors.New("unexpected description")
+			}
+
 			return &transactionapp.TransferResult{
 				TransactionReference: transactionReference,
 				Amount:               100,
@@ -338,7 +350,7 @@ func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 	}
 	h := &Handler{transfer: transferUC}
 
-	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100,"idempotency_key":"success-key","description":"Aluguel de maio"}`))
 	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
@@ -425,7 +437,7 @@ func TestHandler_Transfer_InvalidAmount(t *testing.T) {
 	transferUC := &transferUseCaseMock{}
 	h := &Handler{transfer: transferUC}
 
-	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":0}`))
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":0,"idempotency_key":"invalid-amount-key"}`))
 	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
@@ -454,12 +466,46 @@ func TestHandler_Transfer_InvalidAmount(t *testing.T) {
 	}
 }
 
+func TestHandler_Transfer_MissingIdempotencyKey(t *testing.T) {
+	customerID := uuid.New()
+	transferUC := &transferUseCaseMock{}
+	h := &Handler{transfer: transferUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"654321","amount":100}`))
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INVALID_DATA" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_DATA", got.Error.Code)
+	}
+
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected use case Execute not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
 func TestHandler_Transfer_EmptyToAccountNumber(t *testing.T) {
 	customerID := uuid.New()
 	transferUC := &transferUseCaseMock{}
 	h := &Handler{transfer: transferUC}
 
-	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"","amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_branch":"0001","from_account_number":"123456","to_branch":"0002","to_account_number":"","amount":100,"idempotency_key":"invalid-data-key"}`))
 	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
 
@@ -545,6 +591,7 @@ func TestHandler_TransferReceipt_Success(t *testing.T) {
 				DestinationBranch:        "0002",
 				DestinationAccountNumber: "654321",
 				RecipientName:            "Maria Silva",
+				Description:              stringPtr("Aluguel de maio"),
 			}, nil
 		},
 	}
@@ -575,6 +622,9 @@ func TestHandler_TransferReceipt_Success(t *testing.T) {
 	}
 	if got.Data.RecipientName != "Maria Silva" {
 		t.Fatalf("expected recipient name %q, got %q", "Maria Silva", got.Data.RecipientName)
+	}
+	if got.Data.Description == nil || *got.Data.Description != "Aluguel de maio" {
+		t.Fatalf("expected description %q, got %+v", "Aluguel de maio", got.Data.Description)
 	}
 	if receiptUC.executeCalls != 1 {
 		t.Fatalf("expected use case Execute once, got %d calls", receiptUC.executeCalls)

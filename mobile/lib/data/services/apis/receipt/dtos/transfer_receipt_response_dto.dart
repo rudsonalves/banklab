@@ -14,6 +14,7 @@ class TransferReceiptResponseDto {
   final String destinationBranch;
   final String destinationAccountNumber;
   final String recipientName;
+  final String? description;
 
   TransferReceiptResponseDto({
     required this.operationType,
@@ -26,6 +27,7 @@ class TransferReceiptResponseDto {
     required this.destinationBranch,
     required this.destinationAccountNumber,
     required this.recipientName,
+    this.description,
   });
 
   factory TransferReceiptResponseDto.fromMap(Map<String, dynamic> map) {
@@ -40,6 +42,7 @@ class TransferReceiptResponseDto {
       destinationBranch: map['destination_branch'] as String,
       destinationAccountNumber: map['destination_account_number'] as String,
       recipientName: map['recipient_name'] as String,
+      description: map['description'] as String?,
     );
   }
 }

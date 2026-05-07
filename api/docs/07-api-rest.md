@@ -532,17 +532,22 @@ Request body:
   "to_branch": "0001",
   "to_account_number": "00067890",
   "amount": 2500,
-  "idempotency_key": "optional-client-key"
+  "idempotency_key": "transfer-client-key",
+  "description": "Aluguel de maio"
 }
 ```
 
 Notes:
 - The bank is currently implicit.
 - The transfer is internal only and resolves accounts by `(branch, account_number)`.
-- `idempotency_key` is optional.
+- `idempotency_key` is required and must be stable across retries of the same
+  transfer attempt.
+- `description` is optional. When omitted or blank, no description is stored.
 - Idempotency is scoped to the resolved source account and `idempotency_key`.
 - Different source accounts may reuse the same `idempotency_key` independently.
 - Replay responses return the historical transfer result from ledger data (not current account balances).
+- Replay responses preserve the original transfer description; a different
+  `description` in a retry does not overwrite the stored value.
 
 Success response (200):
 
@@ -566,7 +571,8 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: missing or malformed branch/account number data
+- 400 INVALID_DATA: missing or malformed branch/account number data, or missing
+  `idempotency_key`
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
 - 403 FORBIDDEN: access denied
@@ -600,11 +606,15 @@ Success response (200):
     "source_account_number": "00012345",
     "destination_branch": "0001",
     "destination_account_number": "00067890",
-    "recipient_name": "Maria Silva"
+    "recipient_name": "Maria Silva",
+    "description": "Aluguel de maio"
   },
   "error": null
 }
 ```
+
+Notes:
+- `description` is omitted when the original transfer did not include one.
 
 Status semantics (`data.status`):
 - `completed`: transfer executed successfully (terminal success)

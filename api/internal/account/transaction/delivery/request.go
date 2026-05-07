@@ -9,10 +9,11 @@ type WithdrawRequest struct {
 }
 
 type TransferRequest struct {
-	FromAccountBranch string `json:"from_branch"`
-	FromAccountNumber string `json:"from_account_number"`
-	ToAccountBranch   string `json:"to_branch"`
-	ToAccountNumber   string `json:"to_account_number"`
-	Amount            int64  `json:"amount"`
-	IdempotencyKey    string `json:"idempotency_key"`
+	FromAccountBranch string  `json:"from_branch"`
+	FromAccountNumber string  `json:"from_account_number"`
+	ToAccountBranch   string  `json:"to_branch"`
+	ToAccountNumber   string  `json:"to_account_number"`
+	Amount            int64   `json:"amount"`
+	IdempotencyKey    string  `json:"idempotency_key"`
+	Description       *string `json:"description"`
 }

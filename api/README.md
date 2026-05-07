@@ -52,6 +52,7 @@ POST   /accounts/{id}/deposit
 POST   /accounts/{id}/withdraw
 GET    /accounts/{id}/balance
 POST   /accounts/transfer
+GET    /accounts/transfer/{transaction_reference}/receipt
 GET    /accounts/{id}/statement
 ```
 

@@ -8,7 +8,8 @@ class TransferRequestDto {
   final String toBranch;
   final String toAccountNumber;
   final Money amount;
-  final String? idempotencyKey;
+  final String idempotencyKey;
+  final String? description;
 
   TransferRequestDto({
     required this.fromBranch,
@@ -16,7 +17,8 @@ class TransferRequestDto {
     required this.toBranch,
     required this.toAccountNumber,
     required this.amount,
-    this.idempotencyKey,
+    required this.idempotencyKey,
+    this.description,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,7 +28,8 @@ class TransferRequestDto {
       'to_branch': toBranch,
       'to_account_number': toAccountNumber,
       'amount': ApiParse.toInt(amount),
-      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      'idempotency_key': idempotencyKey,
+      if (description != null) 'description': description,
     };
   }
 }

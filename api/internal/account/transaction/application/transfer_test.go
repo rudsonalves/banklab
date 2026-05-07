@@ -140,6 +140,7 @@ func transferInput(userID uuid.UUID, fromBranch, fromNumber, toBranch, toNumber 
 		ToAccountBranch:   toBranch,
 		ToAccountNumber:   toNumber,
 		Amount:            amount,
+		IdempotencyKey:    "test-idempotency-key",
 	}
 }
 
@@ -336,6 +337,28 @@ func TestTransfer_Execute_InvalidDestinationAccountData(t *testing.T) {
 	}
 }
 
+func TestTransfer_Execute_MissingIdempotencyKey(t *testing.T) {
+	repo := &transferAccountRepositoryMock{}
+	useCase := NewTransfer(repo)
+
+	result, err := useCase.Execute(context.Background(), TransferInput{
+		FromAccountBranch: "0001",
+		FromAccountNumber: "123456",
+		ToAccountBranch:   "0001",
+		ToAccountNumber:   "654321",
+		Amount:            10,
+		IdempotencyKey:    "   ",
+	})
+
+	if !errors.Is(err, domain.ErrInvalidData) {
+		t.Fatalf("expected error %v, got %v", domain.ErrInvalidData, err)
+	}
+
+	if result != nil {
+		t.Fatalf("expected result to be nil, got %+v", result)
+	}
+}
+
 func TestTransfer_Execute_SameAccount(t *testing.T) {
 	accountID := uuid.New()
 	customerID := uuid.New()
@@ -360,6 +383,7 @@ func TestTransfer_Execute_SameAccount(t *testing.T) {
 		ToAccountBranch:   fromBranch,
 		ToAccountNumber:   fromNumber,
 		Amount:            10,
+		IdempotencyKey:    "same-account-key",
 	})
 
 	if !errors.Is(err, domain.ErrSameAccountTransfer) {
@@ -446,6 +470,7 @@ func TestTransfer_Execute_SourceAccountNotFound(t *testing.T) {
 		ToAccountBranch:   toBranch,
 		ToAccountNumber:   toNumber,
 		Amount:            10,
+		IdempotencyKey:    "source-not-found-key",
 	})
 
 	if !errors.Is(err, domain.ErrAccountNotFound) {
@@ -484,6 +509,7 @@ func TestTransfer_Execute_DestinationAccountNotFound(t *testing.T) {
 		ToAccountBranch:   toBranch,
 		ToAccountNumber:   toNumber,
 		Amount:            10,
+		IdempotencyKey:    "destination-not-found-key",
 	})
 
 	if !errors.Is(err, domain.ErrAccountNotFound) {
@@ -713,6 +739,58 @@ func TestTransfer_Execute_Success(t *testing.T) {
 	}
 }
 
+func TestTransfer_Execute_PersistsDescriptionOnTransferOut(t *testing.T) {
+	fromID := uuid.New()
+	toID := uuid.New()
+	customerID := uuid.New()
+	fromBranch := "0001"
+	fromNumber := "111111"
+	toBranch := "0001"
+	toNumber := "222222"
+	description := "  Aluguel de maio  "
+	tx := &transferTxMock{
+		accounts: map[uuid.UUID]*domain.Account{
+			fromID: {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
+			toID:   {ID: toID, Status: domain.AccountActive, Balance: 20},
+		},
+		accountsByBranchNumber: map[string]*domain.Account{
+			branchNumberKey(fromBranch, fromNumber): {ID: fromID, CustomerID: customerID, Status: domain.AccountActive, Balance: 100},
+			branchNumberKey(toBranch, toNumber):     {ID: toID, Status: domain.AccountActive, Balance: 20},
+		},
+		decreaseBalanceValue: 50,
+		updateBalanceValues:  map[uuid.UUID]int64{toID: 70},
+	}
+	repo := &transferAccountRepositoryMock{tx: tx}
+	useCase := NewTransfer(repo)
+
+	_, err := useCase.Execute(context.Background(), TransferInput{
+		User:              testCustomerUser(customerID),
+		FromAccountBranch: fromBranch,
+		FromAccountNumber: fromNumber,
+		ToAccountBranch:   toBranch,
+		ToAccountNumber:   toNumber,
+		Amount:            50,
+		IdempotencyKey:    "description-key",
+		Description:       &description,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(tx.createdTransactions) != 2 {
+		t.Fatalf("expected two ledger writes, got %d", len(tx.createdTransactions))
+	}
+
+	outgoing := tx.createdTransactions[0]
+	incoming := tx.createdTransactions[1]
+	if outgoing.Description == nil || *outgoing.Description != "Aluguel de maio" {
+		t.Fatalf("expected normalized outgoing description, got %+v", outgoing.Description)
+	}
+	if incoming.Description != nil {
+		t.Fatalf("expected incoming description to be nil, got %+v", incoming.Description)
+	}
+}
+
 func TestTransfer_Execute_IdempotencyKeyAlreadyProcessed(t *testing.T) {
 	fromID := uuid.New()
 	toID := uuid.New()
@@ -722,6 +800,8 @@ func TestTransfer_Execute_IdempotencyKeyAlreadyProcessed(t *testing.T) {
 	toBranch := "0001"
 	toNumber := "222222"
 	key := "idem-key-1"
+	originalDescription := "Aluguel de maio"
+	retryDescription := "Descricao alterada no retry"
 	referenceID := uuid.New()
 
 	tx := &transferTxMock{
@@ -742,6 +822,7 @@ func TestTransfer_Execute_IdempotencyKeyAlreadyProcessed(t *testing.T) {
 			ReferenceID:      &referenceID,
 			RelatedAccountID: &toID,
 			IdempotencyKey:   &key,
+			Description:      &originalDescription,
 		},
 		getTransactionByRef: &domain.Transaction{
 			ID:               uuid.New(),
@@ -764,6 +845,7 @@ func TestTransfer_Execute_IdempotencyKeyAlreadyProcessed(t *testing.T) {
 		ToAccountNumber:   toNumber,
 		Amount:            50,
 		IdempotencyKey:    key,
+		Description:       &retryDescription,
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -787,6 +869,10 @@ func TestTransfer_Execute_IdempotencyKeyAlreadyProcessed(t *testing.T) {
 
 	if tx.createTransactionCalls != 0 {
 		t.Fatalf("expected no ledger writes, got %d", tx.createTransactionCalls)
+	}
+
+	if *tx.getTransactionResult.Description != originalDescription {
+		t.Fatalf("expected idempotent replay to preserve original description %q, got %q", originalDescription, *tx.getTransactionResult.Description)
 	}
 
 	if tx.commitCalls != 1 {
@@ -1122,6 +1208,7 @@ func TestTransfer_Execute_ForbiddenForDifferentCustomer(t *testing.T) {
 		ToAccountBranch:   toBranch,
 		ToAccountNumber:   toNumber,
 		Amount:            50,
+		IdempotencyKey:    "forbidden-key",
 	})
 
 	if !errors.Is(err, domain.ErrForbidden) {
