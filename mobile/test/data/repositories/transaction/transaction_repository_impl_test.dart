@@ -83,10 +83,8 @@ void main() {
 
         final result = await repository.transfer(
           TransferRequestDto(
-            fromBranch: '',
-            fromAccountNumber: '',
-            toBranch: '0001',
-            toAccountNumber: '00067890',
+            fromAccountId: '',
+            toAccountId: 'acc-dst-001',
             amount: brl(2500),
             idempotencyKey: 'idempotency-key',
           ),
@@ -113,10 +111,8 @@ void main() {
 
       final result = await repository.transfer(
         TransferRequestDto(
-          fromBranch: '0001',
-          fromAccountNumber: '00012345',
-          toBranch: '',
-          toAccountNumber: '',
+          fromAccountId: 'acc-src-001',
+          toAccountId: '',
           amount: brl(2500),
           idempotencyKey: 'idempotency-key',
         ),
@@ -142,10 +138,8 @@ void main() {
 
       final result = await repository.transfer(
         TransferRequestDto(
-          fromBranch: '0001',
-          fromAccountNumber: '00012345',
-          toBranch: '0001',
-          toAccountNumber: '00067890',
+          fromAccountId: 'acc-src-001',
+          toAccountId: 'acc-dst-001',
           amount: brl(0),
           idempotencyKey: 'idempotency-key',
         ),
@@ -283,10 +277,8 @@ void main() {
 
 TransferRequestDto _validTransferRequest() {
   return TransferRequestDto(
-    fromBranch: '0001',
-    fromAccountNumber: '00012345',
-    toBranch: '0001',
-    toAccountNumber: '00067890',
+    fromAccountId: 'acc-src-001',
+    toAccountId: 'acc-dst-001',
     amount: brl(2500),
     idempotencyKey: 'idempotency-key',
   );
@@ -294,11 +286,10 @@ TransferRequestDto _validTransferRequest() {
 
 TransferResponseDto _transferResponse() {
   return TransferResponseDto(
-    fromBranch: '0001',
-    fromAccountNumber: '00012345',
+    fromAccountId: 'acc-src-001',
+    toAccountId: 'acc-dst-001',
     transactionReference: 'tx-ref-001',
     toBranch: '0001',
-    toAccountNumber: '00067890',
     amount: brl(2500),
     fromBalance: brl(97500),
     toBalance: brl(32500),
@@ -344,7 +335,7 @@ class _FakeApiReceipt extends ApiReceipt {
   String? lastTransactionReference;
 
   @override
-  AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
+  AsyncResult<TransferReceiptResponseDto> getReceipt(
     String transactionReference,
   ) async {
     receiptCalls++;

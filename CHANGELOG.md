@@ -1,5 +1,174 @@
 # Changelog
 
+## 2026/05/08 - mobile/internal-transfer-05
+
+Refactor internal transfer flow to use account IDs as the canonical identity model and implement recipient lookup support across API and Flutter layers.
+
+This commit aligns the mobile application with the new internal transfer contract exposed by the API, replacing branch/account-number-based transfer execution with UUID-based account references while preserving recipient discovery through dedicated lookup endpoints.
+
+### API
+
+1. Simplified internal transfer recipient contract
+
+   * Removed `account_type` from:
+
+     * internal transfer recipient domain model
+     * delivery DTOs
+     * handler response mapping
+     * REST API documentation
+   * Reduced exposure of unnecessary banking metadata in recipient lookup responses.
+
+2. Updated REST documentation
+
+   * Adjusted internal transfer recipient payload examples.
+   * Kept transfer semantics centered on:
+
+     * `from_account_id`
+     * `to_account_id`
+   * Reinforced consistency with the current transfer domain model and ledger-oriented architecture.
+
+### Mobile — Core
+
+1. Added `StringExtension`
+
+   * Introduced:
+
+     * `onlyNumbers`
+     * `isValidCpf`
+     * `isValidCnpj`
+   * Implemented CPF/CNPJ check digit validation algorithms.
+   * Added complete unit coverage for:
+
+     * formatted/unformatted values
+     * invalid lengths
+     * repeated digits
+     * invalid check digits
+
+### Mobile — Transfer API Integration
+
+1. Refactored transfer requests to UUID-based account identity
+
+   * Replaced:
+
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * With:
+
+     * `from_account_id`
+     * `to_account_id`
+
+2. Updated transfer endpoint path
+
+   * Changed:
+
+     * `/accounts/transfer`
+   * To:
+
+     * `/accounts/internal-transfers`
+
+3. Updated transfer DTOs
+
+   * `TransferRequestDto`
+
+     * now serializes only account IDs
+   * `TransferResponseDto`
+
+     * now exposes account IDs instead of branch/account-number identity
+
+4. Updated transfer use case
+
+   * Transfer execution now derives:
+
+     * source account ID directly from authenticated account context
+     * destination account ID from recipient selection
+
+5. Simplified transfer validation
+
+   * Repository validation now checks only:
+
+     * `fromAccountId`
+     * `toAccountId`
+
+### Mobile — Recipient Lookup Flow
+
+1. Added recipient lookup API support
+
+   * Introduced:
+
+     * `RecipientRequestDto`
+     * `RecipientResponseDto`
+     * `RecipientInfoDto`
+
+2. Added lookup endpoint integration
+
+   * Implemented:
+
+     * `GET /accounts/internal-transfers/recipients`
+
+3. Added recipient query strategies
+
+   * Lookup by:
+
+     * CPF/CNPJ document
+     * branch + account number
+
+4. Added envelope parsing and error handling
+
+   * Implemented:
+
+     * backend envelope validation
+     * parsing error mapping
+     * HTTP status validation
+     * network failure propagation
+
+### Mobile — Receipt API
+
+1. Renamed receipt retrieval method
+
+   * `getTransferReceipt`
+   * → `getReceipt`
+
+2. Updated repository integration and tests accordingly.
+
+### Mobile — Tests
+
+1. Expanded transfer API coverage
+
+   * Added tests for:
+
+     * endpoint path validation
+     * request serialization
+     * account-ID-based payloads
+     * parsing failures
+     * HTTP failures
+     * network failures
+     * malformed envelopes
+
+2. Added recipient lookup test suite
+
+   * Covered:
+
+     * multiple recipients
+     * empty responses
+     * malformed payloads
+     * backend envelope errors
+     * query parameter generation
+     * network failures
+
+3. Updated DTO tests
+
+   * Removed legacy branch/account-number assertions.
+   * Added UUID-based transfer identity assertions.
+
+4. Updated repository and receipt tests
+
+   * Adjusted mocks and fixtures to reflect the new transfer contract.
+
+This refactor consolidates internal transfer identity around stable account UUIDs while separating operational transfer execution from recipient discovery. The result is a cleaner transfer contract, lower exposure of transport-specific banking fields, and better alignment between the Flutter client and the current API/domain architecture.
+
+
 ## 2026/05/08 — api/internal-transfer-01
 
 Refactor the internal transfer flow to operate with account UUIDs instead of branch/account-number pairs, and introduce a dedicated recipient lookup endpoint for internal transfers. This update also expands the transfer contract, improves authorization consistency, and aligns the API/documentation surface with the new transfer model.

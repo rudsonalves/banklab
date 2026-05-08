@@ -562,8 +562,7 @@ Success response (200):
         "holder_name": "Maria Silva",
         "document": "***.456.789-**",
         "branch": "0001",
-        "account_number": "00067890",
-        "account_type": "checking"
+        "account_number": "00067890"
       }
     ]
   },

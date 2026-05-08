@@ -11,7 +11,7 @@ class ApiReceipt {
 
   final _log = ConsoleLog('ApiReceipt');
 
-  AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
+  AsyncResult<TransferReceiptResponseDto> getReceipt(
     String transactionReference,
   ) async {
     final response = await _client.get(

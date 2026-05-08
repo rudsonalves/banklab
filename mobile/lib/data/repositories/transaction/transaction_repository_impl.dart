@@ -27,7 +27,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
   @override
   AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto) async {
-    if (dto.fromBranch.trim().isEmpty || dto.fromAccountNumber.trim().isEmpty) {
+    if (dto.fromAccountId.trim().isEmpty) {
       return const Failure(
         AppError(
           code: AppErrorCode.unexpected,
@@ -36,7 +36,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
       );
     }
 
-    if (dto.toBranch.trim().isEmpty || dto.toAccountNumber.trim().isEmpty) {
+    if (dto.toAccountId.trim().isEmpty) {
       return const Failure(
         AppError(
           code: AppErrorCode.unexpected,
@@ -65,7 +65,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
   AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
     String transactionReference,
   ) async {
-    final result = await _apiReceipt.getTransferReceipt(transactionReference);
+    final result = await _apiReceipt.getReceipt(transactionReference);
 
     _lastReceipt = result.isSuccess ? result.value : null;
 

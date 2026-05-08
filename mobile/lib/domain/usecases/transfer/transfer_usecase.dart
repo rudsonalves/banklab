@@ -35,10 +35,8 @@ class TransferUsecase {
     }
 
     final dto = TransferRequestDto(
-      fromAccountNumber: account.number,
-      fromBranch: account.branch,
-      toAccountNumber: transfer.toAccountNumber,
-      toBranch: transfer.toBranch,
+      fromAccountId: account.id,
+      toAccountId: transfer.toAccountId,
       amount: transfer.amount,
       description: transfer.description,
       idempotencyKey: transfer.idempotencyKey,

@@ -8,7 +8,6 @@ Map<String, dynamic> _recipientPayload({
   String document = '***.456.789-**',
   String branch = '0001',
   String accountNumber = '00067890',
-  String? accountType = 'checking',
 }) {
   return {
     'account_id': accountId,
@@ -16,7 +15,6 @@ Map<String, dynamic> _recipientPayload({
     'document': document,
     'branch': branch,
     'account_number': accountNumber,
-    if (accountType != null) 'account_type': accountType,
   };
 }
 
@@ -30,15 +28,6 @@ void main() {
       expect(dto.document, '***.456.789-**');
       expect(dto.branch, '0001');
       expect(dto.accountNumber, '00067890');
-      expect(dto.accountType, 'checking');
-    });
-
-    test('handles optional account_type when absent', () {
-      final dto = InternalTransferRecipientDto.fromMap(
-        _recipientPayload(accountType: null),
-      );
-
-      expect(dto.accountType, isNull);
     });
 
     test('ignores prohibited fields if present in payload', () {
@@ -100,13 +89,11 @@ void main() {
             accountId: 'acc_001',
             branch: '0001',
             accountNumber: '00011111',
-            accountType: 'checking',
           ),
           _recipientPayload(
             accountId: 'acc_002',
             branch: '0001',
             accountNumber: '00022222',
-            accountType: 'savings',
           ),
         ],
       });
@@ -114,7 +101,6 @@ void main() {
       expect(dto.accounts, hasLength(2));
       expect(dto.accounts.first.accountId, 'acc_001');
       expect(dto.accounts.last.accountId, 'acc_002');
-      expect(dto.accounts.last.accountType, 'savings');
     });
   });
 }
