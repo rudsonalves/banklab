@@ -31,7 +31,6 @@ void main() {
           dto.transactionReference,
           '2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31',
         );
-        expect(dto.toBranch, '0001');
         expect(dto.toAccountId, 'ab3b2800-1234-5678-abcd-ef0123456789');
         expect(dto.amount, _brl(2500));
         expect(dto.fromBalance, _brl(97500));

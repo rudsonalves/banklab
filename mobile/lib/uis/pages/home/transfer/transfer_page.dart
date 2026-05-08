@@ -26,13 +26,6 @@ class _TransferPageState extends State<TransferPage> {
   String? _selectedOriginAccount;
 
   @override
-  void initState() {
-    super.initState();
-
-    widget.viewModel.initialize();
-  }
-
-  @override
   void dispose() {
     _beneficiaryNameController.dispose();
     _branchController.dispose();

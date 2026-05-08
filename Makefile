@@ -81,15 +81,13 @@ env-init: ## Create API and Mobile .env files if they do not exist
 # =========================
 build: api-build ## Build backend binary
 
-test: api-test mobile-test ## Run API and Mobile tests
-
 # =========================
 # API (Go)
 # =========================
 api-build: ## Build API binary into api/build/
 	cd api && go build -o build/bank-api ./cmd/api
 
-api-test: ## Run API tests with coverage
+api-tests: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
 api-run: mobile-sync-ip ## Run API server
@@ -119,7 +117,7 @@ dbschema: ## Export database schema to schema.sql
 # =========================
 # Mobile (Flutter)
 # =========================
-mobile-test: ## Run all mobile tests
+mobile-tests: ## Run all mobile tests
 	cd mobile && flutter test
 
 mobile-test-unit: ## Run mobile unit tests
@@ -129,7 +127,7 @@ mobile-sync-ip: ## Update mobile .env BASE_URL with current host LAN IP
 	bash infra/scripts/update-mobile-env-ip.sh
 
 tests: ## Run all tests
-	make api-test mobile-test
+	make api-tests mobile-tests
 
 # =========================
 # Git

@@ -227,6 +227,44 @@ void main() {
       },
     );
 
+    test('lookup success returns a single recipient', () async {
+      final api = ApiTransfer(
+        _FakeRestClient(
+          getResult: const Result.success(
+            RestClientResponse(
+              statusCode: 200,
+              data: {
+                'data': {
+                  'accounts': [
+                    {
+                      'account_id': 'acc-unique-001',
+                      'holder_name': 'Maria Oliveira',
+                      'document': '98765432100',
+                      'branch': '0003',
+                      'account_number': '00011223',
+                    },
+                  ],
+                },
+                'error': null,
+              },
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.getInternalRecipient(
+        const RecipientRequestDto(document: '98765432100'),
+      );
+
+      expect(result, isA<Success<List<RecipientInfoDto>>>());
+      final recipients = result.value!;
+      expect(recipients, hasLength(1));
+      expect(recipients.first.accountId, 'acc-unique-001');
+      expect(recipients.first.holderName, 'Maria Oliveira');
+      expect(recipients.first.document, '98765432100');
+      expect(recipients.first.accountNumber, '00011223');
+    });
+
     test('parses successful envelope with multiple recipients', () async {
       final api = ApiTransfer(
         _FakeRestClient(
@@ -306,6 +344,118 @@ void main() {
       expect(result, isA<Failure<List<RecipientInfoDto>>>());
       expect(result.error?.code, AppErrorCode.httpError);
       expect(result.error?.message, 'Account not found');
+    });
+
+    test('returns failure for INVALID_DATA backend code', () async {
+      final api = ApiTransfer(
+        _FakeRestClient(
+          getResult: const Result.success(
+            RestClientResponse(
+              statusCode: 200,
+              data: {
+                'data': null,
+                'error': {
+                  'code': 'INVALID_DATA',
+                  'message':
+                      'invalid or unsupported query parameter combination',
+                },
+              },
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.getInternalRecipient(
+        const RecipientRequestDto(document: '12345678901'),
+      );
+
+      expect(result, isA<Failure<List<RecipientInfoDto>>>());
+      expect(result.error?.code, AppErrorCode.httpError);
+      expect(
+        result.error?.message,
+        'invalid or unsupported query parameter combination',
+      );
+    });
+
+    test('returns failure for FORBIDDEN backend code', () async {
+      final api = ApiTransfer(
+        _FakeRestClient(
+          getResult: const Result.success(
+            RestClientResponse(
+              statusCode: 200,
+              data: {
+                'data': null,
+                'error': {
+                  'code': 'FORBIDDEN',
+                  'message': 'access denied',
+                },
+              },
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.getInternalRecipient(
+        const RecipientRequestDto(document: '12345678901'),
+      );
+
+      expect(result, isA<Failure<List<RecipientInfoDto>>>());
+      expect(result.error?.code, AppErrorCode.httpError);
+      expect(result.error?.message, 'access denied');
+    });
+
+    test('returns failure for UNAUTHORIZED backend code', () async {
+      final api = ApiTransfer(
+        _FakeRestClient(
+          getResult: const Result.success(
+            RestClientResponse(
+              statusCode: 200,
+              data: {
+                'data': null,
+                'error': {
+                  'code': 'UNAUTHORIZED',
+                  'message': 'authentication required',
+                },
+              },
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.getInternalRecipient(
+        const RecipientRequestDto(document: '12345678901'),
+      );
+
+      expect(result, isA<Failure<List<RecipientInfoDto>>>());
+      expect(result.error?.code, AppErrorCode.httpError);
+      expect(result.error?.message, 'authentication required');
+    });
+
+    test('returns failure for generic backend error code', () async {
+      final api = ApiTransfer(
+        _FakeRestClient(
+          getResult: const Result.success(
+            RestClientResponse(
+              statusCode: 200,
+              data: {
+                'data': null,
+                'error': {
+                  'code': 'INTERNAL_ERROR',
+                  'message': 'temporary backend issue',
+                },
+              },
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.getInternalRecipient(
+        const RecipientRequestDto(document: '12345678901'),
+      );
+
+      expect(result, isA<Failure<List<RecipientInfoDto>>>());
+      expect(result.error?.code, AppErrorCode.httpError);
+      expect(result.error?.message, 'temporary backend issue');
     });
 
     test('returns HTTP error when status code indicates failure', () async {
@@ -415,7 +565,6 @@ Map<String, dynamic> _successEnvelope() => {
     'from_account_id': 'acc-src-001',
     'to_account_id': 'acc-dst-001',
     'transaction_reference': '2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31',
-    'to_branch': '0001',
     'amount': 2500,
     'from_balance': 97500,
     'to_balance': 32500,

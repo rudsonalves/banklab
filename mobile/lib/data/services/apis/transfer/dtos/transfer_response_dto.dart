@@ -6,7 +6,6 @@ class TransferResponseDto {
   final String fromAccountId;
   final String toAccountId;
   final String transactionReference;
-  final String toBranch;
   final Money amount;
   final Money fromBalance;
   final Money toBalance;
@@ -15,7 +14,6 @@ class TransferResponseDto {
     required this.fromAccountId,
     required this.toAccountId,
     required this.transactionReference,
-    required this.toBranch,
     required this.amount,
     required this.fromBalance,
     required this.toBalance,
@@ -26,7 +24,6 @@ class TransferResponseDto {
       fromAccountId: map['from_account_id'],
       toAccountId: map['to_account_id'],
       transactionReference: map['transaction_reference'],
-      toBranch: map['to_branch'],
       amount: ApiParse.toMoney(map['amount']),
       fromBalance: ApiParse.toMoney(map['from_balance']),
       toBalance: ApiParse.toMoney(map['to_balance']),

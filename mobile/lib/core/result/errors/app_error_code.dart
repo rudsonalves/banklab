@@ -16,4 +16,7 @@ enum AppErrorCode {
 
   // Generic
   unexpected,
+
+  // Validation
+  invalidData,
 }

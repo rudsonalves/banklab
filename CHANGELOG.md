@@ -1,5 +1,121 @@
 # Changelog
 
+## 2026/05/08 - mobile/internal-transfer-06
+
+Refactor internal transfer flow to use account IDs as the primary identity model across API and mobile layers, while introducing recipient lookup support and CPF/CNPJ validation utilities.
+
+This commit aligns the mobile transfer implementation with the backend transfer contract evolution, simplifying recipient identification and removing legacy branch/account-based transfer semantics from the core transaction flow.
+
+1. API contract and transfer domain adjustments
+
+   * Removed `account_type` from internal transfer recipient responses and domain models.
+   * Simplified recipient payloads to expose only:
+
+     * `account_id`
+     * `holder_name`
+     * `document`
+     * `branch`
+     * `account_number`
+   * Updated REST documentation for internal transfer recipient lookup responses.
+   * Adjusted delivery and domain mapping layers to stop propagating account type information.
+
+2. Internal transfer identity migration
+
+   * Reworked transfer DTOs to use:
+
+     * `from_account_id`
+     * `to_account_id`
+   * Removed legacy transfer fields:
+
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * Updated:
+
+     * `TransferRequestDto`
+     * `TransferResponseDto`
+     * `TransferDraft`
+     * `TransferUsecase`
+     * repository validation logic
+   * Simplified transfer execution flow by using account UUIDs as the canonical transaction identity.
+
+3. API route evolution
+
+   * Updated mobile transfer integration to consume:
+
+     * `POST /accounts/internal-transfers`
+   * Replaced legacy route:
+
+     * `POST /accounts/transfer`
+   * Renamed receipt retrieval API method:
+
+     * `getTransferReceipt()` → `getReceipt()`
+
+4. Internal recipient lookup implementation
+
+   * Added support for:
+
+     * `GET /accounts/internal-transfers/recipients`
+   * Implemented:
+
+     * `RecipientRequestDto`
+     * `RecipientResponseDto`
+     * `RecipientInfoDto`
+   * Added query support for:
+
+     * CPF/CNPJ document lookup
+     * branch + account number lookup
+   * Added robust envelope parsing and HTTP failure handling.
+   * Added parsing safeguards for malformed backend payloads.
+
+5. CPF/CNPJ validation utilities
+
+   * Added `StringExtension` utilities:
+
+     * `onlyNumbers`
+     * `isValidCpf`
+     * `isValidCnpj`
+   * Implemented:
+
+     * CPF verification digit validation
+     * CNPJ verification digit validation
+     * repeated digit rejection
+     * formatted/unformatted document support
+   * Centralized numeric sanitization logic for document processing.
+
+6. Test coverage expansion
+
+   * Updated all transfer-related tests to the new account ID model.
+   * Added extensive coverage for:
+
+     * internal recipient lookup
+     * network failures
+     * malformed payload handling
+     * HTTP error mapping
+     * empty recipient lists
+     * DTO serialization changes
+   * Added CPF/CNPJ validation tests covering:
+
+     * formatted/unformatted values
+     * invalid lengths
+     * invalid check digits
+     * repeated digits
+   * Updated fake REST client support for GET operations and query parameter assertions.
+
+7. Architectural consistency improvements
+
+   * Reduced leakage of presentation-oriented banking concepts into transaction execution.
+   * Consolidated account identity semantics around immutable UUIDs.
+   * Improved separation between:
+
+     * transfer execution identity
+     * recipient display information
+   * Kept branch/account number as presentation and lookup data instead of transactional identifiers.
+
+This refactor prepares the mobile application for a more deterministic and scalable internal transfer model while improving API consistency, DTO clarity, and validation reliability across the transfer flow.
+
+
 ## 2026/05/08 - mobile/internal-transfer-05
 
 Refactor internal transfer flow to use account IDs as the canonical identity model and implement recipient lookup support across API and Flutter layers.

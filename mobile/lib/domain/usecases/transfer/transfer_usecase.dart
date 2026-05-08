@@ -3,6 +3,8 @@ import '/data/repositories/account/account_repository.dart';
 import '/data/repositories/transaction/transaction_repository.dart';
 import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
 import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
+import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
 import 'inputs/transfer_draft.dart';
@@ -34,9 +36,30 @@ class TransferUsecase {
       );
     }
 
+    if (transfer.idempotencyKey.isEmpty) {
+      return const Failure<TransferResponseDto>(
+        AppError(
+          code: AppErrorCode.invalidData,
+          message: 'Idempotency key is required for transfer.',
+        ),
+      );
+    }
+
+    final toAccountId = transfer.toAccountId.trim();
+    if (toAccountId.isEmpty || toAccountId == account.id) {
+      return const Failure<TransferResponseDto>(
+        AppError(
+          code: AppErrorCode.invalidData,
+          message:
+              'Destination account ID cannot be empty or the same '
+              'as the source account.',
+        ),
+      );
+    }
+
     final dto = TransferRequestDto(
       fromAccountId: account.id,
-      toAccountId: transfer.toAccountId,
+      toAccountId: toAccountId,
       amount: transfer.amount,
       description: transfer.description,
       idempotencyKey: transfer.idempotencyKey,
@@ -46,8 +69,8 @@ class TransferUsecase {
   }
 
   AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
-    String transactionReference,
-  ) => _transactionRepo.getTransferReceipt(transactionReference);
+    String reference,
+  ) => _transactionRepo.getTransferReceipt(reference);
 
   AsyncResult<Unit> selectAccount(String accountId) async {
     _accountRepo.selectAccount(accountId);
@@ -63,5 +86,20 @@ class TransferUsecase {
     }
 
     return _accountRepo.loadBalance();
+  }
+
+  AsyncResult<List<RecipientInfoDto>> getInternalRecipient(
+    RecipientRequestDto recipient,
+  ) async {
+    if (recipient.toMap().isEmpty) {
+      return const Failure(
+        AppError(
+          code: AppErrorCode.invalidData,
+          message: 'Recipient search query cannot be empty.',
+        ),
+      );
+    }
+
+    return _transactionRepo.getInternalRecipient(recipient);
   }
 }

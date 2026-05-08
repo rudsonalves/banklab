@@ -4,6 +4,8 @@ class TransferDraft {
   final String toAccountId;
   final String? description;
   final Money amount;
+
+  /// A uuid.v7 string to ensure idempotency of transfer requests.
   final String idempotencyKey;
 
   TransferDraft({

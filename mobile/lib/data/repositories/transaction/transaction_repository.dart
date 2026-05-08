@@ -1,5 +1,7 @@
 import '../../../core/result/command.dart';
 import '../../services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
+import '../../services/apis/transfer/dtos/recipient_info_dto.dart';
+import '../../services/apis/transfer/dtos/recipient_request_dto.dart';
 import '../../services/apis/transfer/dtos/transfer_request_dto.dart';
 import '../../services/apis/transfer/dtos/transfer_response_dto.dart';
 
@@ -21,5 +23,12 @@ abstract class TransactionRepository {
   /// reference.
   AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
     String transactionReference,
+  );
+
+  /// Fetches a list of possible internal transfer recipients based on the
+  /// provided search query, which may be a partial account number or a CPF/CNPJ
+  /// document number.
+  AsyncResult<List<RecipientInfoDto>> getInternalRecipient(
+    RecipientRequestDto dto,
   );
 }
