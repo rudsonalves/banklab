@@ -61,8 +61,10 @@ Main layers:
   commands, HTTP client, secure storage, logging, and platform services
 - [mobile/lib/data](../../mobile/lib/data): API services, DTOs, and repository
   implementations
-- [mobile/lib/domain](../../mobile/lib/domain): domain models, enums, and use
-  cases
+- [mobile/lib/domain](../../mobile/lib/domain): domain root for app-facing
+  types and workflow orchestration
+- [mobile/lib/domain/common](../../mobile/lib/domain/common): stable
+  app-facing models and enums grouped by context
 - [mobile/lib/domain/usecases](../../mobile/lib/domain/usecases): use cases for
   complex application workflows
 - [mobile/lib/uis](../../mobile/lib/uis): app widget, pages, shared UI
@@ -125,15 +127,16 @@ Current registration order in the injector:
 
 1. `CoreServices`
 2. `Services`
-3. `Data`
-4. `Uis`
+3. `Repositories`
+4. `Usecases`
+5. `Viewmodels`
 
 This ensures UI view models can resolve their dependencies, repositories can
 resolve APIs and platform services, and API services can resolve the shared
 `RestClient`.
 
-When use cases are introduced, register them in dependency setup before the UI
-view models that consume them.
+This also ensures use cases resolve repository dependencies before UI view
+models that consume them are constructed.
 
 ## Flow Models
 
@@ -183,10 +186,20 @@ Core must not depend on `data`, `domain`, or `uis`.
 
 Contains integration and persistence orchestration:
 
+- Dependency entrypoint:
+  [mobile/lib/data/repositories.dart](../../mobile/lib/data/repositories.dart)
 - API services map transport payloads into DTOs or app models
 - Repositories implement app-oriented operations and local data state
 - DTOs stay close to their owning API service
 - API and repository methods return `AsyncResult<T>`
+
+DTOs may cross from repositories into view models when they are intentionally
+app-facing contracts for this mobile API and already expose idiomatic Dart
+fields and app types. Domain models are introduced when they add meaning,
+combine sources, or shield the app from an unstable/non-app-specific contract,
+not merely to duplicate DTO fields. Raw JSON maps, backend envelopes, HTTP
+status handling, Dio types, and snake_case transport payloads stay inside the
+data/API layers.
 
 Auth example:
 
@@ -210,11 +223,16 @@ Data may depend on `core` and `domain`, but must not depend on `uis`.
 
 ### Domain Layer
 
-Contains domain-centric models, enums, and use cases used across layers:
+Contains domain-centric models, enums, and use cases used across layers.
+For growth, the domain root is organized by context under `common/` plus
+workflow orchestration under `usecases/`:
 
-- [mobile/lib/domain/auth/models/auth_user.dart](../../mobile/lib/domain/auth/models/auth_user.dart)
-- [mobile/lib/domain/auth/models/user_profile.dart](../../mobile/lib/domain/auth/models/user_profile.dart)
-- [mobile/lib/domain/enums/user_role.dart](../../mobile/lib/domain/enums/user_role.dart)
+- Dependency entrypoint:
+  [mobile/lib/domain/usecases/usecases.dart](../../mobile/lib/domain/usecases/usecases.dart)
+- [mobile/lib/domain/common/auth/models/auth_user.dart](../../mobile/lib/domain/common/auth/models/auth_user.dart)
+- [mobile/lib/domain/common/auth/models/user_profile.dart](../../mobile/lib/domain/common/auth/models/user_profile.dart)
+- [mobile/lib/domain/common/user/enums/user_role.dart](../../mobile/lib/domain/common/user/enums/user_role.dart)
+- [mobile/lib/domain/common/receipt/enums/transfer_receipt_status.dart](../../mobile/lib/domain/common/receipt/enums/transfer_receipt_status.dart)
 - [mobile/lib/domain/usecases](../../mobile/lib/domain/usecases)
 
 Domain models should remain lightweight and framework-agnostic. Use cases should
@@ -236,7 +254,7 @@ Contains presentation and interaction state:
 - App shell:
   [mobile/lib/uis/app_widget.dart](../../mobile/lib/uis/app_widget.dart)
 - UI dependency registration:
-  [mobile/lib/uis/uis.dart](../../mobile/lib/uis/uis.dart)
+  [mobile/lib/uis/viewmodels.dart](../../mobile/lib/uis/viewmodels.dart)
 - Pages and page view models:
   [mobile/lib/uis/pages](../../mobile/lib/uis/pages)
 - Shared UI primitives:
@@ -356,4 +374,3 @@ If `BASE_URL` is missing or invalid, app startup fails fast with a `StateError`.
 - Add navigation guards for authenticated routes
 - Expand automated tests around interceptor refresh behavior, repository cache
   semantics, and use case orchestration
-

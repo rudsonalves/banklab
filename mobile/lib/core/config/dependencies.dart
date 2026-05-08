@@ -1,8 +1,9 @@
 import 'package:auto_injector/auto_injector.dart';
 
-import '/data/data.dart';
+import '../../data/repositories.dart';
 import '/data/services/services.dart';
-import '/uis/uis.dart';
+import '../../uis/viewmodels.dart';
+import '../../domain/usecases/usecases.dart';
 import '../services/core_services.dart';
 
 final injector = AutoInjector();
@@ -13,9 +14,9 @@ void setupDependencies() {
 
   CoreServices.add(injector);
   Services.add(injector);
-  Data.add(injector);
-  // Usecase.add(injector);
-  Uis.add(injector);
+  Repositories.add(injector);
+  Usecases.add(injector);
+  Viewmodels.add(injector);
 
   injector.commit();
   _initialized = true;

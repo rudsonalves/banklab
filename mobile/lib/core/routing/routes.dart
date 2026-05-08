@@ -9,7 +9,8 @@ enum AuthRoutes {
 }
 
 enum HomeRoutes {
-  home('/home')
+  home('/home'),
+  transfer('/transfer')
   ;
 
   const HomeRoutes(this.path);

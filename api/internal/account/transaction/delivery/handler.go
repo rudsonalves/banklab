@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -203,27 +204,30 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if req.IdempotencyKey == "" {
-	// 	sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
-	// 	return
-	// }
+	if strings.TrimSpace(req.IdempotencyKey) == "" {
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
+		return
+	}
 
-	if req.FromAccountBranch == "" ||
-		req.FromAccountNumber == "" ||
-		req.ToAccountBranch == "" ||
-		req.ToAccountNumber == "" {
+	fromAccountID, err := uuid.Parse(req.FromAccountID)
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
+		return
+	}
+
+	toAccountID, err := uuid.Parse(req.ToAccountID)
+	if err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
 	result, err := h.transfer.Execute(r.Context(), transactionapp.TransferInput{
-		User:              user,
-		FromAccountBranch: req.FromAccountBranch,
-		FromAccountNumber: req.FromAccountNumber,
-		ToAccountBranch:   req.ToAccountBranch,
-		ToAccountNumber:   req.ToAccountNumber,
-		Amount:            req.Amount,
-		IdempotencyKey:    req.IdempotencyKey,
+		User:           user,
+		FromAccountID:  fromAccountID,
+		ToAccountID:    toAccountID,
+		Amount:         req.Amount,
+		IdempotencyKey: req.IdempotencyKey,
+		Description:    req.Description,
 	})
 	if err != nil {
 		log.Printf("event=transfer error=%v", err)
@@ -232,11 +236,9 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sharedhttp.WriteJSON(w, http.StatusOK, TransferData{
-		FromAccountBranch:    req.FromAccountBranch,
-		FromAccountNumber:    req.FromAccountNumber,
+		FromAccountID:        result.FromAccountID.String(),
 		TransactionReference: result.TransactionReference.String(),
-		ToAccountBranch:      req.ToAccountBranch,
-		ToAccountNumber:      req.ToAccountNumber,
+		ToAccountID:          result.ToAccountID.String(),
 		Amount:               result.Amount,
 		FromBalance:          result.FromBalance,
 		ToBalance:            result.ToBalance,

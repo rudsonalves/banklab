@@ -1,11 +1,9 @@
 package delivery
 
 type TransferData struct {
-	FromAccountBranch    string `json:"from_branch"`
-	FromAccountNumber    string `json:"from_account_number"`
+	FromAccountID        string `json:"from_account_id"`
 	TransactionReference string `json:"transaction_reference"`
-	ToAccountBranch      string `json:"to_branch"`
-	ToAccountNumber      string `json:"to_account_number"`
+	ToAccountID          string `json:"to_account_id"`
 	Amount               int64  `json:"amount"`
 	FromBalance          int64  `json:"from_balance"`
 	ToBalance            int64  `json:"to_balance"`

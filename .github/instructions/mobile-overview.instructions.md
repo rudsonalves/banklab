@@ -14,7 +14,7 @@ The app currently follows a layered structure:
 
 - `lib/core`: cross-cutting infrastructure and app plumbing
 - `lib/data`: APIs and repository implementations
-- `lib/domain`: app-facing models and enums
+- `lib/domain`: app-facing models, enums, and use cases
 - `lib/uis`: pages, view models, themes, and UI building blocks
 - `test`: unit tests for core services and adapters
 
@@ -27,9 +27,10 @@ The practical flow in the current codebase is:
 - Preserve the current layered architecture. Do not make UI call API classes directly.
 - Prefer constructor injection and align new dependencies with `lib/core/config/dependencies.dart`.
 - Keep error handling explicit with `Result`, `AppError`, and `Command`. Do not spread raw exceptions through the app.
+- Standardize money scalar conversions across the app: use `ApiParse.toInt` for `Money -> int64` and `ApiParse.toMoney` for backend numeric scalar -> `Money`.
 - Reuse existing abstractions before creating new ones.
 - Match the naming and file placement already used by neighboring code.
-- Avoid introducing a new "use case" layer unless the task explicitly includes that refactor. The architecture doc lists it as future work, not current structure.
+- Keep use case orchestration in `lib/domain/usecases` when a workflow spans multiple repositories or needs reusable application coordination.
 - Keep imports layer-appropriate:
   - `uis` may depend on `data`, `domain`, and `core`
   - `data` may depend on `domain` and `core`
@@ -42,9 +43,13 @@ The practical flow in the current codebase is:
 - Current registration order matters:
   1. `CoreServices`
   2. `Services`
-  3. `Data`
-  4. `Uis`
-- When adding a new repository, API, or view model, register it in the corresponding module entrypoint instead of instantiating it ad hoc in pages.
+  3. `Repositories`
+  4. `Usecases`
+  5. `Viewmodels`
+- Register new dependencies in the corresponding module entrypoint instead of instantiating them ad hoc in pages:
+  - repositories in `lib/data/repositories.dart`
+  - use cases in `lib/domain/usecases/usecases.dart`
+  - view models in `lib/uis/viewmodels.dart`
 
 ## Routing
 

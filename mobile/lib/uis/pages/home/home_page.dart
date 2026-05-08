@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '/core/routing/route_observer.dart';
+import '/core/routing/routes.dart';
 import '../../core/base/safe_scaffold.dart';
 import '../../core/feedback/app_snackbar.dart';
 import 'viewmodel/home_viewmodel.dart';
@@ -28,6 +30,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
     super.initState();
 
     _viewModel = widget.viewModel;
+    _viewModel.initialize.execute();
   }
 
   @override
@@ -49,11 +52,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
     _viewModel.dispose();
 
     super.dispose();
-  }
-
-  @override
-  void didPush() {
-    _viewModel.initialize.execute();
   }
 
   @override
@@ -123,7 +121,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                       icon: Icons.swap_horiz_rounded,
                       title: 'Transferir',
                       subtitle: 'Disponibilizar em breve',
-                      onTap: () => _showPendingFeature('Transferir'),
+                      onTap: () => context.pushNamed(HomeRoutes.transfer.name),
                     ),
                   ),
                 ],

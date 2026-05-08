@@ -849,7 +849,7 @@ POST /accounts
 GET  /accounts/{id}/balance
 POST /accounts/{id}/deposit
 POST /accounts/{id}/withdraw
-POST /accounts/transfer
+POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
 ```
 
@@ -909,7 +909,7 @@ POST /accounts
 GET  /accounts/{id}/balance
 POST /accounts/{id}/deposit
 POST /accounts/{id}/withdraw
-POST /accounts/transfer
+POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
 ```
 
@@ -923,7 +923,7 @@ GET  /accounts/{id}/statement
 
 `POST /accounts/{id}/withdraw` realiza saque de uma conta. A operação valida valor positivo, status da conta e saldo suficiente.
 
-`POST /accounts/transfer` realiza transferência entre duas contas. Esse é um dos fluxos mais críticos porque envolve débito, crédito, locks, ledger e idempotência opcional.
+`POST /accounts/internal-transfers` realiza transferência interna entre duas contas usando `from_account_id` e `to_account_id`. Esse é um dos fluxos mais críticos porque envolve débito, crédito, locks, ledger e idempotência opcional.
 
 `GET /accounts/{id}/statement` retorna o extrato da conta, com suporte a paginação e filtros por período.
 
@@ -1698,7 +1698,7 @@ Por isso, a transferência funciona como um bom exemplo para entender por que a 
 O endpoint responsável por esse fluxo é:
 
 ```http
-POST /accounts/transfer
+POST /accounts/internal-transfers
 ```
 
 A requisição informa:
@@ -1771,7 +1771,7 @@ Essa resposta representa o efeito financeiro consolidado da operação.
 Do ponto de vista da arquitetura, a transferência passa por várias camadas:
 
 ```text
-POST /accounts/transfer
+POST /accounts/internal-transfers
   -> account/delivery.Transfer
   -> account/application/transaction.Transfer
   -> account/domain
@@ -1970,7 +1970,7 @@ Exemplos:
 - `POST /admin/users/{id}/approve`
 - `GET /accounts`
 - `POST /accounts`
-- `POST /accounts/transfer`
+- `POST /accounts/internal-transfers`
 - `GET /accounts/{id}/statement`
 
 Também nesse momento entram middlewares como autenticação JWT, que protegem rotas e populam o contexto autenticado usado pelos handlers e casos de uso.

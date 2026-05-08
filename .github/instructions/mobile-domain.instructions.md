@@ -21,9 +21,15 @@ concepts the app can reason about regardless of where the data came from.
 
 Current examples:
 
-- `auth/models/auth_user.dart`
-- `auth/models/user_profile.dart`
-- `enums/user_role.dart`
+- `common/auth/models/auth_user.dart`
+- `common/auth/models/user_profile.dart`
+- `common/user/enums/user_role.dart`
+- `common/receipt/enums/transfer_receipt_status.dart`
+
+Current domain root structure:
+
+- `common/`: stable app-facing models and enums grouped by area/context
+- `usecases/`: domain workflow orchestration use cases
 
 ## Responsibilities
 
@@ -41,18 +47,22 @@ Domain may depend on:
 - other domain models or enums
 - small, framework-independent helpers from `core` when already established
 
-Domain must not depend on:
+Domain models under `common/` must not depend on:
 
 - Flutter widgets or UI packages
 - GoRouter or navigation
 - Dio or HTTP request/response types
 - secure storage
-- dependency injection
-- repositories
-- API services
 - backend envelope types
 
-Keep domain as framework-agnostic as practical.
+Use cases under `usecases/` are the exception:
+
+- they may depend on repository contracts
+- they may be registered through `usecases/usecases.dart`
+- they must still stay free of Flutter widgets, navigation, and transport
+  clients
+
+Keep domain as framework-agnostic as practical, especially under `common/`.
 
 ## Current Model Style
 
@@ -112,6 +122,13 @@ Use a DTO when the type represents a backend contract, for example:
 Repositories and APIs may map DTOs into domain models when that improves the
 boundary for the UI.
 
+Do not create domain models only for architectural purity. If a DTO is already
+an app-facing contract from this mobile API, uses idiomatic Dart names and app
+types, and matches what view models need, it can remain the type crossing the
+repository/view-model boundary. Add a domain model when it adds behavior,
+combines multiple sources, hides an unstable/non-app-specific contract, or
+represents meaning beyond one endpoint payload.
+
 ## Auth Domain Conventions
 
 Current auth domain conventions:
@@ -128,17 +145,21 @@ state, profile caching, and token persistence.
 
 ## Folder Placement
 
-Prefer feature-oriented placement for models:
+Keep stable app-facing concepts grouped under `domain/common` to avoid growing
+the `domain` root with many small top-level feature folders.
 
 ```text
-domain/<feature>/models/<model>.dart
-domain/enums/<enum>.dart
+domain/common/<area>/models/<model>.dart
+domain/common/<area>/enums/<enum>.dart
 ```
 
 Rules:
 
-- Put broad enums in `domain/enums`.
-- Put feature-specific models under the feature folder.
+- Put broad or shared app enums under the closest `domain/common/<area>/enums`.
+- Put app-facing models under the closest `domain/common/<area>/models`.
+- Keep workflow orchestration under `domain/usecases`.
+- Keep `domain` top-level limited to `common` and `usecases` unless a migration
+  is explicitly requested.
 - Do not create catch-all files for unrelated models.
 - Avoid moving existing models unless the task explicitly asks for a migration.
 
@@ -171,8 +192,7 @@ Keep tests small and independent from HTTP, storage, and widgets.
 
 - Do not put API request DTOs in domain.
 - Do not parse backend envelopes here.
-- Do not make domain models call repositories or services.
+- Do not make domain models under `common/` call repositories or services.
 - Do not add widget, routing, storage, or Dio dependencies.
 - Do not store mutable UI state in domain models.
-- Do not introduce a broad domain/use-case architecture refactor unless the task
-  explicitly asks for it.
+- Do not turn `domain/usecases` into a second repository or transport layer.

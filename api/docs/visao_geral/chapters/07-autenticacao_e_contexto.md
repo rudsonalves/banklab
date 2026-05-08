@@ -98,7 +98,8 @@ Esse token representa a identidade autenticada do usuário e é exigido em opera
 - `GET /accounts/{id}/balance`;
 - `POST /accounts/{id}/deposit`;
 - `POST /accounts/{id}/withdraw`;
-- `POST /accounts/transfer`;
+- `GET /accounts/internal-transfers/recipients`;
+- `POST /accounts/internal-transfers`;
 - `GET /accounts/{id}/statement`;
 - `POST /admin/users/{id}/approve`.
 

@@ -147,6 +147,7 @@ POST   /accounts
 POST   /accounts/{id}/deposit
 POST   /accounts/{id}/withdraw
 POST   /accounts/transfer
+GET    /accounts/transfer/{transaction_reference}/receipt
 GET    /accounts/{id}/balance
 GET    /accounts/{id}/statement
 ```

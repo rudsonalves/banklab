@@ -21,3 +21,16 @@ type AccountBalanceData struct {
 	AccountID string `json:"account_id"`
 	Balance   int64  `json:"balance"`
 }
+
+type InternalTransferRecipientsData struct {
+	Accounts []InternalTransferRecipientData `json:"accounts"`
+}
+
+type InternalTransferRecipientData struct {
+	AccountID     string `json:"account_id"`
+	HolderName    string `json:"holder_name"`
+	Document      string `json:"document"`
+	Branch        string `json:"branch"`
+	AccountNumber string `json:"account_number"`
+	AccountType   string `json:"account_type,omitempty"`
+}

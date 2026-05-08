@@ -151,7 +151,8 @@ func TestHandler_Transfer_Integration(t *testing.T) {
 		"to_branch": %q,
 		"to_account_number": %q,
 		"amount": 2500,
-		"idempotency_key": "transfer-integration-key"
+		"idempotency_key": "transfer-integration-key",
+		"description": "Aluguel de maio"
 	}`, sourceBranch, sourceNumber, destinationBranch, destinationNumber)
 
 	first := postTransfer(t, server.URL, payload)
@@ -169,7 +170,17 @@ func TestHandler_Transfer_Integration(t *testing.T) {
 		t.Fatalf("expected persisted destination balance %d, got %d", 7500, destinationBalance)
 	}
 
-	second := postTransfer(t, server.URL, payload)
+	retryPayload := fmt.Sprintf(`{
+		"from_branch": %q,
+		"from_account_number": %q,
+		"to_branch": %q,
+		"to_account_number": %q,
+		"amount": 2500,
+		"idempotency_key": "transfer-integration-key",
+		"description": "Descricao alterada no retry"
+	}`, sourceBranch, sourceNumber, destinationBranch, destinationNumber)
+
+	second := postTransfer(t, server.URL, retryPayload)
 	if second.Data.TransactionReference != first.Data.TransactionReference {
 		t.Fatalf("expected idempotent replay reference %q, got %q", first.Data.TransactionReference, second.Data.TransactionReference)
 	}
@@ -205,6 +216,9 @@ func TestHandler_Transfer_Integration(t *testing.T) {
 	}
 	if receipt.Data.RecipientName != "Destination Transfer Test" {
 		t.Fatalf("expected recipient name %q, got %q", "Destination Transfer Test", receipt.Data.RecipientName)
+	}
+	if receipt.Data.Description == nil || *receipt.Data.Description != "Aluguel de maio" {
+		t.Fatalf("expected original receipt description %q, got %+v", "Aluguel de maio", receipt.Data.Description)
 	}
 }
 
@@ -266,6 +280,7 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			reference_id UUID,
 			related_account_id UUID,
 			idempotency_key VARCHAR(100),
+			description TEXT,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE SEQUENCE IF NOT EXISTS account_number_seq START WITH 10000000 INCREMENT BY 1`,
@@ -283,6 +298,10 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 
 	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100)`); err != nil {
 		t.Fatalf("failed to ensure transactions.idempotency_key column: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description TEXT`); err != nil {
+		t.Fatalf("failed to ensure transactions.description column: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_idempotency

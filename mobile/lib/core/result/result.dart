@@ -14,6 +14,9 @@ sealed class Result<T extends Object> {
   const factory Result.success(T value) = Success<T>;
   const factory Result.failure(AppError error) = Failure<T>;
 
+  /// value returns null if this is a Failure, otherwise the value. This allows
+  /// access to the value without folding when the caller only cares about
+  /// the success case, such as for caching the last successful
   T? get value => switch (this) {
     Success(:final value) => value,
     _ => null,

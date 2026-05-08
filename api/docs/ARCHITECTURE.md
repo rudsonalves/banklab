@@ -179,7 +179,8 @@ Registered routes include:
 - `POST /accounts/{id}/deposit`
 - `POST /accounts/{id}/withdraw`
 - `GET /accounts/{id}/balance`
-- `POST /accounts/transfer`
+- `GET /accounts/internal-transfers/recipients`
+- `POST /accounts/internal-transfers`
 - `GET /accounts/{id}/statement`
 
 Protected routes are guarded by JWT middleware.

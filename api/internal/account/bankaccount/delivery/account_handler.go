@@ -89,6 +89,53 @@ func (h *Handler) ListAccounts(w http.ResponseWriter, r *http.Request) {
 	sharedhttp.WriteJSON(w, http.StatusOK, data)
 }
 
+// LookupInternalTransferRecipients handles the HTTP request for looking up
+// eligible recipient accounts for internal transfers.
+func (h *Handler) LookupInternalTransferRecipients(w http.ResponseWriter, r *http.Request) {
+	if h.lookupInternalTransferRecipients == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	user, authErr := RequireUser(r.Context())
+	if authErr != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
+		return
+	}
+
+	query := r.URL.Query()
+	recipients, err := h.lookupInternalTransferRecipients.Execute(
+		r.Context(),
+		accountapp.LookupInternalTransferRecipientsInput{
+			User:          user,
+			Branch:        query.Get("branch"),
+			AccountNumber: query.Get("account_number"),
+			Document:      query.Get("document"),
+		},
+	)
+	if err != nil {
+		log.Printf("event=lookup_internal_transfer_recipients error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	data := make([]InternalTransferRecipientData, 0, len(recipients))
+	for _, recipient := range recipients {
+		data = append(data, InternalTransferRecipientData{
+			AccountID:     recipient.AccountID.String(),
+			HolderName:    recipient.HolderName,
+			Document:      recipient.MaskedDocument,
+			Branch:        recipient.Branch,
+			AccountNumber: recipient.AccountNumber,
+			AccountType:   recipient.AccountType,
+		})
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, InternalTransferRecipientsData{
+		Accounts: data,
+	})
+}
+
 // GetBalance handles the HTTP request for retrieving the balance of an account.
 // It validates the request, checks user authentication, and delegates
 // the balance retrieval to the application layer.

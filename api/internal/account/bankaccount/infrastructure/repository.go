@@ -103,6 +103,76 @@ func (r *Repository) ListByCustomerID(ctx context.Context, customerID uuid.UUID)
 	return accounts, nil
 }
 
+func (r *Repository) FindTransferRecipientsByBranchAndNumber(
+	ctx context.Context,
+	branch, number string,
+) ([]bankaccountdomain.TransferRecipient, error) {
+	query := `
+		SELECT a.id, c.name, c.cpf, a.branch, a.number
+		FROM accounts a
+		JOIN customers c ON c.id = a.customer_id
+		WHERE a.branch = $1
+		  AND a.number = $2
+		  AND a.status = $3
+		ORDER BY a.created_at ASC, a.id ASC
+	`
+
+	return r.findTransferRecipients(ctx, query, branch, number, bankaccountdomain.AccountActive)
+}
+
+func (r *Repository) FindTransferRecipientsByDocument(
+	ctx context.Context,
+	document string,
+) ([]bankaccountdomain.TransferRecipient, error) {
+	query := `
+		SELECT a.id, c.name, c.cpf, a.branch, a.number
+		FROM accounts a
+		JOIN customers c ON c.id = a.customer_id
+		WHERE c.cpf = $1
+		  AND a.status = $2
+		ORDER BY a.created_at ASC, a.id ASC
+	`
+
+	return r.findTransferRecipients(ctx, query, document, bankaccountdomain.AccountActive)
+}
+
+func (r *Repository) findTransferRecipients(
+	ctx context.Context,
+	query string,
+	args ...any,
+) ([]bankaccountdomain.TransferRecipient, error) {
+	rows, err := r.exec.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("find transfer recipients: %w", err)
+	}
+	defer rows.Close()
+
+	recipients := make([]bankaccountdomain.TransferRecipient, 0)
+	for rows.Next() {
+		var recipient bankaccountdomain.TransferRecipient
+		var document string
+
+		if err := rows.Scan(
+			&recipient.AccountID,
+			&recipient.HolderName,
+			&document,
+			&recipient.Branch,
+			&recipient.AccountNumber,
+		); err != nil {
+			return nil, fmt.Errorf("scan transfer recipient: %w", err)
+		}
+
+		recipient.MaskedDocument = bankaccountdomain.MaskDocument(document)
+		recipients = append(recipients, recipient)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate transfer recipients: %w", err)
+	}
+
+	return recipients, nil
+}
+
 func (r *Repository) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	query := `
 		SELECT 1

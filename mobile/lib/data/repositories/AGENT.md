@@ -51,7 +51,7 @@ Guidelines:
 - Keep the interface focused on app use cases, not HTTP endpoints.
 - Name methods after user/app operations, not transport details.
 - Keep implementation details in `*RepositoryImpl`.
-- Register implementations in `data/data.dart`.
+- Register implementations in `data/repositories.dart`.
 - Inject repositories into view models through `AutoInjector`.
 
 ## Dependency Rules
@@ -155,7 +155,13 @@ Use the existing boundary intentionally:
 - Prefer domain models when the type represents app meaning beyond a single
   endpoint payload.
 
-Do not leak low-level transport envelopes into UI or view models.
+DTOs are acceptable repository outputs when the backend contract is designed for
+the app and the DTO is already a curated app-facing type. Avoid adding a domain
+model that simply mirrors the DTO without changing meaning, behavior, or
+stability.
+
+Do not leak low-level transport envelopes, raw maps, HTTP status handling, Dio
+types, or snake_case backend payloads into UI or view models.
 
 ## Registration
 
@@ -163,8 +169,8 @@ When adding a repository:
 
 1. Create the contract and implementation under `data/repositories/<feature>/`.
 2. Add constructor dependencies for required APIs or core services.
-3. Register the repository in `data/data.dart`.
-4. Inject the repository into the relevant view model in `uis/uis.dart` or via
+3. Register the repository in `data/repositories.dart`.
+4. Inject the repository into the relevant view model in `uis/viewmodels.dart` or via
    the existing constructor injection pattern.
 
 Never instantiate repository implementations directly inside pages.
@@ -192,4 +198,3 @@ of making real HTTP calls.
 - Do not pass `BuildContext` into repositories.
 - Do not store form controllers, focus nodes, or widget lifecycle state here.
 - Do not create feature-wide rewrites while adding a narrow repository method.
-

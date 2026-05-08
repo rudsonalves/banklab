@@ -129,6 +129,9 @@ Rules:
 - Extend `apis/core` only for reusable API parsing concerns.
 - Do not put feature-specific DTOs in `apis/core`.
 - Do not put repository state or UI formatting in `apis/core`.
+- For money transport scalars, always use `ApiParse` conversions:
+  `ApiParse.toInt` for `Money -> int64` and `ApiParse.toMoney` for
+  backend numeric scalar -> `Money`.
 
 ## DTO Rules
 
@@ -140,9 +143,14 @@ Guidelines:
 - Use `fromMap` for response DTO parsing.
 - Use `toMap` for request DTO serialization.
 - Keep DTO field names aligned with backend payloads when practical.
+- Do not hand-roll money scalar conversions in DTOs; use
+  `ApiParse.toInt` and `ApiParse.toMoney`.
 - Validate required fields during parsing by failing loudly inside the API
   method's `try/catch`, so parsing failures become `AppErrorCode.parsingError`.
-- Avoid leaking DTOs into UI when a stable domain model exists.
+- DTOs may be consumed by repositories and view models when they are curated
+  app-facing API contracts and already expose idiomatic Dart fields and app
+  types. Create a domain model only when it adds meaning, combines sources, or
+  decouples the app from a non-app-specific/unstable contract.
 
 ## Error Handling
 
@@ -195,7 +203,7 @@ When adding an API service:
 1. Create the service under `data/services/apis/<feature>/`.
 2. Add request/response DTOs under the feature's `dtos/` folder.
 3. Register the service in `data/services/services.dart`.
-4. Inject it into the relevant repository in `data/data.dart`.
+4. Inject it into the relevant repository in `data/repositories.dart`.
 
 Do not instantiate API services directly inside view models or pages.
 

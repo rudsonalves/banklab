@@ -1,4 +1,4 @@
-import '/domain/enums/user_role.dart';
+import '/domain/common/user/enums/user_role.dart';
 
 sealed class AuthUser {
   final String? userId;

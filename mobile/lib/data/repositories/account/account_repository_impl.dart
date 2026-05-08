@@ -28,11 +28,16 @@ class AccountRepositoryImpl implements AccountRepository {
 
   AccountSummaryResponseDto? _selectedAccount;
 
+  List<AccountSummaryResponseDto>? _accountsCache;
+
   @override
   BalanceResponseDto? get lastBalance => _balanceCache;
 
   @override
   AccountSummaryResponseDto? get selectedAccount => _selectedAccount;
+
+  @override
+  List<AccountSummaryResponseDto>? get accounts => _accountsCache;
 
   @override
   Stream<BalanceResponseDto> balance() => _balanceController.stream;
@@ -66,6 +71,7 @@ class AccountRepositoryImpl implements AccountRepository {
     final accounts = result.value!;
 
     if (accounts.isNotEmpty) {
+      _accountsCache = accounts;
       _selectedAccount = accounts[0];
       await loadBalance();
     }
@@ -74,14 +80,21 @@ class AccountRepositoryImpl implements AccountRepository {
   }
 
   @override
-  void selectAccount(AccountSummaryResponseDto account) {
-    _selectedAccount = account;
-    loadBalance();
+  void selectAccount(String accountId) {
+    if (_accountsCache == null) return;
+
+    for (final account in _accountsCache!) {
+      if (account.id == accountId) {
+        _selectedAccount = account;
+        return;
+      }
+    }
   }
 
   @override
   void clearSelectedAccount() {
     _selectedAccount = null;
+    _balanceCache = null;
   }
 
   @override

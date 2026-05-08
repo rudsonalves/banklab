@@ -1,5 +1,951 @@
 # Changelog
 
+## 2026/05/08 — api/internal-transfer-01
+
+Refactor the internal transfer flow to operate with account UUIDs instead of branch/account-number pairs, and introduce a dedicated recipient lookup endpoint for internal transfers. This update also expands the transfer contract, improves authorization consistency, and aligns the API/documentation surface with the new transfer model.
+
+### API and Route Changes
+
+1. Updated internal transfer routes and naming conventions
+
+   * Replaced `POST /accounts/transfer` with `POST /accounts/internal-transfers`
+   * Added `GET /accounts/internal-transfers/recipients`
+   * Updated route registration in `cmd/api/main.go`
+   * Wired the new recipient lookup use case into the account handler
+
+2. Refactored transfer payloads to use account UUIDs
+
+   * Removed:
+
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * Added:
+
+     * `from_account_id`
+     * `to_account_id`
+   * Updated request/response DTOs in delivery layer
+   * Updated handler parsing and validation logic to parse UUIDs explicitly
+
+3. Added internal transfer recipient lookup flow
+
+   * Introduced lookup endpoint supporting:
+
+     * branch + account number
+     * CPF document lookup
+   * Added normalization and validation rules
+   * Added masked document support
+   * Restricted exposed fields to confirmation-safe transfer metadata only
+
+### Account Module
+
+#### Application Layer
+
+1. Added `LookupInternalTransferRecipients` use case
+
+   * Supports:
+
+     * lookup by branch/account number
+     * lookup by CPF
+   * Rejects:
+
+     * mixed lookup modes
+     * incomplete query combinations
+     * unsupported document formats
+   * Normalizes:
+
+     * branch
+     * account number
+     * CPF document
+
+2. Added helper normalization utilities
+
+   * `normalizeBranch`
+   * `normalizeAccountNumber`
+   * `onlyDigits`
+   * Reused shared document normalization logic
+
+3. Added authorization enforcement
+
+   * Lookup flow now validates authenticated customer access before querying recipients
+
+#### Domain Layer
+
+1. Added `TransferRecipient` domain structure
+
+   * Includes:
+
+     * account ID
+     * holder name
+     * masked document
+     * branch
+     * account number
+     * optional account type
+
+2. Added document normalization and masking utilities
+
+   * `NormalizeDocument`
+   * `MaskDocument`
+
+#### Infrastructure Layer
+
+1. Added recipient lookup repository operations
+
+   * `FindTransferRecipientsByBranchAndNumber`
+   * `FindTransferRecipientsByDocument`
+
+2. Added active-account filtering to lookup queries
+
+   * Queries now explicitly restrict recipient accounts to active accounts only
+
+3. Added centralized recipient query mapper
+
+   * Shared recipient scan/mapping logic
+   * Automatic document masking before returning data
+
+#### Delivery Layer
+
+1. Added recipient lookup HTTP handler
+
+   * Parses query params
+   * Validates authenticated user
+   * Maps domain recipients to response DTOs
+   * Returns stable API envelope responses
+
+2. Added recipient response DTOs
+
+   * `InternalTransferRecipientsData`
+   * `InternalTransferRecipientData`
+
+### Transfer Use Case Refactor
+
+1. Refactored transfer orchestration to use account IDs directly
+
+   * Removed source/destination lookup by branch/number
+   * Uses:
+
+     * `GetByIDForUpdate`
+     * deterministic UUID lock ordering
+
+2. Improved authorization semantics
+
+   * Ownership validation now occurs immediately after source account resolution
+   * Replay/idempotency authorization now depends on validated ownership
+
+3. Simplified transaction flow
+
+   * Reduced duplicate account lookup logic
+   * Unified balance updates around UUID-based operations
+
+4. Updated idempotency scope
+
+   * Explicitly scoped to:
+
+     * `from_account_id`
+     * `idempotency_key`
+
+5. Updated ledger relationship handling
+
+   * Related account references now use UUIDs directly
+   * Transfer replay reconstruction preserved
+
+### Tests
+
+1. Added complete unit coverage for recipient lookup use case
+
+   * Successful account lookup
+   * Successful CPF lookup
+   * Multiple-account CPF responses
+   * Invalid query combinations
+   * Forbidden access
+   * Repository failure propagation
+   * Empty-result behavior
+
+2. Added delivery tests for recipient lookup endpoint
+
+   * Authentication validation
+   * Success responses
+   * Response field restrictions
+   * Forbidden scenarios
+   * Invalid parameter handling
+   * Empty result responses
+
+3. Added repository tests for recipient lookup queries
+
+   * Active account filtering validation
+   * Document masking validation
+   * Query argument validation
+
+4. Refactored transfer tests to UUID-based payloads
+
+   * Updated application tests
+   * Updated delivery tests
+   * Updated integration wiring tests
+   * Added legacy payload rejection coverage
+
+### Documentation
+
+1. Updated API documentation
+
+   * Added:
+
+     * internal transfer recipient lookup section
+     * new internal transfer contract
+   * Replaced all branch/account-number transfer examples with UUID-based examples
+   * Added lookup examples and response semantics
+   * Expanded Postman environment documentation
+
+2. Updated architecture and implementation documents
+
+   * Route listings
+   * transfer flow descriptions
+   * startup wiring references
+   * REST surface explanations
+   * authentication-protected route lists
+
+3. Updated presentation and overview documentation
+
+   * Adjusted transfer endpoint references
+   * Added recipient lookup flow descriptions
+   * Clarified internal-transfer-only scope
+
+### Mobile Layer
+
+1. Added internal transfer recipient DTOs
+
+   * `InternalTransferRecipientDto`
+   * `InternalTransferRecipientLookupResponseDto`
+   * `InternalTransferRecipientLookupQueryDto`
+
+2. Added query serialization support
+
+   * Account-based lookup serialization
+   * CPF-based lookup serialization
+
+3. Added DTO parsing and validation tests
+
+   * Optional account type handling
+   * Multiple account parsing
+   * Prohibited-field exposure protection
+   * Empty-result handling
+
+This commit consolidates the transition from branch/account-number transfer execution to a UUID-driven internal transfer architecture, introduces a dedicated recipient discovery flow, strengthens authorization boundaries, and aligns the API, tests, documentation, and mobile DTO contracts around the new transfer model.
+
+
+## 2026/05/08 - mobile/internal-transfer-04
+
+Refactor the internal transfer page structure and introduce reusable UI components for account selection and section rendering.
+
+This update focuses on improving the organization and maintainability of the transfer flow screen by extracting repeated UI structures into dedicated widgets and simplifying controller lifecycle management.
+
+### Mobile
+
+1. Refactored `transfer_page.dart`
+
+   * Replaced local helper widgets with reusable components:
+
+     * `AccountDropdown`
+     * `SectionTitle`
+   * Migrated relative imports to absolute project imports for better consistency.
+   * Simplified `TextEditingController` initialization using direct field initialization.
+   * Added `viewModel.initialize()` execution during `initState`.
+   * Removed obsolete private widget builders:
+
+     * `_buildSectionTitle`
+     * `_buildOriginAccountDropdown`
+   * Replaced hardcoded account dropdown items with dynamic account rendering from `viewModel.accounts`.
+   * Improved screen readability by separating transfer sections into explicit reusable widgets.
+   * Added TODO note indicating future reactive integration for account selection state.
+
+2. Updated `transfer_viewmodel.dart`
+
+   * Simplified `initialize()` from asynchronous to synchronous execution.
+   * Kept UUID v7 idempotency generation isolated in initialization flow.
+
+3. Added `widgets/account_dropdown.dart`
+
+   * Introduced reusable account selection widget.
+   * Added support for dynamic account rendering using `AccountSummaryResponseDto`.
+   * Centralized dropdown styling and selection behavior.
+   * Standardized account display format using:
+
+     * branch
+     * account number
+
+4. Added `widgets/section_title.dart`
+
+   * Extracted section title rendering into a reusable stateless widget.
+   * Centralized typography styling for transfer form sections.
+
+5. General Improvements
+
+   * Reduced UI duplication inside transfer page implementation.
+   * Improved component isolation and future extensibility.
+   * Prepared the transfer flow for reactive state evolution and integration with notifier-based widgets.
+   * Improved readability and separation of responsibilities within the transfer feature module.
+
+This refactor establishes a cleaner foundation for the internal transfer flow, making the UI structure more modular and easier to evolve as the banking operations and reactive state management continue to grow.
+
+
+## 2026/05/07 — mobile/internal-transfer-04
+
+Refined the Flutter mobile architecture organization by formalizing dependency injection entrypoints, consolidating use case orchestration patterns, and improving transfer workflow coordination across repositories, use cases, and view models.
+
+Updated the dependency injection structure and naming conventions across the mobile architecture.
+
+1. Dependency injection and module organization
+
+   * Renamed `data/data.dart` to `data/repositories.dart`
+   * Renamed `uis/uis.dart` to `uis/viewmodels.dart`
+   * Introduced `domain/usecases/usecases.dart` as the dedicated registration entrypoint for domain workflows
+   * Updated `core/config/dependencies.dart` to use the new registration pipeline:
+
+     * `CoreServices`
+     * `Services`
+     * `Repositories`
+     * `Usecases`
+     * `Viewmodels`
+   * Added explicit `Usecases.add(injector)` bootstrap integration
+   * Standardized dependency registration terminology across the project
+
+2. Use case architecture consolidation
+
+   * Expanded the architectural guidance for `domain/usecases`
+   * Formalized the intended orchestration flow:
+
+     * `UI -> ViewModel -> UseCase -> Repository -> API/Service -> RestClient -> Dio`
+   * Clarified when workflows should remain in repositories versus when they should become dedicated use cases
+   * Added implementation guidance for:
+
+     * reusable orchestration
+     * multi-repository coordination
+     * app-facing workflow inputs
+     * request mapping ownership
+   * Added architectural restrictions preventing:
+
+     * UI state leakage into use cases
+     * repository duplication
+     * transport-layer dependencies inside use cases
+
+3. Domain organization improvements
+
+   * Reorganized the conceptual structure of `domain/common`
+   * Updated references from:
+
+     * `domain/auth/...`
+     * `domain/enums/...`
+   * To:
+
+     * `domain/common/auth/...`
+     * `domain/common/user/...`
+     * `domain/common/receipt/...`
+   * Clarified separation between:
+
+     * stable app-facing domain models
+     * workflow orchestration use cases
+   * Added stronger framework isolation rules for `domain/common`
+
+4. Transfer workflow improvements
+
+   * Improved `TransferUsecase` validation flow
+   * Added defensive validation for missing selected accounts
+   * Replaced unsafe nullable access on `selectedAccount`
+   * Added transfer receipt retrieval orchestration:
+
+     * `getTransferReceipt`
+   * Added account selection workflow orchestration:
+
+     * `selectAccount`
+   * Added validation and error handling for invalid account selection
+   * Delegated balance loading after account selection through the use case layer
+
+5. Transfer view model enhancements
+
+   * Added transfer receipt command support
+   * Added account selection command support
+   * Connected new use case operations into the view model command system
+   * Extended transfer workflow state orchestration
+
+6. Repository API refinements
+
+   * Refactored `AccountRepository.selectAccount`
+
+     * changed from object-based selection to ID-based selection
+   * Improved account cache lookup behavior
+   * Prevented unnecessary balance loading during account selection
+   * Added cache cleanup when clearing selected account
+   * Reset balance cache during account deselection
+
+7. Repository documentation improvements
+
+   * Added detailed documentation comments to:
+
+     * `AccountRepository`
+     * `AuthRepository`
+     * `TransactionRepository`
+   * Clarified:
+
+     * cache semantics
+     * session behavior
+     * authentication invariants
+     * transfer constraints
+     * statement retrieval behavior
+   * Improved repository contract readability for future contributors
+
+8. Mobile architecture documentation updates
+
+   * Updated:
+
+     * `.github/instructions/*`
+     * `mobile/lib/*/AGENT.md`
+     * `mobile/docs/ARCHITECTURE.md`
+     * `mobile/README.md`
+   * Standardized references to:
+
+     * `repositories.dart`
+     * `viewmodels.dart`
+     * `usecases/usecases.dart`
+   * Documented the new dependency registration flow and architectural responsibilities
+   * Added clearer guidance about use case placement and orchestration responsibilities
+
+9. Import and structure cleanup
+
+   * Normalized import ordering in repositories
+   * Fixed relative import inconsistencies
+   * Improved readability and architectural consistency across modules
+
+This commit consolidates the mobile architecture around explicit dependency registration boundaries, establishes a clearer use case orchestration model, and strengthens the internal transfer workflow foundation for future transactional and security-related features.
+
+
+## 2026/05/07 - mobile/internal-transfer-03
+
+Implemented the first complete internal transfer flow structure in the Flutter mobile application, including routing, UI foundation, transfer orchestration, account selection support, and idempotency preparation aligned with the backend transactional model.
+
+Also improved local development ergonomics for macOS environments using Colima.
+
+### Infrastructure and Development Environment
+
+1. Updated `Makefile`
+
+   * Added automatic Colima detection before `docker compose up`
+   * Ensured Docker daemon startup in macOS environments using Colima
+   * Improved local developer experience and reduced manual environment setup friction
+
+### Routing and Navigation
+
+2. Updated `mobile/lib/core/routing/routes.dart`
+
+   * Added `HomeRoutes.transfer`
+   * Introduced dedicated navigation path for transfer operations
+
+3. Updated `mobile/lib/core/routing/routes/home_routes.dart`
+
+   * Registered `TransferPage`
+   * Added dependency injection wiring for `TransferViewmodel`
+   * Extended GoRouter configuration with transfer navigation support
+
+4. Updated `mobile/lib/uis/pages/home/home_page.dart`
+
+   * Replaced placeholder transfer action with actual navigation flow
+   * Added initialization execution during `initState`
+   * Removed redundant `didPush` initialization logic
+   * Integrated navigation using `context.pushNamed`
+
+### Transfer Domain and Use Case Layer
+
+5. Added `mobile/lib/domain/usecases/transfer/inputs/transfer_draft.dart`
+
+   * Introduced immutable transfer draft structure
+   * Added support for:
+
+     * origin/destination data
+     * amount handling with `money2`
+     * optional description
+     * idempotency key propagation
+   * Implemented `copyWith` pattern for immutable state evolution
+
+6. Added `mobile/lib/domain/usecases/transfer/transfer_usecase.dart`
+
+   * Implemented transfer orchestration use case
+   * Connected account and transaction repositories
+   * Added DTO conversion from domain draft to API request
+   * Centralized transfer execution logic
+   * Exposed selected account and available accounts from repository layer
+
+### Repository Improvements
+
+7. Updated `mobile/lib/data/repositories/account/account_repository.dart`
+
+   * Added cached accounts exposure through `accounts` getter
+
+8. Updated `mobile/lib/data/repositories/account/account_repository_impl.dart`
+
+   * Added in-memory account cache
+   * Persisted loaded accounts for reuse across flows
+   * Prepared repository layer for account-origin selection in transfers
+
+### Transfer UI Foundation
+
+9. Added `mobile/lib/uis/pages/home/transfer/transfer_page.dart`
+
+   * Created initial transfer screen
+   * Added structured sections for:
+
+     * origin account
+     * beneficiary data
+     * transfer amount
+   * Implemented:
+
+     * dropdown account selection
+     * branch/account input fields
+     * amount input
+     * beneficiary input
+   * Added confirmation action placeholder
+   * Used reusable `BasicTextFormField` components
+   * Structured layout for future validation and execution integration
+
+10. Added `mobile/lib/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart`
+
+    * Introduced transfer state orchestration layer
+    * Integrated `Command1` async execution pattern
+    * Added UUID v7 idempotency generation
+    * Prepared deterministic retry behavior aligned with backend transfer guarantees
+    * Centralized transfer command execution logic
+
+### Dependency Injection
+
+11. Updated `mobile/lib/uis/uis.dart`
+
+    * Registered `TransferViewmodel` in dependency injection container
+
+### UI and Theme Refinements
+
+12. Updated `mobile/lib/uis/app_widget.dart`
+
+    * Replaced `EB Garamond` with `Google Sans`
+    * Improved overall visual consistency for application typography
+
+13. Updated `mobile/lib/uis/core/text_form_field/basic_text_form_field.dart`
+
+    * Reduced border radius from `24` to `8`
+    * Improved visual alignment with banking-style UI patterns
+    * Standardized input appearance for future financial flows
+
+### Tooling and API Testing
+
+14. Updated `tools/postman/Environment.postman_environment.json`
+
+    * Updated local API base URL for current development environment
+
+This commit establishes the initial mobile transfer architecture and prepares the application for full transactional integration with the backend transfer pipeline, including idempotent execution semantics and reusable account context handling.
+
+
+## 2026/05/07 — mobile/internal-transfer-02
+
+Refine mobile transfer architecture, repository boundaries, and DTO usage strategy while introducing the first transaction repository implementation for internal transfers and receipts.
+
+### Architectural and Documentation Updates
+
+* Updated mobile architecture and agent instruction documents to clarify when DTOs are acceptable across repository and view model boundaries.
+* Standardized the guidance that domain models should only exist when they add semantic meaning, behavior, aggregation, or decoupling from unstable contracts.
+* Explicitly documented that curated app-facing DTOs using idiomatic Dart types (`Money`, `DateTime`, enums) are valid application-facing contracts.
+* Reinforced the restriction against leaking low-level transport concerns such as:
+
+  * raw JSON maps
+  * backend envelopes
+  * Dio types
+  * HTTP handling details
+  * snake_case payload structures
+* Updated:
+
+  * `.github/instructions/*`
+  * `mobile/lib/data/AGENT.md`
+  * `mobile/lib/domain/AGENT.md`
+  * `mobile/lib/data/repositories/AGENT.md`
+  * `mobile/lib/data/services/apis/AGENT.md`
+  * `mobile/docs/ARCHITECTURE.md`
+
+### Result API Improvements
+
+#### `mobile/lib/core/result/result.dart`
+
+* Added nullable `value` getter documentation explaining its intended use for lightweight success access patterns such as caching successful responses without explicit folding.
+
+### Transaction Repository Layer
+
+#### `mobile/lib/data/repositories/transaction/transaction_repository.dart`
+
+Added the new transaction repository contract responsible for:
+
+* transfer execution
+* transfer receipt retrieval
+* exposing cached transfer state
+
+Introduced:
+
+* `lastTransfer`
+* `lastReceipt`
+* `transfer()`
+* `getTransferReceipt()`
+
+The repository intentionally exposes DTOs directly as curated app-facing contracts aligned with the updated architectural direction.
+
+### Transaction Repository Implementation
+
+#### `mobile/lib/data/repositories/transaction/transaction_repository_impl.dart`
+
+Implemented the first transaction repository orchestration layer.
+
+Features include:
+
+* integration with:
+
+  * `ApiTransfer`
+  * `ApiReceipt`
+* lightweight application-level validation before API execution
+* transfer success caching
+* receipt success caching
+* automatic cache invalidation on failures
+
+Added defensive validations for:
+
+* missing source account
+* missing destination account
+* zero or negative amounts
+
+Implemented consistent failure propagation using `Result` and `AppError`.
+
+### Dependency Injection Wiring
+
+#### `mobile/lib/data/data.dart`
+
+Registered:
+
+* `TransactionRepository`
+* `TransactionRepositoryImpl`
+* `ApiTransfer`
+* `ApiReceipt`
+
+into the mobile dependency injection graph.
+
+This completes the first transaction orchestration vertical slice for the Flutter client.
+
+### Automated Tests
+
+#### `mobile/test/data/repositories/transaction/transaction_repository_impl_test.dart`
+
+Added extensive repository test coverage for:
+
+#### Transfer Flow
+
+* successful transfer execution
+* cache persistence after success
+* cache clearing after failure
+* validation failures before API execution
+* source account validation
+* destination account validation
+* amount validation
+
+#### Receipt Flow
+
+* successful receipt retrieval
+* receipt cache persistence
+* cache invalidation after backend failures
+* propagation of:
+
+  * 404 not found
+  * 403 forbidden
+  * generic backend failures
+
+#### Test Infrastructure
+
+Added:
+
+* fake API implementations
+* noop HTTP client
+* reusable DTO builders
+* helper money factory methods
+
+The tests validate both repository orchestration behavior and architectural boundary expectations.
+
+### Architectural Direction
+
+This commit formalizes an important mobile architecture decision:
+
+* DTOs are now treated as first-class application-facing contracts when:
+
+  * the backend contract is intentionally designed for the mobile app
+  * fields are already idiomatic in Dart
+  * no additional semantic abstraction is necessary
+
+This avoids redundant domain model duplication while preserving clear transport isolation boundaries.
+
+The result is a leaner and more pragmatic mobile architecture with lower mapping overhead and clearer repository/view-model contracts.
+
+
+## 2026/05/07 - api/transfer-description-01
+
+Expanded transfer and receipt support across the mobile layer while refining transfer receipt semantics and standardizing money transport conversions.
+
+1. Transfer and receipt API services
+
+   * Added `ApiTransfer` service for `POST /accounts/transfer`
+   * Added `ApiReceipt` service for `GET /accounts/transfer/{transaction_reference}/receipt`
+   * Registered both services in dependency injection
+   * Standardized API envelope parsing and HTTP error handling for transfer flows
+   * Added parsing failure handling with explicit `AppErrorCode.parsingError`
+
+2. Transfer DTO contracts
+
+   * Added `TransferRequestDto` with branch/account-number-based transfer identity
+   * Added `TransferResponseDto` for transfer result parsing
+   * Added `TransferReceiptResponseDto` for transfer receipt parsing
+   * Standardized money scalar serialization/deserialization using:
+
+     * `ApiParse.toInt`
+     * `ApiParse.toMoney`
+   * Preserved transport identity through branch + account number instead of internal UUID exposure
+   * Added optional `idempotency_key` serialization support
+
+3. Transfer receipt domain modeling
+
+   * Added `TransferReceiptStatus` enum with:
+
+     * `completed`
+     * `pending`
+     * `failed`
+     * `cancelled`
+     * `rejected`
+   * Added semantic helpers:
+
+     * `isSuccess`
+     * `isPending`
+     * `isFailed`
+   * Added strict parsing through `TransferReceiptStatus.fromString`
+   * Documented future-compatible receipt status evolution
+
+4. Mobile domain reorganization
+
+   * Migrated domain models into `domain/common/...`
+   * Added:
+
+     * `domain/common/auth/models`
+     * `domain/common/user/enums`
+     * `domain/common/receipt/enums`
+   * Moved `UserRole` into `domain/common/user/enums/user_role.dart`
+   * Updated imports across repositories, APIs, view models, and domain models
+   * Refined architecture documentation for:
+
+     * `domain/common`
+     * `domain/usecases`
+     * future domain growth organization
+
+5. API parsing standardization
+
+   * Replaced manual money serialization helpers with:
+
+     * `ApiParse.toInt(Money)`
+   * Standardized guidance across:
+
+     * AGENT instructions
+     * architecture docs
+     * mobile data layer instructions
+     * API service instructions
+   * Explicitly documented that DTOs must not hand-roll money scalar conversions
+
+6. Transfer and receipt DTO test coverage
+
+   * Added `TransferRequestDto` serialization tests
+   * Added `TransferResponseDto` parsing tests
+   * Added `TransferReceiptResponseDto` parsing tests
+   * Validated:
+
+     * money parsing semantics
+     * enum parsing behavior
+     * UTC date parsing
+     * idempotency key serialization
+     * absence of internal account/customer identifiers
+     * required field failures
+     * runtime protection against accidental DTO field leakage
+
+7. API documentation updates
+
+   * Expanded transfer receipt status documentation in `api/docs/07-api-rest.md`
+   * Added explicit status semantics for:
+
+     * `completed`
+     * `pending`
+     * `failed`
+     * `cancelled`
+     * `rejected`
+   * Documented current backend behavior returning `completed`
+   * Added forward-compatibility notes for future receipt state evolution
+   * Fixed transfer receipt route anchor escaping in the table of contents
+
+8. Repository and documentation organization
+
+   * Moved Mermaid-generated assets into `docs/mermaid-images`
+   * Updated mobile architecture documentation to reflect the new domain structure
+   * Refined agent guidance for domain placement and application organization
+
+This commit establishes the first complete mobile-side transfer and receipt integration baseline, introduces explicit receipt lifecycle semantics, and standardizes financial scalar handling across the API contract and Flutter data layer.
+
+
+## 2026/05/07 - mobile/internal-transfer-01
+
+Introduced the first complete mobile-side internal transfer API integration layer, including transfer execution, transfer receipt retrieval, DTO validation coverage, and domain structure normalization for future growth.
+
+### Mobile API and DTO Enhancements
+
+1. Added transfer API service infrastructure:
+
+   * Created `ApiTransfer` for `POST /accounts/transfer`
+   * Implemented envelope parsing and HTTP error handling
+   * Added parsing failure protection with structured `AppError`
+
+2. Added transfer receipt API service:
+
+   * Created `ApiReceipt` for `GET /accounts/transfer/{transaction_reference}/receipt`
+   * Implemented envelope parsing and status validation
+   * Added standardized HTTP/parsing error handling
+
+3. Added transfer request DTO:
+
+   * Created `TransferRequestDto`
+   * Added serialization via `toMap`
+   * Added optional `idempotency_key` support
+   * Standardized monetary serialization using `ApiParse.toInt`
+
+4. Added transfer response DTO:
+
+   * Created `TransferResponseDto`
+   * Added parsing for balances and transferred amount
+   * Standardized monetary parsing using `ApiParse.toMoney`
+
+5. Added transfer receipt response DTO:
+
+   * Created `TransferReceiptResponseDto`
+   * Added parsing for:
+
+     * transfer status
+     * operation metadata
+     * source/destination account presentation data
+     * transaction reference
+     * operation timestamp
+   * Added conversion to `TransferReceiptStatus`
+
+6. Updated API parsing utilities:
+
+   * Replaced `moneyToBigInt` with `ApiParse.toInt`
+   * Standardized transport scalar conversion strategy for Money types
+
+### Domain Structure Refactor
+
+1. Reorganized domain root structure for scalability:
+
+   * Introduced:
+
+     * `domain/common`
+     * `domain/usecases`
+   * Documented the new structure across architecture and agent files
+
+2. Moved auth models into contextual domain folders:
+
+   * `domain/auth/models/auth_user.dart`
+     → `domain/common/auth/models/auth_user.dart`
+   * `domain/auth/models/user_profile.dart`
+     → `domain/common/auth/models/user_profile.dart`
+
+3. Moved and normalized user role enum:
+
+   * `domain/enums/user_role.dart`
+     → `domain/common/user/enums/user_role.dart`
+
+4. Added transfer receipt domain enum:
+
+   * Created `TransferReceiptStatus`
+   * Added:
+
+     * parsing helper
+     * semantic helpers (`isSuccess`, `isPending`, `isFailed`)
+     * documented operational semantics
+
+5. Updated imports throughout repositories, APIs, and UI layers to follow the new domain structure.
+
+### Dependency Injection and Service Registration
+
+1. Updated service registration:
+
+   * Added `ApiTransfer`
+   * Added `ApiReceipt`
+   * Registered both in `mobile/lib/data/services/services.dart`
+
+### Documentation and Architecture Updates
+
+1. Updated mobile architecture documentation:
+
+   * Documented new domain folder strategy
+   * Clarified separation between:
+
+     * stable app-facing models
+     * workflow orchestration use cases
+
+2. Updated AGENT instructions:
+
+   * Added standardized Money conversion rules
+   * Enforced usage of:
+
+     * `ApiParse.toInt`
+     * `ApiParse.toMoney`
+   * Added domain placement conventions for:
+
+     * `common/<area>/models`
+     * `common/<area>/enums`
+     * `usecases`
+
+3. Updated REST API documentation:
+
+   * Added transfer receipt status semantics
+   * Documented current and future-compatible status values
+   * Clarified backend behavior for persisted receipts
+
+4. Fixed markdown anchor escaping for:
+
+   * `/accounts/transfer/{transaction_reference}/receipt`
+
+5. Relocated generated Mermaid assets:
+
+   * moved `mermaid-images/*`
+     → `docs/mermaid-images/*`
+
+### Test Coverage
+
+1. Added `TransferRequestDto` tests:
+
+   * serialization validation
+   * Money conversion validation
+   * idempotency serialization behavior
+   * prevention of internal ID exposure
+
+2. Added `TransferResponseDto` tests:
+
+   * Money parsing validation
+   * payload validation
+   * protection against leaking internal account IDs
+
+3. Added `TransferReceiptResponseDto` tests:
+
+   * status parsing
+   * Money parsing
+   * timestamp parsing
+   * required field validation
+   * unknown status rejection
+   * protection against internal account/customer ID leakage
+
+This commit establishes the first complete mobile transfer transport layer, standardizes Money transport serialization rules, and reorganizes the mobile domain structure into a scalable context-oriented layout aligned with future workflow orchestration growth.
+
+
 ## 2026/05/06 - api/transfer-by-account-number-04
 
 Refine transfer-by-account-number behavior, strengthen idempotency validation, and expand transfer integration coverage.

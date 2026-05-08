@@ -34,7 +34,7 @@ turns app operations into API calls, local persistence actions, typed DTOs, and
 
 ## Folder Map
 
-- `data.dart`: registers repository implementations in the dependency injector
+- `repositories.dart`: registers repository implementations in the dependency injector
 - `repositories/`: app-facing repository contracts and implementations
 - `repository/`: documentation-only guide requested for repository behavior
 - `services/services.dart`: registers API service classes in the injector
@@ -81,6 +81,9 @@ Rules:
 - API services should not coordinate session state or selected account state.
 - API services should not read or write secure storage directly in normal
   feature work.
+- For money transport scalars, always convert with `ApiParse`: use
+  `ApiParse.toInt` for `Money -> int64` and `ApiParse.toMoney` for
+  backend numeric scalar -> `Money`.
 - API services should return `AsyncResult<T>`.
 
 ### `repositories/...`
@@ -108,20 +111,21 @@ Rules:
 Data dependencies are registered in two module entrypoints:
 
 - `services/services.dart`: API service registrations
-- `data.dart`: repository registrations
+- `repositories.dart`: repository registrations
 
 Current bootstrap order from `core/config/dependencies.dart`:
 
 1. `CoreServices`
 2. `Services`
-3. `Data`
-4. `Uis`
+3. `Repositories`
+4. `Usecases`
+5. `Viewmodels`
 
 When adding a new API or repository:
 
 1. Register the API in `services/services.dart`.
 2. Inject the API into the repository implementation.
-3. Register the repository in `data.dart`.
+3. Register the repository in `repositories.dart`.
 4. Inject the repository into a view model through the existing UI module.
 
 Do not instantiate APIs or repositories directly in pages.
@@ -152,7 +156,13 @@ Rules:
 - Prefer domain models when a type represents app meaning beyond one backend
   payload.
 
-Do not leak raw backend envelopes into UI or view models.
+DTOs may be used by repositories and view models when they are intentionally
+app-facing contracts for this mobile API and already expose idiomatic Dart
+fields and app types such as `Money`, `DateTime`, or enums. Do not create a
+domain model that merely duplicates a DTO with the same fields and meaning.
+
+Do not leak raw backend envelopes, JSON maps, HTTP status handling, Dio types,
+or snake_case transport payloads into UI or view models.
 
 ## Current Auth Conventions
 
@@ -227,4 +237,3 @@ calls in unit tests.
 - Do not introduce a use case layer unless the task explicitly asks for that
   architecture change.
 - Do not perform broad folder migrations while implementing a narrow feature.
-

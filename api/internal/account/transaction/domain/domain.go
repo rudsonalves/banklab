@@ -98,6 +98,7 @@ type Transaction struct {
 	ReferenceID      *uuid.UUID
 	RelatedAccountID *uuid.UUID
 	IdempotencyKey   *string
+	Description      *string
 	CreatedAt        time.Time
 }
 

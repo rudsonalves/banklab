@@ -9,8 +9,12 @@ import '/data/services/apis/account/balance_api.dart';
 import '/data/services/apis/account/list_accounts_api.dart';
 import '/data/services/apis/account/statement_api.dart';
 import '/data/services/apis/auth/auth_api.dart';
+import 'repositories/transaction/transaction_repository.dart';
+import 'repositories/transaction/transaction_repository_impl.dart';
+import 'services/apis/receipt/api_receipt.dart';
+import 'services/apis/transfer/api_transfer.dart';
 
-class Data {
+class Repositories {
   static void add(AutoInjector injector) {
     injector
       ..addSingleton<AuthRepository>(
@@ -24,6 +28,12 @@ class Data {
           balanceApi: injector.get<BalanceApi>(),
           listAccountsApi: injector.get<ListAccountsApi>(),
           statementApi: injector.get<StatementApi>(),
+        ),
+      )
+      ..addSingleton<TransactionRepository>(
+        () => TransactionRepositoryImpl(
+          apiTransfer: injector.get<ApiTransfer>(),
+          apiReceipt: injector.get<ApiReceipt>(),
         ),
       );
   }

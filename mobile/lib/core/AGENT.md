@@ -59,8 +59,9 @@ Current registration order:
 
 1. `CoreServices`
 2. `Services`
-3. `Data`
-4. `Uis`
+3. `Repositories`
+4. `Usecases`
+5. `Viewmodels`
 
 `CoreServices.add` registers:
 
