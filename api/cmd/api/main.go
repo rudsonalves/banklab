@@ -64,6 +64,7 @@ func main() {
 
 	listAccountsUC := accountApplication.NewListAccounts(accountRepo)
 	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
+	lookupInternalTransferRecipientsUC := accountApplication.NewLookupInternalTransferRecipients(accountRepo)
 	depositUC := transactionApplication.NewDeposit(transactionRepo)
 	withdrawUC := transactionApplication.NewWithdraw(transactionRepo)
 	transferUC := transactionApplication.NewTransfer(transactionRepo)
@@ -82,7 +83,7 @@ func main() {
 	// ======================
 	// Handlers
 	// ======================
-	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC)
+	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC, lookupInternalTransferRecipientsUC)
 	statementHandler := statementDelivery.New(statementUC)
 	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC, transferReceiptUC)
 	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
@@ -120,11 +121,12 @@ func main() {
 
 	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
 	apiRouter.Handle("POST /accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccount)))
+	apiRouter.Handle("GET /accounts/internal-transfers/recipients", withAuth(http.HandlerFunc(accountHandler.LookupInternalTransferRecipients)))
 	apiRouter.Handle("POST /accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))
 	apiRouter.Handle("POST /accounts/{id}/withdraw", withAuth(http.HandlerFunc(transactionHandler.Withdraw)))
 	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(statementHandler.Statement)))
 	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
-	apiRouter.Handle("POST /accounts/transfer", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
+	apiRouter.Handle("POST /accounts/internal-transfers", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
 	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
 
 	// ======================

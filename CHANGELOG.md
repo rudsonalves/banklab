@@ -1,5 +1,238 @@
 # Changelog
 
+## 2026/05/08 — api/internal-transfer-01
+
+Refactor the internal transfer flow to operate with account UUIDs instead of branch/account-number pairs, and introduce a dedicated recipient lookup endpoint for internal transfers. This update also expands the transfer contract, improves authorization consistency, and aligns the API/documentation surface with the new transfer model.
+
+### API and Route Changes
+
+1. Updated internal transfer routes and naming conventions
+
+   * Replaced `POST /accounts/transfer` with `POST /accounts/internal-transfers`
+   * Added `GET /accounts/internal-transfers/recipients`
+   * Updated route registration in `cmd/api/main.go`
+   * Wired the new recipient lookup use case into the account handler
+
+2. Refactored transfer payloads to use account UUIDs
+
+   * Removed:
+
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * Added:
+
+     * `from_account_id`
+     * `to_account_id`
+   * Updated request/response DTOs in delivery layer
+   * Updated handler parsing and validation logic to parse UUIDs explicitly
+
+3. Added internal transfer recipient lookup flow
+
+   * Introduced lookup endpoint supporting:
+
+     * branch + account number
+     * CPF document lookup
+   * Added normalization and validation rules
+   * Added masked document support
+   * Restricted exposed fields to confirmation-safe transfer metadata only
+
+### Account Module
+
+#### Application Layer
+
+1. Added `LookupInternalTransferRecipients` use case
+
+   * Supports:
+
+     * lookup by branch/account number
+     * lookup by CPF
+   * Rejects:
+
+     * mixed lookup modes
+     * incomplete query combinations
+     * unsupported document formats
+   * Normalizes:
+
+     * branch
+     * account number
+     * CPF document
+
+2. Added helper normalization utilities
+
+   * `normalizeBranch`
+   * `normalizeAccountNumber`
+   * `onlyDigits`
+   * Reused shared document normalization logic
+
+3. Added authorization enforcement
+
+   * Lookup flow now validates authenticated customer access before querying recipients
+
+#### Domain Layer
+
+1. Added `TransferRecipient` domain structure
+
+   * Includes:
+
+     * account ID
+     * holder name
+     * masked document
+     * branch
+     * account number
+     * optional account type
+
+2. Added document normalization and masking utilities
+
+   * `NormalizeDocument`
+   * `MaskDocument`
+
+#### Infrastructure Layer
+
+1. Added recipient lookup repository operations
+
+   * `FindTransferRecipientsByBranchAndNumber`
+   * `FindTransferRecipientsByDocument`
+
+2. Added active-account filtering to lookup queries
+
+   * Queries now explicitly restrict recipient accounts to active accounts only
+
+3. Added centralized recipient query mapper
+
+   * Shared recipient scan/mapping logic
+   * Automatic document masking before returning data
+
+#### Delivery Layer
+
+1. Added recipient lookup HTTP handler
+
+   * Parses query params
+   * Validates authenticated user
+   * Maps domain recipients to response DTOs
+   * Returns stable API envelope responses
+
+2. Added recipient response DTOs
+
+   * `InternalTransferRecipientsData`
+   * `InternalTransferRecipientData`
+
+### Transfer Use Case Refactor
+
+1. Refactored transfer orchestration to use account IDs directly
+
+   * Removed source/destination lookup by branch/number
+   * Uses:
+
+     * `GetByIDForUpdate`
+     * deterministic UUID lock ordering
+
+2. Improved authorization semantics
+
+   * Ownership validation now occurs immediately after source account resolution
+   * Replay/idempotency authorization now depends on validated ownership
+
+3. Simplified transaction flow
+
+   * Reduced duplicate account lookup logic
+   * Unified balance updates around UUID-based operations
+
+4. Updated idempotency scope
+
+   * Explicitly scoped to:
+
+     * `from_account_id`
+     * `idempotency_key`
+
+5. Updated ledger relationship handling
+
+   * Related account references now use UUIDs directly
+   * Transfer replay reconstruction preserved
+
+### Tests
+
+1. Added complete unit coverage for recipient lookup use case
+
+   * Successful account lookup
+   * Successful CPF lookup
+   * Multiple-account CPF responses
+   * Invalid query combinations
+   * Forbidden access
+   * Repository failure propagation
+   * Empty-result behavior
+
+2. Added delivery tests for recipient lookup endpoint
+
+   * Authentication validation
+   * Success responses
+   * Response field restrictions
+   * Forbidden scenarios
+   * Invalid parameter handling
+   * Empty result responses
+
+3. Added repository tests for recipient lookup queries
+
+   * Active account filtering validation
+   * Document masking validation
+   * Query argument validation
+
+4. Refactored transfer tests to UUID-based payloads
+
+   * Updated application tests
+   * Updated delivery tests
+   * Updated integration wiring tests
+   * Added legacy payload rejection coverage
+
+### Documentation
+
+1. Updated API documentation
+
+   * Added:
+
+     * internal transfer recipient lookup section
+     * new internal transfer contract
+   * Replaced all branch/account-number transfer examples with UUID-based examples
+   * Added lookup examples and response semantics
+   * Expanded Postman environment documentation
+
+2. Updated architecture and implementation documents
+
+   * Route listings
+   * transfer flow descriptions
+   * startup wiring references
+   * REST surface explanations
+   * authentication-protected route lists
+
+3. Updated presentation and overview documentation
+
+   * Adjusted transfer endpoint references
+   * Added recipient lookup flow descriptions
+   * Clarified internal-transfer-only scope
+
+### Mobile Layer
+
+1. Added internal transfer recipient DTOs
+
+   * `InternalTransferRecipientDto`
+   * `InternalTransferRecipientLookupResponseDto`
+   * `InternalTransferRecipientLookupQueryDto`
+
+2. Added query serialization support
+
+   * Account-based lookup serialization
+   * CPF-based lookup serialization
+
+3. Added DTO parsing and validation tests
+
+   * Optional account type handling
+   * Multiple account parsing
+   * Prohibited-field exposure protection
+   * Empty-result handling
+
+This commit consolidates the transition from branch/account-number transfer execution to a UUID-driven internal transfer architecture, introduces a dedicated recipient discovery flow, strengthens authorization boundaries, and aligns the API, tests, documentation, and mobile DTO contracts around the new transfer model.
+
+
 ## 2026/05/08 - mobile/internal-transfer-04
 
 Refactor the internal transfer page structure and introduce reusable UI components for account selection and section rendering.

@@ -141,7 +141,8 @@ Exemplos atuais incluem:
 - `GET /accounts/{id}/balance`;
 - `POST /accounts/{id}/deposit`;
 - `POST /accounts/{id}/withdraw`;
-- `POST /accounts/transfer`;
+- `GET /accounts/internal-transfers/recipients`;
+- `POST /accounts/internal-transfers`;
 - `GET /accounts/{id}/statement`.
 
 Também é nessa fase que rotas protegidas passam a receber o middleware responsável por validar JWT e popular o contexto autenticado.

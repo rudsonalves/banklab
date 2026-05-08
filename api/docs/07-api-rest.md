@@ -18,10 +18,11 @@
     - [4.2 Create Account](#42-create-account)
     - [4.3 Deposit](#43-deposit)
     - [4.4 Withdraw](#44-withdraw)
-    - [4.5 Transfer](#45-transfer)
-    - [4.6 Transfer Receipt](#46-transfer-receipt)
-    - [4.7 Get Balance](#47-get-balance)
-    - [4.8 Get Statement](#48-get-statement)
+    - [4.5 Internal Transfer Recipient Lookup](#45-internal-transfer-recipient-lookup)
+    - [4.6 Internal Transfer](#46-internal-transfer)
+    - [4.7 Transfer Receipt](#47-transfer-receipt)
+    - [4.8 Get Balance](#48-get-balance)
+    - [4.9 Get Statement](#49-get-statement)
   - [5. Customer Endpoints](#5-customer-endpoints)
     - [5.1 Get My Customer Profile](#51-get-my-customer-profile)
   - [6. Authorization Model](#6-authorization-model)
@@ -36,11 +37,12 @@
     - [9.6 POST /accounts](#96-post-accounts)
     - [9.7 POST /accounts/{id}/deposit](#97-post-accountsiddeposit)
     - [9.8 POST /accounts/{id}/withdraw](#98-post-accountsidwithdraw)
-    - [9.9 POST /accounts/transfer](#99-post-accountstransfer)
-    - [9.10 GET /accounts/transfer/{transaction\_reference}/receipt](#910-get-accountstransfertransaction_referencereceipt)
-    - [9.11 GET /accounts/{id}/balance](#911-get-accountsidbalance)
-    - [9.12 GET /accounts/{id}/statement](#912-get-accountsidstatement)
-    - [9.13 GET /customers/me](#913-get-customersme)
+    - [9.9 GET /accounts/internal-transfers/recipients](#99-get-accountsinternal-transfersrecipients)
+    - [9.10 POST /accounts/internal-transfers](#910-post-accountsinternal-transfers)
+    - [9.11 GET /accounts/transfer/{transaction_reference}/receipt](#911-get-accountstransfertransaction_referencereceipt)
+    - [9.12 GET /accounts/{id}/balance](#912-get-accountsidbalance)
+    - [9.13 GET /accounts/{id}/statement](#913-get-accountsidstatement)
+    - [9.14 GET /customers/me](#914-get-customersme)
   - [10. Postman Setup](#10-postman-setup)
     - [10.1 Files in Repository](#101-files-in-repository)
     - [10.2 Environment Variables](#102-environment-variables)
@@ -517,20 +519,101 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: account not active
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.5 Transfer
+### 4.5 Internal Transfer Recipient Lookup
+
+- Method: GET
+- Path: /accounts/internal-transfers/recipients
+- Auth required: yes
+
+This endpoint searches eligible recipient accounts for internal transfers only.
+It is not a Pix, TED, DOC, or interbank account discovery endpoint.
+
+Query modes:
+
+1. By branch and account number:
+
+```text
+/accounts/internal-transfers/recipients?branch=0001&account_number=00067890
+```
+
+2. By CPF document:
+
+```text
+/accounts/internal-transfers/recipients?document=12345678901
+```
+
+Rules:
+- `branch` and `account_number` must be provided together.
+- `document` may be used alone and currently accepts CPF only.
+- CNPJ and legal person account lookup are intentionally out of scope for this
+  version.
+- Requests with neither query mode are invalid.
+- Mixed query modes are invalid unless explicitly supported by a future version.
+- Branch, account number, and CPF are normalized before lookup.
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "accounts": [
+      {
+        "account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+        "holder_name": "Maria Silva",
+        "document": "***.456.789-**",
+        "branch": "0001",
+        "account_number": "00067890",
+        "account_type": "checking"
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+No results response (200):
+
+```json
+{
+  "data": {
+    "accounts": []
+  },
+  "error": null
+}
+```
+
+Response rules:
+- `account_id` is the account identifier used later as `to_account_id`.
+- `document` is always masked.
+- Lookup by branch + account number returns zero or one eligible account.
+- Lookup by CPF may return zero, one, or many eligible accounts.
+- If multiple accounts are returned, the client must require user selection.
+- The response must not include customer ID, balance, full document, phone,
+  e-mail, or unrelated internal fields.
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid or unsupported query parameter combination
+- 403 FORBIDDEN: access denied
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 4.6 Internal Transfer
 
 - Method: POST
-- Path: /accounts/transfer
+- Path: /accounts/internal-transfers
 - Auth required: yes
+
+Executes an internal transfer between two account IDs previously known by the
+client. The destination account ID should come from recipient lookup or another
+trusted internal account selection flow.
 
 Request body:
 
 ```json
 {
-  "from_branch": "0001",
-  "from_account_number": "00012345",
-  "to_branch": "0001",
-  "to_account_number": "00067890",
+  "from_account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+  "to_account_id": "7c8e75d0-60c9-4b2d-a9dc-605293d98e0c",
   "amount": 2500,
   "idempotency_key": "transfer-client-key",
   "description": "Aluguel de maio"
@@ -538,12 +621,16 @@ Request body:
 ```
 
 Notes:
-- The bank is currently implicit.
-- The transfer is internal only and resolves accounts by `(branch, account_number)`.
+- This endpoint is for internal transfers only.
+- Transfer execution uses account IDs, not branch/account-number identifiers.
+- The backend validates that the authenticated user can operate
+  `from_account_id`.
+- The backend validates that `to_account_id` exists and can receive internal
+  transfers.
 - `idempotency_key` is required and must be stable across retries of the same
   transfer attempt.
 - `description` is optional. When omitted or blank, no description is stored.
-- Idempotency is scoped to the resolved source account and `idempotency_key`.
+- Idempotency is scoped to `from_account_id` and `idempotency_key`.
 - Different source accounts may reuse the same `idempotency_key` independently.
 - Replay responses return the historical transfer result from ledger data (not current account balances).
 - Replay responses preserve the original transfer description; a different
@@ -554,11 +641,9 @@ Success response (200):
 ```json
 {
   "data": {
-    "from_branch": "0001",
-    "from_account_number": "00012345",
+    "from_account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
     "transaction_reference": "2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31",
-    "to_branch": "0001",
-    "to_account_number": "00067890",
+    "to_account_id": "7c8e75d0-60c9-4b2d-a9dc-605293d98e0c",
     "amount": 2500,
     "from_balance": 97500,
     "to_balance": 32500
@@ -571,17 +656,17 @@ Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
 - 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: missing or malformed branch/account number data, or missing
+- 400 INVALID_DATA: missing or malformed account IDs, or missing
   `idempotency_key`
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
-- 403 FORBIDDEN: access denied
+- 403 FORBIDDEN: authenticated user cannot operate the source account
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
 - 422 INSUFFICIENT_FUNDS: source account has insufficient funds
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.6 Transfer Receipt
+### 4.7 Transfer Receipt
 
 - Method: GET
 - Path: /accounts/transfer/{transaction_reference}/receipt
@@ -590,7 +675,7 @@ Possible errors:
 Returns persisted receipt details for an internal transfer.
 
 Path params:
-- `transaction_reference`: public transfer reference returned by `POST /accounts/transfer`
+- `transaction_reference`: public transfer reference returned by `POST /accounts/internal-transfers`
 
 Success response (200):
 
@@ -615,6 +700,8 @@ Success response (200):
 
 Notes:
 - `description` is omitted when the original transfer did not include one.
+- Receipt data remains public/confirmation-oriented and does not expose internal
+  customer IDs, balances, phone, e-mail, or full documents.
 
 Status semantics (`data.status`):
 - `completed`: transfer executed successfully (terminal success)
@@ -635,7 +722,7 @@ Possible errors:
 - 404 TRANSACTION_NOT_FOUND: transfer receipt does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.7 Get Balance
+### 4.8 Get Balance
 
 - Method: GET
 - Path: /accounts/{id}/balance
@@ -667,7 +754,7 @@ Possible errors:
 - 404 ACCOUNT_NOT_FOUND: account does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.8 Get Statement
+### 4.9 Get Statement
 
 - Method: GET
 - Path: /accounts/{id}/statement
@@ -1037,7 +1124,49 @@ Scenario: insufficient funds
 }
 ```
 
-### 9.9 POST /accounts/transfer
+### 9.9 GET /accounts/internal-transfers/recipients
+
+Scenario: invalid query combination
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+Scenario: no recipients found
+- Status: 200
+
+```json
+{
+  "data": {
+    "accounts": []
+  },
+  "error": null
+}
+```
+
+Scenario: access denied
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+### 9.10 POST /accounts/internal-transfers
 
 Scenario: invalid JSON or unknown public request field
 - Status: 400
@@ -1067,7 +1196,7 @@ Scenario: invalid amount
 }
 ```
 
-Scenario: missing or malformed branch/account number data
+Scenario: missing or malformed account IDs or idempotency key
 - Status: 400
 - Code: INVALID_DATA
 
@@ -1151,7 +1280,7 @@ Scenario: inactive account
 }
 ```
 
-### 9.10 GET /accounts/transfer/{transaction_reference}/receipt
+### 9.11 GET /accounts/transfer/{transaction_reference}/receipt
 
 Scenario: receipt found
 - Status: 200
@@ -1200,7 +1329,7 @@ Scenario: access denied to receipt
 }
 ```
 
-### 9.11 GET /accounts/{id}/balance
+### 9.12 GET /accounts/{id}/balance
 
 Scenario: invalid query/path data
 - Status: 400
@@ -1216,7 +1345,7 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.12 GET /accounts/{id}/statement
+### 9.13 GET /accounts/{id}/statement
 
 Scenario: invalid query/path data
 - Status: 400
@@ -1232,7 +1361,7 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.13 GET /customers/me
+### 9.14 GET /customers/me
 
 Scenario: user has inconsistent state (customer role without customer_id)
 - Status: 409
@@ -1281,10 +1410,11 @@ Use these variables when configuring the Postman environment:
 - `access_token`: JWT used for protected routes
 - `refresh_token`: opaque refresh token used by `/auth/refresh`
 - `account_id`: account UUID for account operations
-- `from_branch`: source account branch used by transfer requests
-- `from_account_number`: source account number used by transfer requests
-- `to_branch`: destination account branch used by transfer requests
-- `to_account_number`: destination account number used by transfer requests
+- `from_account_id`: source account UUID used by internal transfer requests
+- `to_account_id`: destination account UUID used by internal transfer requests
+- `recipient_branch`: branch used for recipient lookup examples
+- `recipient_account_number`: account number used for recipient lookup examples
+- `recipient_document`: CPF used for recipient lookup examples
 - `transaction_reference`: public reference returned by successful transfer requests
 - `id`: user UUID used by admin approval route (`/admin/users/{id}/approve`)
 
@@ -1306,8 +1436,9 @@ Use this flow to bootstrap test data and credentials quickly:
 3. `Auth/Me` (validate JWT)
 4. `Account/User/Approve` (admin only, using `id`)
 5. Account endpoints using `account_id` as needed
-6. Transfer endpoint using `from_branch`, `from_account_number`, `to_branch`, and `to_account_number`
-7. Receipt endpoint using `transaction_reference` from a successful transfer response
+6. Recipient lookup endpoint using `recipient_branch` + `recipient_account_number`, or `recipient_document`
+7. Internal transfer endpoint using `from_account_id` and `to_account_id`
+8. Receipt endpoint using `transaction_reference` from a successful transfer response
 
 Notes:
 - Keep `X-App-Token` for register/login requests as documented in this file.

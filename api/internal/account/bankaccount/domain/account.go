@@ -35,6 +35,15 @@ type Account struct {
 	CreatedAt  time.Time
 }
 
+type TransferRecipient struct {
+	AccountID      uuid.UUID
+	HolderName     string
+	MaskedDocument string
+	Branch         string
+	AccountNumber  string
+	AccountType    string
+}
+
 func NewAccount(customerID uuid.UUID, number, branch string) (*Account, error) {
 	if customerID == uuid.Nil {
 		return nil, ErrInvalidData

@@ -280,7 +280,8 @@ Esse fluxo mostra que o sistema já trata saldo insuficiente como regra de negó
 Esse fluxo acontece em:
 
 ```text
-POST /accounts/transfer
+GET  /accounts/internal-transfers/recipients
+POST /accounts/internal-transfers
 ```
 
 Ele é o fluxo financeiro mais crítico da aplicação.

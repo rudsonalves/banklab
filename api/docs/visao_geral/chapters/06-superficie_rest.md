@@ -119,7 +119,8 @@ POST /accounts
 GET  /accounts/{id}/balance
 POST /accounts/{id}/deposit
 POST /accounts/{id}/withdraw
-POST /accounts/transfer
+GET  /accounts/internal-transfers/recipients
+POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
 ```
 
@@ -153,9 +154,13 @@ Executa um saque em uma conta.
 
 Assim como depósito, ele representa uma intenção de negócio específica e exige validações próprias.
 
-### `POST /accounts/transfer`
+### `GET /accounts/internal-transfers/recipients`
 
-Executa transferência entre contas.
+Localiza contas recebedoras elegíveis para transferência interna por agência + conta ou CPF/CNPJ. Retorna apenas dados mínimos de confirmação, como `account_id`, nome do titular, documento mascarado, agência e número da conta.
+
+### `POST /accounts/internal-transfers`
+
+Executa transferência interna entre contas usando `from_account_id` e `to_account_id`.
 
 Esse é um dos fluxos mais críticos da API porque envolve débito, crédito, locks, ledger e suporte a idempotência opcional.
 

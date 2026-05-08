@@ -24,14 +24,12 @@ func NewTransfer(accountRepo domain.Repository) *Transfer {
 }
 
 type TransferInput struct {
-	User              *authdomain.AuthenticatedUser
-	FromAccountBranch string
-	FromAccountNumber string
-	ToAccountBranch   string
-	ToAccountNumber   string
-	Amount            int64
-	IdempotencyKey    string
-	Description       *string
+	User           *authdomain.AuthenticatedUser
+	FromAccountID  uuid.UUID
+	ToAccountID    uuid.UUID
+	Amount         int64
+	IdempotencyKey string
+	Description    *string
 }
 
 type TransferResult struct {
@@ -49,10 +47,7 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		return nil, domain.ErrInvalidAmount
 	}
 
-	if input.FromAccountBranch == "" ||
-		input.FromAccountNumber == "" ||
-		input.ToAccountBranch == "" ||
-		input.ToAccountNumber == "" {
+	if input.FromAccountID == uuid.Nil || input.ToAccountID == uuid.Nil {
 		return nil, domain.ErrInvalidData
 	}
 
@@ -61,49 +56,17 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		return nil, domain.ErrInvalidData
 	}
 
+	if input.FromAccountID == input.ToAccountID {
+		return nil, domain.ErrSameAccountTransfer
+	}
+
 	description := normalizeTransferDescription(input.Description)
 	var result *TransferResult
 
 	err = uc.accountRepo.WithTransaction(ctx, func(tx domain.Tx) error {
-		fromAccountRef, err := tx.GetByBranchAndNumber(ctx, input.FromAccountBranch, input.FromAccountNumber)
-		if err != nil {
-			if errors.Is(err, domain.ErrAccountNotFound) {
-				return fmt.Errorf("source account not found: %w", err)
-			}
-			return fmt.Errorf("get source account by branch and number: %w", err)
-		}
-
-		toAccountRef, err := tx.GetByBranchAndNumber(ctx, input.ToAccountBranch, input.ToAccountNumber)
-		if err != nil {
-			if errors.Is(err, domain.ErrAccountNotFound) {
-				return fmt.Errorf("destination account not found: %w", err)
-			}
-			return fmt.Errorf("get destination account by branch and number: %w", err)
-		}
-
-		fromAccountID := fromAccountRef.ID
-		toAccountID := toAccountRef.ID
-		if fromAccountID == toAccountID {
-			return domain.ErrSameAccountTransfer
-		}
-
-		// Idempotency check: if a ledger entry already exists for this key, replay result.
-		existing, err := tx.GetTransactionByIdempotencyKey(ctx, fromAccountID, idempotencyKey)
-		if err != nil {
-			return fmt.Errorf("get transaction by idempotency key: %w", err)
-		}
-
-		if existing != nil {
-			result, err = transferResultFromLedger(ctx, tx, existing)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-
 		// Lock both accounts in deterministic UUID order to reduce deadlock risk
 		// when concurrent transfers touch the same rows in opposite directions.
-		firstID, secondID := orderedUUIDs(fromAccountID, toAccountID)
+		firstID, secondID := orderedUUIDs(input.FromAccountID, input.ToAccountID)
 		firstAccount, err := tx.GetByIDForUpdate(ctx, firstID)
 		if err != nil {
 			if errors.Is(err, domain.ErrAccountNotFound) {
@@ -120,13 +83,28 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 			return fmt.Errorf("get second account for update: %w", err)
 		}
 
-		fromAccount, toAccount := mapTransferAccounts(fromAccountID, firstAccount, secondAccount)
+		fromAccount, toAccount := mapTransferAccounts(input.FromAccountID, firstAccount, secondAccount)
 
 		if !CanAccessAccount(input.User, fromAccount) {
 			return domain.ErrForbidden
 		}
 
-		if err := fromAccount.CanTransfer(input.Amount, toAccountID); err != nil {
+		// Idempotency check: if a ledger entry already exists for this key,
+		// replay the result after source-account authorization succeeds.
+		existing, err := tx.GetTransactionByIdempotencyKey(ctx, input.FromAccountID, idempotencyKey)
+		if err != nil {
+			return fmt.Errorf("get transaction by idempotency key: %w", err)
+		}
+
+		if existing != nil {
+			result, err = transferResultFromLedger(ctx, tx, existing)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
+		if err := fromAccount.CanTransfer(input.Amount, input.ToAccountID); err != nil {
 			return err
 		}
 
@@ -134,7 +112,7 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 			return err
 		}
 
-		updatedFromBalance, err := tx.DecreaseBalance(ctx, fromAccountID, input.Amount)
+		updatedFromBalance, err := tx.DecreaseBalance(ctx, input.FromAccountID, input.Amount)
 		if err != nil {
 			if errors.Is(err, domain.ErrAccountNotFound) || errors.Is(err, domain.ErrInsufficientBalance) {
 				return err
@@ -143,7 +121,7 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		}
 		fromAccount.Balance = updatedFromBalance
 
-		updatedToBalance, err := tx.IncreaseBalance(ctx, toAccountID, input.Amount)
+		updatedToBalance, err := tx.IncreaseBalance(ctx, input.ToAccountID, input.Amount)
 		if err != nil {
 			if errors.Is(err, domain.ErrAccountNotFound) {
 				return err
@@ -156,18 +134,18 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 
 		// Origin side carries idempotency_key and related_account_id.
 		outgoing := domain.NewTransactionWithIdempotency(
-			fromAccountID,
+			input.FromAccountID,
 			domain.TransactionTransferOut,
 			input.Amount,
 			fromAccount.Balance,
 			&referenceID,
-			&toAccountID,
+			&input.ToAccountID,
 			idempotencyKey,
 		)
 		outgoing.Description = description
 		if err := tx.CreateTransaction(ctx, outgoing); err != nil {
 			if errors.Is(err, domain.ErrTransferDuplicate) {
-				existing, getErr := tx.GetTransactionByIdempotencyKey(ctx, fromAccountID, idempotencyKey)
+				existing, getErr := tx.GetTransactionByIdempotencyKey(ctx, input.FromAccountID, idempotencyKey)
 				if getErr != nil {
 					return fmt.Errorf("reload transaction by idempotency key: %w", getErr)
 				}
@@ -185,20 +163,20 @@ func (uc *Transfer) Execute(ctx context.Context, input TransferInput) (_ *Transf
 		}
 
 		incoming := domain.NewTransaction(
-			toAccountID,
+			input.ToAccountID,
 			domain.TransactionTransferIn,
 			input.Amount,
 			toAccount.Balance,
 			&referenceID,
 		)
-		incoming.RelatedAccountID = &fromAccountID
+		incoming.RelatedAccountID = &input.FromAccountID
 		if err := tx.CreateTransaction(ctx, incoming); err != nil {
 			return fmt.Errorf("create transfer in ledger transaction: %w", err)
 		}
 
 		result = &TransferResult{
-			FromAccountID:        fromAccountID,
-			ToAccountID:          toAccountID,
+			FromAccountID:        input.FromAccountID,
+			ToAccountID:          input.ToAccountID,
 			TransactionReference: referenceID,
 			Amount:               input.Amount,
 			FromBalance:          fromAccount.Balance,

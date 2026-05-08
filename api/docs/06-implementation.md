@@ -80,7 +80,8 @@ Current route registration:
 - POST /accounts/{id}/withdraw (JWT required)
 - GET /accounts/{id}/balance (JWT required)
 - GET /accounts/{id}/statement (JWT required)
-- POST /accounts/transfer (JWT required)
+- GET /accounts/internal-transfers/recipients (JWT required)
+- POST /accounts/internal-transfers (JWT required)
 
 ## 5. Domain Model
 

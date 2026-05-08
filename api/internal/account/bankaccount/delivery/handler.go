@@ -21,10 +21,15 @@ type getBalanceUseCase interface {
 	Execute(ctx context.Context, input accountapp.GetAccountBalanceInput) (*accountapp.AccountBalance, error)
 }
 
+type lookupInternalTransferRecipientsUseCase interface {
+	Execute(ctx context.Context, input accountapp.LookupInternalTransferRecipientsInput) ([]domain.TransferRecipient, error)
+}
+
 type Handler struct {
-	listAccounts  listAccountsUseCase
-	createAccount createAccountUseCase
-	balance       getBalanceUseCase
+	listAccounts                     listAccountsUseCase
+	createAccount                    createAccountUseCase
+	balance                          getBalanceUseCase
+	lookupInternalTransferRecipients lookupInternalTransferRecipientsUseCase
 }
 
 // New creates a new instance of the account Handler with the provided use cases.
@@ -32,11 +37,13 @@ func New(
 	listAccounts listAccountsUseCase,
 	createAccount createAccountUseCase,
 	balance getBalanceUseCase,
+	lookupInternalTransferRecipients lookupInternalTransferRecipientsUseCase,
 ) *Handler {
 	return &Handler{
-		listAccounts:  listAccounts,
-		createAccount: createAccount,
-		balance:       balance,
+		listAccounts:                     listAccounts,
+		createAccount:                    createAccount,
+		balance:                          balance,
+		lookupInternalTransferRecipients: lookupInternalTransferRecipients,
 	}
 }
 
