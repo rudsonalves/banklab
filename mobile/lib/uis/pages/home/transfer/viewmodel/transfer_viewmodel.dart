@@ -24,7 +24,7 @@ class TransferViewmodel {
 
   late final String idempotencyKey;
 
-  Future<void> initialize() async {
+  void initialize() {
     idempotencyKey = const Uuid().v7();
   }
 

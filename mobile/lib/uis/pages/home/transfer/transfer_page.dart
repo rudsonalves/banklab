@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/base/safe_scaffold.dart';
-import '../../../core/text_form_field/basic_text_form_field.dart';
+import '/uis/core/base/safe_scaffold.dart';
+import '/uis/core/text_form_field/basic_text_form_field.dart';
 import 'viewmodel/transfer_viewmodel.dart';
+import 'widgets/account_dropdown.dart';
+import 'widgets/section_title.dart';
 
 class TransferPage extends StatefulWidget {
   final TransferViewmodel viewModel;
@@ -14,21 +16,20 @@ class TransferPage extends StatefulWidget {
 }
 
 class _TransferPageState extends State<TransferPage> {
-  late final TextEditingController _beneficiaryNameController;
-  late final TextEditingController _branchController;
-  late final TextEditingController _accountController;
-  late final TextEditingController _amountController;
+  final _beneficiaryNameController = TextEditingController();
+  final TextEditingController _branchController = TextEditingController(
+    text: "0001",
+  );
+  final TextEditingController _accountController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
 
-  // String? _selectedTransferType;
   String? _selectedOriginAccount;
 
   @override
   void initState() {
     super.initState();
-    _beneficiaryNameController = TextEditingController();
-    _branchController = TextEditingController(text: "0001");
-    _accountController = TextEditingController();
-    _amountController = TextEditingController();
+
+    widget.viewModel.initialize();
   }
 
   @override
@@ -37,6 +38,7 @@ class _TransferPageState extends State<TransferPage> {
     _branchController.dispose();
     _accountController.dispose();
     _amountController.dispose();
+
     super.dispose();
   }
 
@@ -53,13 +55,22 @@ class _TransferPageState extends State<TransferPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: 12,
             children: [
-              // Seção: Conta de Origem
-              _buildSectionTitle(context, 'Conta de Origem'),
-              _buildOriginAccountDropdown(),
+              // Section: Source Account
+              const SectionTitle('Conta de Origem'),
+              // TODO: Put this in the command reactive Notifier Widget
+              AccountDropdown(
+                accounts: widget.viewModel.accounts!,
+                selectedAccountId: _selectedOriginAccount!,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedOriginAccount = value;
+                  });
+                },
+              ),
               const SizedBox(height: 12),
 
-              // Seção: Dados do Beneficiário
-              _buildSectionTitle(context, 'Dados do Beneficiário'),
+              // Section: Beneficiary Data
+              const SectionTitle('Dados do Beneficiário'),
               BasicTextFormField(
                 controller: _beneficiaryNameController,
                 labelText: 'Nome do Beneficiário',
@@ -88,8 +99,8 @@ class _TransferPageState extends State<TransferPage> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Seção: Valor
-              _buildSectionTitle(context, 'Valor'),
+              // Section: Amount
+              const SectionTitle('Valor'),
               BasicTextFormField(
                 controller: _amountController,
                 labelText: 'Valor da Transferência',
@@ -110,46 +121,6 @@ class _TransferPageState extends State<TransferPage> {
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('Confirmar Transferência'),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  Widget _buildOriginAccountDropdown() {
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedOriginAccount,
-      hint: const Text('Selecione uma conta'),
-      items: [
-        DropdownMenuItem(
-          value: 'account_1',
-          child: const Text('Conta Corrente - 0001-2'),
-        ),
-        DropdownMenuItem(
-          value: 'account_2',
-          child: const Text('Conta Poupança - 0001-3'),
-        ),
-      ],
-      onChanged: (value) {
-        setState(() {
-          _selectedOriginAccount = value;
-        });
-      },
-      decoration: InputDecoration(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
         ),
       ),
     );

@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026/05/08 - mobile/internal-transfer-04
+
+Refactor the internal transfer page structure and introduce reusable UI components for account selection and section rendering.
+
+This update focuses on improving the organization and maintainability of the transfer flow screen by extracting repeated UI structures into dedicated widgets and simplifying controller lifecycle management.
+
+### Mobile
+
+1. Refactored `transfer_page.dart`
+
+   * Replaced local helper widgets with reusable components:
+
+     * `AccountDropdown`
+     * `SectionTitle`
+   * Migrated relative imports to absolute project imports for better consistency.
+   * Simplified `TextEditingController` initialization using direct field initialization.
+   * Added `viewModel.initialize()` execution during `initState`.
+   * Removed obsolete private widget builders:
+
+     * `_buildSectionTitle`
+     * `_buildOriginAccountDropdown`
+   * Replaced hardcoded account dropdown items with dynamic account rendering from `viewModel.accounts`.
+   * Improved screen readability by separating transfer sections into explicit reusable widgets.
+   * Added TODO note indicating future reactive integration for account selection state.
+
+2. Updated `transfer_viewmodel.dart`
+
+   * Simplified `initialize()` from asynchronous to synchronous execution.
+   * Kept UUID v7 idempotency generation isolated in initialization flow.
+
+3. Added `widgets/account_dropdown.dart`
+
+   * Introduced reusable account selection widget.
+   * Added support for dynamic account rendering using `AccountSummaryResponseDto`.
+   * Centralized dropdown styling and selection behavior.
+   * Standardized account display format using:
+
+     * branch
+     * account number
+
+4. Added `widgets/section_title.dart`
+
+   * Extracted section title rendering into a reusable stateless widget.
+   * Centralized typography styling for transfer form sections.
+
+5. General Improvements
+
+   * Reduced UI duplication inside transfer page implementation.
+   * Improved component isolation and future extensibility.
+   * Prepared the transfer flow for reactive state evolution and integration with notifier-based widgets.
+   * Improved readability and separation of responsibilities within the transfer feature module.
+
+This refactor establishes a cleaner foundation for the internal transfer flow, making the UI structure more modular and easier to evolve as the banking operations and reactive state management continue to grow.
+
+
 ## 2026/05/07 — mobile/internal-transfer-04
 
 Refined the Flutter mobile architecture organization by formalizing dependency injection entrypoints, consolidating use case orchestration patterns, and improving transfer workflow coordination across repositories, use cases, and view models.
