@@ -34,7 +34,7 @@ abstract class Command<Output extends Object> extends ChangeNotifier {
 
   Result<Output>? get result => _result;
 
-  Output? get data => _result?.value;
+  Output? get value => _result?.value;
   AppError? get error => _result?.error;
 
   Future<void> _execute(

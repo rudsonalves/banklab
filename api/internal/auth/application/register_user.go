@@ -81,12 +81,9 @@ func (uc *RegisterUserUseCase) Execute(
 			return domain.ErrEmailAlreadyExists
 		}
 
-		now := time.Now().UTC()
-		customer := &customerdomain.Customer{
-			ID:        uuid.New(),
-			Name:      strings.TrimSpace(input.Name),
-			CPF:       strings.TrimSpace(input.CPF),
-			CreatedAt: now,
+		customer, err := customerdomain.NewCustomer(input.Name, input.CPF)
+		if err != nil {
+			return err
 		}
 
 		if err := uc.customerRepo.Create(txCtx, customer); err != nil {
@@ -99,6 +96,7 @@ func (uc *RegisterUserUseCase) Execute(
 		}
 
 		customerID := customer.ID
+		now := time.Now().UTC()
 		var newUserErr error
 		user, newUserErr = domain.NewUser(uuid.New(), email, hash, domain.RoleCustomer, &customerID, now)
 		if newUserErr != nil {

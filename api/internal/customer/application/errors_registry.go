@@ -24,6 +24,12 @@ func RegisterErrors() {
 		"Customer not found",
 		http.StatusNotFound,
 	)
+	sharederrors.RegisterDomainError(
+		domain.ErrCPFInvalid,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid CPF format",
+		http.StatusBadRequest,
+	)
 
 	sharederrors.RegisterDomainError(
 		domain.ErrCPFAlreadyExists,

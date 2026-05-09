@@ -15,7 +15,7 @@ class TransferViewmodel {
     transfer = Command1(_transfer);
     receipt = Command1(_usecase.getTransferReceipt);
     selectAccount = Command1(_usecase.selectAccount);
-    getInternalRecipient = Command1(_usecase.getInternalRecipient);
+    getInternalRecipient = Command1(_getInternalRecipient);
   }
 
   late final Command1<TransferResponseDto, TransferDraft> transfer;
@@ -27,12 +27,32 @@ class TransferViewmodel {
   List<AccountSummaryResponseDto>? get accounts => _usecase.accounts;
   AccountSummaryResponseDto? get selectedAccount => _usecase.selectedAccount;
 
-  late final String idempotencyKey;
+  final List<RecipientInfoDto> receipientAccounts = [];
+  RecipientInfoDto? selectedRecipient;
 
   AsyncResult<TransferResponseDto> _transfer(TransferDraft draft) {
     final transferWithIdempotency = draft.copyWith(
       idempotencyKey: const Uuid().v7(),
     );
     return _usecase.transfer(transferWithIdempotency);
+  }
+
+  AsyncResult<List<RecipientInfoDto>> _getInternalRecipient(
+    RecipientRequestDto recipient,
+  ) async {
+    receipientAccounts.clear();
+    selectedRecipient = null;
+
+    final result = await _usecase.getInternalRecipient(recipient);
+
+    if (result.isSuccess) {
+      receipientAccounts.addAll(result.value!);
+
+      if (receipientAccounts.length == 1) {
+        selectedRecipient = receipientAccounts.first;
+      }
+    }
+
+    return result;
   }
 }

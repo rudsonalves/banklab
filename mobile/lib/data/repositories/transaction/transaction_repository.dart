@@ -1,9 +1,9 @@
-import '../../../core/result/command.dart';
-import '../../services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
-import '../../services/apis/transfer/dtos/recipient_info_dto.dart';
-import '../../services/apis/transfer/dtos/recipient_request_dto.dart';
-import '../../services/apis/transfer/dtos/transfer_request_dto.dart';
-import '../../services/apis/transfer/dtos/transfer_response_dto.dart';
+import '/core/result/command.dart';
+import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
+import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
+import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
+import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
 
 abstract class TransactionRepository {
   /// Returns the last transfer receipt successfully fetched in this session.

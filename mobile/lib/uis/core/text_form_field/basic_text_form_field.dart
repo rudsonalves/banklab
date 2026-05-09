@@ -4,7 +4,7 @@ class BasicTextFormField extends TextFormField {
   BasicTextFormField({
     super.key,
     required TextEditingController super.controller,
-    required String labelText,
+    String? labelText,
     String? hintText,
     TextInputType super.keyboardType = TextInputType.text,
     super.textCapitalization = TextCapitalization.none,
@@ -16,6 +16,7 @@ class BasicTextFormField extends TextFormField {
     super.textInputAction,
     super.validator,
     super.onFieldSubmitted,
+    super.onChanged,
     Widget? prefixIcon,
     Widget? suffixIcon,
   }) : super(

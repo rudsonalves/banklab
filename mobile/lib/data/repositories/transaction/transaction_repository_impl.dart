@@ -1,11 +1,11 @@
-import '../../../core/result/result.dart';
-import '../../services/apis/receipt/api_receipt.dart';
-import '../../services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
-import '../../services/apis/transfer/api_transfer.dart';
-import '../../services/apis/transfer/dtos/recipient_info_dto.dart';
-import '../../services/apis/transfer/dtos/recipient_request_dto.dart';
-import '../../services/apis/transfer/dtos/transfer_request_dto.dart';
-import '../../services/apis/transfer/dtos/transfer_response_dto.dart';
+import '/core/result/result.dart';
+import '/data/services/apis/receipt/api_receipt.dart';
+import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
+import '/data/services/apis/transfer/api_transfer.dart';
+import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
+import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
+import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
 import 'transaction_repository.dart';
 
 class TransactionRepositoryImpl implements TransactionRepository {

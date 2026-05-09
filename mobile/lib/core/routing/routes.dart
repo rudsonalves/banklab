@@ -17,3 +17,12 @@ enum HomeRoutes {
 
   final String path;
 }
+
+enum TransferRoutes {
+  recipient('/recipient')
+  ;
+
+  const TransferRoutes(this.path);
+
+  final String path;
+}

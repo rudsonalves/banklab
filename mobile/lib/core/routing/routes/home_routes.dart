@@ -3,8 +3,6 @@ import 'package:go_router/go_router.dart';
 import '/core/config/dependencies.dart';
 import '/core/routing/routes.dart';
 import '/uis/pages/home/home_page.dart';
-import '/uis/pages/home/transfer/transfer_page.dart';
-import '/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart';
 import '/uis/pages/home/viewmodel/home_viewmodel.dart';
 
 List<RouteBase> homeRoutes() => [
@@ -15,11 +13,11 @@ List<RouteBase> homeRoutes() => [
       viewModel: injector.get<HomeViewmodel>(),
     ),
   ),
-  GoRoute(
-    path: HomeRoutes.transfer.path,
-    name: HomeRoutes.transfer.name,
-    builder: (context, state) => TransferPage(
-      viewModel: injector.get<TransferViewmodel>(),
-    ),
-  ),
+  // GoRoute(
+  //   path: HomeRoutes.transfer.path,
+  //   name: HomeRoutes.transfer.name,
+  //   builder: (context, state) => TransferPage(
+  //     viewModel: injector.get<TransferViewmodel>(),
+  //   ),
+  // ),
 ];

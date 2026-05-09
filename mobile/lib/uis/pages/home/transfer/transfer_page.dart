@@ -16,6 +16,8 @@ class TransferPage extends StatefulWidget {
 }
 
 class _TransferPageState extends State<TransferPage> {
+  TransferViewmodel get _viewModel => widget.viewModel;
+
   final _beneficiaryNameController = TextEditingController();
   final TextEditingController _branchController = TextEditingController(
     text: "0001",
@@ -52,7 +54,7 @@ class _TransferPageState extends State<TransferPage> {
               const SectionTitle('Conta de Origem'),
               // TODO: Put this in the command reactive Notifier Widget
               AccountDropdown(
-                accounts: widget.viewModel.accounts!,
+                accounts: _viewModel.accounts!,
                 selectedAccountId: _selectedOriginAccount!,
                 onChanged: (value) {
                   setState(() {

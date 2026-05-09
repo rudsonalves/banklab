@@ -121,7 +121,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                       icon: Icons.swap_horiz_rounded,
                       title: 'Transferir',
                       subtitle: 'Disponibilizar em breve',
-                      onTap: () => context.pushNamed(HomeRoutes.transfer.name),
+                      onTap: _navToTransferRecipient,
                     ),
                   ),
                 ],
@@ -139,5 +139,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
       title: 'Em breve',
       message: '$featureName será disponibilizado em breve.',
     );
+  }
+
+  void _navToTransferRecipient() {
+    context.pushNamed(TransferRoutes.recipient.name);
   }
 }

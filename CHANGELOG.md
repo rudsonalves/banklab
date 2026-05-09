@@ -1,5 +1,181 @@
 # Changelog
 
+## 2026/05/09 — mobile/internal-transfer-07
+
+Refactor transfer recipient flow, strengthen CPF domain validation, and improve local bootstrap workflow consistency across API and mobile layers.
+
+### Infrastructure and developer workflow
+
+1. Makefile
+
+   * Added `bootstrap` to `.PHONY`
+   * Reworked `make bootstrap` into a complete first-run environment setup flow
+   * Integrated:
+
+     * `.env` initialization
+     * Docker startup
+     * database readiness wait
+     * migrations execution
+     * API startup
+   * Updated `docker compose up` to use `--no-recreate` for safer repeated executions
+   * Improved local development reproducibility and reduced onboarding friction
+
+2. API Getting Started documentation
+
+   * Expanded onboarding documentation with:
+
+     * index/table of contents
+     * Docker engine clarification
+     * Colima support explanation
+     * first-run bootstrap flow
+     * troubleshooting guidance
+   * Documented the new `make bootstrap` execution sequence
+   * Clarified relationship between `bootstrap`, `setup`, and `docker-up`
+
+### Customer domain and CPF validation
+
+3. Customer domain
+
+   * Introduced dedicated CPF validation module
+   * Added:
+
+     * CPF normalization
+     * digit verification algorithm
+     * repeated-digit rejection
+     * formatting support (`123.456.789-09`)
+   * Moved CPF validation responsibility fully into the domain layer through `NewCustomer`
+   * Normalized stored CPF values before persistence
+
+4. Customer domain errors
+
+   * Added:
+
+     * `ErrCPFInvalid`
+
+5. Customer application error registry
+
+   * Registered CPF invalid errors into shared HTTP/domain error mapping
+   * Added standardized API response support for invalid CPF format
+
+6. Register user use case
+
+   * Refactored customer creation flow to use `customerdomain.NewCustomer`
+   * Centralized customer invariant validation in the domain factory
+   * Removed duplicated normalization logic from application layer
+
+### Tests and validation coverage
+
+7. CPF tests
+
+   * Added complete CPF validation test suite covering:
+
+     * formatted CPFs
+     * invalid lengths
+     * invalid verification digits
+     * repeated digits
+     * invalid characters
+     * normalization behavior
+
+8. Customer creation tests
+
+   * Added validation tests for:
+
+     * invalid CPF
+     * empty CPF
+     * empty customer name
+     * formatted CPF normalization
+
+9. Register user tests
+
+   * Updated existing tests to use valid CPF values
+   * Added invalid CPF registration scenario
+   * Added assertions ensuring:
+
+     * customer creation is aborted
+     * hashing is not executed
+     * user persistence is not triggered after CPF validation failure
+
+### Mobile transfer flow restructuring
+
+10. Routing
+
+* Introduced dedicated transfer routing module:
+
+  * `transfer_routes.dart`
+* Added:
+
+  * `TransferRoutes.recipient`
+* Registered transfer routes separately from home routes
+* Removed direct transfer route coupling from `home_routes.dart`
+
+11. Home page
+
+* Updated transfer navigation flow
+* Replaced temporary placeholder navigation with recipient flow entrypoint
+
+12. Recipient page
+
+* Added new `RecipientPage`
+* Implemented recipient lookup flow by:
+
+  * CPF
+  * branch + account number
+* Added:
+
+  * CPF input formatter
+  * recipient dropdown selection
+  * reactive account loading
+  * recipient preview card
+  * validation-triggered lookup behavior
+  * focus management improvements
+  * snackbar-based failure feedback
+
+13. Transfer viewmodel
+
+* Added recipient account state management
+* Added:
+
+  * `receipientAccounts`
+  * `selectedRecipient`
+* Refactored recipient retrieval into dedicated internal handler
+* Added automatic recipient selection for single-account results
+
+14. Transfer page
+
+* Refactored ViewModel access using local getter
+* Improved consistency and readability
+
+### Mobile shared UI and repository cleanup
+
+15. BasicTextFormField
+
+* Made `labelText` optional
+* Added `onChanged` support
+* Increased flexibility for lightweight form compositions
+
+16. Command result abstraction
+
+* Renamed:
+
+  * `data` → `value`
+* Improved semantic consistency with `Result<T>`
+
+17. Transaction repositories
+
+* Refactored imports to absolute package-style imports
+* Improved consistency across repository implementation files
+
+18. Postman environment
+
+* Updated local API base URL for current development environment
+
+This commit consolidates three major directions:
+
+* stronger domain invariants around CPF handling
+* a more realistic internal transfer recipient flow in Flutter
+* a cleaner and more reproducible local bootstrap/development workflow.
+
+
 ## 2026/05/08 - mobile/internal-transfer-06
 
 Refactor internal transfer flow to use account IDs as the primary identity model across API and mobile layers, while introducing recipient lookup support and CPF/CNPJ validation utilities.

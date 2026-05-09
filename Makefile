@@ -1,6 +1,6 @@
 .PHONY: help \
 	build test \
-	api-build api-migrate-up api-migrate-down api-test api-stop env-init \
+	api-build api-migrate-up api-migrate-down api-test api-stop env-init bootstrap \
 	mobile-test mobile-test-unit mobile-sync-ip \
 	commit diff push pull gitlog
 
@@ -31,7 +31,7 @@ docker-up: ## Start Docker containers in detached mode
 		echo "Colima detected. Ensuring daemon is running..."; \
 		colima start; \
 	fi
-	docker compose up -d
+	docker compose up -d --no-recreate
 
 docker-down: ## Stop and remove Docker containers
 	docker compose down
@@ -70,7 +70,7 @@ db-wait: ## Wait for the database to be ready
 	echo "Database not ready after timeout"; \
 	exit 1
 
-bootstrap: setup ## Alias semântico
+bootstrap: env-init docker-up db-wait migrate-up api-run ## Full bootstrap from scratch
 dev: run ## Alias para desenvolvimento
 
 env-init: ## Create API and Mobile .env files if they do not exist
