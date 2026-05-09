@@ -4,8 +4,11 @@ import '/core/extensions/string.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/input_formatters/cpf_input_formatter.dart';
+import '/uis/core/text/text_header.dart';
 import '/uis/core/text_form_field/basic_text_form_field.dart';
 import 'viewmodel/transfer_viewmodel.dart';
+import 'widgets/dropdown_recipient.dart';
+import 'widgets/recipient_card.dart';
 
 class RecipientPage extends StatefulWidget {
   final TransferViewmodel viewModel;
@@ -48,10 +51,7 @@ class _RecipientPageState extends State<RecipientPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'CPF',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
+                TextHeader('CPF'),
                 BasicTextFormField(
                   controller: _documentController,
                   hintText: '000.000.000-00',
@@ -65,10 +65,7 @@ class _RecipientPageState extends State<RecipientPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Agência e número da conta',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
+                TextHeader('Agência e número da conta'),
                 Row(
                   children: [
                     Expanded(
@@ -83,7 +80,7 @@ class _RecipientPageState extends State<RecipientPage> {
                     Expanded(
                       child: BasicTextFormField(
                         controller: _accountController,
-                        hintText: '000000-0',
+                        hintText: '0000000-0',
                         keyboardType: TextInputType.number,
                         onChanged: _onAccountChanged,
                       ),
@@ -93,13 +90,11 @@ class _RecipientPageState extends State<RecipientPage> {
               ],
             ),
 
+            const SizedBox(height: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Conta do destinatário',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
+                TextHeader('Selecione a conta destino'),
                 ListenableBuilder(
                   listenable: _viewModel.getInternalRecipient,
                   builder: (context, _) {
@@ -107,44 +102,26 @@ class _RecipientPageState extends State<RecipientPage> {
                         _viewModel.receipientAccounts.isNotEmpty
                         ? _viewModel.receipientAccounts.first.accountId
                         : null;
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      spacing: 12,
                       children: [
-                        DropdownButtonFormField<String>(
-                          initialValue: inicialValue,
-                          items: _viewModel.receipientAccounts
-                              .map(
-                                (recipient) => DropdownMenuItem<String>(
-                                  value: recipient.accountId,
-                                  child: Text(
-                                    '${recipient.holderName}\n0001 - ${recipient.accountNumber}',
-                                  ),
-                                ),
-                              )
-                              .toList(),
+                        DropdownRecipient(
+                          receipientAccounts: _viewModel.receipientAccounts,
+                          inicialValue: inicialValue,
                           onChanged: _onRecipientChanged,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                          ),
                         ),
-                        const SizedBox(height: 12),
-                        if (_viewModel.selectedRecipient != null)
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                'Destinatário selecionado: ${_viewModel.selectedRecipient!.holderName}',
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
+
+                        if (_viewModel.selectedRecipient.value != null) ...[
+                          SizedBox(height: 16),
+                          TextHeader('Conta selecionada'),
+                          ValueListenableBuilder(
+                            valueListenable: _viewModel.selectedRecipient,
+                            builder: (context, value, _) => RecipientCard(
+                              selectedRecipient: value!,
                             ),
                           ),
+                        ],
                       ],
                     );
                   },
@@ -156,16 +133,39 @@ class _RecipientPageState extends State<RecipientPage> {
       ),
 
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ElevatedButton(
-          onPressed: null,
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Confirmar Transferência'),
-          ),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: ValueListenableBuilder(
+          valueListenable: _viewModel.selectedRecipient,
+          builder: (context, value, _) {
+            final isButtonEnabled = value != null;
+            final colorScheme = Theme.of(context).colorScheme;
+            final style = isButtonEnabled
+                ? ButtonStyle(
+                    backgroundColor: WidgetStateProperty.all(
+                      colorScheme.onPrimaryFixedVariant,
+                    ),
+                  )
+                : Theme.of(context).elevatedButtonTheme.style;
+
+            return ElevatedButton(
+              onPressed: isButtonEnabled ? _onConfirmTransfer : null,
+              style: style,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Prosseguir',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
+  }
+
+  void _onConfirmTransfer() {
+    Navigator.of(context).pop();
   }
 
   void _onRecipientChanged(String? value) {
@@ -215,8 +215,6 @@ class _RecipientPageState extends State<RecipientPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao buscar conta do destinatário')),
       );
-
-      return;
     }
   }
 
@@ -232,8 +230,6 @@ class _RecipientPageState extends State<RecipientPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao buscar conta do destinatário')),
       );
-
-      return;
     }
   }
 }

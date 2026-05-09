@@ -138,8 +138,8 @@ Guidelines:
 
 - Do not use `BuildContext`, snackbars, or navigation inside an interceptor.
 - Do not make interceptors depend on repositories, to avoid dependency cycles.
-- Refresh still has a concurrency risk when multiple requests receive `401` at
-  the same time; any future lock/mutex must be implemented here with dedicated
+- Refresh uses a single in-flight operation when multiple requests receive
+  `401` at the same time; keep this behavior covered by dedicated interceptor
   tests.
 - The Dio instance used for refresh must remain separate enough to avoid
   interceptor recursion.
@@ -218,4 +218,3 @@ Avoid:
   interceptor behavior.
 - Run at least the related tests under `mobile/test/core/...` when the change
   touches infrastructure.
-

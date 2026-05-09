@@ -109,8 +109,8 @@ func main() {
 	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))
 	authRouter.Handle("POST /auth/login", appTokenMiddleware(http.HandlerFunc(authHandler.Login)))
 
-	// Authenticated (JWT)
-	authRouter.Handle("POST /auth/refresh", withAuth(http.HandlerFunc(authHandler.Refresh)))
+	// Session refresh is authenticated by the refresh token payload itself.
+	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
 	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
 
 	// --- API Router ---

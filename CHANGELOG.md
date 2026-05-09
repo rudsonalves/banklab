@@ -1,5 +1,121 @@
 # Changelog
 
+2026/05/09 - mobile/internal-transfer-08
+
+Refactor authentication refresh flow and improve internal transfer recipient UX.
+
+This commit introduces a major update to the mobile authentication interceptor by implementing serialized refresh handling for concurrent `401` responses, while also aligning backend documentation and routing behavior with the actual refresh-token authentication model. Additionally, the internal transfer flow received UI refinements and component extraction to improve readability and interaction consistency.
+
+### API
+
+1. `api/cmd/api/main.go`
+
+   * Removed JWT middleware from `POST /auth/refresh`
+   * Clarified that refresh authentication is handled by the refresh token payload and session validation itself
+
+2. Documentation updates
+
+   * Updated authentication semantics across:
+
+     * `api/docs/06-implementation.md`
+     * `api/docs/07-api-rest.md`
+     * `api/docs/08-auth_implementation.md`
+     * `api/docs/ARCHITECTURE.md`
+   * Replaced “JWT required” references for `/auth/refresh` with refresh-token-based authentication
+   * Clarified refresh token lifecycle, validation behavior, and error semantics
+   * Improved consistency between runtime behavior and architectural documentation
+   * Refined wording around `INVALID_TOKEN` responses for refresh sessions
+
+### Mobile Core Infrastructure
+
+1. `mobile/lib/core/services/client_http/interceptors/auth/auth_interceptor.dart`
+
+   * Implemented serialized refresh execution using a shared in-flight `Future`
+   * Prevented duplicate refresh requests during concurrent `401` failures
+   * Added retry optimization when another request already refreshed the access token
+   * Extracted refresh execution into dedicated private methods:
+
+     * `_refreshAccessToken`
+     * `_performRefresh`
+     * `_retryWithToken`
+     * `_accessTokenUpdatedAfter`
+     * `_bearerToken`
+   * Added optional injected `refreshDio` for testability
+   * Centralized session cleanup behavior
+   * Improved error logging around refresh/retry failures
+   * Reduced duplicated retry composition logic
+   * Removed outdated concurrency-risk warning comments now that the locking strategy is implemented
+
+2. `mobile/test/core/services/client_http/interceptors/auth/auth_interceptor_test.dart`
+
+   * Added concurrency test coverage for refresh serialization
+   * Validated:
+
+     * single refresh execution under concurrent failures
+     * successful retry behavior for all pending requests
+     * token persistence updates
+     * absence of unnecessary session cleanup
+   * Added lightweight in-memory secure storage mock
+   * Added fake HTTP adapter infrastructure for interceptor-level testing
+
+3. `mobile/docs/ARCHITECTURE.md`
+
+   * Documented shared in-flight refresh behavior
+   * Removed obsolete “known concurrency risk” section
+   * Added transfer routes reference
+
+4. `mobile/lib/core/AGENT.md`
+
+   * Updated interceptor guidance to reflect implemented concurrency protection
+   * Reinforced importance of interceptor-specific tests
+
+### Internal Transfer Flow
+
+1. `mobile/lib/uis/pages/home/transfer/recipient_page.dart`
+
+   * Refactored recipient page structure
+   * Replaced repeated section labels with reusable `TextHeader`
+   * Extracted dropdown and recipient summary into dedicated widgets
+   * Improved selected-recipient visualization
+   * Added dynamic “Prosseguir” button enable/disable behavior
+   * Added custom enabled-state button styling
+   * Improved account formatting consistency
+   * Simplified recipient state handling with `ValueListenableBuilder`
+   * Removed redundant `return` statements after snackbar handling
+
+2. `mobile/lib/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart`
+
+   * Replaced mutable selected recipient field with `ValueNotifier`
+   * Improved UI reactivity around recipient selection
+   * Adjusted auto-selection behavior when a single account is returned
+
+3. Added reusable transfer widgets
+
+   * `mobile/lib/uis/pages/home/transfer/widgets/dropdown_recipient.dart`
+
+     * Extracted account selection dropdown
+     * Added ellipsis handling and selected item builder
+     * Standardized account rendering
+   * `mobile/lib/uis/pages/home/transfer/widgets/recipient_card.dart`
+
+     * Added summarized recipient preview card
+     * Introduced reusable labeled information rows
+
+### Shared UI Components
+
+1. `mobile/lib/uis/core/text/text_header.dart`
+
+   * Added reusable bold section header component
+
+2. `mobile/lib/uis/core/text_form_field/basic_text_form_field.dart`
+
+   * Added default bold text style for form input content
+   * Added dedicated hint text styling
+   * Improved visual consistency for transfer forms
+
+This commit strengthens authentication robustness under concurrent network conditions while also improving transfer flow usability and maintainability across the mobile application.
+
+
 ## 2026/05/09 — mobile/internal-transfer-07
 
 Refactor transfer recipient flow, strengthen CPF domain validation, and improve local bootstrap workflow consistency across API and mobile layers.

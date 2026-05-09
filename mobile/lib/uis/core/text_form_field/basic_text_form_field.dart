@@ -10,6 +10,7 @@ class BasicTextFormField extends TextFormField {
     super.textCapitalization = TextCapitalization.none,
     bool super.enabled = true,
     FloatingLabelBehavior floatingLabelBehavior = FloatingLabelBehavior.never,
+    super.style = const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
     super.obscureText,
     super.autofillHints,
     super.inputFormatters,
@@ -23,6 +24,11 @@ class BasicTextFormField extends TextFormField {
          decoration: InputDecoration(
            labelText: labelText,
            hintText: hintText,
+           hintStyle: const TextStyle(
+             fontSize: 16,
+             fontWeight: FontWeight.w400,
+             color: Colors.grey,
+           ),
            prefixIcon: prefixIcon,
            suffixIcon: suffixIcon,
            floatingLabelBehavior: floatingLabelBehavior,
