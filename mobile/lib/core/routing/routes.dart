@@ -9,8 +9,7 @@ enum AuthRoutes {
 }
 
 enum HomeRoutes {
-  home('/home'),
-  transfer('/transfer')
+  home('/home')
   ;
 
   const HomeRoutes(this.path);
@@ -18,8 +17,21 @@ enum HomeRoutes {
   final String path;
 }
 
+enum GeneralRoutes {
+  splash('/splash'),
+  receipt('/receipt')
+  ;
+
+  const GeneralRoutes(this.path);
+
+  final String path;
+}
+
 enum TransferRoutes {
-  recipient('/recipient')
+  recipient('/recipient'),
+  payment('/payment'),
+  confirmation('/confirmation'),
+  status('/status')
   ;
 
   const TransferRoutes(this.path);

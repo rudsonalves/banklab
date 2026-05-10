@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '/core/result/command.dart';
 import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
+import '/data/services/apis/account/dtos/balance_response_dto.dart';
 import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
@@ -13,6 +14,8 @@ class TransferViewmodel {
   final TransferUsecase _usecase;
 
   TransferViewmodel(this._usecase) {
+    balance = _usecase.balance();
+
     transfer = Command1(_transfer);
     receipt = Command1(_usecase.getTransferReceipt);
     selectAccount = Command1(_usecase.selectAccount);
@@ -27,6 +30,8 @@ class TransferViewmodel {
 
   List<AccountSummaryResponseDto>? get accounts => _usecase.accounts;
   AccountSummaryResponseDto? get selectedAccount => _usecase.selectedAccount;
+
+  late final Stream<BalanceResponseDto> balance;
 
   final List<RecipientInfoDto> receipientAccounts = [];
   final ValueNotifier<RecipientInfoDto?> selectedRecipient = ValueNotifier(

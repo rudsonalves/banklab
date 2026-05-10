@@ -1,6 +1,169 @@
 # Changelog
 
-2026/05/09 - mobile/internal-transfer-08
+## 2026/05/10 - mobile/internal-transfer-09
+
+Refactor the internal transfer flow structure by introducing route serialization support, reusable financial UI components, and balance stream propagation across the transfer workflow.
+
+### Routing and transfer flow evolution
+
+This commit expands the internal transfer navigation pipeline, preparing the application for a complete multi-step transfer experience.
+
+#### Routing improvements
+
+1. Added new route groups and navigation stages:
+
+   * `GeneralRoutes`
+   * `TransferRoutes.payment`
+   * `TransferRoutes.confirmation`
+   * `TransferRoutes.status`
+   * `GeneralRoutes.receipt`
+
+2. Added the `PaymentPage` route to the transfer flow:
+
+   * integrated with `go_router`
+   * receives typed `RecipientInfoDto` through `state.extra`
+
+3. Extended `ExtraCodec` to support typed serialization/deserialization of:
+
+   * `RecipientInfoDto`
+
+This change enables safe route persistence and structured navigation state handling during app lifecycle restoration and deep navigation scenarios.
+
+#### Recipient transfer flow
+
+4. Updated `RecipientPage`:
+
+   * extracted button implementation into reusable `BigButton`
+   * replaced direct pop navigation with forward navigation to payment flow
+   * added `context.pushNamed(...)`
+   * passes selected recipient through route extra serialization
+   * renamed internal validation helper to `_isValidBranchAndAccount`
+
+### Transfer balance propagation
+
+One of the main focuses of this commit was restructuring how balance information propagates through transfer-related screens.
+
+#### Transfer use case and viewmodel
+
+5. Added balance stream exposure to:
+
+   * `TransferUsecase`
+   * `TransferViewmodel`
+
+6. Introduced:
+
+   * `Stream<BalanceResponseDto> balance`
+
+This allows transfer screens to consume live balance updates directly from the account repository layer.
+
+#### Repository balance behavior
+
+7. Refactored `AccountRepository`:
+
+   * `selectAccount` now returns `AsyncResult<Unit>`
+   * removed `clearSelectedAccount`
+
+8. Updated `AccountRepositoryImpl`:
+
+   * `balance()` now emits cached balance immediately before streaming updates
+   * `selectAccount(...)` now:
+
+     * validates cache existence
+     * validates account existence
+     * loads account balance automatically
+     * returns explicit success/failure results
+
+This significantly improves transfer screen initialization consistency and reduces duplicated orchestration responsibilities in the UI layer.
+
+### Reusable UI components
+
+This commit also introduces reusable financial UI building blocks.
+
+#### Added reusable widgets
+
+9. Added `BigButton`
+
+   * centralized primary large CTA button styling
+   * standardized enabled/disabled states
+
+10. Added `BalanceCard`
+
+    * reusable balance visualization component
+    * supports:
+
+      * live balance streams
+      * account visibility toggling
+      * account selection actions
+      * selected account display
+
+11. Added `AccountCard`
+
+    * reusable account information visualization
+
+12. Added `CardTextRow`
+
+    * reusable structured row presentation for cards
+
+### Home and transfer UI integration
+
+13. Refactored `HomePage`
+
+* replaced legacy `BalanceTile`
+* integrated new reusable `BalanceCard`
+
+14. Added initial `PaymentPage`
+
+* displays:
+
+  * current balance
+  * selected account
+* integrates transfer flow navigation structure
+* prepared for future transfer confirmation implementation
+
+### DTO and serialization support
+
+15. Added `RecipientInfoDto.toMap()`
+
+* required for route serialization through `ExtraCodec`
+
+This creates a proper serialization boundary for typed navigation payloads.
+
+### Tests and repository contract updates
+
+16. Updated transfer use case tests:
+
+* adapted fake repositories to new async `selectAccount` contract
+* removed obsolete `clearSelectedAccount`
+
+### Development environment
+
+17. Updated Postman environment:
+
+* changed `base_url`
+* `192.168.0.16`
+* to `192.168.0.20`
+
+### Architectural impact
+
+This commit moves the mobile application closer to a complete transactional flow architecture by:
+
+* separating navigation concerns from UI state
+* centralizing reusable financial widgets
+* standardizing balance propagation through streams
+* introducing typed route serialization
+* reducing orchestration leakage into presentation widgets
+
+The resulting structure is significantly more prepared for:
+
+* transfer confirmation
+* receipt visualization
+* transaction replay
+* transactional authentication
+* future Zero Trust contextual flows
+* state restoration during complex navigation stacks
+
+
+## 2026/05/09 - mobile/internal-transfer-08
 
 Refactor authentication refresh flow and improve internal transfer recipient UX.
 

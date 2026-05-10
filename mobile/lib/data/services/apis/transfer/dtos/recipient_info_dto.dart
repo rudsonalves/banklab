@@ -19,4 +19,11 @@ class RecipientInfoDto {
       accountNumber: map['account_number'],
     );
   }
+
+  Map<String, dynamic> toMap() => {
+    'account_id': accountId,
+    'holder_name': holderName,
+    'document': document,
+    'account_number': accountNumber,
+  };
 }

@@ -289,11 +289,6 @@ class _FakeAccountRepository implements AccountRepository {
   Stream<BalanceResponseDto> balance() => const Stream.empty();
 
   @override
-  void clearSelectedAccount() {
-    selected = null;
-  }
-
-  @override
   AsyncResult<StatementResponseDto> getStatement(
     StatementQueryParamsDto queryParams,
   ) {
@@ -308,7 +303,9 @@ class _FakeAccountRepository implements AccountRepository {
       Success(accounts ?? <AccountSummaryResponseDto>[]);
 
   @override
-  void selectAccount(String accountId) {}
+  AsyncResult<Unit> selectAccount(String accountId) async {
+    return const Success(unit);
+  }
 }
 
 class _FakeTransactionRepository implements TransactionRepository {

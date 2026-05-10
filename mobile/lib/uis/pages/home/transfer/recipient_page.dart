@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '/core/extensions/string.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
+import '/uis/core/buttons/big_button.dart';
 import '/uis/core/input_formatters/cpf_input_formatter.dart';
 import '/uis/core/text/text_header.dart';
 import '/uis/core/text_form_field/basic_text_form_field.dart';
+import '../../../../core/routing/routes.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 import 'widgets/dropdown_recipient.dart';
 import 'widgets/recipient_card.dart';
@@ -138,25 +141,11 @@ class _RecipientPageState extends State<RecipientPage> {
           valueListenable: _viewModel.selectedRecipient,
           builder: (context, value, _) {
             final isButtonEnabled = value != null;
-            final colorScheme = Theme.of(context).colorScheme;
-            final style = isButtonEnabled
-                ? ButtonStyle(
-                    backgroundColor: WidgetStateProperty.all(
-                      colorScheme.onPrimaryFixedVariant,
-                    ),
-                  )
-                : Theme.of(context).elevatedButtonTheme.style;
 
-            return ElevatedButton(
-              onPressed: isButtonEnabled ? _onConfirmTransfer : null,
-              style: style,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'Prosseguir',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ),
+            return BigButton(
+              label: 'Prosseguir',
+              onPressed: _onConfigTransfer,
+              enabled: isButtonEnabled,
             );
           },
         ),
@@ -164,8 +153,11 @@ class _RecipientPageState extends State<RecipientPage> {
     );
   }
 
-  void _onConfirmTransfer() {
-    Navigator.of(context).pop();
+  void _onConfigTransfer() {
+    context.pushNamed(
+      TransferRoutes.payment.name,
+      extra: _viewModel.selectedRecipient.value,
+    );
   }
 
   void _onRecipientChanged(String? value) {
@@ -184,7 +176,7 @@ class _RecipientPageState extends State<RecipientPage> {
   void _onBranchChenged(String value) {
     if (value.onlyNumbers.length == 4) {
       FocusScope.of(context).nextFocus();
-      if (isValidBranchAndAccount()) {
+      if (_isValidBranchAndAccount()) {
         _getAccountByBranchAndAccount();
       }
     }
@@ -193,13 +185,13 @@ class _RecipientPageState extends State<RecipientPage> {
   void _onAccountChanged(String value) {
     if (value.onlyNumbers.length == 8) {
       FocusScope.of(context).unfocus();
-      if (isValidBranchAndAccount()) {
+      if (_isValidBranchAndAccount()) {
         _getAccountByBranchAndAccount();
       }
     }
   }
 
-  bool isValidBranchAndAccount() {
+  bool _isValidBranchAndAccount() {
     bool isValidBranch = _branchController.text.onlyNumbers.length == 4;
     bool isValidAccount = _accountController.text.onlyNumbers.length == 8;
 

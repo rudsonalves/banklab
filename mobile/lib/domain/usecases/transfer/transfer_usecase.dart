@@ -2,6 +2,7 @@ import '/core/result/command.dart';
 import '/data/repositories/account/account_repository.dart';
 import '/data/repositories/transaction/transaction_repository.dart';
 import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
+import '/data/services/apis/account/dtos/balance_response_dto.dart';
 import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
@@ -20,6 +21,8 @@ class TransferUsecase {
     required TransactionRepository transactionRepo,
   }) : _accountRepo = accountRepo,
        _transactionRepo = transactionRepo;
+
+  Stream<BalanceResponseDto> balance() => _accountRepo.balance();
 
   List<AccountSummaryResponseDto>? get accounts => _accountRepo.accounts;
   AccountSummaryResponseDto? get selectedAccount =>
