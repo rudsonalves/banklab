@@ -1,4 +1,6 @@
 import '/core/extensions/datetime_extension.dart';
+import '/data/services/apis/auth/dtos/auth_me_response_dto.dart';
+import '/data/services/apis/auth/dtos/customer_me_response_dto.dart';
 import '/domain/common/user/enums/user_role.dart';
 
 class UserProfile {
@@ -29,6 +31,21 @@ class UserProfile {
       customerId: map['customer_id'] as String,
       createdAt: DateTimeExtensions.parseOrNull(map['created_at'] as String)!,
       updatedAt: DateTimeExtensions.parseOrNull(map['updated_at'] as String)!,
+    );
+  }
+
+  factory UserProfile.fromMe({
+    required AuthMeResponseDto userMe,
+    required CustomerMeResponseDto customer,
+  }) {
+    return UserProfile(
+      userId: userMe.id,
+      name: customer.name,
+      email: userMe.email,
+      role: userMe.role,
+      customerId: userMe.customerId,
+      createdAt: customer.createdAt,
+      updatedAt: DateTime.now(),
     );
   }
 }

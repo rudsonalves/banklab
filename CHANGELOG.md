@@ -1,5 +1,117 @@
 # Changelog
 
+## 2026/05/11 - mobile/short-login-01
+
+Refactor authentication profile loading flow and introduce support structures for short login persistence on the mobile application.
+
+### Authentication and profile integration
+
+This commit restructures the mobile authentication profile retrieval flow to align the client with the current API contract by separating identity and customer profile responsibilities between `/auth/me` and `/customers/me`.
+
+#### Updated `AuthApi.getProfile()`
+
+* Replaced the old `profile/me` request with:
+
+  * `GET /customers/me`
+  * `GET /auth/me`
+* Added explicit parsing and validation for both response envelopes.
+* Merged both endpoint responses into a unified `UserProfile` model through a dedicated factory constructor.
+* Improved failure propagation and parsing isolation for each endpoint.
+* Preserved compatibility with the API response envelope strategy already established in the backend documentation.
+
+### New DTOs for authentication/profile separation
+
+Added dedicated transport DTOs:
+
+#### `AuthMeResponseDto`
+
+Represents authenticated identity/session information:
+
+* user id
+* role
+* email
+* customer id
+
+#### `CustomerMeResponseDto`
+
+Represents customer profile information:
+
+* customer id
+* name
+* cpf
+* email
+* createdAt
+
+This separation better reflects the backend architecture and authorization model currently implemented in the API.
+
+### User profile model improvements
+
+Extended `UserProfile` with:
+
+```dart
+UserProfile.fromMe(...)
+```
+
+This constructor consolidates:
+
+* authenticated user context
+* customer profile data
+
+into a single application-facing representation.
+
+The new approach reduces coupling between API transport contracts and UI/domain consumption.
+
+### Short login persistence support
+
+Added new secure/local storage keys:
+
+```dart
+lastLoginName
+lastLoginIdentifier
+```
+
+These keys prepare the application for:
+
+* cached login identity
+* short login flows
+* reduced friction during authentication
+* future biometric or transactional authentication extensions
+
+This is an important step toward a banking-style login experience where:
+
+* the user identity remains cached locally
+* only the credential confirmation step is required on subsequent accesses
+
+### Import and path normalization
+
+Adjusted several imports to:
+
+* use absolute project-based imports
+* reduce relative path traversal
+* improve consistency across the mobile module
+
+This includes updates in:
+
+* `details_page.dart`
+* authentication DTO/model integration files
+
+### Architectural alignment
+
+The changes reinforce the separation already defined in the backend architecture:
+
+* identity/session context from `/auth/me`
+* customer/business profile from `/customers/me`
+
+This keeps the mobile client aligned with:
+
+* JWT ownership rules
+* customer-bound authorization
+* modular backend boundaries
+* future Zero Trust evolution paths
+
+The result is a cleaner authentication/profile pipeline with improved transport separation, reduced coupling, and a stronger foundation for future secure login and contextual authentication features.
+
+
 ## 2026/05/11 - mobile/internal-transfer-11
 
 Refactor the internal transfer flow and introduce a complete transfer receipt/details experience in the Flutter mobile client.

@@ -6,6 +6,8 @@ import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
 import '../core/api_envelope.dart';
+import 'dtos/auth_me_response_dto.dart';
+import 'dtos/customer_me_response_dto.dart';
 import 'dtos/register_request_dto.dart';
 import 'dtos/register_response_dto.dart';
 
@@ -131,30 +133,38 @@ class AuthApi {
 
   // Remove this to a profile API service.
   AsyncResult<UserProfile> getProfile() async {
-    final response = await _client.get(
+    final respCustomer = await _client.get(
       RestClientRequest(
-        path: 'profile/me',
+        path: '/customers/me',
       ),
     );
 
-    if (response.isFailure) return Result.failure(response.error!);
+    if (respCustomer.isFailure) return Result.failure(respCustomer.error!);
+
+    final respMe = await _client.get(
+      RestClientRequest(
+        path: '/auth/me',
+      ),
+    );
+
+    if (respMe.isFailure) return Result.failure(respMe.error!);
 
     try {
-      final envelope = ApiEnvelope<UserProfile>.fromMap(
-        response.value as Map<String, dynamic>,
-        UserProfile.fromMap,
+      final envCustomer = ApiEnvelope<CustomerMeResponseDto>.fromMap(
+        respCustomer.value as Map<String, dynamic>,
+        CustomerMeResponseDto.fromMap,
       );
 
-      if (envelope.error != null) {
+      if (envCustomer.error != null) {
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
-            message: envelope.error!.message,
+            message: envCustomer.error!.message,
           ),
         );
       }
 
-      if (envelope.data == null) {
+      if (envCustomer.data == null) {
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -163,7 +173,29 @@ class AuthApi {
         );
       }
 
-      return Success(envelope.data!);
+      final envUserMe = ApiEnvelope<AuthMeResponseDto>.fromMap(
+        respMe.value as Map<String, dynamic>,
+        AuthMeResponseDto.fromMap,
+      );
+
+      if (envUserMe.error != null) {
+        return Failure(
+          AppError(
+            code: AppErrorCode.httpError,
+            message: envUserMe.error!.message,
+          ),
+        );
+      }
+
+      final authMe = envUserMe.data!;
+      final customer = envCustomer.data!;
+
+      final userProfile = UserProfile.fromMe(
+        userMe: authMe,
+        customer: customer,
+      );
+
+      return Success(userProfile);
     } catch (err, stack) {
       _log.error('Error parsing response: $err', error: err, stack: stack);
       return Failure(
