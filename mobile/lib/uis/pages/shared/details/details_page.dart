@@ -9,13 +9,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '/core/extensions/datetime_extension.dart';
+import '/core/routing/routes.dart';
 import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import '/domain/common/receipt/enums/transfer_receipt_status.dart';
 import '/uis/core/base/safe_scaffold.dart';
-import '../../../../core/routing/routes.dart';
-import '../../../core/buttons/big_button.dart';
-import '../../../core/buttons/big_text_button.dart';
-import '../../../core/messages/app_snackbar.dart';
+import '/uis/core/buttons/big_button.dart';
+import '/uis/core/buttons/big_text_button.dart';
+import '/uis/core/messages/app_snackbar.dart';
 import 'viewmodel/details_viewmodel.dart';
 import 'widgets/detail_line.dart';
 
