@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '/core/result/command.dart';
@@ -34,9 +33,9 @@ class TransferViewmodel {
   late final Stream<BalanceResponseDto> balance;
 
   final List<RecipientInfoDto> receipientAccounts = [];
-  final ValueNotifier<RecipientInfoDto?> selectedRecipient = ValueNotifier(
-    null,
-  );
+  // final ValueNotifier<RecipientInfoDto?> selectedRecipient = ValueNotifier(
+  //   null,
+  // );
 
   AsyncResult<TransferResponseDto> _transfer(TransferDraft draft) {
     final transferWithIdempotency = draft.copyWith(
@@ -49,7 +48,7 @@ class TransferViewmodel {
     RecipientRequestDto recipient,
   ) async {
     receipientAccounts.clear();
-    selectedRecipient.value = null;
+    // selectedRecipient.value = null;
 
     final result = await _usecase.getInternalRecipient(recipient);
 
@@ -57,10 +56,14 @@ class TransferViewmodel {
       receipientAccounts.addAll(result.value!);
 
       if (receipientAccounts.length == 1) {
-        selectedRecipient.value = receipientAccounts.first;
+        // selectedRecipient.value = receipientAccounts.first;
       }
     }
 
     return result;
+  }
+
+  void dispose() {
+    // selectedRecipient.dispose();
   }
 }

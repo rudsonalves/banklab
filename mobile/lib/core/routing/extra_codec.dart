@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '../../uis/pages/home/transfer/models/transfer_confirmation_data.dart';
 
 class ExtraCodec extends Codec<Object?, String> {
   const ExtraCodec();
@@ -52,6 +53,13 @@ class _ExtraEncoder extends Converter<Object?, String> {
       });
     }
 
+    if (extra is TransferConfirmationData) {
+      return jsonEncode({
+        'type': 'transfer_confirmation_data',
+        'data': extra.toMap(),
+      });
+    }
+
     throw UnsupportedError('Unsupported type: ${extra.runtimeType}');
   }
 }
@@ -76,6 +84,11 @@ class _ExtraDecoder extends Converter<String, Object?> {
 
       case 'recipient_info':
         return RecipientInfoDto.fromMap(
+          decoded['data'] as Map<String, dynamic>,
+        );
+
+      case 'transfer_confirmation_data':
+        return TransferConfirmationData.fromMap(
           decoded['data'] as Map<String, dynamic>,
         );
 

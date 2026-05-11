@@ -1,5 +1,133 @@
 # Changelog
 
+## 2026/05/11 - mobile/internal-transfer-10
+
+Implemented the complete internal transfer confirmation and status flow in the Flutter mobile application, introducing presentation-layer models, typed route serialization, money parsing/formatting helpers, and improved transfer UX/navigation behavior.
+
+### Transfer flow implementation
+
+* Added the new transfer confirmation step before executing the transfer request.
+* Implemented success and failure transfer status screens with transaction feedback and receipt preview support.
+* Introduced dedicated success and failure routes:
+
+  * `TransferRoutes.statusSuccess`
+  * `TransferRoutes.statusFailure`
+* Added typed route serialization support for transfer confirmation payloads through `ExtraCodec`.
+
+### Transfer presentation model architecture
+
+* Introduced `TransferConfirmationData` as a feature-local presentation model under:
+
+  * `uis/pages/home/transfer/models`
+* Added serialization/deserialization support:
+
+  * `toMap`
+  * `fromMap`
+* Encapsulated immutable transfer confirmation state independently from DTOs and domain use case inputs.
+* Improved architectural separation between:
+
+  * API DTOs
+  * domain use case contracts
+  * UI workflow state
+
+### Payment page improvements
+
+* Reworked `PaymentPage` to support:
+
+  * amount input
+  * transfer description input
+  * recipient review
+  * navigation to confirmation flow
+* Added money validation before confirmation.
+* Added formatted currency input using a custom formatter.
+* Added invalid transfer feedback through snackbar messages.
+* Improved keyboard dismissal behavior using `GestureDetector`.
+
+### Confirmation page implementation
+
+* Added `ConfirmationPage` with:
+
+  * transfer summary visualization
+  * balance visualization
+  * recipient/account review
+  * transfer confirmation execution
+* Integrated transfer execution with `TransferUsecase`.
+* Added navigation handling for:
+
+  * success state
+  * failure state
+  * unexpected execution state
+
+### Transfer status experience
+
+* Added `TransferStatusPage` supporting:
+
+  * success visualization
+  * failure visualization
+  * transaction reference display
+  * receipt modal preview
+* Added contextual UI feedback using:
+
+  * icons
+  * themed status colors
+  * receipt action buttons
+
+### Money formatting and parsing utilities
+
+* Added `MoneyInputFormatter` for currency-formatted numeric input.
+* Added `String.parseToMoney()` extension helper using `money2`.
+* Added reusable numeric sanitization and currency conversion support.
+* Centralized invalid amount error handling through `Result<AppError>`.
+
+### Shared UI improvements
+
+* Enhanced `BigButton` with optional:
+
+  * `leftIcon`
+  * `rightIcon`
+* Added reusable snackbar helper:
+
+  * `showScaffoldSnackBarMessage`
+* Moved `RecipientCard` into shared UI components:
+
+  * `uis/core/cards`
+
+### Recipient flow refactor
+
+* Removed recipient selection state ownership from `TransferViewmodel`.
+* Moved recipient selection state management into `RecipientPage`.
+* Improved recipient/account auto-fill behavior:
+
+  * CPF lookup now updates branch/account
+  * account lookup now updates CPF
+* Fixed branch method naming typo:
+
+  * `_onBranchChenged` → `_onBranchChanged`
+* Improved recipient error handling and invalid-state reset behavior.
+
+### ViewModel cleanup
+
+* Simplified `TransferViewmodel` responsibilities by removing UI-local selection state.
+* Added lightweight `dispose()` method placeholder for future lifecycle expansion.
+* Preserved transfer idempotency generation behavior through UUID generation.
+
+### Documentation and architecture guidance
+
+* Expanded `AGENT.md` documentation under:
+
+  * `uis/AGENT.md`
+  * `uis/pages/AGENT.md`
+* Documented the concept of feature-local presentation models.
+* Clarified architectural boundaries between:
+
+  * DTOs
+  * use case inputs
+  * UI flow models
+* Added guidance for route extras and immutable presentation snapshots.
+
+This commit significantly advances the mobile banking transfer workflow, improving UX continuity, route safety, UI architecture consistency, and transfer execution feedback while reinforcing the separation between domain contracts, transport DTOs, and presentation-layer state.
+
+
 ## 2026/05/10 - mobile/internal-transfer-09
 
 Refactor the internal transfer flow structure by introducing route serialization support, reusable financial UI components, and balance stream propagation across the transfer workflow.

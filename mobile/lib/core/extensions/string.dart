@@ -1,6 +1,14 @@
+import 'package:money2/money2.dart';
+
+import '../resources/app_currencies.dart';
+import '../result/result.dart';
+
 extension StringExtension on String {
+  /// Removes all non-numeric characters from the string.
   String get onlyNumbers => replaceAll(RegExp(r'[^\d]'), '');
 
+  /// Validates if the string is a valid CPF (Brazilian individual
+  /// taxpayer registry identification).
   bool get isValidCpf {
     final cleaned = onlyNumbers;
     final isValidLength = cleaned.length == 11;
@@ -17,6 +25,8 @@ extension StringExtension on String {
     return cleaned.endsWith(firstCheckDigit + secondCheckDigit);
   }
 
+  /// Validates if the string is a valid CNPJ (Brazilian corporate taxpayer
+  /// registry identification).
   bool get isValidCnpj {
     final cleaned = onlyNumbers;
     final isValidLength = cleaned.length == 14;
@@ -32,6 +42,40 @@ extension StringExtension on String {
 
     return cleaned.endsWith(firstCheckDigit + secondCheckDigit);
   }
+
+  /// Convert amount string to Money object, assuming the string is in a
+  /// valid currency format (e.g., "R$ 1.234,56").
+  /// This method will remove currency symbols and formatting, and convert the
+  /// string to an integer representing the amount in cents.
+  Result<Money> parseToMoney() {
+    final cleaned = onlyNumbers;
+
+    if (cleaned.isEmpty) {
+      return Result.failure(
+        AppError(
+          code: AppErrorCode.invalidData,
+          message: 'Invalid amount format',
+        ),
+      );
+    }
+
+    final amountInCents = int.tryParse(cleaned);
+    if (amountInCents == null) {
+      return Result.failure(
+        AppError(
+          code: AppErrorCode.invalidData,
+          message: 'Invalid amount format',
+        ),
+      );
+    }
+
+    return Result.success(
+      Money.fromIntWithCurrency(amountInCents, appCurrency),
+    );
+  }
+
+  // --------------------------------------------------------------
+  // Private helper methods for check digit calculation
 
   String _calculateCNPJCheckDigit(String digits) {
     final length = digits.length;

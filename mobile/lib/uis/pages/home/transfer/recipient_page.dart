@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '/core/extensions/string.dart';
+import '/core/routing/routes.dart';
+import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/buttons/big_button.dart';
+import '/uis/core/cards/recipient_card.dart';
 import '/uis/core/input_formatters/cpf_input_formatter.dart';
 import '/uis/core/text/text_header.dart';
 import '/uis/core/text_form_field/basic_text_form_field.dart';
-import '../../../../core/routing/routes.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 import 'widgets/dropdown_recipient.dart';
-import 'widgets/recipient_card.dart';
 
 class RecipientPage extends StatefulWidget {
   final TransferViewmodel viewModel;
@@ -28,12 +29,15 @@ class _RecipientPageState extends State<RecipientPage> {
   final _documentController = TextEditingController();
   final _branchController = TextEditingController(text: "0001");
   final _accountController = TextEditingController();
+  final _selectedRecipient = ValueNotifier<RecipientInfoDto?>(null);
 
   @override
   void dispose() {
     _documentController.dispose();
     _branchController.dispose();
     _accountController.dispose();
+    _selectedRecipient.dispose();
+    _viewModel.dispose();
 
     super.dispose();
   }
@@ -44,101 +48,104 @@ class _RecipientPageState extends State<RecipientPage> {
       appBar: AppBar(
         title: const Text('Conta do Destinatário'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.center,
-          spacing: 12,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextHeader('CPF'),
-                BasicTextFormField(
-                  controller: _documentController,
-                  hintText: '000.000.000-00',
-                  inputFormatters: [CpfInputFormatter()],
-                  keyboardType: TextInputType.number,
-                  onChanged: _onCpfChanged,
-                ),
-              ],
-            ),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 12,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextHeader('CPF'),
+                  BasicTextFormField(
+                    controller: _documentController,
+                    hintText: '000.000.000-00',
+                    inputFormatters: [CpfInputFormatter()],
+                    keyboardType: TextInputType.number,
+                    onChanged: _onCpfChanged,
+                  ),
+                ],
+              ),
 
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextHeader('Agência e número da conta'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: BasicTextFormField(
-                        controller: _branchController,
-                        hintText: '0001',
-                        keyboardType: TextInputType.number,
-                        onChanged: _onBranchChenged,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: BasicTextFormField(
-                        controller: _accountController,
-                        hintText: '0000000-0',
-                        keyboardType: TextInputType.number,
-                        onChanged: _onAccountChanged,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextHeader('Selecione a conta destino'),
-                ListenableBuilder(
-                  listenable: _viewModel.getInternalRecipient,
-                  builder: (context, _) {
-                    final inicialValue =
-                        _viewModel.receipientAccounts.isNotEmpty
-                        ? _viewModel.receipientAccounts.first.accountId
-                        : null;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        DropdownRecipient(
-                          receipientAccounts: _viewModel.receipientAccounts,
-                          inicialValue: inicialValue,
-                          onChanged: _onRecipientChanged,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextHeader('Agência e número da conta'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: BasicTextFormField(
+                          controller: _branchController,
+                          hintText: '0001',
+                          keyboardType: TextInputType.number,
+                          onChanged: _onBranchChanged,
                         ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: BasicTextFormField(
+                          controller: _accountController,
+                          hintText: '0000000-0',
+                          keyboardType: TextInputType.number,
+                          onChanged: _onAccountChanged,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
 
-                        if (_viewModel.selectedRecipient.value != null) ...[
-                          SizedBox(height: 16),
-                          TextHeader('Conta selecionada'),
-                          ValueListenableBuilder(
-                            valueListenable: _viewModel.selectedRecipient,
-                            builder: (context, value, _) => RecipientCard(
-                              selectedRecipient: value!,
-                            ),
+              const SizedBox(height: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextHeader('Selecione a conta destino'),
+                  ListenableBuilder(
+                    listenable: _viewModel.getInternalRecipient,
+                    builder: (context, _) {
+                      final inicialValue =
+                          _viewModel.receipientAccounts.isNotEmpty
+                          ? _viewModel.receipientAccounts.first.accountId
+                          : null;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          DropdownRecipient(
+                            receipientAccounts: _viewModel.receipientAccounts,
+                            inicialValue: inicialValue,
+                            onChanged: _onRecipientChanged,
                           ),
+
+                          if (_selectedRecipient.value != null) ...[
+                            SizedBox(height: 16),
+                            TextHeader('Conta selecionada'),
+                            ValueListenableBuilder(
+                              valueListenable: _selectedRecipient,
+                              builder: (context, value, _) => RecipientCard(
+                                selectedRecipient: value!,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
 
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: ValueListenableBuilder(
-          valueListenable: _viewModel.selectedRecipient,
+          valueListenable: _selectedRecipient,
           builder: (context, value, _) {
             final isButtonEnabled = value != null;
 
@@ -156,7 +163,7 @@ class _RecipientPageState extends State<RecipientPage> {
   void _onConfigTransfer() {
     context.pushNamed(
       TransferRoutes.payment.name,
-      extra: _viewModel.selectedRecipient.value,
+      extra: _selectedRecipient.value,
     );
   }
 
@@ -173,7 +180,7 @@ class _RecipientPageState extends State<RecipientPage> {
     }
   }
 
-  void _onBranchChenged(String value) {
+  void _onBranchChanged(String value) {
     if (value.onlyNumbers.length == 4) {
       FocusScope.of(context).nextFocus();
       if (_isValidBranchAndAccount()) {
@@ -207,7 +214,15 @@ class _RecipientPageState extends State<RecipientPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao buscar conta do destinatário')),
       );
+
+      _selectedRecipient.value = null;
+      return;
     }
+
+    _selectedRecipient.value = _viewModel.receipientAccounts.first;
+
+    _branchController.text = '0001';
+    _accountController.text = _viewModel.receipientAccounts.first.accountNumber;
   }
 
   Future<void> _getAccountByBranchAndAccount() async {
@@ -222,6 +237,13 @@ class _RecipientPageState extends State<RecipientPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao buscar conta do destinatário')),
       );
+
+      _selectedRecipient.value = null;
+      return;
     }
+
+    _selectedRecipient.value = _viewModel.receipientAccounts.first;
+
+    _documentController.text = _viewModel.receipientAccounts.first.document;
   }
 }

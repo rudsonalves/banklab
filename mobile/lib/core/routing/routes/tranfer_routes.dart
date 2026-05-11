@@ -1,9 +1,12 @@
 import 'package:go_router/go_router.dart';
 
 import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '/uis/pages/home/transfer/confirmation_page.dart';
+import '/uis/pages/home/transfer/models/transfer_confirmation_data.dart';
 import '/uis/pages/home/transfer/payment_page.dart';
 import '/uis/pages/home/transfer/recipient_page.dart';
 import '/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart';
+import '../../../uis/pages/home/transfer/transfer_status_page.dart';
 import '../../config/dependencies.dart';
 import '../routes.dart';
 
@@ -23,5 +26,29 @@ List<RouteBase> transferRoutes() => [
       viewModel: injector.get<TransferViewmodel>(),
       recipientInfo: state.extra as RecipientInfoDto,
     ),
+  ),
+
+  GoRoute(
+    path: TransferRoutes.confirmation.path,
+    name: TransferRoutes.confirmation.name,
+    builder: (context, state) => ConfirmationPage(
+      viewModel: injector.get<TransferViewmodel>(),
+      transferData: state.extra as TransferConfirmationData,
+    ),
+  ),
+
+  GoRoute(
+    path: TransferRoutes.statusSuccess.path,
+    name: TransferRoutes.statusSuccess.name,
+    builder: (context, state) => TransferStatusPage(
+      isSuccess: true,
+      transactionReference: state.extra as String,
+    ),
+  ),
+
+  GoRoute(
+    path: TransferRoutes.statusFailure.path,
+    name: TransferRoutes.statusFailure.name,
+    builder: (context, state) => TransferStatusPage(isSuccess: false),
   ),
 ];

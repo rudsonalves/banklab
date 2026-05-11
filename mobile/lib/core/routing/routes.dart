@@ -31,7 +31,8 @@ enum TransferRoutes {
   recipient('/recipient'),
   payment('/payment'),
   confirmation('/confirmation'),
-  status('/status')
+  statusSuccess('/status/success'),
+  statusFailure('/status/failure')
   ;
 
   const TransferRoutes(this.path);
