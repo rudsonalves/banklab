@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import '../../data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '../../uis/pages/home/transfer/models/transfer_confirmation_data.dart';
+
 class ExtraCodec extends Codec<Object?, String> {
   const ExtraCodec();
 
@@ -43,6 +46,20 @@ class _ExtraEncoder extends Converter<Object?, String> {
       });
     }
 
+    if (extra is RecipientInfoDto) {
+      return jsonEncode({
+        'type': 'recipient_info',
+        'data': extra.toMap(),
+      });
+    }
+
+    if (extra is TransferConfirmationData) {
+      return jsonEncode({
+        'type': 'transfer_confirmation_data',
+        'data': extra.toMap(),
+      });
+    }
+
     throw UnsupportedError('Unsupported type: ${extra.runtimeType}');
   }
 }
@@ -58,10 +75,23 @@ class _ExtraDecoder extends Converter<String, Object?> {
     switch (type) {
       case 'map':
         return decoded['data'] as Map<String, Object?>;
+
       case 'list':
         return decoded['data'] as List<Object?>;
+
       case 'primitive':
         return decoded['data'];
+
+      case 'recipient_info':
+        return RecipientInfoDto.fromMap(
+          decoded['data'] as Map<String, dynamic>,
+        );
+
+      case 'transfer_confirmation_data':
+        return TransferConfirmationData.fromMap(
+          decoded['data'] as Map<String, dynamic>,
+        );
+
       default:
         throw UnsupportedError('Unsupported type: $type');
     }

@@ -62,11 +62,13 @@ Content type:
 
 Authentication:
 - `POST /auth/register` and `POST /auth/login` require header `X-App-Token: <app_token>`
-- `POST /auth/refresh`, `GET /auth/me`, all `/accounts` and `/accounts/*`, and all `/customers/*` require JWT Bearer token
+- `POST /auth/refresh` requires a valid `refresh_token` in the request body
+- `GET /auth/me`, all `/accounts` and `/accounts/*`, and all `/customers/*` require JWT Bearer token
 - Send JWT in header `Authorization: Bearer <access_token>`
 
 Access control summary:
 - Auth entry routes: AppToken only
+- Auth refresh route: refresh token only
 - Auth session and service routes: JWT only
 
 ## 2. Response Envelope
@@ -241,7 +243,7 @@ Possible errors:
 
 - Method: POST
 - Path: /auth/refresh
-- Auth required: JWT Bearer token
+- Auth required: refresh token in request body
 
 Exchanges a valid refresh token for a new access token and a new refresh token (token rotation). Each refresh token is single-use — after a successful refresh the old token is immediately revoked and a new session is created atomically.
 
@@ -272,9 +274,8 @@ Behaviour:
 - A refresh token that has been revoked, is expired, or does not correspond to any session returns `401 INVALID_TOKEN`.
 
 Possible errors:
-- 401 UNAUTHORIZED: authentication required
 - 400 INVALID_REQUEST: missing or blank `refresh_token`, invalid JSON, or unknown fields
-- 401 INVALID_TOKEN: token invalid, revoked, expired, or not found
+- 401 INVALID_TOKEN: invalid, revoked, expired, or unknown refresh token
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ### 3.4 Get Current User
@@ -562,8 +563,7 @@ Success response (200):
         "holder_name": "Maria Silva",
         "document": "***.456.789-**",
         "branch": "0001",
-        "account_number": "00067890",
-        "account_type": "checking"
+        "account_number": "00067890"
       }
     ]
   },
@@ -883,7 +883,7 @@ Common error codes currently used by handlers:
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when `POST /auth/register` or `POST /auth/login` is called without `X-App-Token` or with an invalid app token.
 
-`INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or JWT signature invalid.
+`INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or refresh token signature invalid.
 
 `INVALID_USER_STATE` (HTTP 409) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
 

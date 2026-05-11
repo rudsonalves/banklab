@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:money2/money2.dart';
 
 Map<String, dynamic> _validPayload() => {
+  'from_account_id': 'fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b',
+  'to_account_id': 'ab3b2800-1234-5678-abcd-ef0123456789',
   'from_branch': '0001',
   'from_account_number': '00012345',
   'transaction_reference': '2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31',
@@ -24,14 +26,12 @@ void main() {
       () {
         final dto = TransferResponseDto.fromMap(_validPayload());
 
-        expect(dto.fromBranch, '0001');
-        expect(dto.fromAccountNumber, '00012345');
+        expect(dto.fromAccountId, 'fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b');
         expect(
           dto.transactionReference,
           '2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31',
         );
-        expect(dto.toBranch, '0001');
-        expect(dto.toAccountNumber, '00067890');
+        expect(dto.toAccountId, 'ab3b2800-1234-5678-abcd-ef0123456789');
         expect(dto.amount, _brl(2500));
         expect(dto.fromBalance, _brl(97500));
         expect(dto.toBalance, _brl(32500));
@@ -55,18 +55,19 @@ void main() {
 
       final dto = TransferResponseDto.fromMap(map);
 
-      // Parsing must succeed and identity is via branch + account_number only.
-      expect(dto.fromBranch, '0001');
-      expect(dto.toAccountNumber, '00067890');
+      // Parsing must succeed and identity is via account IDs.
+      expect(dto.fromAccountId, 'fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b');
+      expect(dto.toAccountId, 'ab3b2800-1234-5678-abcd-ef0123456789');
     });
 
-    test('does not expose internal account IDs as DTO fields', () {
+    test('does not expose branch and account number fields', () {
       final dto = TransferResponseDto.fromMap(_validPayload());
 
-      // Statically confirmed: TransferResponseDto has no accountId getters.
-      // Dynamic check ensures no such field slips in at runtime.
-      expect(() => (dto as dynamic).fromAccountId, throwsNoSuchMethodError);
-      expect(() => (dto as dynamic).toAccountId, throwsNoSuchMethodError);
+      // TransferResponseDto has no branch or account_number getters.
+      // Identity is via fromAccountId and toAccountId only.
+      expect(() => (dto as dynamic).fromBranch, throwsNoSuchMethodError);
+      expect(() => (dto as dynamic).fromAccountNumber, throwsNoSuchMethodError);
+      expect(() => (dto as dynamic).toAccountNumber, throwsNoSuchMethodError);
     });
 
     test('throws when transaction_reference is missing', () {

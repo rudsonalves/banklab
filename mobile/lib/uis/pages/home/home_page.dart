@@ -3,11 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import '/core/routing/route_observer.dart';
 import '/core/routing/routes.dart';
-import '../../core/base/safe_scaffold.dart';
-import '../../core/feedback/app_snackbar.dart';
+import '/uis/core/base/safe_scaffold.dart';
+import '/uis/core/cards/balance_card.dart';
+import '../../core/messages/app_snackbar.dart';
 import 'viewmodel/home_viewmodel.dart';
 import 'widgets/action_tite.dart';
-import 'widgets/balance_tile.dart';
 
 class HomePage extends StatefulWidget {
   final HomeViewmodel viewModel;
@@ -88,13 +88,11 @@ class _HomePageState extends State<HomePage> with RouteAware {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ListenableBuilder(
-                listenable: _viewModel.initialize,
-                builder: (context, _) => BalanceTile(
-                  balance: _viewModel.lastBalance,
-                  account: _viewModel.selectedAccount,
-                  isLoading: _viewModel.initialize.isRunning,
-                ),
+              BalanceCard(
+                balance: _viewModel.balance,
+                isVisible: true,
+                onToggleVisibility: () {},
+                selectedAccount: _viewModel.selectedAccount,
               ),
 
               Padding(
@@ -121,7 +119,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                       icon: Icons.swap_horiz_rounded,
                       title: 'Transferir',
                       subtitle: 'Disponibilizar em breve',
-                      onTap: () => context.pushNamed(HomeRoutes.transfer.name),
+                      onTap: _navToTransferRecipient,
                     ),
                   ),
                 ],
@@ -139,5 +137,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
       title: 'Em breve',
       message: '$featureName será disponibilizado em breve.',
     );
+  }
+
+  void _navToTransferRecipient() {
+    context.pushNamed(TransferRoutes.recipient.name);
   }
 }

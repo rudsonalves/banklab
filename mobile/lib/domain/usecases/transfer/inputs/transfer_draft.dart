@@ -1,30 +1,28 @@
 import 'package:money2/money2.dart';
 
 class TransferDraft {
-  final String toAccountNumber;
-  final String toBranch;
+  final String toAccountId;
   final String? description;
   final Money amount;
+
+  /// A uuid.v7 string to ensure idempotency of transfer requests.
   final String idempotencyKey;
 
   TransferDraft({
-    required this.toAccountNumber,
-    required this.toBranch,
+    required this.toAccountId,
     this.description,
     required this.amount,
     this.idempotencyKey = '',
   });
 
   TransferDraft copyWith({
-    String? toAccountNumber,
-    String? toBranch,
+    String? toAccountId,
     String? description,
     Money? amount,
     String? idempotencyKey,
   }) {
     return TransferDraft(
-      toAccountNumber: toAccountNumber ?? this.toAccountNumber,
-      toBranch: toBranch ?? this.toBranch,
+      toAccountId: toAccountId ?? this.toAccountId,
       description: description ?? this.description,
       amount: amount ?? this.amount,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,

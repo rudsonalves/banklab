@@ -30,13 +30,12 @@ abstract class AccountRepository {
   /// call fails, it returns a failure result.
   AsyncResult<List<AccountSummaryResponseDto>> listAccounts();
 
-  /// Selects an account by its ID. If the account is found
-  /// in the cache, it becomes the selected account.
-  void selectAccount(String accountId);
-
-  /// Clears the currently selected account and resets the
-  /// balance cache.
-  void clearSelectedAccount();
+  /// Selects an account by its ID.
+  /// - If the account is found in the cache, it sets it as the selected account
+  ///   and loads its balance.
+  /// - If the account is not found or if the accounts have not been loaded yet,
+  ///   it returns a failure result.
+  AsyncResult<Unit> selectAccount(String accountId);
 
   /// Retrieves the account statement based on the provided query parameters.
   /// If no account is selected, it returns a failure result.

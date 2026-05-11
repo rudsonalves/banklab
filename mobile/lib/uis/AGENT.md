@@ -33,7 +33,8 @@ data layer.
 
 - `app_widget.dart`: root `MaterialApp.router`, theme selection, and app shell
 - `viewmodels.dart`: registers UI view models in the dependency injector
-- `pages/`: screens, page-local widgets, and page view models
+- `pages/`: screens, page-local widgets, page view models, and feature-local
+  presentation models
 - `core/`: shared UI primitives, input formatters, feedback helpers, and themes
 
 Current page areas:
@@ -67,6 +68,7 @@ UI may depend on:
 - GoRouter for navigation
 - `core/routing` route enums and helpers
 - `core/result/command.dart`
+- feature-local presentation models under `uis/pages/<feature>/.../models`
 - use cases from `domain/usecases` when a workflow is too complex for a view
   model to coordinate directly
 - repositories through injected view models
@@ -85,6 +87,17 @@ UI must not depend on:
 Do not call APIs directly from pages or view models. Keep the flow through
 view models and repositories or through use cases when the workflow requires
 coordination across multiple repositories.
+
+## Presentation Models
+
+Use `uis/pages/<feature>/.../models` for UI-flow types that do not belong to
+domain or data. These can include typed route extras, confirmation/review data,
+or immutable snapshots assembled from form input and repository/API DTOs for
+display on later screens.
+
+Keep use case inputs, such as execution drafts, under `domain/usecases` when
+they are the contract consumed by a use case. Keep backend request and response
+shapes under `data/services/apis/.../dtos`.
 
 ## Page And ViewModel Split
 

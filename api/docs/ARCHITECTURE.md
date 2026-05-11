@@ -183,7 +183,8 @@ Registered routes include:
 - `POST /accounts/internal-transfers`
 - `GET /accounts/{id}/statement`
 
-Protected routes are guarded by JWT middleware.
+Protected routes are guarded by JWT middleware, except `POST /auth/refresh`,
+which is validated by refresh token payload/session checks in the auth use case.
 
 ## Design decisions
 

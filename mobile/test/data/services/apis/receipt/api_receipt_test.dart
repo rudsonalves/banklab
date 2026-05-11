@@ -25,7 +25,7 @@ void main() {
         );
         final api = ApiReceipt(client);
 
-        final result = await api.getTransferReceipt(
+        final result = await api.getReceipt(
           '2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31',
         );
 
@@ -50,7 +50,7 @@ void main() {
         ),
       );
 
-      final result = await api.getTransferReceipt(
+      final result = await api.getReceipt(
         '2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31',
       );
 
@@ -80,7 +80,7 @@ void main() {
         ),
       );
 
-      final result = await api.getTransferReceipt('missing-reference');
+      final result = await api.getReceipt('missing-reference');
 
       expect(result, isA<Failure<TransferReceiptResponseDto>>());
       expect(result.error?.code, AppErrorCode.httpError);
@@ -105,7 +105,7 @@ void main() {
         ),
       );
 
-      final result = await api.getTransferReceipt(
+      final result = await api.getReceipt(
         '2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31',
       );
 
@@ -130,7 +130,7 @@ void main() {
         ),
       );
 
-      final result = await api.getTransferReceipt(
+      final result = await api.getReceipt(
         '2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31',
       );
 

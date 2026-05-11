@@ -5,6 +5,8 @@ import 'package:bankflow/data/repositories/transaction/transaction_repository_im
 import 'package:bankflow/data/services/apis/receipt/api_receipt.dart';
 import 'package:bankflow/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import 'package:bankflow/data/services/apis/transfer/api_transfer.dart';
+import 'package:bankflow/data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import 'package:bankflow/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import 'package:bankflow/data/services/apis/transfer/dtos/transfer_request_dto.dart';
 import 'package:bankflow/data/services/apis/transfer/dtos/transfer_response_dto.dart';
 import 'package:bankflow/domain/common/receipt/enums/transfer_receipt_status.dart';
@@ -83,10 +85,8 @@ void main() {
 
         final result = await repository.transfer(
           TransferRequestDto(
-            fromBranch: '',
-            fromAccountNumber: '',
-            toBranch: '0001',
-            toAccountNumber: '00067890',
+            fromAccountId: '',
+            toAccountId: 'acc-dst-001',
             amount: brl(2500),
             idempotencyKey: 'idempotency-key',
           ),
@@ -113,10 +113,8 @@ void main() {
 
       final result = await repository.transfer(
         TransferRequestDto(
-          fromBranch: '0001',
-          fromAccountNumber: '00012345',
-          toBranch: '',
-          toAccountNumber: '',
+          fromAccountId: 'acc-src-001',
+          toAccountId: '',
           amount: brl(2500),
           idempotencyKey: 'idempotency-key',
         ),
@@ -142,10 +140,8 @@ void main() {
 
       final result = await repository.transfer(
         TransferRequestDto(
-          fromBranch: '0001',
-          fromAccountNumber: '00012345',
-          toBranch: '0001',
-          toAccountNumber: '00067890',
+          fromAccountId: 'acc-src-001',
+          toAccountId: 'acc-dst-001',
           amount: brl(0),
           idempotencyKey: 'idempotency-key',
         ),
@@ -279,14 +275,181 @@ void main() {
       expect(repository.lastReceipt, isNull);
     });
   });
+
+  group('TransactionRepositoryImpl.getInternalRecipient', () {
+    test('returns lookup success and forwards query to API', () async {
+      final transferApi = _FakeApiTransfer(
+        transferResult: Success(_transferResponse()),
+        recipientResult: Success([_recipientInfo()]),
+      );
+      final repository = TransactionRepositoryImpl(
+        apiTransfer: transferApi,
+        apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
+      );
+
+      const request = RecipientRequestDto(document: '12345678901');
+
+      final result = await repository.getInternalRecipient(request);
+
+      expect(result, isA<Success<List<RecipientInfoDto>>>());
+      expect(result.value, hasLength(1));
+      expect(result.value?.single.accountId, 'acc-recipient-001');
+      expect(transferApi.recipientCalls, 1);
+      expect(transferApi.lastRecipientRequest, same(request));
+    });
+
+    test('returns multiple lookup results', () async {
+      final transferApi = _FakeApiTransfer(
+        transferResult: Success(_transferResponse()),
+        recipientResult: Success([
+          _recipientInfo(accountId: 'acc-recipient-001'),
+          _recipientInfo(accountId: 'acc-recipient-002'),
+        ]),
+      );
+      final repository = TransactionRepositoryImpl(
+        apiTransfer: transferApi,
+        apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
+      );
+
+      final result = await repository.getInternalRecipient(
+        const RecipientRequestDto(document: '12345678901'),
+      );
+
+      expect(result, isA<Success<List<RecipientInfoDto>>>());
+      expect(result.value, hasLength(2));
+      expect(result.value?.first.accountId, 'acc-recipient-001');
+      expect(result.value?.last.accountId, 'acc-recipient-002');
+      expect(transferApi.recipientCalls, 1);
+    });
+
+    test('returns empty lookup results', () async {
+      final transferApi = _FakeApiTransfer(
+        transferResult: Success(_transferResponse()),
+        recipientResult: const Success(<RecipientInfoDto>[]),
+      );
+      final repository = TransactionRepositoryImpl(
+        apiTransfer: transferApi,
+        apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
+      );
+
+      final result = await repository.getInternalRecipient(
+        const RecipientRequestDto(document: '12345678901'),
+      );
+
+      expect(result, isA<Success<List<RecipientInfoDto>>>());
+      expect(result.value, isEmpty);
+      expect(transferApi.recipientCalls, 1);
+    });
+
+    test('fails before API call when lookup query is empty', () async {
+      final transferApi = _FakeApiTransfer(
+        transferResult: Success(_transferResponse()),
+        recipientResult: Success([_recipientInfo()]),
+      );
+      final repository = TransactionRepositoryImpl(
+        apiTransfer: transferApi,
+        apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
+      );
+
+      final result = await repository.getInternalRecipient(
+        const RecipientRequestDto(),
+      );
+
+      expect(result, isA<Failure<List<RecipientInfoDto>>>());
+      expect(result.error?.code, AppErrorCode.unexpected);
+      expect(result.error?.message, 'Search query is required.');
+      expect(transferApi.recipientCalls, 0);
+    });
+
+    test(
+      'propagates invalid query, forbidden, and unauthorized lookup failures',
+      () async {
+        final cases = [
+          (
+            error: const AppError(
+              code: AppErrorCode.httpError,
+              statusCode: 400,
+              message: 'invalid or unsupported query parameter combination',
+              details: {'code': 'INVALID_DATA'},
+            ),
+          ),
+          (
+            error: const AppError(
+              code: AppErrorCode.httpError,
+              statusCode: 403,
+              message: 'access denied',
+              details: {'code': 'FORBIDDEN'},
+            ),
+          ),
+          (
+            error: const AppError(
+              code: AppErrorCode.httpError,
+              statusCode: 401,
+              message: 'authentication required',
+              details: {'code': 'UNAUTHORIZED'},
+            ),
+          ),
+        ];
+
+        for (final testCase in cases) {
+          final transferApi = _FakeApiTransfer(
+            transferResult: Success(_transferResponse()),
+            recipientResult: Failure(testCase.error),
+          );
+          final repository = TransactionRepositoryImpl(
+            apiTransfer: transferApi,
+            apiReceipt: _FakeApiReceipt(
+              receiptResult: Success(_receiptResponse()),
+            ),
+          );
+
+          final result = await repository.getInternalRecipient(
+            const RecipientRequestDto(document: '12345678901'),
+          );
+
+          expect(result, isA<Failure<List<RecipientInfoDto>>>());
+          expect(result.error?.code, testCase.error.code);
+          expect(result.error?.statusCode, testCase.error.statusCode);
+          expect(result.error?.message, testCase.error.message);
+          expect(result.error?.details, testCase.error.details);
+          expect(transferApi.recipientCalls, 1);
+        }
+      },
+    );
+
+    test('propagates generic backend lookup failure', () async {
+      final transferApi = _FakeApiTransfer(
+        transferResult: Success(_transferResponse()),
+        recipientResult: const Failure(
+          AppError(
+            code: AppErrorCode.httpError,
+            statusCode: 500,
+            message: 'HTTP error: 500 Internal Server Error',
+          ),
+        ),
+      );
+      final repository = TransactionRepositoryImpl(
+        apiTransfer: transferApi,
+        apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
+      );
+
+      final result = await repository.getInternalRecipient(
+        const RecipientRequestDto(document: '12345678901'),
+      );
+
+      expect(result, isA<Failure<List<RecipientInfoDto>>>());
+      expect(result.error?.code, AppErrorCode.httpError);
+      expect(result.error?.statusCode, 500);
+      expect(result.error?.message, 'HTTP error: 500 Internal Server Error');
+      expect(transferApi.recipientCalls, 1);
+    });
+  });
 }
 
 TransferRequestDto _validTransferRequest() {
   return TransferRequestDto(
-    fromBranch: '0001',
-    fromAccountNumber: '00012345',
-    toBranch: '0001',
-    toAccountNumber: '00067890',
+    fromAccountId: 'acc-src-001',
+    toAccountId: 'acc-dst-001',
     amount: brl(2500),
     idempotencyKey: 'idempotency-key',
   );
@@ -294,11 +457,9 @@ TransferRequestDto _validTransferRequest() {
 
 TransferResponseDto _transferResponse() {
   return TransferResponseDto(
-    fromBranch: '0001',
-    fromAccountNumber: '00012345',
+    fromAccountId: 'acc-src-001',
+    toAccountId: 'acc-dst-001',
     transactionReference: 'tx-ref-001',
-    toBranch: '0001',
-    toAccountNumber: '00067890',
     amount: brl(2500),
     fromBalance: brl(97500),
     toBalance: brl(32500),
@@ -321,18 +482,42 @@ TransferReceiptResponseDto _receiptResponse() {
   );
 }
 
+RecipientInfoDto _recipientInfo({String accountId = 'acc-recipient-001'}) {
+  return RecipientInfoDto(
+    accountId: accountId,
+    holderName: 'Maria Silva',
+    document: '***.456.789-**',
+    accountNumber: '00067890',
+  );
+}
+
 class _FakeApiTransfer extends ApiTransfer {
-  _FakeApiTransfer({required this.transferResult}) : super(_NoopRestClient());
+  _FakeApiTransfer({
+    required this.transferResult,
+    this.recipientResult = const Success(<RecipientInfoDto>[]),
+  }) : super(_NoopRestClient());
 
   Result<TransferResponseDto> transferResult;
+  Result<List<RecipientInfoDto>> recipientResult;
   int transferCalls = 0;
+  int recipientCalls = 0;
   TransferRequestDto? lastTransferRequest;
+  RecipientRequestDto? lastRecipientRequest;
 
   @override
   AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto) async {
     transferCalls++;
     lastTransferRequest = dto;
     return transferResult;
+  }
+
+  @override
+  AsyncResult<List<RecipientInfoDto>> getInternalRecipient(
+    RecipientRequestDto dto,
+  ) async {
+    recipientCalls++;
+    lastRecipientRequest = dto;
+    return recipientResult;
   }
 }
 
@@ -344,7 +529,7 @@ class _FakeApiReceipt extends ApiReceipt {
   String? lastTransactionReference;
 
   @override
-  AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
+  AsyncResult<TransferReceiptResponseDto> getReceipt(
     String transactionReference,
   ) async {
     receiptCalls++;

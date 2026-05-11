@@ -94,11 +94,10 @@ Auth Handler
 
 ---
 
-### 4.2 Authenticated Endpoints (JWT Required)
+### 4.2 Authenticated Endpoints
 
 Endpoints:
 
-* `POST /auth/refresh`
 * `GET /auth/me`
 
 Flow:
@@ -116,9 +115,20 @@ Auth Handler
 * valid `Authorization: Bearer <access_token>`
 * App Token is not required
 
+### 4.3 Refresh Endpoint
+
+Endpoint:
+
+* `POST /auth/refresh`
+
+The refresh endpoint is authenticated by the refresh token in the request body,
+not by the expired access token. The handler delegates validation to the refresh
+use case, which checks the token signature, persisted session, revocation state,
+expiration, and user identity before rotating the session.
+
 ---
 
-### 4.3 Protected Resource Endpoints (JWT Required)
+### 4.4 Protected Resource Endpoints (JWT Required)
 
 Examples:
 

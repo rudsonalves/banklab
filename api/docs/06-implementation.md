@@ -71,7 +71,7 @@ Current route registration:
 
 - POST /auth/register (public)
 - POST /auth/login (public)
-- POST /auth/refresh (JWT required)
+- POST /auth/refresh (refresh token required)
 - GET /auth/me (JWT required)
 - GET /customers/me (JWT required)
 - GET /accounts (JWT required)

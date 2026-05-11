@@ -1,6 +1,6 @@
 .PHONY: help \
 	build test \
-	api-build api-migrate-up api-migrate-down api-test api-stop env-init \
+	api-build api-migrate-up api-migrate-down api-test api-stop env-init bootstrap \
 	mobile-test mobile-test-unit mobile-sync-ip \
 	commit diff push pull gitlog
 
@@ -31,7 +31,7 @@ docker-up: ## Start Docker containers in detached mode
 		echo "Colima detected. Ensuring daemon is running..."; \
 		colima start; \
 	fi
-	docker compose up -d
+	docker compose up -d --no-recreate
 
 docker-down: ## Stop and remove Docker containers
 	docker compose down
@@ -70,7 +70,7 @@ db-wait: ## Wait for the database to be ready
 	echo "Database not ready after timeout"; \
 	exit 1
 
-bootstrap: setup ## Alias semântico
+bootstrap: env-init docker-up db-wait migrate-up api-run ## Full bootstrap from scratch
 dev: run ## Alias para desenvolvimento
 
 env-init: ## Create API and Mobile .env files if they do not exist
@@ -81,15 +81,13 @@ env-init: ## Create API and Mobile .env files if they do not exist
 # =========================
 build: api-build ## Build backend binary
 
-test: api-test mobile-test ## Run API and Mobile tests
-
 # =========================
 # API (Go)
 # =========================
 api-build: ## Build API binary into api/build/
 	cd api && go build -o build/bank-api ./cmd/api
 
-api-test: ## Run API tests with coverage
+api-tests: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
 api-run: mobile-sync-ip ## Run API server
@@ -119,7 +117,7 @@ dbschema: ## Export database schema to schema.sql
 # =========================
 # Mobile (Flutter)
 # =========================
-mobile-test: ## Run all mobile tests
+mobile-tests: ## Run all mobile tests
 	cd mobile && flutter test
 
 mobile-test-unit: ## Run mobile unit tests
@@ -129,7 +127,7 @@ mobile-sync-ip: ## Update mobile .env BASE_URL with current host LAN IP
 	bash infra/scripts/update-mobile-env-ip.sh
 
 tests: ## Run all tests
-	make api-test mobile-test
+	make api-tests mobile-tests
 
 # =========================
 # Git

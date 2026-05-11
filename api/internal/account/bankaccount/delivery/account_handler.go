@@ -127,7 +127,6 @@ func (h *Handler) LookupInternalTransferRecipients(w http.ResponseWriter, r *htt
 			Document:      recipient.MaskedDocument,
 			Branch:        recipient.Branch,
 			AccountNumber: recipient.AccountNumber,
-			AccountType:   recipient.AccountType,
 		})
 	}
 

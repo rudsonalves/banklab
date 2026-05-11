@@ -1,5 +1,1039 @@
 # Changelog
 
+## 2026/05/11 - mobile/internal-transfer-11
+
+Refactor the internal transfer flow and introduce a complete transfer receipt/details experience in the Flutter mobile client.
+
+### Documentation
+
+1. `api/docs/00-getting_started.md`
+
+   * Added the bootstrap flow for the first administrator user.
+   * Documented the manual PostgreSQL promotion process for the initial admin account.
+   * Clarified the approval lifecycle for newly registered users.
+   * Added operational guidance for calling `POST /admin/users/{id}/approve`.
+   * Improved onboarding clarity for local environment setup and first system access.
+
+### Routing and Navigation
+
+1. `mobile/lib/core/routing/router.dart`
+
+   * Added shared route registration.
+
+2. `mobile/lib/core/routing/routes.dart`
+
+   * Introduced `SharedRoutes` enum with the transfer details route.
+
+3. `mobile/lib/core/routing/routes/shared_routes.dart`
+
+   * Added shared navigation route for transfer details/receipt visualization.
+   * Injected `DetailsViewmodel` through dependency injection.
+   * Enabled route argument passing through `state.extra`.
+
+4. `mobile/lib/core/routing/routes/tranfer_routes.dart`
+
+   * Renamed transfer pages to explicit `Transfer*` naming convention.
+   * Updated route builders to use the renamed widgets.
+   * Simplified imports and normalized route organization.
+   * Added integration with the new transfer status and receipt navigation flow.
+
+### Domain and Dependency Injection
+
+1. `mobile/lib/domain/usecases/details/details_usecase.dart`
+
+   * Added `DetailsUsecase` for transfer receipt retrieval.
+   * Integrated account and transaction repositories.
+   * Exposed selected account access for shared details flows.
+
+2. `mobile/lib/domain/usecases/usecases.dart`
+
+   * Registered `DetailsUsecase` in dependency injection.
+
+3. `mobile/lib/uis/viewmodels.dart`
+
+   * Registered `DetailsViewmodel` in dependency injection.
+
+### Shared Transfer Receipt Experience
+
+1. `mobile/lib/uis/pages/shared/details/details_page.dart`
+
+   * Added a dedicated transfer receipt/details page.
+   * Implemented asynchronous receipt loading flow.
+   * Added receipt rendering with transfer metadata presentation.
+   * Added transaction reference copy support.
+   * Added receipt sharing support using generated PNG images.
+   * Implemented `RepaintBoundary` image capture flow.
+   * Added temporary image generation and persistence.
+   * Added integration with native share APIs using `share_plus`.
+   * Added detailed snackbar feedback handling.
+   * Added loading, retry, and failure states.
+   * Added responsive receipt card rendering.
+   * Added transaction status visualization.
+   * Added share state protection to avoid duplicated actions.
+   * Added defensive rendering and capture validation logic.
+
+2. `mobile/lib/uis/pages/shared/details/viewmodel/details_viewmodel.dart`
+
+   * Added command-based receipt retrieval state management.
+   * Connected details flow to `DetailsUsecase`.
+
+3. `mobile/lib/uis/pages/shared/details/widgets/detail_line.dart`
+
+   * Added reusable detail line widget for receipt rendering.
+
+### Transfer Flow Improvements
+
+1. `mobile/lib/uis/pages/home/transfer/transfer_status_page.dart`
+
+   * Replaced modal receipt visualization with dedicated details navigation.
+   * Added new action layout using `BigTextButton`.
+   * Simplified successful transfer presentation.
+   * Improved CTA hierarchy and spacing.
+   * Added receipt navigation through shared routes.
+   * Updated success message wording.
+
+2. `mobile/lib/uis/pages/home/transfer/transfer_confirmation_page.dart`
+
+   * Renamed confirmation page class for consistency.
+   * Migrated snackbar usage to `AppSnackbar`.
+   * Improved transfer failure feedback handling.
+
+3. `mobile/lib/uis/pages/home/transfer/transfer_payment_page.dart`
+
+   * Renamed payment page class for consistency.
+   * Replaced deprecated snackbar helper usage.
+   * Improved invalid amount feedback handling.
+
+4. `mobile/lib/uis/pages/home/transfer/transfer_recipient_page.dart`
+
+   * Renamed recipient page class for consistency.
+   * Added forward navigation icon to primary CTA.
+
+5. `mobile/lib/uis/pages/home/transfer/transfer_page.dart`
+
+   * Removed obsolete transfer page implementation.
+
+### UI Components and Shared Widgets
+
+1. `mobile/lib/uis/core/buttons/big_button.dart`
+
+   * Made `onPressed` nullable.
+   * Added default enabled state.
+   * Improved disabled button compatibility.
+
+2. `mobile/lib/uis/core/buttons/big_text_button.dart`
+
+   * Added reusable large text button component.
+
+3. `mobile/lib/uis/core/text/card_text_row.dart`
+
+   * Improved multiline layout handling.
+   * Added expanded text rendering.
+   * Improved alignment for long values.
+
+### Feedback and Messaging
+
+1. `mobile/lib/uis/core/messages/app_snackbar.dart`
+
+   * Moved snackbar utilities into a dedicated `messages` namespace.
+
+2. `mobile/lib/uis/core/messages/scaffold_snackbar_message.dart`
+
+   * Removed legacy snackbar helper implementation.
+
+3. Updated snackbar imports across:
+
+   * `login_page.dart`
+   * `home_page.dart`
+   * transfer pages
+
+### Dependencies and Platform Support
+
+1. `mobile/pubspec.yaml`
+
+   * Added `share_plus`.
+   * Added `path_provider`.
+
+2. `mobile/pubspec.lock`
+
+   * Updated dependency graph for sharing and filesystem support.
+   * Added transitive URL launcher and sharing platform packages.
+
+3. `mobile/ios/Podfile.lock`
+
+   * Added iOS CocoaPods integration for `share_plus`.
+
+This commit consolidates the internal transfer UX around a dedicated receipt/details flow, improves route consistency, modernizes shared feedback components, and establishes the foundation for richer financial operation visualization inside the mobile client.
+
+
+## 2026/05/11 - mobile/internal-transfer-10
+
+Implemented the complete internal transfer confirmation and status flow in the Flutter mobile application, introducing presentation-layer models, typed route serialization, money parsing/formatting helpers, and improved transfer UX/navigation behavior.
+
+### Transfer flow implementation
+
+* Added the new transfer confirmation step before executing the transfer request.
+* Implemented success and failure transfer status screens with transaction feedback and receipt preview support.
+* Introduced dedicated success and failure routes:
+
+  * `TransferRoutes.statusSuccess`
+  * `TransferRoutes.statusFailure`
+* Added typed route serialization support for transfer confirmation payloads through `ExtraCodec`.
+
+### Transfer presentation model architecture
+
+* Introduced `TransferConfirmationData` as a feature-local presentation model under:
+
+  * `uis/pages/home/transfer/models`
+* Added serialization/deserialization support:
+
+  * `toMap`
+  * `fromMap`
+* Encapsulated immutable transfer confirmation state independently from DTOs and domain use case inputs.
+* Improved architectural separation between:
+
+  * API DTOs
+  * domain use case contracts
+  * UI workflow state
+
+### Payment page improvements
+
+* Reworked `PaymentPage` to support:
+
+  * amount input
+  * transfer description input
+  * recipient review
+  * navigation to confirmation flow
+* Added money validation before confirmation.
+* Added formatted currency input using a custom formatter.
+* Added invalid transfer feedback through snackbar messages.
+* Improved keyboard dismissal behavior using `GestureDetector`.
+
+### Confirmation page implementation
+
+* Added `ConfirmationPage` with:
+
+  * transfer summary visualization
+  * balance visualization
+  * recipient/account review
+  * transfer confirmation execution
+* Integrated transfer execution with `TransferUsecase`.
+* Added navigation handling for:
+
+  * success state
+  * failure state
+  * unexpected execution state
+
+### Transfer status experience
+
+* Added `TransferStatusPage` supporting:
+
+  * success visualization
+  * failure visualization
+  * transaction reference display
+  * receipt modal preview
+* Added contextual UI feedback using:
+
+  * icons
+  * themed status colors
+  * receipt action buttons
+
+### Money formatting and parsing utilities
+
+* Added `MoneyInputFormatter` for currency-formatted numeric input.
+* Added `String.parseToMoney()` extension helper using `money2`.
+* Added reusable numeric sanitization and currency conversion support.
+* Centralized invalid amount error handling through `Result<AppError>`.
+
+### Shared UI improvements
+
+* Enhanced `BigButton` with optional:
+
+  * `leftIcon`
+  * `rightIcon`
+* Added reusable snackbar helper:
+
+  * `showScaffoldSnackBarMessage`
+* Moved `RecipientCard` into shared UI components:
+
+  * `uis/core/cards`
+
+### Recipient flow refactor
+
+* Removed recipient selection state ownership from `TransferViewmodel`.
+* Moved recipient selection state management into `RecipientPage`.
+* Improved recipient/account auto-fill behavior:
+
+  * CPF lookup now updates branch/account
+  * account lookup now updates CPF
+* Fixed branch method naming typo:
+
+  * `_onBranchChenged` → `_onBranchChanged`
+* Improved recipient error handling and invalid-state reset behavior.
+
+### ViewModel cleanup
+
+* Simplified `TransferViewmodel` responsibilities by removing UI-local selection state.
+* Added lightweight `dispose()` method placeholder for future lifecycle expansion.
+* Preserved transfer idempotency generation behavior through UUID generation.
+
+### Documentation and architecture guidance
+
+* Expanded `AGENT.md` documentation under:
+
+  * `uis/AGENT.md`
+  * `uis/pages/AGENT.md`
+* Documented the concept of feature-local presentation models.
+* Clarified architectural boundaries between:
+
+  * DTOs
+  * use case inputs
+  * UI flow models
+* Added guidance for route extras and immutable presentation snapshots.
+
+This commit significantly advances the mobile banking transfer workflow, improving UX continuity, route safety, UI architecture consistency, and transfer execution feedback while reinforcing the separation between domain contracts, transport DTOs, and presentation-layer state.
+
+
+## 2026/05/10 - mobile/internal-transfer-09
+
+Refactor the internal transfer flow structure by introducing route serialization support, reusable financial UI components, and balance stream propagation across the transfer workflow.
+
+### Routing and transfer flow evolution
+
+This commit expands the internal transfer navigation pipeline, preparing the application for a complete multi-step transfer experience.
+
+#### Routing improvements
+
+1. Added new route groups and navigation stages:
+
+   * `GeneralRoutes`
+   * `TransferRoutes.payment`
+   * `TransferRoutes.confirmation`
+   * `TransferRoutes.status`
+   * `GeneralRoutes.receipt`
+
+2. Added the `PaymentPage` route to the transfer flow:
+
+   * integrated with `go_router`
+   * receives typed `RecipientInfoDto` through `state.extra`
+
+3. Extended `ExtraCodec` to support typed serialization/deserialization of:
+
+   * `RecipientInfoDto`
+
+This change enables safe route persistence and structured navigation state handling during app lifecycle restoration and deep navigation scenarios.
+
+#### Recipient transfer flow
+
+4. Updated `RecipientPage`:
+
+   * extracted button implementation into reusable `BigButton`
+   * replaced direct pop navigation with forward navigation to payment flow
+   * added `context.pushNamed(...)`
+   * passes selected recipient through route extra serialization
+   * renamed internal validation helper to `_isValidBranchAndAccount`
+
+### Transfer balance propagation
+
+One of the main focuses of this commit was restructuring how balance information propagates through transfer-related screens.
+
+#### Transfer use case and viewmodel
+
+5. Added balance stream exposure to:
+
+   * `TransferUsecase`
+   * `TransferViewmodel`
+
+6. Introduced:
+
+   * `Stream<BalanceResponseDto> balance`
+
+This allows transfer screens to consume live balance updates directly from the account repository layer.
+
+#### Repository balance behavior
+
+7. Refactored `AccountRepository`:
+
+   * `selectAccount` now returns `AsyncResult<Unit>`
+   * removed `clearSelectedAccount`
+
+8. Updated `AccountRepositoryImpl`:
+
+   * `balance()` now emits cached balance immediately before streaming updates
+   * `selectAccount(...)` now:
+
+     * validates cache existence
+     * validates account existence
+     * loads account balance automatically
+     * returns explicit success/failure results
+
+This significantly improves transfer screen initialization consistency and reduces duplicated orchestration responsibilities in the UI layer.
+
+### Reusable UI components
+
+This commit also introduces reusable financial UI building blocks.
+
+#### Added reusable widgets
+
+9. Added `BigButton`
+
+   * centralized primary large CTA button styling
+   * standardized enabled/disabled states
+
+10. Added `BalanceCard`
+
+    * reusable balance visualization component
+    * supports:
+
+      * live balance streams
+      * account visibility toggling
+      * account selection actions
+      * selected account display
+
+11. Added `AccountCard`
+
+    * reusable account information visualization
+
+12. Added `CardTextRow`
+
+    * reusable structured row presentation for cards
+
+### Home and transfer UI integration
+
+13. Refactored `HomePage`
+
+* replaced legacy `BalanceTile`
+* integrated new reusable `BalanceCard`
+
+14. Added initial `PaymentPage`
+
+* displays:
+
+  * current balance
+  * selected account
+* integrates transfer flow navigation structure
+* prepared for future transfer confirmation implementation
+
+### DTO and serialization support
+
+15. Added `RecipientInfoDto.toMap()`
+
+* required for route serialization through `ExtraCodec`
+
+This creates a proper serialization boundary for typed navigation payloads.
+
+### Tests and repository contract updates
+
+16. Updated transfer use case tests:
+
+* adapted fake repositories to new async `selectAccount` contract
+* removed obsolete `clearSelectedAccount`
+
+### Development environment
+
+17. Updated Postman environment:
+
+* changed `base_url`
+* `192.168.0.16`
+* to `192.168.0.20`
+
+### Architectural impact
+
+This commit moves the mobile application closer to a complete transactional flow architecture by:
+
+* separating navigation concerns from UI state
+* centralizing reusable financial widgets
+* standardizing balance propagation through streams
+* introducing typed route serialization
+* reducing orchestration leakage into presentation widgets
+
+The resulting structure is significantly more prepared for:
+
+* transfer confirmation
+* receipt visualization
+* transaction replay
+* transactional authentication
+* future Zero Trust contextual flows
+* state restoration during complex navigation stacks
+
+
+## 2026/05/09 - mobile/internal-transfer-08
+
+Refactor authentication refresh flow and improve internal transfer recipient UX.
+
+This commit introduces a major update to the mobile authentication interceptor by implementing serialized refresh handling for concurrent `401` responses, while also aligning backend documentation and routing behavior with the actual refresh-token authentication model. Additionally, the internal transfer flow received UI refinements and component extraction to improve readability and interaction consistency.
+
+### API
+
+1. `api/cmd/api/main.go`
+
+   * Removed JWT middleware from `POST /auth/refresh`
+   * Clarified that refresh authentication is handled by the refresh token payload and session validation itself
+
+2. Documentation updates
+
+   * Updated authentication semantics across:
+
+     * `api/docs/06-implementation.md`
+     * `api/docs/07-api-rest.md`
+     * `api/docs/08-auth_implementation.md`
+     * `api/docs/ARCHITECTURE.md`
+   * Replaced “JWT required” references for `/auth/refresh` with refresh-token-based authentication
+   * Clarified refresh token lifecycle, validation behavior, and error semantics
+   * Improved consistency between runtime behavior and architectural documentation
+   * Refined wording around `INVALID_TOKEN` responses for refresh sessions
+
+### Mobile Core Infrastructure
+
+1. `mobile/lib/core/services/client_http/interceptors/auth/auth_interceptor.dart`
+
+   * Implemented serialized refresh execution using a shared in-flight `Future`
+   * Prevented duplicate refresh requests during concurrent `401` failures
+   * Added retry optimization when another request already refreshed the access token
+   * Extracted refresh execution into dedicated private methods:
+
+     * `_refreshAccessToken`
+     * `_performRefresh`
+     * `_retryWithToken`
+     * `_accessTokenUpdatedAfter`
+     * `_bearerToken`
+   * Added optional injected `refreshDio` for testability
+   * Centralized session cleanup behavior
+   * Improved error logging around refresh/retry failures
+   * Reduced duplicated retry composition logic
+   * Removed outdated concurrency-risk warning comments now that the locking strategy is implemented
+
+2. `mobile/test/core/services/client_http/interceptors/auth/auth_interceptor_test.dart`
+
+   * Added concurrency test coverage for refresh serialization
+   * Validated:
+
+     * single refresh execution under concurrent failures
+     * successful retry behavior for all pending requests
+     * token persistence updates
+     * absence of unnecessary session cleanup
+   * Added lightweight in-memory secure storage mock
+   * Added fake HTTP adapter infrastructure for interceptor-level testing
+
+3. `mobile/docs/ARCHITECTURE.md`
+
+   * Documented shared in-flight refresh behavior
+   * Removed obsolete “known concurrency risk” section
+   * Added transfer routes reference
+
+4. `mobile/lib/core/AGENT.md`
+
+   * Updated interceptor guidance to reflect implemented concurrency protection
+   * Reinforced importance of interceptor-specific tests
+
+### Internal Transfer Flow
+
+1. `mobile/lib/uis/pages/home/transfer/recipient_page.dart`
+
+   * Refactored recipient page structure
+   * Replaced repeated section labels with reusable `TextHeader`
+   * Extracted dropdown and recipient summary into dedicated widgets
+   * Improved selected-recipient visualization
+   * Added dynamic “Prosseguir” button enable/disable behavior
+   * Added custom enabled-state button styling
+   * Improved account formatting consistency
+   * Simplified recipient state handling with `ValueListenableBuilder`
+   * Removed redundant `return` statements after snackbar handling
+
+2. `mobile/lib/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart`
+
+   * Replaced mutable selected recipient field with `ValueNotifier`
+   * Improved UI reactivity around recipient selection
+   * Adjusted auto-selection behavior when a single account is returned
+
+3. Added reusable transfer widgets
+
+   * `mobile/lib/uis/pages/home/transfer/widgets/dropdown_recipient.dart`
+
+     * Extracted account selection dropdown
+     * Added ellipsis handling and selected item builder
+     * Standardized account rendering
+   * `mobile/lib/uis/pages/home/transfer/widgets/recipient_card.dart`
+
+     * Added summarized recipient preview card
+     * Introduced reusable labeled information rows
+
+### Shared UI Components
+
+1. `mobile/lib/uis/core/text/text_header.dart`
+
+   * Added reusable bold section header component
+
+2. `mobile/lib/uis/core/text_form_field/basic_text_form_field.dart`
+
+   * Added default bold text style for form input content
+   * Added dedicated hint text styling
+   * Improved visual consistency for transfer forms
+
+This commit strengthens authentication robustness under concurrent network conditions while also improving transfer flow usability and maintainability across the mobile application.
+
+
+## 2026/05/09 — mobile/internal-transfer-07
+
+Refactor transfer recipient flow, strengthen CPF domain validation, and improve local bootstrap workflow consistency across API and mobile layers.
+
+### Infrastructure and developer workflow
+
+1. Makefile
+
+   * Added `bootstrap` to `.PHONY`
+   * Reworked `make bootstrap` into a complete first-run environment setup flow
+   * Integrated:
+
+     * `.env` initialization
+     * Docker startup
+     * database readiness wait
+     * migrations execution
+     * API startup
+   * Updated `docker compose up` to use `--no-recreate` for safer repeated executions
+   * Improved local development reproducibility and reduced onboarding friction
+
+2. API Getting Started documentation
+
+   * Expanded onboarding documentation with:
+
+     * index/table of contents
+     * Docker engine clarification
+     * Colima support explanation
+     * first-run bootstrap flow
+     * troubleshooting guidance
+   * Documented the new `make bootstrap` execution sequence
+   * Clarified relationship between `bootstrap`, `setup`, and `docker-up`
+
+### Customer domain and CPF validation
+
+3. Customer domain
+
+   * Introduced dedicated CPF validation module
+   * Added:
+
+     * CPF normalization
+     * digit verification algorithm
+     * repeated-digit rejection
+     * formatting support (`123.456.789-09`)
+   * Moved CPF validation responsibility fully into the domain layer through `NewCustomer`
+   * Normalized stored CPF values before persistence
+
+4. Customer domain errors
+
+   * Added:
+
+     * `ErrCPFInvalid`
+
+5. Customer application error registry
+
+   * Registered CPF invalid errors into shared HTTP/domain error mapping
+   * Added standardized API response support for invalid CPF format
+
+6. Register user use case
+
+   * Refactored customer creation flow to use `customerdomain.NewCustomer`
+   * Centralized customer invariant validation in the domain factory
+   * Removed duplicated normalization logic from application layer
+
+### Tests and validation coverage
+
+7. CPF tests
+
+   * Added complete CPF validation test suite covering:
+
+     * formatted CPFs
+     * invalid lengths
+     * invalid verification digits
+     * repeated digits
+     * invalid characters
+     * normalization behavior
+
+8. Customer creation tests
+
+   * Added validation tests for:
+
+     * invalid CPF
+     * empty CPF
+     * empty customer name
+     * formatted CPF normalization
+
+9. Register user tests
+
+   * Updated existing tests to use valid CPF values
+   * Added invalid CPF registration scenario
+   * Added assertions ensuring:
+
+     * customer creation is aborted
+     * hashing is not executed
+     * user persistence is not triggered after CPF validation failure
+
+### Mobile transfer flow restructuring
+
+10. Routing
+
+* Introduced dedicated transfer routing module:
+
+  * `transfer_routes.dart`
+* Added:
+
+  * `TransferRoutes.recipient`
+* Registered transfer routes separately from home routes
+* Removed direct transfer route coupling from `home_routes.dart`
+
+11. Home page
+
+* Updated transfer navigation flow
+* Replaced temporary placeholder navigation with recipient flow entrypoint
+
+12. Recipient page
+
+* Added new `RecipientPage`
+* Implemented recipient lookup flow by:
+
+  * CPF
+  * branch + account number
+* Added:
+
+  * CPF input formatter
+  * recipient dropdown selection
+  * reactive account loading
+  * recipient preview card
+  * validation-triggered lookup behavior
+  * focus management improvements
+  * snackbar-based failure feedback
+
+13. Transfer viewmodel
+
+* Added recipient account state management
+* Added:
+
+  * `receipientAccounts`
+  * `selectedRecipient`
+* Refactored recipient retrieval into dedicated internal handler
+* Added automatic recipient selection for single-account results
+
+14. Transfer page
+
+* Refactored ViewModel access using local getter
+* Improved consistency and readability
+
+### Mobile shared UI and repository cleanup
+
+15. BasicTextFormField
+
+* Made `labelText` optional
+* Added `onChanged` support
+* Increased flexibility for lightweight form compositions
+
+16. Command result abstraction
+
+* Renamed:
+
+  * `data` → `value`
+* Improved semantic consistency with `Result<T>`
+
+17. Transaction repositories
+
+* Refactored imports to absolute package-style imports
+* Improved consistency across repository implementation files
+
+18. Postman environment
+
+* Updated local API base URL for current development environment
+
+This commit consolidates three major directions:
+
+* stronger domain invariants around CPF handling
+* a more realistic internal transfer recipient flow in Flutter
+* a cleaner and more reproducible local bootstrap/development workflow.
+
+
+## 2026/05/08 - mobile/internal-transfer-06
+
+Refactor internal transfer flow to use account IDs as the primary identity model across API and mobile layers, while introducing recipient lookup support and CPF/CNPJ validation utilities.
+
+This commit aligns the mobile transfer implementation with the backend transfer contract evolution, simplifying recipient identification and removing legacy branch/account-based transfer semantics from the core transaction flow.
+
+1. API contract and transfer domain adjustments
+
+   * Removed `account_type` from internal transfer recipient responses and domain models.
+   * Simplified recipient payloads to expose only:
+
+     * `account_id`
+     * `holder_name`
+     * `document`
+     * `branch`
+     * `account_number`
+   * Updated REST documentation for internal transfer recipient lookup responses.
+   * Adjusted delivery and domain mapping layers to stop propagating account type information.
+
+2. Internal transfer identity migration
+
+   * Reworked transfer DTOs to use:
+
+     * `from_account_id`
+     * `to_account_id`
+   * Removed legacy transfer fields:
+
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * Updated:
+
+     * `TransferRequestDto`
+     * `TransferResponseDto`
+     * `TransferDraft`
+     * `TransferUsecase`
+     * repository validation logic
+   * Simplified transfer execution flow by using account UUIDs as the canonical transaction identity.
+
+3. API route evolution
+
+   * Updated mobile transfer integration to consume:
+
+     * `POST /accounts/internal-transfers`
+   * Replaced legacy route:
+
+     * `POST /accounts/transfer`
+   * Renamed receipt retrieval API method:
+
+     * `getTransferReceipt()` → `getReceipt()`
+
+4. Internal recipient lookup implementation
+
+   * Added support for:
+
+     * `GET /accounts/internal-transfers/recipients`
+   * Implemented:
+
+     * `RecipientRequestDto`
+     * `RecipientResponseDto`
+     * `RecipientInfoDto`
+   * Added query support for:
+
+     * CPF/CNPJ document lookup
+     * branch + account number lookup
+   * Added robust envelope parsing and HTTP failure handling.
+   * Added parsing safeguards for malformed backend payloads.
+
+5. CPF/CNPJ validation utilities
+
+   * Added `StringExtension` utilities:
+
+     * `onlyNumbers`
+     * `isValidCpf`
+     * `isValidCnpj`
+   * Implemented:
+
+     * CPF verification digit validation
+     * CNPJ verification digit validation
+     * repeated digit rejection
+     * formatted/unformatted document support
+   * Centralized numeric sanitization logic for document processing.
+
+6. Test coverage expansion
+
+   * Updated all transfer-related tests to the new account ID model.
+   * Added extensive coverage for:
+
+     * internal recipient lookup
+     * network failures
+     * malformed payload handling
+     * HTTP error mapping
+     * empty recipient lists
+     * DTO serialization changes
+   * Added CPF/CNPJ validation tests covering:
+
+     * formatted/unformatted values
+     * invalid lengths
+     * invalid check digits
+     * repeated digits
+   * Updated fake REST client support for GET operations and query parameter assertions.
+
+7. Architectural consistency improvements
+
+   * Reduced leakage of presentation-oriented banking concepts into transaction execution.
+   * Consolidated account identity semantics around immutable UUIDs.
+   * Improved separation between:
+
+     * transfer execution identity
+     * recipient display information
+   * Kept branch/account number as presentation and lookup data instead of transactional identifiers.
+
+This refactor prepares the mobile application for a more deterministic and scalable internal transfer model while improving API consistency, DTO clarity, and validation reliability across the transfer flow.
+
+
+## 2026/05/08 - mobile/internal-transfer-05
+
+Refactor internal transfer flow to use account IDs as the canonical identity model and implement recipient lookup support across API and Flutter layers.
+
+This commit aligns the mobile application with the new internal transfer contract exposed by the API, replacing branch/account-number-based transfer execution with UUID-based account references while preserving recipient discovery through dedicated lookup endpoints.
+
+### API
+
+1. Simplified internal transfer recipient contract
+
+   * Removed `account_type` from:
+
+     * internal transfer recipient domain model
+     * delivery DTOs
+     * handler response mapping
+     * REST API documentation
+   * Reduced exposure of unnecessary banking metadata in recipient lookup responses.
+
+2. Updated REST documentation
+
+   * Adjusted internal transfer recipient payload examples.
+   * Kept transfer semantics centered on:
+
+     * `from_account_id`
+     * `to_account_id`
+   * Reinforced consistency with the current transfer domain model and ledger-oriented architecture.
+
+### Mobile — Core
+
+1. Added `StringExtension`
+
+   * Introduced:
+
+     * `onlyNumbers`
+     * `isValidCpf`
+     * `isValidCnpj`
+   * Implemented CPF/CNPJ check digit validation algorithms.
+   * Added complete unit coverage for:
+
+     * formatted/unformatted values
+     * invalid lengths
+     * repeated digits
+     * invalid check digits
+
+### Mobile — Transfer API Integration
+
+1. Refactored transfer requests to UUID-based account identity
+
+   * Replaced:
+
+     * `from_branch`
+     * `from_account_number`
+     * `to_branch`
+     * `to_account_number`
+   * With:
+
+     * `from_account_id`
+     * `to_account_id`
+
+2. Updated transfer endpoint path
+
+   * Changed:
+
+     * `/accounts/transfer`
+   * To:
+
+     * `/accounts/internal-transfers`
+
+3. Updated transfer DTOs
+
+   * `TransferRequestDto`
+
+     * now serializes only account IDs
+   * `TransferResponseDto`
+
+     * now exposes account IDs instead of branch/account-number identity
+
+4. Updated transfer use case
+
+   * Transfer execution now derives:
+
+     * source account ID directly from authenticated account context
+     * destination account ID from recipient selection
+
+5. Simplified transfer validation
+
+   * Repository validation now checks only:
+
+     * `fromAccountId`
+     * `toAccountId`
+
+### Mobile — Recipient Lookup Flow
+
+1. Added recipient lookup API support
+
+   * Introduced:
+
+     * `RecipientRequestDto`
+     * `RecipientResponseDto`
+     * `RecipientInfoDto`
+
+2. Added lookup endpoint integration
+
+   * Implemented:
+
+     * `GET /accounts/internal-transfers/recipients`
+
+3. Added recipient query strategies
+
+   * Lookup by:
+
+     * CPF/CNPJ document
+     * branch + account number
+
+4. Added envelope parsing and error handling
+
+   * Implemented:
+
+     * backend envelope validation
+     * parsing error mapping
+     * HTTP status validation
+     * network failure propagation
+
+### Mobile — Receipt API
+
+1. Renamed receipt retrieval method
+
+   * `getTransferReceipt`
+   * → `getReceipt`
+
+2. Updated repository integration and tests accordingly.
+
+### Mobile — Tests
+
+1. Expanded transfer API coverage
+
+   * Added tests for:
+
+     * endpoint path validation
+     * request serialization
+     * account-ID-based payloads
+     * parsing failures
+     * HTTP failures
+     * network failures
+     * malformed envelopes
+
+2. Added recipient lookup test suite
+
+   * Covered:
+
+     * multiple recipients
+     * empty responses
+     * malformed payloads
+     * backend envelope errors
+     * query parameter generation
+     * network failures
+
+3. Updated DTO tests
+
+   * Removed legacy branch/account-number assertions.
+   * Added UUID-based transfer identity assertions.
+
+4. Updated repository and receipt tests
+
+   * Adjusted mocks and fixtures to reflect the new transfer contract.
+
+This refactor consolidates internal transfer identity around stable account UUIDs while separating operational transfer execution from recipient discovery. The result is a cleaner transfer contract, lower exposure of transport-specific banking fields, and better alignment between the Flutter client and the current API/domain architecture.
+
+
 ## 2026/05/08 — api/internal-transfer-01
 
 Refactor the internal transfer flow to operate with account UUIDs instead of branch/account-number pairs, and introduce a dedicated recipient lookup endpoint for internal transfers. This update also expands the transfer contract, improves authorization consistency, and aligns the API/documentation surface with the new transfer model.

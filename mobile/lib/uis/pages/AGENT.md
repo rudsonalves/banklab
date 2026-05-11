@@ -33,12 +33,14 @@ Current page layout:
 - `home/home_page.dart`
 - `home/viewmodel/home_viewmodel.dart`
 - `home/widgets/...`
+- `home/transfer/models/...`
 
 Prefer this layout for new pages:
 
 ```text
 pages/<feature>/<page_name>/<page_name>_page.dart
 pages/<feature>/<page_name>/viewmodel/<page_name>_viewmodel.dart
+pages/<feature>/<page_name>/models/<presentation_model>.dart
 pages/<feature>/<page_name>/widgets/<local_widget>.dart
 ```
 
@@ -79,6 +81,7 @@ Pages may depend on:
 - GoRouter navigation helpers
 - route enums from `core/routing/routes.dart`
 - page view models
+- feature-local presentation models from `pages/<feature>/.../models`
 - shared UI primitives from `uis/core`
 - DTOs needed to submit user input to view model commands
 
@@ -87,6 +90,8 @@ View models may depend on:
 - repositories
 - use cases from `domain/usecases`
 - `Command`, `Result`, and `Unit`
+- feature-local presentation models when they represent UI workflow state rather
+  than domain or backend contracts
 - DTOs needed by repository methods
 - domain models or app-facing DTOs exposed by repositories
 
@@ -97,6 +102,33 @@ Pages and view models must not depend on:
 - Dio
 - secure storage directly
 - backend envelope parsing
+
+## Presentation Models
+
+Use a feature-local `models/` folder under `uis/pages` for small types that
+belong to the presentation flow rather than to a use case or backend contract.
+
+Good examples:
+
+- route `extra` payloads that need typed serialization
+- confirmation or review screen data assembled from form input and lookup DTOs
+- immutable UI snapshots used to keep later screens independent from mutable
+  selection state
+- page-flow state that combines display fields with values later submitted to a
+  command
+
+Current example:
+
+- `home/transfer/models/transfer_confirmation_data.dart`
+
+Keep these models out of `domain/usecases/inputs` unless they are the actual
+input contract consumed by a use case. For example, `TransferDraft` belongs to
+the transfer use case because it represents the data needed to execute the
+transfer. `TransferConfirmationData` belongs to the transfer UI flow because it
+contains display-oriented recipient fields and route/confirmation data.
+
+Keep these models out of `data/services/apis/.../dtos` unless they represent a
+backend request or response shape.
 
 ## Use Cases In View Models
 

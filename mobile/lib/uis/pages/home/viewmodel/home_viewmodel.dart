@@ -11,11 +11,15 @@ class HomeViewmodel {
   HomeViewmodel({
     required AccountRepository accountRepository,
   }) : _accountRepository = accountRepository {
+    balance = _accountRepository.balance();
+
     initialize = Command0(_initialize);
   }
 
   late final Command0<Unit> initialize;
   late final Command0<Unit> refreshBalance;
+
+  late final Stream<BalanceResponseDto> balance;
 
   BalanceResponseDto? get lastBalance => _accountRepository.lastBalance;
 

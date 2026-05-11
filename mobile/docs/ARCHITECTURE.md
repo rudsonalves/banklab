@@ -302,6 +302,8 @@ Token behavior:
 - `AuthInterceptor` appends `Authorization` header when available
 - On HTTP `401` from a non-refresh endpoint, the interceptor attempts token
   refresh
+- Concurrent `401` flows share a single in-flight refresh operation to avoid
+  duplicate refresh calls
 - If refresh succeeds, the original request is retried
 - If refresh fails, session tokens are cleared
 
@@ -320,7 +322,8 @@ Routing is handled by GoRouter:
   [mobile/lib/core/routing/routes.dart](../../mobile/lib/core/routing/routes.dart)
 - Route groups:
   [mobile/lib/core/routing/routes/auth_routes.dart](../../mobile/lib/core/routing/routes/auth_routes.dart),
-  [mobile/lib/core/routing/routes/home_routes.dart](../../mobile/lib/core/routing/routes/home_routes.dart)
+  [mobile/lib/core/routing/routes/home_routes.dart](../../mobile/lib/core/routing/routes/home_routes.dart),
+  [mobile/lib/core/routing/routes/tranfer_routes.dart](../../mobile/lib/core/routing/routes/tranfer_routes.dart)
 
 Current initial location:
 
@@ -358,9 +361,6 @@ If `BASE_URL` is missing or invalid, app startup fails fast with a `StateError`.
 
 ## Known Constraints And Future Improvements
 
-- Auth refresh currently has a known concurrency risk when many requests fail
-  with `401` at the same time; multiple refresh attempts may happen
-- A refresh lock strategy should be introduced to serialize token refresh
 - Profile concerns are currently mixed into `AuthApi` and can be split into a
   dedicated profile API service
 - Use cases exist as the preferred place for complex view model orchestration,

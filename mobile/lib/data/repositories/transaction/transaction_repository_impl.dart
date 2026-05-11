@@ -1,9 +1,11 @@
-import '../../../core/result/result.dart';
-import '../../services/apis/receipt/api_receipt.dart';
-import '../../services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
-import '../../services/apis/transfer/api_transfer.dart';
-import '../../services/apis/transfer/dtos/transfer_request_dto.dart';
-import '../../services/apis/transfer/dtos/transfer_response_dto.dart';
+import '/core/result/result.dart';
+import '/data/services/apis/receipt/api_receipt.dart';
+import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
+import '/data/services/apis/transfer/api_transfer.dart';
+import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
+import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
+import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
 import 'transaction_repository.dart';
 
 class TransactionRepositoryImpl implements TransactionRepository {
@@ -27,7 +29,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
   @override
   AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto) async {
-    if (dto.fromBranch.trim().isEmpty || dto.fromAccountNumber.trim().isEmpty) {
+    if (dto.fromAccountId.trim().isEmpty) {
       return const Failure(
         AppError(
           code: AppErrorCode.unexpected,
@@ -36,7 +38,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
       );
     }
 
-    if (dto.toBranch.trim().isEmpty || dto.toAccountNumber.trim().isEmpty) {
+    if (dto.toAccountId.trim().isEmpty) {
       return const Failure(
         AppError(
           code: AppErrorCode.unexpected,
@@ -65,9 +67,27 @@ class TransactionRepositoryImpl implements TransactionRepository {
   AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
     String transactionReference,
   ) async {
-    final result = await _apiReceipt.getTransferReceipt(transactionReference);
+    final result = await _apiReceipt.getReceipt(transactionReference);
 
     _lastReceipt = result.isSuccess ? result.value : null;
+
+    return result;
+  }
+
+  @override
+  AsyncResult<List<RecipientInfoDto>> getInternalRecipient(
+    RecipientRequestDto dto,
+  ) async {
+    if (dto.toMap().isEmpty) {
+      return const Failure(
+        AppError(
+          code: AppErrorCode.unexpected,
+          message: 'Search query is required.',
+        ),
+      );
+    }
+
+    final result = await _apiTransfer.getInternalRecipient(dto);
 
     return result;
   }

@@ -40,7 +40,13 @@ class AccountRepositoryImpl implements AccountRepository {
   List<AccountSummaryResponseDto>? get accounts => _accountsCache;
 
   @override
-  Stream<BalanceResponseDto> balance() => _balanceController.stream;
+  Stream<BalanceResponseDto> balance() async* {
+    if (_balanceCache != null) {
+      yield _balanceCache!;
+    }
+
+    yield* _balanceController.stream;
+  }
 
   @override
   AsyncResult<Unit> loadBalance() async {
@@ -80,21 +86,31 @@ class AccountRepositoryImpl implements AccountRepository {
   }
 
   @override
-  void selectAccount(String accountId) {
-    if (_accountsCache == null) return;
+  AsyncResult<Unit> selectAccount(String accountId) async {
+    if (_accountsCache == null) {
+      return const Failure(
+        AppError(
+          code: AppErrorCode.unexpected,
+          message: 'No accounts available.',
+        ),
+      );
+    }
 
     for (final account in _accountsCache!) {
       if (account.id == accountId) {
         _selectedAccount = account;
-        return;
+
+        await loadBalance();
+        return const Success(unit);
       }
     }
-  }
 
-  @override
-  void clearSelectedAccount() {
-    _selectedAccount = null;
-    _balanceCache = null;
+    return const Failure(
+      AppError(
+        code: AppErrorCode.unexpected,
+        message: 'Account not found.',
+      ),
+    );
   }
 
   @override

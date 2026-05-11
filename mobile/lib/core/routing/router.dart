@@ -6,6 +6,8 @@ import 'extra_codec.dart';
 import 'route_observer.dart';
 import 'routes/auth_routes.dart';
 import 'routes/home_routes.dart';
+import 'routes/shared_routes.dart';
+import 'routes/tranfer_routes.dart';
 
 GoRouter router() => GoRouter(
   initialLocation: AuthRoutes.login.path,
@@ -15,5 +17,7 @@ GoRouter router() => GoRouter(
   routes: [
     ...homeRoutes(),
     ...authRoutes(),
+    ...transferRoutes(),
+    ...sharedRoutes(),
   ],
 );

@@ -32,5 +32,4 @@ type InternalTransferRecipientData struct {
 	Document      string `json:"document"`
 	Branch        string `json:"branch"`
 	AccountNumber string `json:"account_number"`
-	AccountType   string `json:"account_type,omitempty"`
 }

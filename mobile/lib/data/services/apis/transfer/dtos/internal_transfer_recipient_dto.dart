@@ -4,7 +4,6 @@ class InternalTransferRecipientDto {
   final String document;
   final String branch;
   final String accountNumber;
-  final String? accountType;
 
   const InternalTransferRecipientDto({
     required this.accountId,
@@ -12,7 +11,6 @@ class InternalTransferRecipientDto {
     required this.document,
     required this.branch,
     required this.accountNumber,
-    this.accountType,
   });
 
   factory InternalTransferRecipientDto.fromMap(Map<String, dynamic> map) {
@@ -22,7 +20,6 @@ class InternalTransferRecipientDto {
       document: map['document'] as String,
       branch: map['branch'] as String,
       accountNumber: map['account_number'] as String,
-      accountType: map['account_type'] as String?,
     );
   }
 }
