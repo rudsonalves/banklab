@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class BigButton extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool enabled;
   final IconData? rightIcon;
   final IconData? leftIcon;
@@ -10,8 +10,8 @@ class BigButton extends StatelessWidget {
   const BigButton({
     super.key,
     required this.label,
-    required this.onPressed,
-    required this.enabled,
+    this.onPressed,
+    this.enabled = true,
     this.rightIcon,
     this.leftIcon,
   });

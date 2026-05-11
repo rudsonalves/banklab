@@ -1,32 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/core/routing/routes.dart';
 import '/domain/usecases/transfer/transfer_usecase.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/buttons/big_button.dart';
 import '/uis/core/cards/balance_card.dart';
 import '/uis/core/text/card_text_row.dart';
 import '/uis/core/text/text_header.dart';
-import '../../../../core/routing/routes.dart';
-import '../../../core/messages/scaffold_snackbar_message.dart';
+import '../../../core/messages/app_snackbar.dart';
 import 'models/transfer_confirmation_data.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 
-class ConfirmationPage extends StatefulWidget {
+class TransferConfirmationPage extends StatefulWidget {
   final TransferViewmodel viewModel;
   final TransferConfirmationData transferData;
 
-  const ConfirmationPage({
+  const TransferConfirmationPage({
     super.key,
     required this.viewModel,
     required this.transferData,
   });
 
   @override
-  State<ConfirmationPage> createState() => _ConfirmationPageState();
+  State<TransferConfirmationPage> createState() =>
+      _TransferConfirmationPageState();
 }
 
-class _ConfirmationPageState extends State<ConfirmationPage> {
+class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
   @override
   Widget build(BuildContext context) {
     return SafeScaffold(
@@ -108,10 +109,10 @@ class _ConfirmationPageState extends State<ConfirmationPage> {
     } else {
       final transferResponse = widget.viewModel.transfer.result?.value;
       if (transferResponse == null) {
-        showScaffoldSnackBarMessage(
+        AppSnackbar.show(
           context,
           message: 'Erro desconhecido. Por favor, tente novamente mais tarde.',
-          isError: true,
+          type: SnackbarType.error,
         );
         return;
       }

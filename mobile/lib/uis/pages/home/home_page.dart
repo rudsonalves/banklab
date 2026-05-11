@@ -5,7 +5,7 @@ import '/core/routing/route_observer.dart';
 import '/core/routing/routes.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/cards/balance_card.dart';
-import '/uis/core/feedback/app_snackbar.dart';
+import '../../core/messages/app_snackbar.dart';
 import 'viewmodel/home_viewmodel.dart';
 import 'widgets/action_tite.dart';
 

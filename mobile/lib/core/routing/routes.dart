@@ -39,3 +39,12 @@ enum TransferRoutes {
 
   final String path;
 }
+
+enum SharedRoutes {
+  details('/details')
+  ;
+
+  const SharedRoutes(this.path);
+
+  final String path;
+}

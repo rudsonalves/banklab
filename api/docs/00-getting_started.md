@@ -10,6 +10,7 @@
     - [Description](#description)
     - [2.2 Docker engine](#22-docker-engine)
   - [3. Bootstrap (first run)](#3-bootstrap-first-run)
+    - [3.1 Bootstrap the first admin user](#31-bootstrap-the-first-admin-user)
   - [4. Run the API](#4-run-the-api)
   - [5. Reset environment](#5-reset-environment)
   - [6. Notes](#6-notes)
@@ -123,6 +124,30 @@ make api-run
 ```
 
 If you only want the one-step bootstrap for the database portion, `make setup` still performs the Docker check, container startup, wait, and migrations.
+
+### 3.1 Bootstrap the first admin user
+
+After the first user is registered, the system still needs an administrator to approve new accounts.
+
+At the moment there is no admin UI for this first setup step. Promote the first user directly in PostgreSQL by changing their `role` to `admin`:
+
+```bash
+docker exec -i bank-postgres psql -U postgres -d bank \
+  -c "UPDATE users SET role = 'admin', updated_at = NOW() WHERE email = 'admin@example.com';"
+```
+
+Replace `admin@example.com` with the email of the user that should become the initial administrator.
+
+This bootstrap admin user does not need a bank account. The admin only needs to log in through the web client or Postman, obtain a JWT, and call the approval endpoint for newly registered users:
+
+```http
+POST {{base_url}}/admin/users/{{id}}/approve
+Authorization: Bearer {{access_token}}
+```
+
+The `id` path parameter is the UUID of the pending user returned by `POST /auth/register`.
+
+Only users whose account approval flow has been completed can use the customer-facing parts of the application. In practice, a newly registered customer starts as `pending`; an admin must call `POST /admin/users/{id}/approve`, which changes the user to `active` and creates the associated account atomically.
 
 ---
 

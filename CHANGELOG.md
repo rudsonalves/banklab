@@ -1,5 +1,171 @@
 # Changelog
 
+## 2026/05/11 - mobile/internal-transfer-11
+
+Refactor the internal transfer flow and introduce a complete transfer receipt/details experience in the Flutter mobile client.
+
+### Documentation
+
+1. `api/docs/00-getting_started.md`
+
+   * Added the bootstrap flow for the first administrator user.
+   * Documented the manual PostgreSQL promotion process for the initial admin account.
+   * Clarified the approval lifecycle for newly registered users.
+   * Added operational guidance for calling `POST /admin/users/{id}/approve`.
+   * Improved onboarding clarity for local environment setup and first system access.
+
+### Routing and Navigation
+
+1. `mobile/lib/core/routing/router.dart`
+
+   * Added shared route registration.
+
+2. `mobile/lib/core/routing/routes.dart`
+
+   * Introduced `SharedRoutes` enum with the transfer details route.
+
+3. `mobile/lib/core/routing/routes/shared_routes.dart`
+
+   * Added shared navigation route for transfer details/receipt visualization.
+   * Injected `DetailsViewmodel` through dependency injection.
+   * Enabled route argument passing through `state.extra`.
+
+4. `mobile/lib/core/routing/routes/tranfer_routes.dart`
+
+   * Renamed transfer pages to explicit `Transfer*` naming convention.
+   * Updated route builders to use the renamed widgets.
+   * Simplified imports and normalized route organization.
+   * Added integration with the new transfer status and receipt navigation flow.
+
+### Domain and Dependency Injection
+
+1. `mobile/lib/domain/usecases/details/details_usecase.dart`
+
+   * Added `DetailsUsecase` for transfer receipt retrieval.
+   * Integrated account and transaction repositories.
+   * Exposed selected account access for shared details flows.
+
+2. `mobile/lib/domain/usecases/usecases.dart`
+
+   * Registered `DetailsUsecase` in dependency injection.
+
+3. `mobile/lib/uis/viewmodels.dart`
+
+   * Registered `DetailsViewmodel` in dependency injection.
+
+### Shared Transfer Receipt Experience
+
+1. `mobile/lib/uis/pages/shared/details/details_page.dart`
+
+   * Added a dedicated transfer receipt/details page.
+   * Implemented asynchronous receipt loading flow.
+   * Added receipt rendering with transfer metadata presentation.
+   * Added transaction reference copy support.
+   * Added receipt sharing support using generated PNG images.
+   * Implemented `RepaintBoundary` image capture flow.
+   * Added temporary image generation and persistence.
+   * Added integration with native share APIs using `share_plus`.
+   * Added detailed snackbar feedback handling.
+   * Added loading, retry, and failure states.
+   * Added responsive receipt card rendering.
+   * Added transaction status visualization.
+   * Added share state protection to avoid duplicated actions.
+   * Added defensive rendering and capture validation logic.
+
+2. `mobile/lib/uis/pages/shared/details/viewmodel/details_viewmodel.dart`
+
+   * Added command-based receipt retrieval state management.
+   * Connected details flow to `DetailsUsecase`.
+
+3. `mobile/lib/uis/pages/shared/details/widgets/detail_line.dart`
+
+   * Added reusable detail line widget for receipt rendering.
+
+### Transfer Flow Improvements
+
+1. `mobile/lib/uis/pages/home/transfer/transfer_status_page.dart`
+
+   * Replaced modal receipt visualization with dedicated details navigation.
+   * Added new action layout using `BigTextButton`.
+   * Simplified successful transfer presentation.
+   * Improved CTA hierarchy and spacing.
+   * Added receipt navigation through shared routes.
+   * Updated success message wording.
+
+2. `mobile/lib/uis/pages/home/transfer/transfer_confirmation_page.dart`
+
+   * Renamed confirmation page class for consistency.
+   * Migrated snackbar usage to `AppSnackbar`.
+   * Improved transfer failure feedback handling.
+
+3. `mobile/lib/uis/pages/home/transfer/transfer_payment_page.dart`
+
+   * Renamed payment page class for consistency.
+   * Replaced deprecated snackbar helper usage.
+   * Improved invalid amount feedback handling.
+
+4. `mobile/lib/uis/pages/home/transfer/transfer_recipient_page.dart`
+
+   * Renamed recipient page class for consistency.
+   * Added forward navigation icon to primary CTA.
+
+5. `mobile/lib/uis/pages/home/transfer/transfer_page.dart`
+
+   * Removed obsolete transfer page implementation.
+
+### UI Components and Shared Widgets
+
+1. `mobile/lib/uis/core/buttons/big_button.dart`
+
+   * Made `onPressed` nullable.
+   * Added default enabled state.
+   * Improved disabled button compatibility.
+
+2. `mobile/lib/uis/core/buttons/big_text_button.dart`
+
+   * Added reusable large text button component.
+
+3. `mobile/lib/uis/core/text/card_text_row.dart`
+
+   * Improved multiline layout handling.
+   * Added expanded text rendering.
+   * Improved alignment for long values.
+
+### Feedback and Messaging
+
+1. `mobile/lib/uis/core/messages/app_snackbar.dart`
+
+   * Moved snackbar utilities into a dedicated `messages` namespace.
+
+2. `mobile/lib/uis/core/messages/scaffold_snackbar_message.dart`
+
+   * Removed legacy snackbar helper implementation.
+
+3. Updated snackbar imports across:
+
+   * `login_page.dart`
+   * `home_page.dart`
+   * transfer pages
+
+### Dependencies and Platform Support
+
+1. `mobile/pubspec.yaml`
+
+   * Added `share_plus`.
+   * Added `path_provider`.
+
+2. `mobile/pubspec.lock`
+
+   * Updated dependency graph for sharing and filesystem support.
+   * Added transitive URL launcher and sharing platform packages.
+
+3. `mobile/ios/Podfile.lock`
+
+   * Added iOS CocoaPods integration for `share_plus`.
+
+This commit consolidates the internal transfer UX around a dedicated receipt/details flow, improves route consistency, modernizes shared feedback components, and establishes the foundation for richer financial operation visualization inside the mobile client.
+
+
 ## 2026/05/11 - mobile/internal-transfer-10
 
 Implemented the complete internal transfer confirmation and status flow in the Flutter mobile application, introducing presentation-layer models, typed route serialization, money parsing/formatting helpers, and improved transfer UX/navigation behavior.

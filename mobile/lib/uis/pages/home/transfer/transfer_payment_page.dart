@@ -8,28 +8,28 @@ import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/buttons/big_button.dart';
 import '/uis/core/cards/balance_card.dart';
 import '/uis/core/cards/recipient_card.dart';
-import '/uis/core/messages/scaffold_snackbar_message.dart';
 import '/uis/core/text/text_header.dart';
 import '/uis/core/text_form_field/basic_text_form_field.dart';
 import '/uis/core/text_form_field/money_input_formatter.dart';
+import '../../../core/messages/app_snackbar.dart';
 import 'models/transfer_confirmation_data.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 
-class PaymentPage extends StatefulWidget {
+class TransferPaymentPage extends StatefulWidget {
   final TransferViewmodel viewModel;
   final RecipientInfoDto recipientInfo;
 
-  const PaymentPage({
+  const TransferPaymentPage({
     super.key,
     required this.viewModel,
     required this.recipientInfo,
   });
 
   @override
-  State<PaymentPage> createState() => _PaymentPageState();
+  State<TransferPaymentPage> createState() => _TransferPaymentPageState();
 }
 
-class _PaymentPageState extends State<PaymentPage> {
+class _TransferPaymentPageState extends State<TransferPaymentPage> {
   TransferViewmodel get _viewModel => widget.viewModel;
   RecipientInfoDto get _recipientInfo => widget.recipientInfo;
 
@@ -121,12 +121,12 @@ class _PaymentPageState extends State<PaymentPage> {
   void _onConfirmTransfer() {
     final amountResult = _amountController.text.parseToMoney();
     if (amountResult.isFailure) {
-      showScaffoldSnackBarMessage(
+      AppSnackbar.show(
         context,
         message:
             'Valor inválido. Por favor, insira um valor maior que zero'
             ' para a transferência.',
-        isError: true,
+        type: SnackbarType.error,
       );
       return;
     }

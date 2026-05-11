@@ -14,16 +14,16 @@ import '/uis/core/text_form_field/basic_text_form_field.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 import 'widgets/dropdown_recipient.dart';
 
-class RecipientPage extends StatefulWidget {
+class TransferRecipientPage extends StatefulWidget {
   final TransferViewmodel viewModel;
 
-  const RecipientPage({super.key, required this.viewModel});
+  const TransferRecipientPage({super.key, required this.viewModel});
 
   @override
-  State<RecipientPage> createState() => _RecipientPageState();
+  State<TransferRecipientPage> createState() => _TransferRecipientPageState();
 }
 
-class _RecipientPageState extends State<RecipientPage> {
+class _TransferRecipientPageState extends State<TransferRecipientPage> {
   TransferViewmodel get _viewModel => widget.viewModel;
 
   final _documentController = TextEditingController();
@@ -153,6 +153,7 @@ class _RecipientPageState extends State<RecipientPage> {
               label: 'Prosseguir',
               onPressed: _onConfigTransfer,
               enabled: isButtonEnabled,
+              rightIcon: Icons.arrow_forward_ios_rounded,
             );
           },
         ),

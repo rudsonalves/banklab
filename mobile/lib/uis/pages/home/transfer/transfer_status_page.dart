@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '/core/routing/routes.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/buttons/big_button.dart';
+import '/uis/core/buttons/big_text_button.dart';
 
 class TransferStatusPage extends StatelessWidget {
   final bool isSuccess;
@@ -49,53 +50,31 @@ class TransferStatusPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               isSuccess
-                  ? 'Seu dinheiro foi enviado com sucesso.'
+                  ? 'Sua transferência foi realizada com sucesso.'
                   : 'Não foi possível concluir a transferência. Tente novamente.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-            if (isSuccess && transactionReference != null) ...[
-              const SizedBox(height: 24),
-              Text(
-                'Referência da transação',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                transactionReference!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
           ],
         ),
       ),
       bottomNavigationBar: isSuccess
           ? Row(
+              spacing: 12,
               children: [
                 Expanded(
-                  child: TextButton(
-                    onPressed: () => _goBack(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('Voltar'),
+                  flex: 1,
+                  child: BigTextButton(
+                    onPressed: () => _navBack(context),
+                    label: 'Voltar',
                   ),
                 ),
-                const SizedBox(width: 12),
                 Expanded(
+                  flex: 2,
                   child: BigButton(
-                    label: 'Ver comprovante',
+                    label: 'Comprovante',
                     onPressed: () => _showReceipt(context),
-                    leftIcon: Icons.receipt_long_rounded,
+                    rightIcon: Icons.receipt_long_rounded,
                     enabled: transactionReference != null,
                   ),
                 ),
@@ -103,52 +82,22 @@ class TransferStatusPage extends StatelessWidget {
             )
           : BigButton(
               label: 'Voltar',
-              onPressed: () => _goBack(context),
+              onPressed: () => _navBack(context),
               enabled: true,
             ),
     );
   }
 
-  void _goBack(BuildContext context) {
+  void _navBack(BuildContext context) {
     context.goNamed(HomeRoutes.home.name);
   }
 
   void _showReceipt(BuildContext context) {
     final reference = transactionReference;
     if (reference == null) return;
-
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Comprovante',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Referência da transação',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              reference,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            BigButton(
-              label: 'Fechar',
-              onPressed: () => Navigator.of(context).pop(),
-              enabled: true,
-            ),
-          ],
-        ),
-      ),
+    context.pushNamed(
+      SharedRoutes.details.name,
+      extra: reference,
     );
   }
 }

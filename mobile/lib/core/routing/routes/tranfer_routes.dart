@@ -1,12 +1,12 @@
 import 'package:go_router/go_router.dart';
 
 import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
-import '/uis/pages/home/transfer/confirmation_page.dart';
 import '/uis/pages/home/transfer/models/transfer_confirmation_data.dart';
-import '/uis/pages/home/transfer/payment_page.dart';
-import '/uis/pages/home/transfer/recipient_page.dart';
+import '/uis/pages/home/transfer/transfer_confirmation_page.dart';
+import '/uis/pages/home/transfer/transfer_payment_page.dart';
+import '/uis/pages/home/transfer/transfer_recipient_page.dart';
+import '/uis/pages/home/transfer/transfer_status_page.dart';
 import '/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart';
-import '../../../uis/pages/home/transfer/transfer_status_page.dart';
 import '../../config/dependencies.dart';
 import '../routes.dart';
 
@@ -14,7 +14,7 @@ List<RouteBase> transferRoutes() => [
   GoRoute(
     path: TransferRoutes.recipient.path,
     name: TransferRoutes.recipient.name,
-    builder: (context, state) => RecipientPage(
+    builder: (context, state) => TransferRecipientPage(
       viewModel: injector.get<TransferViewmodel>(),
     ),
   ),
@@ -22,7 +22,7 @@ List<RouteBase> transferRoutes() => [
   GoRoute(
     path: TransferRoutes.payment.path,
     name: TransferRoutes.payment.name,
-    builder: (context, state) => PaymentPage(
+    builder: (context, state) => TransferPaymentPage(
       viewModel: injector.get<TransferViewmodel>(),
       recipientInfo: state.extra as RecipientInfoDto,
     ),
@@ -31,7 +31,7 @@ List<RouteBase> transferRoutes() => [
   GoRoute(
     path: TransferRoutes.confirmation.path,
     name: TransferRoutes.confirmation.name,
-    builder: (context, state) => ConfirmationPage(
+    builder: (context, state) => TransferConfirmationPage(
       viewModel: injector.get<TransferViewmodel>(),
       transferData: state.extra as TransferConfirmationData,
     ),

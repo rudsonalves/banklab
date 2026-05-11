@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
-import '../../../core/feedback/app_snackbar.dart';
+import '../../../core/messages/app_snackbar.dart';
 import '../../../core/text_form_field/basic_text_form_field.dart';
 import 'viewmodel/login_viewmodel.dart';
 
