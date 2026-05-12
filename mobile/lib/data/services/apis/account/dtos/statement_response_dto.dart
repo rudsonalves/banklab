@@ -8,6 +8,7 @@ class StatementItemDto {
   final Money amount;
   final Money balanceAfter;
   final String? referenceId;
+  final String description;
   final String createdAt;
 
   StatementItemDto({
@@ -16,6 +17,7 @@ class StatementItemDto {
     required this.amount,
     required this.balanceAfter,
     required this.referenceId,
+    required this.description,
     required this.createdAt,
   });
 
@@ -26,6 +28,7 @@ class StatementItemDto {
       amount: ApiParse.toMoney(map['amount']),
       balanceAfter: ApiParse.toMoney(map['balance_after']),
       referenceId: map['reference_id'] as String?,
+      description: (map['description'] as String?) ?? '',
       createdAt: map['created_at'] as String,
     );
   }

@@ -29,12 +29,16 @@ class AccountRepositoryImpl implements AccountRepository {
   AccountSummaryResponseDto? _selectedAccount;
 
   List<AccountSummaryResponseDto>? _accountsCache;
+  StatementResponseDto? _statementCache;
 
   @override
   BalanceResponseDto? get lastBalance => _balanceCache;
 
   @override
   AccountSummaryResponseDto? get selectedAccount => _selectedAccount;
+
+  @override
+  StatementResponseDto? get lastStatement => _statementCache;
 
   @override
   List<AccountSummaryResponseDto>? get accounts => _accountsCache;
@@ -99,6 +103,7 @@ class AccountRepositoryImpl implements AccountRepository {
     for (final account in _accountsCache!) {
       if (account.id == accountId) {
         _selectedAccount = account;
+        _statementCache = null;
 
         await loadBalance();
         return const Success(unit);
@@ -126,9 +131,14 @@ class AccountRepositoryImpl implements AccountRepository {
       );
     }
 
-    return _statementApi.getStatement(
+    final result = await _statementApi.getStatement(
       _selectedAccount!.id,
       queryParams: queryParams,
     );
+
+    if (result.isFailure) return Result.failure(result.error!);
+
+    _statementCache = result.value!;
+    return Success(_statementCache!);
   }
 }

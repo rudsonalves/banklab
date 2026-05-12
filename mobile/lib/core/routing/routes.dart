@@ -11,7 +11,8 @@ enum AuthRoutes {
 
 enum BaseRoutes {
   home('/home'),
-  splash('/splash')
+  splash('/splash'),
+  statement('/statement')
   ;
 
   const BaseRoutes(this.path);

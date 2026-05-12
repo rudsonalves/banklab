@@ -1,7 +1,7 @@
 import '/core/extensions/datetime_extension.dart';
+import '/data/services/auth/api/dtos/auth_me_response_dto.dart';
+import '/data/services/auth/api/dtos/customer_me_response_dto.dart';
 import '/domain/common/user/enums/user_role.dart';
-import '../../../../data/services/auth/api/dtos/auth_me_response_dto.dart';
-import '../../../../data/services/auth/api/dtos/customer_me_response_dto.dart';
 
 class UserProfile {
   final String userId;

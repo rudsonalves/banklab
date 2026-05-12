@@ -5,13 +5,40 @@ import '../core/api_envelope.dart';
 import 'dtos/statement_query_params_dto.dart';
 import 'dtos/statement_response_dto.dart';
 
+/// API service for fetching account statement data.
+///
+/// This class handles HTTP requests to retrieve transaction statements
+/// for a given account, with support for filtering via query parameters.
 class StatementApi {
   final RestClient _client;
 
+  /// Creates a new [StatementApi] instance.
+  ///
+  /// The [_client] parameter is a [RestClient] used to make HTTP requests.
   StatementApi(this._client);
 
   final _log = ConsoleLog('StatementApi');
 
+  /// Fetches the transaction statement for a specific account.
+  ///
+  /// Makes a GET request to `/accounts/{accountId}/statement` to retrieve
+  /// the account's transaction history.
+  ///
+  /// Parameters:
+  ///   - [accountId]: The unique identifier of the account.
+  ///   - [queryParams]: Optional filtering parameters (e.g., date range, limit).
+  ///     Defaults to [StatementQueryParamsDto()] with no filters.
+  ///
+  /// Returns:
+  ///   An [AsyncResult] containing either:
+  ///   - [Success] with [StatementResponseDto] containing the statement data.
+  ///   - [Failure] with [AppError] if the request fails, parsing fails,
+  ///     or the server returns an error.
+  ///
+  /// Error handling:
+  ///   - HTTP errors (status codes outside 200-299): Returns [AppErrorCode.httpError].
+  ///   - Missing response data: Returns [AppErrorCode.httpError].
+  ///   - Response parsing failures: Returns [AppErrorCode.parsingError].
   AsyncResult<StatementResponseDto> getStatement(
     String accountId, {
     StatementQueryParamsDto queryParams = const StatementQueryParamsDto(),

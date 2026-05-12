@@ -7,6 +7,7 @@ import 'pages/home/transfer/viewmodel/transfer_viewmodel.dart';
 import 'pages/home/viewmodel/home_viewmodel.dart';
 import 'pages/shared/details/viewmodel/details_viewmodel.dart';
 import 'pages/splash/viewmodel/splash_viewmodel.dart';
+import 'pages/statement/viewmodel/statement_viewmodel.dart';
 
 class Viewmodels {
   static void add(AutoInjector injector) {
@@ -17,6 +18,7 @@ class Viewmodels {
       ..add<TransferViewmodel>(TransferViewmodel.new)
       ..add<DetailsViewmodel>(DetailsViewmodel.new)
       ..add<SplashViewmodel>(SplashViewmodel.new)
-      ..add<ShortLoginViewModel>(ShortLoginViewModel.new);
+      ..add<ShortLoginViewModel>(ShortLoginViewModel.new)
+      ..add<StatementViewmodel>(StatementViewmodel.new);
   }
 }

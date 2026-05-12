@@ -1,5 +1,158 @@
 # Changelog
 
+## 2026/05/12 — mobile/statement-02
+
+Implemented the first complete statement flow for the mobile application, including backend support for transaction descriptions, statement navigation, grouped UI rendering, cached state handling, and receipt behavior improvements.
+
+### API
+
+1. Statement response enrichment
+
+   * Added optional `description` support to statement items returned by the API.
+   * Updated statement application model, delivery DTOs, handlers, and infrastructure repository mappings.
+   * Extended SQL queries to fetch transaction descriptions from the `transactions` table.
+   * Added `omitempty` behavior for empty descriptions in JSON responses.
+   * Updated REST API documentation with statement description examples and optional field notes.
+
+2. Statement repository test coverage
+
+   * Added `repository_test.go` for statement infrastructure.
+   * Validated:
+
+     * SQL query selection includes `description`
+     * transaction description mapping
+     * timestamp propagation
+     * nullable field handling
+
+3. Transfer receipt behavior correction
+
+   * Adjusted transfer receipt operation type resolution for destination customers.
+   * Destination users now correctly see `transfer_in` instead of the original transfer direction.
+   * Added dedicated unit test validation for the corrected behavior.
+
+### Mobile — Routing & Navigation
+
+1. Statement route integration
+
+   * Added `BaseRoutes.statement`.
+   * Registered `StatementPage` and `StatementViewmodel` in GoRouter and dependency injection.
+
+2. Home page navigation
+
+   * Replaced the previous “coming soon” placeholder action with real statement navigation.
+   * Added `_navToStatement()` navigation handler.
+
+3. Details page navigation improvements
+
+   * Replaced forced navigation to home with `context.pop()`.
+   * Updated button label from `Fechar` to `Voltar`.
+
+### Mobile — Statement Feature
+
+1. Statement page implementation
+
+   * Added full `StatementPage`.
+   * Implemented:
+
+     * loading state
+     * retry flow
+     * refresh indicator
+     * empty state
+     * grouped rendering by month/day
+     * operation detail navigation
+     * snackbar-based error handling
+
+2. Statement grouping and formatting
+
+   * Added:
+
+     * `MonthHeader`
+     * `DayHeader`
+     * `StatementItemCard`
+   * Implemented:
+
+     * month grouping
+     * daily grouping
+     * daily consolidated balance display
+     * localized date/hour formatting
+
+3. Statement interaction flow
+
+   * Transactions with valid references now navigate to details screen.
+   * Transactions without references show informational feedback.
+
+4. Statement caching support
+
+   * Added `lastStatement` support to `AccountRepository`.
+   * Added internal `_statementCache`.
+   * Cache is invalidated when switching accounts.
+   * Cached statement is reused during refresh/error scenarios.
+
+5. Statement DTO improvements
+
+   * Added `description` field to `StatementItemDto`.
+   * Added safe parsing fallback for nullable descriptions.
+
+### Mobile — Shared Transaction Presentation
+
+1. Transaction movement abstraction
+
+   * Added `TransactionMovement`.
+   * Centralized:
+
+     * operation labels
+     * debit/credit semantics
+     * amount sign formatting
+
+2. Details page integration
+
+   * Receipt operation labels now use `TransactionMovement`.
+   * Improved semantic consistency between statement and receipt views.
+
+### Mobile — UI & Refactoring
+
+1. Statement card component
+
+   * Added reusable visual representation for statement entries.
+   * Included:
+
+     * debit/credit coloring
+     * optional descriptions
+     * detail navigation indicators
+     * formatted timestamps
+
+2. Splash screen adjustment
+
+   * Wrapped splash logo in a card container with padding for improved visual contrast.
+
+3. Import normalization
+
+   * Standardized several imports to use absolute project paths.
+
+4. Exception extraction
+
+   * Moved `ReceiptImageException` into its own dedicated exception file.
+
+5. BigButton flexibility improvements
+
+   * `leftIcon` and `rightIcon` now accept `Widget` instead of `IconData`.
+   * Increased flexibility for future UI composition.
+
+### Tests
+
+1. Statement handler tests
+
+   * Added assertions validating description propagation through HTTP responses.
+
+2. Transfer receipt tests
+
+   * Added validation for destination-side `transfer_in` operation type behavior.
+
+3. Fake repository updates
+
+   * Extended fake repositories with `lastStatement` support for compatibility with the new repository contract.
+
+
 ## 2026/05/12 — main
 
 Refactor authentication and transfer action buttons to support fully customizable icon widgets and improve UI consistency across the mobile application.

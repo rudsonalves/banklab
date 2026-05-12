@@ -144,6 +144,10 @@ func TestGetTransferReceipt_Execute_SuccessForDestinationCustomer(t *testing.T) 
 	if result == nil {
 		t.Fatal("expected result, got nil")
 	}
+
+	if result.OperationType != string(domain.TransactionTransferIn) {
+		t.Fatalf("expected operation type %q, got %q", domain.TransactionTransferIn, result.OperationType)
+	}
 }
 
 func TestGetTransferReceipt_Execute_Forbidden(t *testing.T) {

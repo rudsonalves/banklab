@@ -5,9 +5,9 @@ import '/core/routing/routes.dart';
 import '/data/services/auth/api/dtos/login_request_dto.dart';
 import '/data/services/auth/cache/models/last_login_identity.dart';
 import '/uis/core/base/safe_scaffold.dart';
+import '/uis/core/buttons/big_button.dart';
 import '/uis/core/messages/app_snackbar.dart';
 import '/uis/core/text_form_field/basic_text_form_field.dart';
-import '../../../core/buttons/big_button.dart';
 import 'viewmodel/short_login_viewmodel.dart';
 
 class ShortLoginPage extends StatefulWidget {

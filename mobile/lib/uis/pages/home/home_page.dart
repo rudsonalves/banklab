@@ -5,7 +5,6 @@ import '/core/routing/route_observer.dart';
 import '/core/routing/routes.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/cards/balance_card.dart';
-import '../../core/messages/app_snackbar.dart';
 import 'viewmodel/home_viewmodel.dart';
 import 'widgets/action_tite.dart';
 
@@ -110,7 +109,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                       icon: Icons.receipt_long_rounded,
                       title: 'Extrato',
                       subtitle: 'Disponibilizar em breve',
-                      onTap: () => _showPendingFeature('Extrato'),
+                      onTap: _navToStatement,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -131,12 +130,8 @@ class _HomePageState extends State<HomePage> with RouteAware {
     );
   }
 
-  void _showPendingFeature(String featureName) {
-    AppSnackbar.show(
-      context,
-      title: 'Em breve',
-      message: '$featureName será disponibilizado em breve.',
-    );
+  void _navToStatement() {
+    context.pushNamed(BaseRoutes.statement.name);
   }
 
   void _navToTransferRecipient() {

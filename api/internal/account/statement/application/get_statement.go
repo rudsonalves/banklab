@@ -41,6 +41,7 @@ type StatementItem struct {
 	Amount        int64
 	BalanceAfter  int64
 	ReferenceID   *string
+	Description   *string
 	CreatedAt     time.Time
 }
 
@@ -120,6 +121,7 @@ func (uc *GetStatement) Execute(ctx context.Context, input GetStatementInput) (*
 			Type:          string(tx.Type),
 			Amount:        tx.Amount,
 			BalanceAfter:  tx.BalanceAfter,
+			Description:   tx.Description,
 			CreatedAt:     tx.CreatedAt,
 		}
 		if tx.ReferenceID != nil {

@@ -784,6 +784,7 @@ Success response (200):
         "amount": 5000,
         "balance_after": 15000,
         "reference_id": null,
+        "description": "Aluguel de maio",
         "created_at": "2026-04-02T12:00:00Z"
       }
     ],
@@ -794,6 +795,9 @@ Success response (200):
 ```
 
 When there are more results, `next_cursor` is an object — pass both fields as query params for the next page:
+
+Statement item notes:
+- `description` is optional and is omitted when the transaction has no description.
 
 ```json
 {

@@ -79,7 +79,7 @@ func (r *Repository) GetTransactions(
 
 	query := `
 		SELECT id, account_id, type, amount, balance_after, reference_id,
-		       related_account_id, idempotency_key, created_at
+		       related_account_id, idempotency_key, description, created_at
 		FROM transactions
 		WHERE account_id = $1
 		  AND ($2::timestamptz IS NULL OR created_at >= $2)
@@ -110,6 +110,7 @@ func (r *Repository) GetTransactions(
 			&transaction.ReferenceID,
 			&transaction.RelatedAccountID,
 			&transaction.IdempotencyKey,
+			&transaction.Description,
 			&transaction.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("get transactions: %w", err)

@@ -119,6 +119,7 @@ func TestHandler_Statement_Success(t *testing.T) {
 	cursorID := uuid.New()
 	transactionID := uuid.New()
 	referenceID := uuid.New().String()
+	description := "Aluguel de maio"
 
 	statementUC := &statementUseCaseMock{
 		executeFn: func(ctx context.Context, input statementapp.GetStatementInput) (*statementapp.Statement, error) {
@@ -153,6 +154,7 @@ func TestHandler_Statement_Success(t *testing.T) {
 						Amount:        100,
 						BalanceAfter:  500,
 						ReferenceID:   &referenceID,
+						Description:   &description,
 						CreatedAt:     to,
 					},
 				},
@@ -186,6 +188,7 @@ func TestHandler_Statement_Success(t *testing.T) {
 				Amount        int64   `json:"amount"`
 				BalanceAfter  int64   `json:"balance_after"`
 				ReferenceID   *string `json:"reference_id"`
+				Description   *string `json:"description"`
 			} `json:"items"`
 			NextCursor *struct {
 				CreatedAt time.Time `json:"created_at"`
@@ -209,6 +212,10 @@ func TestHandler_Statement_Success(t *testing.T) {
 
 	if got.Data.Items[0].TransactionID != transactionID.String() {
 		t.Fatalf("expected transaction_id %q, got %q", transactionID.String(), got.Data.Items[0].TransactionID)
+	}
+
+	if got.Data.Items[0].Description == nil || *got.Data.Items[0].Description != description {
+		t.Fatalf("expected description %q, got %+v", description, got.Data.Items[0].Description)
 	}
 
 	if got.Data.NextCursor == nil {
