@@ -1,8 +1,9 @@
 import '/core/result/result.dart';
-import '/data/services/apis/auth/dtos/login_request_dto.dart';
-import '/data/services/apis/auth/dtos/register_request_dto.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
+import '../../services/auth/api/dtos/login_request_dto.dart';
+import '../../services/auth/api/dtos/register_request_dto.dart';
+import '../../services/auth/cache/models/last_login_identity.dart';
 
 abstract class AuthRepository {
   /// Returns the current authentication state for the app session.
@@ -37,4 +38,9 @@ abstract class AuthRepository {
   /// When available, the cached profile is returned instead of fetching it
   /// again.
   AsyncResult<UserProfile> profile();
+
+  /// Retrieves the last login identity (name and identifier) from cache.
+  /// Returns a failure if there is an error accessing the cache or if the
+  /// data is incomplete.
+  AsyncResult<LastLoginIdentity> getLastLoginIdentity();
 }

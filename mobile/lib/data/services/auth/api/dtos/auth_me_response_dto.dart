@@ -18,7 +18,7 @@ class AuthMeResponseDto {
       id: map['id'] as String,
       role: UserRole.byName(map['role'] as String),
       email: map['email'] as String,
-      customerId: map['customerId'] as String,
+      customerId: map['customer_id'] as String,
     );
   }
 }

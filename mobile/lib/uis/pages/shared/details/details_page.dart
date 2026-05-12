@@ -265,7 +265,7 @@ class _DetailsPageState extends State<DetailsPage> {
   }
 
   void _navBack(BuildContext context) {
-    context.goNamed(HomeRoutes.home.name);
+    context.goNamed(BaseRoutes.home.name);
   }
 
   void _onGetTransferReceiptChanged() {

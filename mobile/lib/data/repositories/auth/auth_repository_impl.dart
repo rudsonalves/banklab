@@ -1,25 +1,33 @@
 import '/core/resources/storage_keys.dart';
 import '/core/result/result.dart';
+import '/core/services/logging/console_log.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
 import '/data/repositories/auth/auth_repository.dart';
-import '/data/services/apis/auth/auth_api.dart';
-import '/data/services/apis/auth/dtos/login_request_dto.dart';
-import '/data/services/apis/auth/dtos/register_request_dto.dart';
+import '/data/services/auth/api/auth_api.dart';
+import '/data/services/auth/api/dtos/login_request_dto.dart';
+import '/data/services/auth/api/dtos/register_request_dto.dart';
+import '/data/services/auth/cache/last_login_cache_service.dart';
+import '/data/services/auth/cache/models/last_login_identity.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApi _api;
   final LocalSecureStorage _storage;
+  final LastLoginCacheService _lastLoginCacheService;
 
   AuthRepositoryImpl({
     required AuthApi api,
     required LocalSecureStorage storage,
+    required LastLoginCacheService lastLoginCacheService,
   }) : _api = api,
-       _storage = storage;
+       _storage = storage,
+       _lastLoginCacheService = lastLoginCacheService;
 
   AuthUser _currentUser = NotLoggedUser();
   UserProfile? _userProfile;
+
+  final _log = ConsoleLog('AuthRepositoryImpl');
 
   @override
   AuthUser get currentUser => _currentUser;
@@ -43,7 +51,35 @@ class AuthRepositoryImpl implements AuthRepository {
     await _storage.write(StorageKeys.accessToken, user.accessToken);
     await _storage.write(StorageKeys.refreshToken, user.refreshToken);
 
+    final profileResult = await profile();
+    if (profileResult.isFailure) {
+      // If fetching the profile fails, we should log out to clear any partial state.
+      await logout();
+      return Result.failure(profileResult.error!);
+    }
+
+    _userProfile = profileResult.value!;
+    final saveResult = await _lastLoginCacheService.save(
+      LastLoginIdentity(
+        name: _userProfile!.name,
+        identifier: _userProfile!.email,
+      ),
+    );
+
+    if (saveResult.isFailure) {
+      // TODO: Log the error but don't fail the login process since it's not
+      //       critical. In a real app, consider using a logging service here.
+      _log.warn('Failed to save last login identity: ${saveResult.error}');
+    }
+
     return Success(user);
+  }
+
+  @override
+  AsyncResult<LastLoginIdentity> getLastLoginIdentity() async {
+    final result = await _lastLoginCacheService.get();
+    if (result.isFailure) return Result.failure(result.error!);
+    return Success(result.value!);
   }
 
   @override

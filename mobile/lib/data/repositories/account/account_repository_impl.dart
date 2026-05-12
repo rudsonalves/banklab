@@ -2,13 +2,13 @@ import 'dart:async';
 
 import '/core/result/result.dart';
 import '/data/repositories/account/account_repository.dart';
-import '/data/services/apis/account/balance_api.dart';
-import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
-import '/data/services/apis/account/dtos/balance_response_dto.dart';
-import '/data/services/apis/account/dtos/statement_query_params_dto.dart';
-import '/data/services/apis/account/dtos/statement_response_dto.dart';
-import '/data/services/apis/account/list_accounts_api.dart';
-import '/data/services/apis/account/statement_api.dart';
+import '../../services/apis/account/balance_api.dart';
+import '../../services/apis/account/dtos/account_summary_response_dto.dart';
+import '../../services/apis/account/dtos/balance_response_dto.dart';
+import '../../services/apis/account/dtos/statement_query_params_dto.dart';
+import '../../services/apis/account/dtos/statement_response_dto.dart';
+import '../../services/apis/account/list_accounts_api.dart';
+import '../../services/apis/account/statement_api.dart';
 
 class AccountRepositoryImpl implements AccountRepository {
   final BalanceApi _balanceApi;
