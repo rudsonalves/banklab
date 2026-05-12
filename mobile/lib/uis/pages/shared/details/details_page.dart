@@ -254,7 +254,7 @@ class _DetailsPageState extends State<DetailsPage> {
                       ? () => _shareReceipt(receipt)
                       : null,
                   label: _isSharing ? 'Gerando imagem...' : 'Compartilhar',
-                  rightIcon: Icons.share_rounded,
+                  rightIcon: Icon(Icons.share_rounded, size: 24),
                 ),
               ),
             ],

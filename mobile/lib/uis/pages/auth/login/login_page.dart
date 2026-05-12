@@ -6,6 +6,7 @@ import '/data/services/auth/api/dtos/login_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/messages/app_snackbar.dart';
 import '/uis/core/text_form_field/basic_text_form_field.dart';
+import '../../../core/buttons/big_button.dart';
 import 'viewmodel/login_viewmodel.dart';
 
 class LoginPage extends StatefulWidget {
@@ -147,9 +148,10 @@ class _LoginPageState extends State<LoginPage> {
         builder: (context, _) {
           final isRunning = _viewModel.login.isRunning;
 
-          return FilledButton(
+          return BigButton(
             onPressed: isRunning ? null : _submit,
-            child: isRunning
+            label: isRunning ? 'Entrando...' : 'Entrar',
+            rightIcon: isRunning
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -157,7 +159,7 @@ class _LoginPageState extends State<LoginPage> {
                       strokeWidth: 2,
                     ),
                   )
-                : const Text('Entrar'),
+                : Icon(Icons.login_rounded, size: 24),
           );
         },
       ),

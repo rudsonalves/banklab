@@ -4,8 +4,8 @@ class BigButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool enabled;
-  final IconData? rightIcon;
-  final IconData? leftIcon;
+  final Widget? rightIcon;
+  final Widget? leftIcon;
 
   const BigButton({
     super.key,
@@ -37,13 +37,13 @@ class BigButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (leftIcon != null) ...[
-              Icon(leftIcon, size: 24),
+              leftIcon!,
               SizedBox(width: 8),
             ],
             Text(label, style: textStyle),
             if (rightIcon != null) ...[
               SizedBox(width: 8),
-              Icon(rightIcon, size: 24),
+              rightIcon!,
             ],
           ],
         ),

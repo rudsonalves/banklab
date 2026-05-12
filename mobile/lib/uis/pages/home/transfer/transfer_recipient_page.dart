@@ -153,7 +153,7 @@ class _TransferRecipientPageState extends State<TransferRecipientPage> {
               label: 'Prosseguir',
               onPressed: _onConfigTransfer,
               enabled: isButtonEnabled,
-              rightIcon: Icons.arrow_forward_ios_rounded,
+              rightIcon: Icon(Icons.arrow_forward_ios_rounded, size: 24),
             );
           },
         ),

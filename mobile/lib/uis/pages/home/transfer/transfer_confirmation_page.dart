@@ -87,7 +87,7 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
         child: BigButton(
           label: 'Transferir',
           onPressed: _onConfirmTransfer,
-          leftIcon: Icons.check_rounded,
+          leftIcon: Icon(Icons.check_rounded, size: 24),
           enabled: true,
         ),
       ),

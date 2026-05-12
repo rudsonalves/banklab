@@ -101,7 +101,7 @@ class _TransferPaymentPageState extends State<TransferPaymentPage> {
             label: 'Prosseguir',
             onPressed: _onConfirmTransfer,
             enabled: _amountIsValid.value,
-            rightIcon: Icons.arrow_forward_ios_rounded,
+            rightIcon: Icon(Icons.arrow_forward_ios_rounded, size: 24),
           ),
         ),
       ),

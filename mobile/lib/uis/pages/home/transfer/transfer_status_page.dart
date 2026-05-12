@@ -74,7 +74,7 @@ class TransferStatusPage extends StatelessWidget {
                   child: BigButton(
                     label: 'Comprovante',
                     onPressed: () => _showReceipt(context),
-                    rightIcon: Icons.receipt_long_rounded,
+                    rightIcon: Icon(Icons.receipt_long_rounded, size: 24),
                     enabled: transactionReference != null,
                   ),
                 ),

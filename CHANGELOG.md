@@ -1,5 +1,108 @@
 # Changelog
 
+## 2026/05/12 — main
+
+Refactor authentication and transfer action buttons to support fully customizable icon widgets and improve UI consistency across the mobile application.
+
+### Button Component Improvements
+
+Updated the reusable button components to support generic widget injection instead of limiting icons to `IconData`.
+
+#### `mobile/lib/uis/core/buttons/big_button.dart`
+
+* Replaced `IconData?` with `Widget?` for:
+
+  * `leftIcon`
+  * `rightIcon`
+* Removed internal `Icon(...)` wrapping
+* Allowed direct rendering of arbitrary widgets inside buttons
+* Preserved spacing and alignment behavior
+
+This change enables:
+
+* loading indicators
+* animated widgets
+* custom icon compositions
+* future extensibility without modifying the button component again
+
+#### `mobile/lib/uis/core/buttons/big_text_button.dart`
+
+* Added support for:
+
+  * `leftIcon`
+  * `rightIcon`
+* Refactored button content into a centered `Row`
+* Added conditional rendering and spacing logic for optional widgets
+
+This aligns `BigTextButton` behavior with `BigButton`, improving component consistency across the UI layer.
+
+### Authentication UI Refactor
+
+Refactored authentication pages to use the shared `BigButton` component instead of raw `FilledButton`.
+
+#### `mobile/lib/uis/pages/auth/login/login_page.dart`
+
+* Replaced `FilledButton` with `BigButton`
+* Added:
+
+  * dynamic label (`Entrando...` / `Entrar`)
+  * loading spinner as `rightIcon`
+  * login icon when idle
+
+Improves:
+
+* visual consistency
+* loading feedback
+* button standardization
+
+#### `mobile/lib/uis/pages/auth/register/register_page.dart`
+
+* Replaced `FilledButton` with `BigButton`
+* Added:
+
+  * dynamic loading label (`Cadastrando...`)
+  * loading spinner support
+  * registration icon
+
+Also normalized imports during refactor.
+
+#### `mobile/lib/uis/pages/auth/short_login/short_login_page.dart`
+
+* Applied the same refactor pattern used in login page
+* Added loading indicator support through widget-based icons
+* Unified interaction behavior with the standard login flow
+
+### Transfer Flow UI Adjustments
+
+Updated all transfer-related screens to comply with the new widget-based icon API.
+
+#### Updated Pages
+
+* `transfer_confirmation_page.dart`
+* `transfer_payment_page.dart`
+* `transfer_recipient_page.dart`
+* `transfer_status_page.dart`
+* `details_page.dart`
+
+Changes:
+
+* replaced raw `IconData` values with explicit `Icon(...)` widgets
+* standardized icon sizing (`size: 24`)
+* preserved existing button semantics and flow behavior
+
+### UX and Architectural Impact
+
+This refactor improves the UI component architecture by:
+
+* reducing coupling between button components and icon implementation details
+* enabling richer interactive widgets inside buttons
+* improving visual consistency across authentication and transfer flows
+* centralizing button styling and behavior
+* simplifying future evolution of loading and action states
+
+The resulting API for button components is now significantly more flexible while remaining backward-compatible with standard Flutter widgets.
+
+
 ## 2026/05/12 — mobile/short-login-02
 
 Implemented the first version of the short login flow with cached user identity recovery, splash bootstrap routing, and authentication module restructuring.

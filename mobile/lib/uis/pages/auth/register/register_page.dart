@@ -3,11 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '/core/routing/routes.dart';
+import '/data/services/auth/api/dtos/register_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
+import '/uis/core/input_formatters/cpf_input_formatter.dart';
+import '/uis/core/text_form_field/basic_text_form_field.dart';
 import '/uis/pages/auth/register/viewmodel/register_viewmodel.dart';
-import '../../../../data/services/auth/api/dtos/register_request_dto.dart';
-import '../../../core/input_formatters/cpf_input_formatter.dart';
-import '../../../core/text_form_field/basic_text_form_field.dart';
+import '../../../core/buttons/big_button.dart';
 
 class RegisterPage extends StatefulWidget {
   final RegisterViewmodel viewmodel;
@@ -172,9 +173,10 @@ class _RegisterPageState extends State<RegisterPage> {
         builder: (context, _) {
           final isRunning = _viewmodel.register.isRunning;
 
-          return FilledButton(
+          return BigButton(
             onPressed: isRunning ? null : _submit,
-            child: isRunning
+            label: isRunning ? 'Cadastrando...' : 'Cadastrar',
+            rightIcon: isRunning
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -182,7 +184,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       strokeWidth: 2,
                     ),
                   )
-                : const Text('Cadastrar'),
+                : const Icon(Icons.app_registration_rounded, size: 24),
           );
         },
       ),
