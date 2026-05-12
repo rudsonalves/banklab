@@ -1,6 +1,6 @@
 import '/core/result/command.dart';
 import '/data/repositories/auth/auth_repository.dart';
-import '/data/services/apis/auth/dtos/register_request_dto.dart';
+import '../../../../../data/services/auth/api/dtos/register_request_dto.dart';
 
 class RegisterViewmodel {
   final AuthRepository _authRepository;

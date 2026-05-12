@@ -3,28 +3,30 @@ import 'package:go_router/go_router.dart';
 
 import '/core/routing/routes.dart';
 import '/data/services/auth/api/dtos/login_request_dto.dart';
+import '/data/services/auth/cache/models/last_login_identity.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/messages/app_snackbar.dart';
 import '/uis/core/text_form_field/basic_text_form_field.dart';
-import 'viewmodel/login_viewmodel.dart';
+import 'viewmodel/short_login_viewmodel.dart';
 
-class LoginPage extends StatefulWidget {
-  final LoginViewModel viewModel;
+class ShortLoginPage extends StatefulWidget {
+  final ShortLoginViewModel viewModel;
+  final LastLoginIdentity identity;
 
-  const LoginPage({
+  const ShortLoginPage({
     super.key,
     required this.viewModel,
+    required this.identity,
   });
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<ShortLoginPage> createState() => _ShortLoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
-  late final LoginViewModel _viewModel;
+class _ShortLoginPageState extends State<ShortLoginPage> {
+  late final ShortLoginViewModel _viewModel;
 
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   final ValueNotifier<bool> _obscurePassword = ValueNotifier<bool>(true);
@@ -41,7 +43,6 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _viewModel.login.removeListener(_onLoginCommandChanged);
 
-    _emailController.dispose();
     _passwordController.dispose();
     _obscurePassword.dispose();
 
@@ -67,6 +68,7 @@ class _LoginPageState extends State<LoginPage> {
                 animation: _viewModel.login,
                 builder: (context, _) {
                   final isRunning = _viewModel.login.isRunning;
+                  final userName = widget.identity.name.trim();
 
                   return Form(
                     key: _formKey,
@@ -76,26 +78,24 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Acesse sua conta para continuar no BankFlow.',
+                          'Bem-vindo de volta',
                           style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 12),
-
-                        BasicTextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          autofillHints: const [AutofillHints.email],
-                          enabled: !isRunning,
-                          textInputAction: TextInputAction.next,
-                          labelText: 'E-mail',
-                          hintText: 'voce@exemplo.com',
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          validator: _emailValidator,
+                        Text(
+                          userName,
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.bold,
+                              ),
+                          textAlign: TextAlign.center,
                         ),
+
+                        const SizedBox(height: 12),
 
                         ValueListenableBuilder<bool>(
                           valueListenable: _obscurePassword,
@@ -128,8 +128,8 @@ class _LoginPageState extends State<LoginPage> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: isRunning ? null : _navToRegister,
-                            child: const Text('Não tem conta? Cadastre-se'),
+                            onPressed: isRunning ? null : _navToLogin,
+                            child: const Text('Entrar com outra conta'),
                           ),
                         ),
                       ],
@@ -164,26 +164,12 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _navToRegister() {
-    context.goNamed(AuthRoutes.register.name);
+  void _navToLogin() {
+    context.goNamed(AuthRoutes.login.name);
   }
 
   void _obscurePasswordListener() {
     _obscurePassword.value = !_obscurePassword.value;
-  }
-
-  String? _emailValidator(String? value) {
-    final email = (value ?? '').trim();
-    if (email.isEmpty) return 'Informe o e-mail.';
-
-    final emailRegex = RegExp(
-      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-    );
-    if (!emailRegex.hasMatch(email)) {
-      return 'Informe um e-mail valido.';
-    }
-
-    return null;
   }
 
   String? _passwordValidator(String? value) {
@@ -232,7 +218,7 @@ class _LoginPageState extends State<LoginPage> {
 
     _viewModel.login.execute(
       LoginRequestDto(
-        email: _emailController.text.trim(),
+        email: widget.identity.identifier.trim(),
         password: _passwordController.text,
       ),
     );

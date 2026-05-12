@@ -1,13 +1,13 @@
 import 'package:uuid/uuid.dart';
 
 import '/core/result/command.dart';
-import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
-import '/data/services/apis/account/dtos/balance_response_dto.dart';
 import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
 import '/domain/usecases/transfer/transfer_usecase.dart';
+import '../../../../../data/services/apis/account/dtos/account_summary_response_dto.dart';
+import '../../../../../data/services/apis/account/dtos/balance_response_dto.dart';
 
 class TransferViewmodel {
   final TransferUsecase _usecase;

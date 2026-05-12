@@ -2,12 +2,12 @@ import '/core/resources/app_env.dart';
 import '/core/result/result.dart';
 import '/core/services/client_http/client_http.dart';
 import '/core/services/logging/console_log.dart';
-import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
-import '../core/api_envelope.dart';
+import '../../apis/core/api_envelope.dart';
 import 'dtos/auth_me_response_dto.dart';
 import 'dtos/customer_me_response_dto.dart';
+import 'dtos/login_request_dto.dart';
 import 'dtos/register_request_dto.dart';
 import 'dtos/register_response_dto.dart';
 
@@ -36,6 +36,10 @@ class AuthApi {
       if (resp.statusCode == null ||
           resp.statusCode! < 200 ||
           resp.statusCode! >= 300) {
+        _log.error(
+          'HTTP error: ${resp.statusCode} ${resp.statusMessage}',
+          label: 'register',
+        );
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -50,6 +54,7 @@ class AuthApi {
       );
 
       if (envelope.error != null) {
+        _log.error('API error: ${envelope.error!.message}', label: 'register');
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -59,6 +64,7 @@ class AuthApi {
       }
 
       if (envelope.data == null) {
+        _log.error('No data received from the server.', label: 'register');
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -69,7 +75,12 @@ class AuthApi {
 
       return Success(unit);
     } catch (err, stack) {
-      _log.error('Error parsing response: $err', error: err, stack: stack);
+      _log.error(
+        'Error parsing response: $err',
+        error: err,
+        stack: stack,
+        label: 'register',
+      );
       return Failure(
         AppError(
           code: AppErrorCode.parsingError,
@@ -90,13 +101,20 @@ class AuthApi {
       ),
     );
 
-    if (response.isFailure) return Result.failure(response.error!);
+    if (response.isFailure) {
+      _log.error('Request failed: ${response.error}', label: 'login');
+      return Result.failure(response.error!);
+    }
 
     try {
       final resp = response.value as RestClientResponse;
       if (resp.statusCode == null ||
           resp.statusCode! < 200 ||
           resp.statusCode! >= 300) {
+        _log.error(
+          'HTTP error: ${resp.statusCode} ${resp.statusMessage}',
+          label: 'login',
+        );
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -111,6 +129,7 @@ class AuthApi {
       );
 
       if (envelope.error != null) {
+        _log.error('API error: ${envelope.error!.message}', label: 'login');
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -121,7 +140,12 @@ class AuthApi {
 
       return Success(envelope.data!);
     } catch (err, stack) {
-      _log.error('Error parsing response: $err', error: err, stack: stack);
+      _log.error(
+        'Error parsing response: $err',
+        error: err,
+        stack: stack,
+        label: 'login',
+      );
       return Failure(
         AppError(
           code: AppErrorCode.parsingError,
@@ -139,7 +163,10 @@ class AuthApi {
       ),
     );
 
-    if (respCustomer.isFailure) return Result.failure(respCustomer.error!);
+    if (respCustomer.isFailure) {
+      _log.error('Request failed: ${respCustomer.error}', label: 'getProfile');
+      return Result.failure(respCustomer.error!);
+    }
 
     final respMe = await _client.get(
       RestClientRequest(
@@ -147,45 +174,55 @@ class AuthApi {
       ),
     );
 
-    if (respMe.isFailure) return Result.failure(respMe.error!);
+    if (respMe.isFailure) {
+      _log.error('Request failed: ${respMe.error}', label: 'getProfile');
+      return Result.failure(respMe.error!);
+    }
 
     try {
-      final envCustomer = ApiEnvelope<CustomerMeResponseDto>.fromMap(
-        respCustomer.value as Map<String, dynamic>,
-        CustomerMeResponseDto.fromMap,
-      );
-
-      if (envCustomer.error != null) {
+      final clientCustomer = respCustomer.value as RestClientResponse;
+      if (clientCustomer.statusCode == null ||
+          clientCustomer.statusCode! < 200 ||
+          clientCustomer.statusCode! >= 300) {
+        _log.error(
+          'HTTP error: ${clientCustomer.statusCode} ${clientCustomer.statusMessage}',
+          label: 'getProfile',
+        );
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
-            message: envCustomer.error!.message,
+            message:
+                'HTTP error: ${clientCustomer.statusCode} ${clientCustomer.statusMessage}',
           ),
         );
       }
 
-      if (envCustomer.data == null) {
+      final envCustomer = ApiEnvelope<CustomerMeResponseDto>.fromMap(
+        clientCustomer.data as Map<String, dynamic>,
+        CustomerMeResponseDto.fromMap,
+      );
+
+      final clientMe = respMe.value as RestClientResponse;
+      if (clientMe.statusCode == null ||
+          clientMe.statusCode! < 200 ||
+          clientMe.statusCode! >= 300) {
+        _log.error(
+          'HTTP error: ${clientMe.statusCode} ${clientMe.statusMessage}',
+          label: 'getProfile',
+        );
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
-            message: 'No data received from the server.',
+            message:
+                'HTTP error: ${clientMe.statusCode} ${clientMe.statusMessage}',
           ),
         );
       }
 
       final envUserMe = ApiEnvelope<AuthMeResponseDto>.fromMap(
-        respMe.value as Map<String, dynamic>,
+        clientMe.data as Map<String, dynamic>,
         AuthMeResponseDto.fromMap,
       );
-
-      if (envUserMe.error != null) {
-        return Failure(
-          AppError(
-            code: AppErrorCode.httpError,
-            message: envUserMe.error!.message,
-          ),
-        );
-      }
 
       final authMe = envUserMe.data!;
       final customer = envCustomer.data!;
@@ -197,7 +234,12 @@ class AuthApi {
 
       return Success(userProfile);
     } catch (err, stack) {
-      _log.error('Error parsing response: $err', error: err, stack: stack);
+      _log.error(
+        'Error parsing response: $err',
+        error: err,
+        stack: stack,
+        label: 'getProfile',
+      );
       return Failure(
         AppError(
           code: AppErrorCode.parsingError,

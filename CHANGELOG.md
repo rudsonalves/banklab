@@ -1,5 +1,140 @@
 # Changelog
 
+## 2026/05/12 — mobile/short-login-02
+
+Implemented the first version of the short login flow with cached user identity recovery, splash bootstrap routing, and authentication module restructuring.
+
+### Routing and navigation refactor
+
+1. `mobile/lib/core/routing/routes.dart`
+
+   * Added `AuthRoutes.shortLogin`
+   * Replaced `HomeRoutes` with `BaseRoutes`
+   * Added `BaseRoutes.splash`
+
+2. `mobile/lib/core/routing/router.dart`
+
+   * Changed application startup route from `/login` to `/splash`
+   * Replaced `homeRoutes()` with `baseRoutes()`
+
+3. `mobile/lib/core/routing/routes/base_routes.dart`
+
+   * Added centralized base route configuration
+   * Registered:
+
+     * splash route
+     * home route
+
+4. `mobile/lib/core/routing/routes/auth_routes.dart`
+
+   * Added short login route support
+   * Added `LastLoginIdentity` route payload validation
+   * Added fallback to regular login when route payload is invalid
+   * Integrated:
+
+     * `ShortLoginPage`
+     * `ShortLoginViewModel`
+
+5. `mobile/lib/core/routing/routes/home_routes.dart`
+
+   * Removed obsolete home route file after migration to `base_routes.dart`
+
+6. `mobile/lib/core/routing/routes/tranfer_routes.dart`
+
+   * Renamed file to `transfer_routes.dart`
+   * Fixed routing naming typo
+
+### Splash bootstrap flow
+
+7. `mobile/lib/uis/pages/splash/viewmodel/splash_viewmodel.dart`
+
+   * Added splash initialization flow
+   * Introduced startup identity recovery command
+   * Integrated cached login identity retrieval through `AuthRepository`
+
+### Short login infrastructure
+
+8. `mobile/lib/data/services/auth/cache/`
+
+   * Added last login cache service infrastructure
+   * Introduced secure storage based login identity persistence
+
+9. `mobile/lib/data/repositories/auth/auth_repository_impl.dart`
+
+   * Injected `LastLoginCacheService`
+   * Added integration between authentication lifecycle and cached identity persistence
+
+10. `mobile/lib/data/repositories.dart`
+
+    * Updated repository dependency graph
+    * Registered new authentication cache dependencies
+
+11. `mobile/lib/data/services.dart`
+
+    * Registered:
+
+      * `LastLoginCacheService`
+      * `LastLoginCacheServiceImpl`
+    * Added secure storage dependency wiring
+
+### Authentication module restructuring
+
+12. Authentication DTO imports and service organization
+
+    * Migrated auth service imports from:
+
+      * `data/services/apis/auth`
+    * To:
+
+      * `data/services/auth/api`
+    * Improved module separation between:
+
+      * authentication APIs
+      * authentication cache services
+
+13. Updated multiple files with normalized import paths
+
+    * Reduced inconsistent relative imports
+    * Improved package organization consistency
+
+### ViewModel registration updates
+
+14. `mobile/lib/uis/viewmodels.dart`
+
+    * Registered:
+
+      * `SplashViewmodel`
+      * `ShortLoginViewModel`
+
+### UI and asset updates
+
+15. `mobile/pubspec.yaml`
+
+    * Registered `assets/images/brand.png`
+
+16. `mobile/assets/images/banklab.svg`
+
+    * Added new SVG branding asset for BankLab visual identity
+
+### Environment updates
+
+17. `tools/postman/Environment.postman_environment.json`
+
+    * Updated local API host IP for development environment synchronization
+
+### General impact
+
+This commit introduces the foundation for a faster authentication experience through cached login identity recovery while also restructuring the authentication module for future expansion.
+
+The new splash-driven startup flow centralizes bootstrapping responsibilities and prepares the mobile application for:
+
+* persistent login experiences
+* device-aware authentication flows
+* future transactional authentication layers
+* Zero Trust oriented identity evolution
+* biometric and device registration extensions in future iterations
+
+
 ## 2026/05/11 - mobile/short-login-01
 
 Refactor authentication profile loading flow and introduce support structures for short login persistence on the mobile application.

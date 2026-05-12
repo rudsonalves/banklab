@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '/core/routing/routes.dart';
-import '/data/services/apis/auth/dtos/register_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/pages/auth/register/viewmodel/register_viewmodel.dart';
+import '../../../../data/services/auth/api/dtos/register_request_dto.dart';
 import '../../../core/input_formatters/cpf_input_formatter.dart';
 import '../../../core/text_form_field/basic_text_form_field.dart';
 

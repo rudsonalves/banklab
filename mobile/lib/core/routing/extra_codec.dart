@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '../../data/services/auth/cache/models/last_login_identity.dart';
 import '../../uis/pages/home/transfer/models/transfer_confirmation_data.dart';
 
 class ExtraCodec extends Codec<Object?, String> {
@@ -60,6 +61,13 @@ class _ExtraEncoder extends Converter<Object?, String> {
       });
     }
 
+    if (extra is LastLoginIdentity) {
+      return jsonEncode({
+        'type': 'last_login_identity',
+        'data': extra.toMap(),
+      });
+    }
+
     throw UnsupportedError('Unsupported type: ${extra.runtimeType}');
   }
 }
@@ -89,6 +97,11 @@ class _ExtraDecoder extends Converter<String, Object?> {
 
       case 'transfer_confirmation_data':
         return TransferConfirmationData.fromMap(
+          decoded['data'] as Map<String, dynamic>,
+        );
+
+      case 'last_login_identity':
+        return LastLoginIdentity.fromMap(
           decoded['data'] as Map<String, dynamic>,
         );
 

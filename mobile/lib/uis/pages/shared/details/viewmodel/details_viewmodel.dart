@@ -1,7 +1,7 @@
 import '/core/result/command.dart';
-import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
 import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import '/domain/usecases/details/details_usecase.dart';
+import '../../../../../data/services/apis/account/dtos/account_summary_response_dto.dart';
 
 class DetailsViewmodel {
   final DetailsUsecase _usecase;

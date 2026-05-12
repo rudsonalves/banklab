@@ -1,5 +1,6 @@
 enum AuthRoutes {
   login('/login'),
+  shortLogin('/short-login'),
   register('/register')
   ;
 
@@ -8,11 +9,12 @@ enum AuthRoutes {
   final String path;
 }
 
-enum HomeRoutes {
-  home('/home')
+enum BaseRoutes {
+  home('/home'),
+  splash('/splash')
   ;
 
-  const HomeRoutes(this.path);
+  const BaseRoutes(this.path);
 
   final String path;
 }

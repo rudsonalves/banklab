@@ -2,8 +2,8 @@ import 'dart:async';
 
 import '/core/result/command.dart';
 import '/data/repositories/account/account_repository.dart';
-import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
-import '/data/services/apis/account/dtos/balance_response_dto.dart';
+import '../../../../data/services/apis/account/dtos/account_summary_response_dto.dart';
+import '../../../../data/services/apis/account/dtos/balance_response_dto.dart';
 
 class HomeViewmodel {
   final AccountRepository _accountRepository;

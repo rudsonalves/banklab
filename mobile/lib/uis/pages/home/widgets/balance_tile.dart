@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
-import '/data/services/apis/account/dtos/balance_response_dto.dart';
+import '../../../../data/services/apis/account/dtos/account_summary_response_dto.dart';
+import '../../../../data/services/apis/account/dtos/balance_response_dto.dart';
 
 class BalanceTile extends StatelessWidget {
   final BalanceResponseDto? balance;
