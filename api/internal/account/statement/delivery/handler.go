@@ -106,6 +106,7 @@ func (h *Handler) Statement(w http.ResponseWriter, r *http.Request) {
 			Amount:        item.Amount,
 			BalanceAfter:  item.BalanceAfter,
 			ReferenceID:   item.ReferenceID,
+			Description:   item.Description,
 			CreatedAt:     item.CreatedAt,
 		})
 	}

@@ -8,6 +8,7 @@ type StatementItemData struct {
 	Amount        int64     `json:"amount"`
 	BalanceAfter  int64     `json:"balance_after"`
 	ReferenceID   *string   `json:"reference_id"`
+	Description   *string   `json:"description,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 

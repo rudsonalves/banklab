@@ -115,13 +115,20 @@ Os endpoints atuais são:
 
 ```text
 GET  /accounts
-POST /accounts
+POST /admin/customers/{customer_id}/accounts
 GET  /accounts/{id}/balance
-POST /accounts/{id}/deposit
-POST /accounts/{id}/withdraw
 GET  /accounts/internal-transfers/recipients
 POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
+```
+
+As rotas de operação em dinheiro por terminal estão documentadas como intenção
+arquitetural, mas não estão registradas no roteador HTTP enquanto esse canal não
+existir de fato:
+
+```text
+POST /terminal/accounts/{id}/deposit
+POST /terminal/accounts/{id}/withdraw
 ```
 
 ### `GET /accounts`
@@ -130,11 +137,11 @@ Lista as contas pertencentes ao usuário autenticado.
 
 A operação usa o `customer_id` do contexto autenticado e não aceita filtros neste momento. O objetivo do endpoint é listar contas, não consultar saldo.
 
-### `POST /accounts`
+### `POST /admin/customers/{customer_id}/accounts`
 
-Cria uma nova conta para o usuário autenticado.
+Cria uma nova conta para um customer existente por ação administrativa.
 
-Essa operação depende de condições de negócio, como o estado do usuário e a existência do customer associado. O cliente não informa `customer_id`; esse valor é derivado do token autenticado.
+Essa operação não é self-service do cliente. A primeira conta continua sendo criada na aprovação do onboarding, e contas adicionais são provisionadas por admin para um `customer_id` explícito na rota.
 
 ### `GET /accounts/{id}/balance`
 
@@ -142,17 +149,16 @@ Consulta o saldo atual de uma conta específica.
 
 Esse endpoint existe separadamente da listagem de contas para manter o propósito da operação explícito e permitir tratamento próprio do saldo.
 
-### `POST /accounts/{id}/deposit`
+### Operações de terminal desabilitadas
 
-Executa um depósito em uma conta.
+As operações de depósito e saque por terminal permanecem fora da superfície REST
+ativa.
 
-O endpoint expressa diretamente uma ação de negócio, em vez de expor uma atualização genérica de saldo.
-
-### `POST /accounts/{id}/withdraw`
-
-Executa um saque em uma conta.
-
-Assim como depósito, ele representa uma intenção de negócio específica e exige validações próprias.
+Os paths previstos são `POST /terminal/accounts/{id}/deposit` e
+`POST /terminal/accounts/{id}/withdraw`, mas ambos estão comentados no wiring da
+API. A intenção é preservar a direção arquitetural sem abrir uma superfície de
+movimentação manual enquanto não existir um canal de terminal com autenticação e
+controles próprios.
 
 ### `GET /accounts/internal-transfers/recipients`
 
@@ -193,7 +199,7 @@ Em vários fluxos protegidos, o cliente não fornece explicitamente o identifica
 Por exemplo:
 
 - `GET /accounts` não recebe `customer_id`;
-- `POST /accounts` não recebe `customer_id`;
+- `POST /admin/customers/{customer_id}/accounts` recebe `customer_id` explicitamente por ser uma ação administrativa de provisionamento;
 - `GET /customers/me` não recebe `customer_id`.
 
 Essa decisão reduz risco de manipulação indevida do escopo da operação e reforça a responsabilidade do backend em determinar ownership.

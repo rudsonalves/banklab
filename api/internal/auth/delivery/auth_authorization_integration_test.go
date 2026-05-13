@@ -122,7 +122,7 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 		email := seedUser(t, ctx, pool, password, authdomain.RoleCustomer, &customerID)
 
 		token := loginAndGetToken(t, server.URL, email, password)
-		resp := performJSONRequest(t, server.URL+"/accounts/"+accountID.String()+"/deposit", http.MethodPost, map[string]any{
+		resp := performJSONRequest(t, server.URL+"/terminal/accounts/"+accountID.String()+"/deposit", http.MethodPost, map[string]any{
 			"amount": 25,
 		}, token)
 
@@ -154,9 +154,11 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 		email := seedUser(t, ctx, pool, password, authdomain.RoleCustomer, &ownerCustomerID)
 		token := loginAndGetToken(t, server.URL, email, password)
 
-		resp := performJSONRequest(t, server.URL+"/accounts/"+otherAccountID.String()+"/deposit", http.MethodPost, map[string]any{
-			"amount": 20,
-		}, token)
+		resp := performJSONRequest(
+			t,
+			server.URL+"/terminal/accounts/"+otherAccountID.String()+"/deposit", http.MethodPost, map[string]any{
+				"amount": 20,
+			}, token)
 
 		if resp.StatusCode != http.StatusForbidden {
 			t.Fatalf("expected forbidden status %d, got %d", http.StatusForbidden, resp.StatusCode)
@@ -183,7 +185,7 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 		email := seedUser(t, ctx, pool, password, authdomain.RoleAdmin, nil)
 		token := loginAndGetToken(t, server.URL, email, password)
 
-		resp := performJSONRequest(t, server.URL+"/accounts/"+accountID.String()+"/deposit", http.MethodPost, map[string]any{
+		resp := performJSONRequest(t, server.URL+"/terminal/accounts/"+accountID.String()+"/deposit", http.MethodPost, map[string]any{
 			"amount": 30,
 		}, token)
 
@@ -252,7 +254,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	mux.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.Me)))
 	mux.Handle("POST /admin/users/{id}/approve", authMiddleware.RequireAuth(http.HandlerFunc(adminHandler.ApproveUser)))
 	mux.Handle("GET /accounts", authMiddleware.RequireAuth(http.HandlerFunc(accountHandler.ListAccounts)))
-	mux.Handle("POST /accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(transactionHandler.Deposit)))
+	mux.Handle("POST /terminal/accounts/{id}/deposit", authMiddleware.RequireAuth(http.HandlerFunc(transactionHandler.Deposit)))
 
 	server := httptest.NewServer(mux)
 

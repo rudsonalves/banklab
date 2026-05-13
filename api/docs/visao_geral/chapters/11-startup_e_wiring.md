@@ -135,15 +135,16 @@ Exemplos atuais incluem:
 - `POST /auth/refresh`;
 - `GET /auth/me`;
 - `POST /admin/users/{id}/approve`;
+- `POST /admin/customers/{customer_id}/accounts`;
 - `GET /customers/me`;
 - `GET /accounts`;
-- `POST /accounts`;
 - `GET /accounts/{id}/balance`;
-- `POST /accounts/{id}/deposit`;
-- `POST /accounts/{id}/withdraw`;
 - `GET /accounts/internal-transfers/recipients`;
 - `POST /accounts/internal-transfers`;
 - `GET /accounts/{id}/statement`.
+
+As rotas de depósito e saque por terminal permanecem comentadas no wiring e não
+são registradas no `ServeMux` atual.
 
 Também é nessa fase que rotas protegidas passam a receber o middleware responsável por validar JWT e popular o contexto autenticado.
 

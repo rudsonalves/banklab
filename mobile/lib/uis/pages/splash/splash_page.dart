@@ -89,9 +89,15 @@ class _SplashPageState extends State<SplashPage>
               opacity: _logoOpacity.value,
               child: Transform.scale(
                 scale: _logoScale.value,
-                child: Image.asset(
-                  'assets/images/brand.png',
-                  width: 200,
+                child: Card(
+                  color: colorScheme.onPrimary,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Image.asset(
+                      'assets/images/brand.png',
+                      width: 200,
+                    ),
+                  ),
                 ),
               ),
             ),

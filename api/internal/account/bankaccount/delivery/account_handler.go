@@ -10,17 +10,27 @@ import (
 	"github.com/google/uuid"
 	accountapp "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
 	"github.com/seu-usuario/bank-api/internal/account/bankaccount/domain"
+	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
 
-// CreateAccount handles the HTTP request for creating a new account.
-// It validates the request, checks user authentication, and delegates
-// the account creation to the application layer.
-func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
+// CreateAccountForCustomer handles account provisioning for a target customer.
+// This is an admin-controlled action and must not be exposed as customer self-service.
+func (h *Handler) CreateAccountForCustomer(w http.ResponseWriter, r *http.Request) {
 	user, authErr := RequireUser(r.Context())
 	if authErr != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(authErr))
+		return
+	}
+	if user.Role != authdomain.RoleAdmin {
+		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrForbidden))
+		return
+	}
+
+	customerID, err := uuid.Parse(r.PathValue("customer_id"))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
 		return
 	}
 
@@ -32,13 +42,12 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	input := accountapp.CreateAccountInput{
-		User: user,
-	}
-
-	account, err := h.createAccount.Execute(r.Context(), input)
+	account, err := h.createAccount.Execute(r.Context(), accountapp.CreateAccountInput{
+		User:       user,
+		CustomerID: customerID,
+	})
 	if err != nil {
-		log.Printf("event=create_account error=%v", err)
+		log.Printf("event=admin_create_account error=%v", err)
 		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}

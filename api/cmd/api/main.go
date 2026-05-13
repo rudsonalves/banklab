@@ -114,20 +114,7 @@ func main() {
 	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
 
 	// --- API Router ---
-	apiRouter := http.NewServeMux()
-	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(adminHandler.ApproveUser)))
-
-	apiRouter.Handle("GET /customers/me", withAuth(http.HandlerFunc(customerHandler.Me)))
-
-	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
-	apiRouter.Handle("POST /accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccount)))
-	apiRouter.Handle("GET /accounts/internal-transfers/recipients", withAuth(http.HandlerFunc(accountHandler.LookupInternalTransferRecipients)))
-	apiRouter.Handle("POST /accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))
-	apiRouter.Handle("POST /accounts/{id}/withdraw", withAuth(http.HandlerFunc(transactionHandler.Withdraw)))
-	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(statementHandler.Statement)))
-	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
-	apiRouter.Handle("POST /accounts/internal-transfers", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
-	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
+	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler)
 
 	// ======================
 	// Main Router
@@ -142,4 +129,32 @@ func main() {
 	if err := http.ListenAndServe(":8080", mainRouter); err != nil {
 		log.Fatal("failed to start server:", err)
 	}
+}
+
+func newAPIRouter(
+	withAuth func(http.Handler) http.Handler,
+	adminHandler *adminDelivery.Handler,
+	accountHandler *accountDelivery.Handler,
+	customerHandler *customerDelivery.Handler,
+	statementHandler *statementDelivery.Handler,
+	transactionHandler *transactionDelivery.Handler,
+) *http.ServeMux {
+	apiRouter := http.NewServeMux()
+	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(adminHandler.ApproveUser)))
+	apiRouter.Handle("POST /admin/customers/{customer_id}/accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccountForCustomer)))
+
+	apiRouter.Handle("GET /customers/me", withAuth(http.HandlerFunc(customerHandler.Me)))
+
+	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
+	apiRouter.Handle("GET /accounts/internal-transfers/recipients", withAuth(http.HandlerFunc(accountHandler.LookupInternalTransferRecipients)))
+	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(statementHandler.Statement)))
+	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
+	apiRouter.Handle("POST /accounts/internal-transfers", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
+	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
+
+	// Terminal cash operations are intentionally disabled until a real terminal channel exists.
+	// apiRouter.Handle("POST /terminal/accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))
+	// apiRouter.Handle("POST /terminal/accounts/{id}/withdraw", withAuth(http.HandlerFunc(transactionHandler.Withdraw)))
+
+	return apiRouter
 }

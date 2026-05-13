@@ -173,15 +173,19 @@ Registered routes include:
 - `POST /auth/refresh`
 - `GET /auth/me`
 - `POST /admin/users/{id}/approve`
+- `POST /admin/customers/{customer_id}/accounts`
 - `GET /customers/me`
 - `GET /accounts`
-- `POST /accounts`
-- `POST /accounts/{id}/deposit`
-- `POST /accounts/{id}/withdraw`
 - `GET /accounts/{id}/balance`
 - `GET /accounts/internal-transfers/recipients`
 - `POST /accounts/internal-transfers`
 - `GET /accounts/{id}/statement`
+
+Terminal cash operations are intentionally not registered while a real terminal
+channel is not defined:
+
+- `POST /terminal/accounts/{id}/deposit`
+- `POST /terminal/accounts/{id}/withdraw`
 
 Protected routes are guarded by JWT middleware, except `POST /auth/refresh`,
 which is validated by refresh token payload/session checks in the auth use case.

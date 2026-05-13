@@ -74,7 +74,7 @@ func stringPtr(value string) *string {
 func TestHandler_Deposit_MissingAuth(t *testing.T) {
 	h := &Handler{deposit: &depositUseCaseMock{}}
 	accountID := uuid.New()
-	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/terminal/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
 	req.SetPathValue("id", accountID.String())
 	rec := httptest.NewRecorder()
 
@@ -98,7 +98,7 @@ func TestHandler_Deposit_AccountInactive(t *testing.T) {
 	h := &Handler{deposit: depositUC}
 	accountID := uuid.New()
 
-	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/terminal/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
 	req.SetPathValue("id", accountID.String())
 	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()
@@ -136,7 +136,7 @@ func TestHandler_Deposit_Forbidden(t *testing.T) {
 	}
 	h := &Handler{deposit: depositUC}
 	accountID := uuid.New()
-	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/terminal/accounts/"+accountID.String()+"/deposit", strings.NewReader(`{"amount":100}`))
 	req.SetPathValue("id", accountID.String())
 	req = testAuthenticatedRequest(req, uuid.New())
 	rec := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestHandler_Withdraw_InsufficientBalance(t *testing.T) {
 	h := &Handler{withdraw: withdrawUC}
 	accountID := uuid.New()
 
-	req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID.String()+"/withdraw", strings.NewReader(`{"amount":100}`))
+	req := httptest.NewRequest(http.MethodPost, "/terminal/accounts/"+accountID.String()+"/withdraw", strings.NewReader(`{"amount":100}`))
 	req.SetPathValue("id", accountID.String())
 	req = testAuthenticatedRequest(req, customerID)
 	rec := httptest.NewRecorder()

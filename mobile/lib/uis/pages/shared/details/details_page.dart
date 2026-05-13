@@ -9,24 +9,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '/core/extensions/datetime_extension.dart';
-import '/core/routing/routes.dart';
 import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import '/domain/common/receipt/enums/transfer_receipt_status.dart';
 import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/buttons/big_button.dart';
 import '/uis/core/buttons/big_text_button.dart';
 import '/uis/core/messages/app_snackbar.dart';
+import '/uis/core/transaction/transaction_movement.dart';
+import 'exceptions/receipt_image_exception.dart';
 import 'viewmodel/details_viewmodel.dart';
 import 'widgets/detail_line.dart';
-
-class ReceiptImageException implements Exception {
-  final String message;
-
-  const ReceiptImageException(this.message);
-
-  @override
-  String toString() => message;
-}
 
 class DetailsPage extends StatefulWidget {
   final DetailsViewmodel viewModel;
@@ -156,7 +148,9 @@ class _DetailsPageState extends State<DetailsPage> {
                           ),
                           DetailLine(
                             label: 'Tipo de operação',
-                            value: receipt.operationType,
+                            value: TransactionMovement.fromType(
+                              receipt.operationType,
+                            ).label,
                           ),
                           DetailLine(
                             label: 'Remetente',
@@ -244,7 +238,7 @@ class _DetailsPageState extends State<DetailsPage> {
                 flex: 1,
                 child: BigTextButton(
                   onPressed: () => _navBack(context),
-                  label: 'Fechar',
+                  label: 'Voltar',
                 ),
               ),
               Expanded(
@@ -265,7 +259,7 @@ class _DetailsPageState extends State<DetailsPage> {
   }
 
   void _navBack(BuildContext context) {
-    context.goNamed(BaseRoutes.home.name);
+    context.pop();
   }
 
   void _onGetTransferReceiptChanged() {

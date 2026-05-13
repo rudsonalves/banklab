@@ -29,10 +29,15 @@ Dependency direction:
 
 - auth: register, login, current user
 - customer self-profile lookup
-- account creation
+- account creation/provisioning
 - account balance lookup
 - balance-changing operations: deposit, withdraw, transfer
 - account statement listing with pagination support
+
+Note: account creation is an admin provisioning capability exposed through
+`POST /admin/customers/{customer_id}/accounts`. Direct `deposit` and `withdraw`
+terminal routes are intentionally not registered while a real terminal channel
+is outside the project scope.
 
 ## API routes
 
@@ -43,13 +48,11 @@ POST   /auth/refresh
 GET    /auth/me
 
 POST   /admin/users/{id}/approve
+POST   /admin/customers/{customer_id}/accounts
 
 GET    /customers/me
 
 GET    /accounts
-POST   /accounts
-POST   /accounts/{id}/deposit
-POST   /accounts/{id}/withdraw
 GET    /accounts/{id}/balance
 GET    /accounts/internal-transfers/recipients
 POST   /accounts/internal-transfers
@@ -58,6 +61,10 @@ GET    /accounts/{id}/statement
 ```
 
 All routes except register/login require JWT authentication.
+
+`POST /terminal/accounts/{id}/deposit` and
+`POST /terminal/accounts/{id}/withdraw` are intentionally not registered while a
+real terminal channel is outside the project scope.
 
 ## Local setup
 

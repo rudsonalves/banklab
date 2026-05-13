@@ -1,7 +1,7 @@
 import '/core/extensions/datetime_extension.dart';
+import '/data/services/auth/api/dtos/auth_me_response_dto.dart';
+import '/data/services/auth/api/dtos/customer_me_response_dto.dart';
 import '/domain/common/user/enums/user_role.dart';
-import '../../../../data/services/auth/api/dtos/auth_me_response_dto.dart';
-import '../../../../data/services/auth/api/dtos/customer_me_response_dto.dart';
 
 class UserProfile {
   final String userId;
@@ -29,8 +29,8 @@ class UserProfile {
       email: map['email'] as String,
       role: UserRole.byName(map['role'] as String),
       customerId: map['customer_id'] as String,
-      createdAt: DateTimeExtensions.parseOrNull(map['created_at'] as String)!,
-      updatedAt: DateTimeExtensions.parseOrNull(map['updated_at'] as String)!,
+      createdAt: DateParser.parseOrNull(map['created_at'] as String)!,
+      updatedAt: DateParser.parseOrNull(map['updated_at'] as String)!,
     );
   }
 

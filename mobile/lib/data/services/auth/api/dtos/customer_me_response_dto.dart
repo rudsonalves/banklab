@@ -21,8 +21,7 @@ class CustomerMeResponseDto {
       name: map['name'] as String,
       cpf: map['cpf'] as String,
       email: map['email'] as String,
-      createdAt:
-          DateTimeExtensions.parseOrNull(map['createdAt']) ?? DateTime.now(),
+      createdAt: DateParser.parseOrNow(map['createdAt']),
     );
   }
 }

@@ -52,8 +52,16 @@ func (uc *GetTransferReceipt) Execute(ctx context.Context, input GetTransferRece
 		return nil, domain.ErrForbidden
 	}
 
+	operationType := receipt.OperationType
+	if input.User != nil &&
+		input.User.CustomerID != nil &&
+		*input.User.CustomerID == receipt.DestinationCustomerID &&
+		*input.User.CustomerID != receipt.SourceCustomerID {
+		operationType = domain.TransactionTransferIn
+	}
+
 	return &TransferReceiptResult{
-		OperationType:            string(receipt.OperationType),
+		OperationType:            string(operationType),
 		Amount:                   receipt.Amount,
 		Status:                   receipt.Status,
 		TransactionReference:     receipt.TransactionReference.String(),

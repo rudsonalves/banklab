@@ -100,7 +100,8 @@ Esse comportamento é importante porque:
 
 ## Fluxo 4: leitura do usuário autenticado
 
-Esse fluxo acontece em:
+Esse fluxo está preservado como lógica de aplicação, mas não está exposto na
+superfície HTTP atual. O path previsto para um canal de terminal é:
 
 ```text
 GET /auth/me
@@ -201,19 +202,18 @@ Esse endpoint não retorna saldo. Essa omissão é intencional e reforça a sepa
 Esse fluxo acontece em:
 
 ```text
-POST /accounts
+POST /admin/customers/{customer_id}/accounts
 ```
 
-Seu objetivo é criar uma nova conta para o usuário autenticado.
+Seu objetivo é criar uma conta adicional para um customer existente por ação administrativa.
 
 Ele depende de algumas condições importantes:
 
-- o usuário deve estar autenticado;
-- o usuário deve possuir `customer_id`;
-- o usuário precisa estar em estado compatível com a criação da conta;
-- o customer associado precisa existir.
+- o operador deve estar autenticado como admin;
+- o `customer_id` alvo deve ser informado na rota;
+- o customer alvo precisa existir.
 
-Esse fluxo reforça novamente um princípio importante: o cliente não envia `customer_id` para determinar a quem a conta pertence. Esse vínculo é determinado pelo backend a partir do contexto autenticado.
+A criação de conta não é uma ação self-service do cliente. A primeira conta é criada automaticamente na aprovação do onboarding; este fluxo existe para provisionamento administrativo de contas adicionais.
 
 ## Fluxo 9: consulta de saldo
 
@@ -241,10 +241,12 @@ Mesmo sendo uma leitura, ele é importante no sistema porque o saldo é um dado 
 Esse fluxo acontece em:
 
 ```text
-POST /accounts/{id}/deposit
+POST /terminal/accounts/{id}/deposit
 ```
 
-Seu objetivo é incrementar o saldo de uma conta e registrar a movimentação correspondente.
+Seu objetivo é incrementar o saldo de uma conta e registrar a movimentação
+correspondente. A rota permanece comentada no wiring até existir um canal de
+terminal com autenticação e controles próprios.
 
 Esse fluxo já mostra que operações financeiras não são tratadas como simples atualização de registro. Ele envolve:
 
@@ -259,13 +261,16 @@ O depósito é um fluxo financeiramente mais simples do que transferência, mas 
 
 ## Fluxo 11: saque
 
-Esse fluxo acontece em:
+Esse fluxo está preservado como lógica de aplicação, mas não está exposto na
+superfície HTTP atual. O path previsto para um canal de terminal é:
 
 ```text
-POST /accounts/{id}/withdraw
+POST /terminal/accounts/{id}/withdraw
 ```
 
-Seu objetivo é reduzir o saldo da conta e registrar a movimentação correspondente.
+Seu objetivo é reduzir o saldo da conta e registrar a movimentação
+correspondente. A rota permanece comentada no wiring até existir um canal de
+terminal com autenticação e controles próprios.
 
 Além dos cuidados de depósito, ele exige:
 

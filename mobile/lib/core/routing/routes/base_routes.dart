@@ -6,6 +6,8 @@ import '/uis/pages/home/home_page.dart';
 import '/uis/pages/home/viewmodel/home_viewmodel.dart';
 import '/uis/pages/splash/splash_page.dart';
 import '/uis/pages/splash/viewmodel/splash_viewmodel.dart';
+import '/uis/pages/statement/statement_page.dart';
+import '/uis/pages/statement/viewmodel/statement_viewmodel.dart';
 
 List<RouteBase> baseRoutes() => [
   GoRoute(
@@ -22,5 +24,12 @@ List<RouteBase> baseRoutes() => [
     builder: (context, state) => SplashPage(
       viewModel: injector.get<SplashViewmodel>(),
     ),
+  ),
+
+  GoRoute(
+    path: BaseRoutes.statement.path,
+    name: BaseRoutes.statement.name,
+    builder: (context, state) =>
+        StatementPage(viewModel: injector.get<StatementViewmodel>()),
   ),
 ];

@@ -283,6 +283,9 @@ class _FakeAccountRepository implements AccountRepository {
   BalanceResponseDto? get lastBalance => null;
 
   @override
+  StatementResponseDto? get lastStatement => null;
+
+  @override
   AccountSummaryResponseDto? get selectedAccount => selected;
 
   @override

@@ -1,5 +1,452 @@
 # Changelog
 
+## 2026/05/13 — api-mobile/routes-02-statement-04
+
+Refactored account provisioning boundaries, removed customer self-service account creation routes, and aligned the API surface with the intended operational model for admin-controlled account provisioning and future terminal channels.
+
+### API and Route Architecture
+
+1. `api/cmd/api/main.go`
+
+   * Extracted API route registration into `newAPIRouter(...)` for clearer composition and isolated router testing.
+   * Added admin route:
+
+     * `POST /admin/customers/{customer_id}/accounts`
+   * Removed customer-facing:
+
+     * `POST /accounts`
+   * Kept terminal cash routes commented and intentionally unregistered:
+
+     * `/terminal/accounts/{id}/deposit`
+     * `/terminal/accounts/{id}/withdraw`
+   * Simplified `main()` wiring responsibilities.
+
+2. `api/cmd/api/routes_test.go`
+
+   * Added router-level tests validating that:
+
+     * `POST /accounts` is no longer registered.
+     * terminal deposit route is not exposed.
+     * terminal withdraw route is not exposed.
+   * Ensured operational-only endpoints remain outside the public REST surface.
+
+### Account Provisioning Refactor
+
+3. `api/internal/account/bankaccount/application/create_account.go`
+
+   * Refactored account creation flow to support explicit admin provisioning.
+   * Added `CustomerID` to `CreateAccountInput`.
+   * Changed authorization model:
+
+     * now requires authenticated admin role.
+   * Removed dependency on authenticated customer ownership context.
+   * Updated documentation/comments to reflect provisioning semantics.
+
+4. `api/internal/account/bankaccount/delivery/account_handler.go`
+
+   * Replaced `CreateAccount` with:
+
+     * `CreateAccountForCustomer`
+   * Added:
+
+     * admin role validation
+     * path-based `customer_id` parsing
+     * invalid UUID handling
+   * Updated operational logging to:
+
+     * `event=admin_create_account`
+
+5. `api/internal/account/bankaccount/delivery/auth_test.go`
+
+   * Added `testAdminRequest(...)` helper for admin-authenticated request contexts.
+
+### Account Provisioning Tests
+
+6. `api/internal/account/bankaccount/application/create_account_test.go`
+
+   * Migrated all account creation tests to admin provisioning semantics.
+   * Added explicit `CustomerID` usage throughout tests.
+   * Updated use case expectations for admin execution context.
+
+7. `api/internal/account/bankaccount/delivery/account_handler_test.go`
+
+   * Reworked handler tests for:
+
+     * admin-only provisioning
+     * invalid customer ID handling
+     * unknown field rejection
+     * empty-body success flow
+     * non-admin rejection
+   * Removed obsolete customer self-service account creation tests.
+
+### Documentation Updates
+
+8. `api/README.md`
+
+   * Updated exposed API surface.
+   * Clarified that:
+
+     * account creation is an admin provisioning capability.
+     * terminal deposit/withdraw channels are intentionally disabled.
+
+9. `api/docs/06-implementation.md`
+
+   * Updated runtime route registration section.
+   * Documented disabled terminal operations.
+
+10. `api/docs/07-api-rest.md`
+
+    * Added:
+
+      * `3.6 Create Customer Account (Admin Only)`
+    * Removed customer-facing `POST /accounts` documentation.
+    * Updated error scenarios and route references.
+    * Clarified provisioning responsibilities and onboarding behavior.
+
+11. `api/docs/ARCHITECTURE.md`
+
+    * Updated registered route inventory.
+    * Documented inactive terminal routes.
+
+12. `api/docs/presentation/presentation-api-architecture.md`
+
+    * Refined presentation narrative around:
+
+      * admin provisioning
+      * disabled terminal operations
+      * active REST surface
+      * future terminal channel direction
+
+13. `api/docs/visao_geral/chapters/*`
+
+    * Updated architectural overview chapters to reflect:
+
+      * removal of `POST /accounts`
+      * admin provisioning semantics
+      * disabled terminal routes
+      * ownership/context derivation adjustments
+      * revised operational flows
+
+### Mobile Statement Improvements
+
+14. `mobile/lib/core/extensions/datetime_extension.dart`
+
+    * Added:
+
+      * `formatMonthLabel`
+      * `formatDayLabel`
+      * `formatHour`
+
+* Introduced `DateParser` utility class.
+* Added `parseOrNow(...)`.
+
+15. `mobile/lib/data/services/apis/account/dtos/statement_response_dto.dart`
+
+    * Migrated statement date fields from `String` to `DateTime`.
+    * Improved parsing consistency for:
+
+      * statement items
+      * pagination cursors
+
+16. `mobile/lib/data/services/auth/api/dtos/customer_me_response_dto.dart`
+
+    * Replaced legacy parsing with `DateParser.parseOrNow(...)`.
+
+17. `mobile/lib/domain/common/auth/models/user_profile.dart`
+
+    * Replaced legacy parsing helpers with `DateParser`.
+
+18. `mobile/lib/data/repositories/account/account_repository_impl.dart`
+
+    * Reset statement cache before loading a new statement request.
+
+### Statement UI Refactor
+
+19. `mobile/lib/uis/pages/statement/statement_page.dart`
+
+    * Refactored statement grouping to use typed `DateTime` keys.
+    * Removed legacy string/date parsing helpers.
+    * Simplified sorting and grouping logic.
+    * Improved formatting reuse through extension methods.
+    * Extracted reusable widgets for:
+
+      * load error state
+      * empty transaction state
+
+20. `mobile/lib/uis/pages/statement/widgets/load_statement_error.dart`
+
+    * Added reusable error-state widget with retry support.
+
+21. `mobile/lib/uis/pages/statement/widgets/no_transactions_card.dart`
+
+    * Added reusable empty-state widget.
+
+22. `mobile/lib/uis/pages/statement/widgets/statement_item_card.dart`
+
+    * Simplified layout structure.
+    * Reduced visual nesting complexity.
+    * Improved transaction amount visibility.
+    * Reworked description/hour alignment.
+    * Removed obsolete commented balance display code.
+
+### Mobile Tests
+
+23. `mobile/test/core/extensions/datetime_extension_test.dart`
+
+    * Added coverage for:
+
+      * `DateParser.parseOrNull`
+      * `DateParser.parseOrNow`
+      * locale-aware formatting
+      * month/day/hour formatting extensions
+
+### Tooling
+
+24. `tools/postman/Environment.postman_environment.json`
+
+    * Updated local `base_url` environment IP.
+
+This commit consolidates the transition from customer self-service account creation to explicit administrative provisioning while preserving the future architectural direction for terminal-based cash operations. It also significantly improves statement rendering consistency on mobile through typed date handling, reusable UI components, and cleaner formatting utilities.
+
+
+## 2026/05/13 — api/routes-01
+
+Refined the API route surface to better distinguish operational ledger endpoints from customer-facing product flows, while aligning runtime wiring, documentation, and tests around the new terminal-oriented route structure.
+
+### Main Changes
+
+1. Route surface restructuring and operational boundary clarification
+
+   * Repositioned deposit and withdraw endpoints from:
+
+     * `/accounts/{id}/deposit`
+     * `/accounts/{id}/withdraw`
+   * To:
+
+     * `/terminal/accounts/{id}/deposit`
+     * `/terminal/accounts/{id}/withdraw`
+   * Explicitly documented these operations as terminal/operational ledger flows rather than customer-facing product capabilities.
+   * Added architectural guidance clarifying that:
+
+     * account creation is still a provisioning-oriented operation
+     * deposit/withdraw should eventually move behind protected operational/admin surfaces
+     * future onboarding and cash-in/cash-out flows should replace direct ledger mutation endpoints
+
+2. Runtime API wiring hardening
+
+   * Removed active registration of deposit and withdraw routes from `cmd/api/main.go`.
+   * Left the route definitions commented with explanatory notes indicating intentional disabling until a real terminal channel exists.
+   * Preserved transfer, balance, statement, and recipient routes unchanged.
+
+3. Documentation consistency updates
+
+   * Updated REST documentation references, route indexes, endpoint sections, examples, and error scenario sections to use `/terminal/accounts/...`.
+   * Added operational notes to:
+
+     * account creation
+     * deposit
+     * withdraw
+   * Clarified that deposit/withdraw routes are intentionally disabled in the current runtime wiring.
+   * Updated architecture and implementation documents to reflect the revised route semantics and operational positioning.
+   * Updated presentation and “visão geral” chapters to maintain consistency across:
+
+     * flow descriptions
+     * examples
+     * diagrams
+     * route listings
+     * testing references
+
+4. Test suite alignment
+
+   * Updated integration and handler tests to use the new terminal route namespace.
+   * Adjusted:
+
+     * deposit integration tests
+     * authorization integration tests
+     * handler tests for deposit and withdraw
+   * Preserved existing authorization and ownership validation behavior while aligning with the renamed routes.
+
+5. Added implementation snapshot reports
+
+   * Added `docs/relatorio-api-implementada-2026-05-12.md`
+
+     * comprehensive implementation inventory of the API
+     * architecture, auth model, persistence, transactional guarantees, routes, flows, invariants, migrations, and operational notes
+   * Added `docs/relatorio-mobile-implementado-2026-05-12.md`
+
+     * detailed overview of the Flutter mobile implementation
+     * architecture, navigation, DI, auth/session handling, repositories, use cases, and implemented user journeys
+
+### Architectural Impact
+
+This change improves conceptual separation between:
+
+* customer-facing banking flows
+* operational ledger mutation endpoints
+* future onboarding/admin provisioning surfaces
+
+The current API now communicates more explicitly that:
+
+* transfer is a real customer operation
+* deposit/withdraw are infrastructure or terminal-oriented operations
+* account provisioning is transitional and expected to evolve into administrative onboarding flows
+
+This reduces ambiguity in the public API contract and strengthens the long-term architectural direction of the project.
+
+
+## 2026/05/12 — mobile/statement-02
+
+Implemented the first complete statement flow for the mobile application, including backend support for transaction descriptions, statement navigation, grouped UI rendering, cached state handling, and receipt behavior improvements.
+
+### API
+
+1. Statement response enrichment
+
+   * Added optional `description` support to statement items returned by the API.
+   * Updated statement application model, delivery DTOs, handlers, and infrastructure repository mappings.
+   * Extended SQL queries to fetch transaction descriptions from the `transactions` table.
+   * Added `omitempty` behavior for empty descriptions in JSON responses.
+   * Updated REST API documentation with statement description examples and optional field notes.
+
+2. Statement repository test coverage
+
+   * Added `repository_test.go` for statement infrastructure.
+   * Validated:
+
+     * SQL query selection includes `description`
+     * transaction description mapping
+     * timestamp propagation
+     * nullable field handling
+
+3. Transfer receipt behavior correction
+
+   * Adjusted transfer receipt operation type resolution for destination customers.
+   * Destination users now correctly see `transfer_in` instead of the original transfer direction.
+   * Added dedicated unit test validation for the corrected behavior.
+
+### Mobile — Routing & Navigation
+
+1. Statement route integration
+
+   * Added `BaseRoutes.statement`.
+   * Registered `StatementPage` and `StatementViewmodel` in GoRouter and dependency injection.
+
+2. Home page navigation
+
+   * Replaced the previous “coming soon” placeholder action with real statement navigation.
+   * Added `_navToStatement()` navigation handler.
+
+3. Details page navigation improvements
+
+   * Replaced forced navigation to home with `context.pop()`.
+   * Updated button label from `Fechar` to `Voltar`.
+
+### Mobile — Statement Feature
+
+1. Statement page implementation
+
+   * Added full `StatementPage`.
+   * Implemented:
+
+     * loading state
+     * retry flow
+     * refresh indicator
+     * empty state
+     * grouped rendering by month/day
+     * operation detail navigation
+     * snackbar-based error handling
+
+2. Statement grouping and formatting
+
+   * Added:
+
+     * `MonthHeader`
+     * `DayHeader`
+     * `StatementItemCard`
+   * Implemented:
+
+     * month grouping
+     * daily grouping
+     * daily consolidated balance display
+     * localized date/hour formatting
+
+3. Statement interaction flow
+
+   * Transactions with valid references now navigate to details screen.
+   * Transactions without references show informational feedback.
+
+4. Statement caching support
+
+   * Added `lastStatement` support to `AccountRepository`.
+   * Added internal `_statementCache`.
+   * Cache is invalidated when switching accounts.
+   * Cached statement is reused during refresh/error scenarios.
+
+5. Statement DTO improvements
+
+   * Added `description` field to `StatementItemDto`.
+   * Added safe parsing fallback for nullable descriptions.
+
+### Mobile — Shared Transaction Presentation
+
+1. Transaction movement abstraction
+
+   * Added `TransactionMovement`.
+   * Centralized:
+
+     * operation labels
+     * debit/credit semantics
+     * amount sign formatting
+
+2. Details page integration
+
+   * Receipt operation labels now use `TransactionMovement`.
+   * Improved semantic consistency between statement and receipt views.
+
+### Mobile — UI & Refactoring
+
+1. Statement card component
+
+   * Added reusable visual representation for statement entries.
+   * Included:
+
+     * debit/credit coloring
+     * optional descriptions
+     * detail navigation indicators
+     * formatted timestamps
+
+2. Splash screen adjustment
+
+   * Wrapped splash logo in a card container with padding for improved visual contrast.
+
+3. Import normalization
+
+   * Standardized several imports to use absolute project paths.
+
+4. Exception extraction
+
+   * Moved `ReceiptImageException` into its own dedicated exception file.
+
+5. BigButton flexibility improvements
+
+   * `leftIcon` and `rightIcon` now accept `Widget` instead of `IconData`.
+   * Increased flexibility for future UI composition.
+
+### Tests
+
+1. Statement handler tests
+
+   * Added assertions validating description propagation through HTTP responses.
+
+2. Transfer receipt tests
+
+   * Added validation for destination-side `transfer_in` operation type behavior.
+
+3. Fake repository updates
+
+   * Extended fake repositories with `lastStatement` support for compatibility with the new repository contract.
+
+
 ## 2026/05/12 — main
 
 Refactor authentication and transfer action buttons to support fully customizable icon widgets and improve UI consistency across the mobile application.

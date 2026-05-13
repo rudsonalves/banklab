@@ -92,16 +92,17 @@ Esse token representa a identidade autenticada do usuário e é exigido em opera
 
 - `POST /auth/refresh`;
 - `GET /auth/me`;
+- `POST /admin/customers/{customer_id}/accounts`;
 - `GET /customers/me`;
 - `GET /accounts`;
-- `POST /accounts`;
 - `GET /accounts/{id}/balance`;
-- `POST /accounts/{id}/deposit`;
-- `POST /accounts/{id}/withdraw`;
 - `GET /accounts/internal-transfers/recipients`;
 - `POST /accounts/internal-transfers`;
 - `GET /accounts/{id}/statement`;
 - `POST /admin/users/{id}/approve`.
+
+As rotas planejadas para saque e depósito por terminal não fazem parte da
+superfície autenticada atual, pois estão comentadas no wiring HTTP.
 
 ## Conteúdo do contexto autenticado
 
@@ -132,7 +133,6 @@ Isso significa que, em vários fluxos, o backend não confia em dados sensíveis
 Por exemplo:
 
 - `GET /accounts` não recebe `customer_id`;
-- `POST /accounts` não recebe `customer_id`;
 - `GET /customers/me` não recebe `customer_id`.
 
 Em vez disso, a API deriva esse valor a partir do usuário autenticado.
