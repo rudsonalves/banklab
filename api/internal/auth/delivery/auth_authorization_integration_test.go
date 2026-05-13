@@ -229,11 +229,11 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	hasher := authinfrastructure.NewBcryptPasswordHasher(bcrypt.MinCost)
 	tokenService := authinfrastructure.NewJWTTokenService("integration-secret", 20*time.Minute)
 
+	accountRepo := accountinfrastructure.New(pool)
 	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
-	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
-	accountRepo := accountinfrastructure.New(pool)
 	branchPolicy := accountapplication.NewDefaultBranchPolicy()
 	approveUserUC := adminapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 	listAccountsUC := accountapplication.NewListAccounts(accountRepo)

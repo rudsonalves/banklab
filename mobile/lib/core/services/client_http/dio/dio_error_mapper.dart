@@ -2,6 +2,10 @@ import 'package:dio/dio.dart';
 
 import '/core/result/result.dart';
 
+const _accountApprovalRequiredBackendCode = 'ACCOUNT_APPROVAL_REQUIRED';
+const _accountApprovalRequiredMessage =
+    'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar o app.';
+
 AppError mapHttpError(Object err, [StackTrace? stack]) {
   if (err is DioException) {
     final response = err.response;
@@ -39,11 +43,22 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
       final error = data['error'];
 
       if (error is Map<String, dynamic>) {
+        final backendCode = error['code'];
+
+        if (backendCode == _accountApprovalRequiredBackendCode) {
+          return AppError(
+            statusCode: response?.statusCode,
+            code: AppErrorCode.accountApprovalRequired,
+            message: _accountApprovalRequiredMessage,
+            details: error,
+          );
+        }
+
         return AppError(
           statusCode: response?.statusCode,
           code: AppErrorCode.httpError,
           message: error['message'] ?? err.message ?? 'Request error',
-          details: error['details'],
+          details: error['details'] ?? error,
         );
       }
 

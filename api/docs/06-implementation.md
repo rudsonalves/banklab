@@ -403,6 +403,8 @@ Implemented concerns:
 - Minimal delivery validation: rejects blank required fields
 - Domain/format validation delegated to application layer
 - Returns customer_id in register and login responses
+- Login blocks customer users without approved/provisioned accounts using
+  ACCOUNT_APPROVAL_REQUIRED
 - Refresh rotates tokens through the auth application use case
 
 ## 7.4 Response Contract

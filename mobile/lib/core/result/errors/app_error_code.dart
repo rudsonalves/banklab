@@ -2,6 +2,7 @@
 enum AppErrorCode {
   // HTTP
   httpError,
+  accountApprovalRequired,
   timeout,
   networkError,
   parsingError,

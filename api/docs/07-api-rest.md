@@ -233,11 +233,17 @@ Success response (200):
 
 Every login issues a new refresh token and persists a corresponding server-side session. The refresh token is required to obtain a new access token via `POST /auth/refresh`.
 
+Customer users can complete login only after admin approval has provisioned at
+least one account through `POST /admin/users/{id}/approve`. If approval or
+account provisioning is still pending, login fails before token/session creation
+with `ACCOUNT_APPROVAL_REQUIRED`.
+
 Possible errors:
 - 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
 - 400 INVALID_REQUEST: invalid JSON body or unknown fields
 - 400 INVALID_DATA: invalid email or password input
 - 401 INVALID_CREDENTIALS: invalid email/password
+- 403 ACCOUNT_APPROVAL_REQUIRED: customer user still requires admin approval or account provisioning
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ### 3.3 Refresh Access Token
@@ -906,6 +912,7 @@ Common error codes currently used by handlers:
 - USER_ALREADY_EXISTS
 - CUSTOMER_NOT_FOUND
 - INVALID_CREDENTIALS
+- ACCOUNT_APPROVAL_REQUIRED
 - UNAUTHORIZED
 - INVALID_TOKEN
 - FORBIDDEN
@@ -917,6 +924,11 @@ Common error codes currently used by handlers:
 - INTERNAL_ERROR
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when `POST /auth/register` or `POST /auth/login` is called without `X-App-Token` or with an invalid app token.
+
+`ACCOUNT_APPROVAL_REQUIRED` (HTTP 403) is returned by `POST /auth/login` when a
+customer user has valid credentials but cannot enter the app because admin
+approval/account provisioning is incomplete. Mobile clients should use this code
+to show an approval-pending guidance message.
 
 `INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or refresh token signature invalid.
 
@@ -1003,6 +1015,20 @@ Scenario: invalid credentials
   "error": {
     "code": "INVALID_CREDENTIALS",
     "message": "Invalid credentials"
+  }
+}
+```
+
+Scenario: account approval required
+- Status: 403
+- Code: ACCOUNT_APPROVAL_REQUIRED
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_APPROVAL_REQUIRED",
+    "message": "Account approval required"
   }
 }
 ```

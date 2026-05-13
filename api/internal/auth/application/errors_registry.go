@@ -33,6 +33,13 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		domain.ErrAccountApprovalRequired,
+		sharederrors.ErrCodeAccountApprovalRequired,
+		"Account approval required",
+		http.StatusForbidden,
+	)
+
+	sharederrors.RegisterDomainError(
 		domain.ErrUnauthorized,
 		sharederrors.ErrCodeUnauthorized,
 		"Authentication required",

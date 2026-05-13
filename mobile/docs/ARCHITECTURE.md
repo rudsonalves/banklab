@@ -273,6 +273,10 @@ UI rules:
 - Simple view models may inject repositories directly
 - Complex view models should inject use cases instead of coordinating multiple
   repositories directly
+- Pages should use
+  [AppSnackbar](../../mobile/lib/uis/core/messages/app_snackbar.dart) as the
+  standard mechanism for transient user-facing messages when snackbar feedback is
+  appropriate
 - UI must not call API services, `RestClient`, or Dio directly
 
 ## Request And Authentication Flow
@@ -286,6 +290,11 @@ Simple request flow:
 5. `DioRestClient` returns `Success` or `Failure` mapped to `AppError`
 6. Command updates state to success/failure and notifies listeners
 7. Page reacts with navigation, loading state, or feedback
+
+Auth login failures may map to specific app errors when the backend returns a
+stable semantic code. For example, `ACCOUNT_APPROVAL_REQUIRED` becomes
+`AppErrorCode.accountApprovalRequired`, allowing the login pages to show the
+approval-pending message without treating the case as invalid credentials.
 
 Complex request flow:
 
@@ -346,6 +355,14 @@ Command states:
 
 This pattern keeps side effects explicit and allows pages to react to command
 state transitions consistently.
+
+User-facing async errors should flow through `AppError` and be displayed by the
+page. When the desired feedback is transient, use `AppSnackbar.show(...)` as the
+application standard instead of creating ad hoc snackbars.
+
+Authentication-specific error states should stay semantic in the app layer.
+Current login handling distinguishes invalid credentials from approval-pending
+accounts, so UI feedback can remain specific to the actual backend condition.
 
 ## Configuration Model
 

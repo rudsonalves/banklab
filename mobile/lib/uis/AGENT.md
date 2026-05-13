@@ -214,7 +214,8 @@ For forms:
 
 For feedback:
 
-- use `AppSnackbar.show(...)` when it fits the current behavior
+- use `AppSnackbar.show(...)` as the standard snackbar mechanism for transient
+  user-facing messages
 - pages decide when to show feedback
 - view models and repositories should not show snackbars or dialogs
 - prefer `AppError.message` for user-facing async errors

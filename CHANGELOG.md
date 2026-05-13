@@ -1,5 +1,191 @@
 # Changelog
 
+## 2026/05/13 — mobile/login-approved-account-01
+
+Implemented approval-aware authentication feedback for the mobile client, introducing semantic handling for pending-account login attempts and expanding documentation around the current mobile architecture and implemented features.
+
+### Documentation
+
+1. `mobile/README.md`
+
+   * Expanded the authentication flow description to explicitly mention approval-pending login states before account access is granted.
+
+2. `mobile/docs/01-implemented-features.md`
+
+   * Added a new implementation-oriented mobile documentation file.
+   * Documented:
+
+     * layered mobile architecture
+     * authentication flows
+     * account and statement features
+     * transfer flows
+     * routing organization
+     * state and error handling
+     * persistence/session handling
+     * current testing coverage
+   * Included references to repositories, APIs, pages, view models, and storage services currently implemented in the project.
+
+3. `mobile/docs/ARCHITECTURE.md`
+
+   * Standardized `AppSnackbar` as the preferred transient user-feedback mechanism.
+   * Added architectural guidance for semantic authentication error mapping.
+   * Documented the distinction between invalid credentials and approval-required login states.
+
+4. `mobile/lib/uis/AGENT.md`
+
+   * Reinforced the UI guideline that transient user-facing feedback should use `AppSnackbar.show(...)`.
+
+### Authentication Error Modeling
+
+1. `mobile/lib/core/result/errors/app_error_code.dart`
+
+   * Added the new semantic app error:
+
+     * `AppErrorCode.accountApprovalRequired`
+
+2. `mobile/lib/core/services/client_http/dio/dio_error_mapper.dart`
+
+   * Added explicit backend error mapping for:
+
+     * `ACCOUNT_APPROVAL_REQUIRED`
+   * Introduced a stable user-facing approval-pending message.
+   * Preserved generic HTTP error behavior for unrelated failures.
+   * Improved `details` propagation by preserving the entire backend error payload when `details` is absent.
+
+### Login UI Behavior
+
+1. `mobile/lib/uis/pages/auth/login/login_page.dart`
+
+   * Added semantic handling for `accountApprovalRequired`.
+   * Implemented approval-pending snackbar feedback for the full login flow.
+   * Preserved existing invalid-credential behavior.
+
+2. `mobile/lib/uis/pages/auth/short_login/short_login_page.dart`
+
+   * Added approval-pending handling for the remembered-account login flow.
+   * Preserved short-login identity state after failure.
+   * Kept generic failure handling unchanged for non-approval scenarios.
+
+### Test Coverage
+
+1. `mobile/test/core/services/client_http/dio/dio_error_mapper_test.dart`
+
+   * Added tests validating:
+
+     * backend approval-required mapping
+     * unchanged invalid-credentials behavior
+     * fallback forbidden handling
+
+2. `mobile/test/data/repositories/auth/auth_repository_impl_test.dart`
+
+   * Added repository-level tests validating:
+
+     * approval-required login failures do not persist tokens
+     * profile loading is skipped on approval failures
+     * remembered-login cache is not updated on rejected login attempts
+     * successful login still persists tokens and updates remembered identity correctly
+
+3. `mobile/test/uis/pages/auth/login_feedback_behavior_test.dart`
+
+   * Added widget tests covering:
+
+     * full login approval-pending feedback
+     * short-login approval-pending feedback
+     * preservation of generic invalid credential behavior
+     * preservation of generic server failure behavior
+
+This commit improves the authentication UX by distinguishing operational account state from credential failure, aligning the mobile client with the backend semantic error model while strengthening architectural documentation and automated test coverage.
+
+
+## 2026/05/13 — api/login-approved-account-01
+
+Implemented login eligibility enforcement for customer users, requiring completed approval and account provisioning before session creation.
+
+### Authentication Flow
+
+* Added account provisioning validation to `LoginUserUseCase`
+* Injected `AccountRepository` as an `AccountProvisioningChecker` dependency during application wiring
+* Introduced `validateLoginEligibility()` to centralize operational login checks
+* Restricted customer login based on:
+
+  * `pending` status → `ACCOUNT_APPROVAL_REQUIRED`
+  * missing `customer_id` → `ACCOUNT_APPROVAL_REQUIRED`
+  * no provisioned account → `ACCOUNT_APPROVAL_REQUIRED`
+  * `blocked` or invalid lifecycle states → `FORBIDDEN`
+* Preserved admin login behavior without requiring account provisioning
+* Prevented token generation and session persistence when approval requirements are not satisfied
+
+### Domain and Error Handling
+
+* Added new domain error:
+
+  * `ErrAccountApprovalRequired`
+* Added shared stable error code:
+
+  * `ACCOUNT_APPROVAL_REQUIRED`
+* Registered HTTP mapping:
+
+  * HTTP 403 Forbidden
+  * message: `Account approval required`
+* Extended centralized error registry with the new authorization/business-state error
+
+### Application Layer
+
+* Added `AccountProvisioningChecker` interface abstraction to the auth application layer
+* Improved constructor dependency documentation and responsibility description
+* Added defensive validation for missing provisioning checker configuration
+* Wrapped infrastructure failures during account provisioning verification with contextual errors
+
+### Tests
+
+* Expanded `login_user_test.go` with approval/account provisioning coverage:
+
+  * successful active customer login
+  * pending customer rejection
+  * active customer without account rejection
+  * active customer without customer_id rejection
+  * admin login without account success
+  * provisioning repository error wrapping
+* Added provisioning checker mock implementation
+* Added assertions ensuring:
+
+  * token generation is skipped on rejection
+  * sessions are not persisted on rejection
+  * provisioning checks are invoked only when required
+* Updated existing login tests to support new constructor signature
+* Added delivery-layer handler test validating:
+
+  * HTTP 403 response
+  * `ACCOUNT_APPROVAL_REQUIRED` payload contract
+* Updated auth integration test bootstrap wiring with account repository injection
+
+### Documentation
+
+* Updated REST API documentation:
+
+  * login eligibility behavior
+  * new `ACCOUNT_APPROVAL_REQUIRED` error
+  * explicit 403 response example
+  * onboarding/account provisioning dependency explanation
+* Updated implementation documentation describing:
+
+  * login blocking for unapproved customers
+* Updated architectural and conceptual docs:
+
+  * authentication lifecycle
+  * onboarding boundary
+  * operational eligibility semantics
+  * approval/account provisioning relationship
+* Clarified that customer login now depends on:
+
+  * admin approval
+  * atomic account provisioning via `/admin/users/{id}/approve`
+
+### Result
+
+The authentication flow now enforces a stricter operational lifecycle boundary, ensuring that customer users can only establish authenticated sessions after administrative approval and successful account provisioning. This aligns login behavior with the system’s lifecycle and operational consistency model.
+
+
 ## 2026/05/13 — api-mobile/routes-02-statement-04
 
 Refactored account provisioning boundaries, removed customer self-service account creation routes, and aligned the API surface with the intended operational model for admin-controlled account provisioning and future terminal channels.
