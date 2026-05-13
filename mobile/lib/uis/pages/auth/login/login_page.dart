@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/core/result/result.dart';
 import '/core/routing/routes.dart';
 import '/data/services/auth/api/dtos/login_request_dto.dart';
 import '/uis/core/base/safe_scaffold.dart';
@@ -8,6 +9,9 @@ import '/uis/core/messages/app_snackbar.dart';
 import '/uis/core/text_form_field/basic_text_form_field.dart';
 import '../../../core/buttons/big_button.dart';
 import 'viewmodel/login_viewmodel.dart';
+
+const _accountApprovalRequiredMessage =
+    'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar sua conta.';
 
 class LoginPage extends StatefulWidget {
   final LoginViewModel viewModel;
@@ -202,7 +206,11 @@ class _LoginPageState extends State<LoginPage> {
     if (!mounted || loginCommand.isRunning) return;
 
     if (loginCommand.isFailure) {
-      final message = loginCommand.error?.message ?? 'Falha ao autenticar.';
+      final error = loginCommand.error;
+      final message = error?.code == AppErrorCode.accountApprovalRequired
+          ? _accountApprovalRequiredMessage
+          : error?.message ?? 'Falha ao autenticar.';
+
       AppSnackbar.show(
         context,
         type: SnackbarType.error,

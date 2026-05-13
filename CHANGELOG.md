@@ -1,5 +1,102 @@
 # Changelog
 
+## 2026/05/13 — mobile/login-approved-account-01
+
+Implemented approval-aware authentication feedback for the mobile client, introducing semantic handling for pending-account login attempts and expanding documentation around the current mobile architecture and implemented features.
+
+### Documentation
+
+1. `mobile/README.md`
+
+   * Expanded the authentication flow description to explicitly mention approval-pending login states before account access is granted.
+
+2. `mobile/docs/01-implemented-features.md`
+
+   * Added a new implementation-oriented mobile documentation file.
+   * Documented:
+
+     * layered mobile architecture
+     * authentication flows
+     * account and statement features
+     * transfer flows
+     * routing organization
+     * state and error handling
+     * persistence/session handling
+     * current testing coverage
+   * Included references to repositories, APIs, pages, view models, and storage services currently implemented in the project.
+
+3. `mobile/docs/ARCHITECTURE.md`
+
+   * Standardized `AppSnackbar` as the preferred transient user-feedback mechanism.
+   * Added architectural guidance for semantic authentication error mapping.
+   * Documented the distinction between invalid credentials and approval-required login states.
+
+4. `mobile/lib/uis/AGENT.md`
+
+   * Reinforced the UI guideline that transient user-facing feedback should use `AppSnackbar.show(...)`.
+
+### Authentication Error Modeling
+
+1. `mobile/lib/core/result/errors/app_error_code.dart`
+
+   * Added the new semantic app error:
+
+     * `AppErrorCode.accountApprovalRequired`
+
+2. `mobile/lib/core/services/client_http/dio/dio_error_mapper.dart`
+
+   * Added explicit backend error mapping for:
+
+     * `ACCOUNT_APPROVAL_REQUIRED`
+   * Introduced a stable user-facing approval-pending message.
+   * Preserved generic HTTP error behavior for unrelated failures.
+   * Improved `details` propagation by preserving the entire backend error payload when `details` is absent.
+
+### Login UI Behavior
+
+1. `mobile/lib/uis/pages/auth/login/login_page.dart`
+
+   * Added semantic handling for `accountApprovalRequired`.
+   * Implemented approval-pending snackbar feedback for the full login flow.
+   * Preserved existing invalid-credential behavior.
+
+2. `mobile/lib/uis/pages/auth/short_login/short_login_page.dart`
+
+   * Added approval-pending handling for the remembered-account login flow.
+   * Preserved short-login identity state after failure.
+   * Kept generic failure handling unchanged for non-approval scenarios.
+
+### Test Coverage
+
+1. `mobile/test/core/services/client_http/dio/dio_error_mapper_test.dart`
+
+   * Added tests validating:
+
+     * backend approval-required mapping
+     * unchanged invalid-credentials behavior
+     * fallback forbidden handling
+
+2. `mobile/test/data/repositories/auth/auth_repository_impl_test.dart`
+
+   * Added repository-level tests validating:
+
+     * approval-required login failures do not persist tokens
+     * profile loading is skipped on approval failures
+     * remembered-login cache is not updated on rejected login attempts
+     * successful login still persists tokens and updates remembered identity correctly
+
+3. `mobile/test/uis/pages/auth/login_feedback_behavior_test.dart`
+
+   * Added widget tests covering:
+
+     * full login approval-pending feedback
+     * short-login approval-pending feedback
+     * preservation of generic invalid credential behavior
+     * preservation of generic server failure behavior
+
+This commit improves the authentication UX by distinguishing operational account state from credential failure, aligning the mobile client with the backend semantic error model while strengthening architectural documentation and automated test coverage.
+
+
 ## 2026/05/13 — api/login-approved-account-01
 
 Implemented login eligibility enforcement for customer users, requiring completed approval and account provisioning before session creation.
