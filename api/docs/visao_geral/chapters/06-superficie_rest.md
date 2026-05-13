@@ -49,6 +49,11 @@ Ele marca a entrada inicial do usuário no sistema. O registro já cria a base d
 
 Esse endpoint autentica o usuário e devolve os tokens necessários para uso das rotas protegidas.
 
+Para usuários `customer`, o login só é concluído depois que o onboarding foi
+aprovado e pelo menos uma conta foi provisionada por
+`POST /admin/users/{id}/approve`. Quando essa etapa ainda não ocorreu, a API
+retorna `ACCOUNT_APPROVAL_REQUIRED` e não emite tokens.
+
 O login retorna dados importantes para o restante da aplicação, como:
 
 - `access_token`;

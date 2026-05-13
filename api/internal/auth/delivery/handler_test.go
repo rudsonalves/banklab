@@ -299,6 +299,43 @@ func TestHandler_Login_InvalidCredentials(t *testing.T) {
 	}
 }
 
+func TestHandler_Login_AccountApprovalRequired(t *testing.T) {
+	loginUC := &loginUserUseCaseMock{err: domain.ErrAccountApprovalRequired}
+	handler := New(nil, loginUC, nil, nil)
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	rec := httptest.NewRecorder()
+
+	handler.Login(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+
+	var got struct {
+		Data  any `json:"data"`
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Data != nil {
+		t.Fatalf("expected nil data, got %#v", got.Data)
+	}
+
+	if got.Error.Code != "ACCOUNT_APPROVAL_REQUIRED" {
+		t.Fatalf("expected error code %q, got %q", "ACCOUNT_APPROVAL_REQUIRED", got.Error.Code)
+	}
+
+	if got.Error.Message != "Account approval required" {
+		t.Fatalf("expected error message %q, got %q", "Account approval required", got.Error.Message)
+	}
+}
+
 func TestHandler_Refresh_Success(t *testing.T) {
 	refreshUC := &refreshAccessTokenUseCaseMock{output: &application.RefreshAccessTokenOutput{
 		AccessToken:  "new-access-token",

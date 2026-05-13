@@ -63,13 +63,19 @@ POST /auth/login
 
 Seu objetivo é autenticar o usuário e devolver o conjunto de dados que passa a representar a sessão ativa.
 
+Para usuários `customer`, esse fluxo também funciona como fronteira de
+elegibilidade: o login só cria sessão se a aprovação administrativa já tiver
+provisionado pelo menos uma conta. Caso contrário, a API retorna
+`ACCOUNT_APPROVAL_REQUIRED`.
+
 Esse fluxo inclui:
 
 1. validação das credenciais;
 2. autenticação do usuário;
-3. emissão de `access_token`;
-4. emissão de `refresh_token`;
-5. devolução dos dados de identidade úteis ao cliente, como `role` e `customer_id`.
+3. validação de aprovação/provisionamento para usuários `customer`;
+4. emissão de `access_token`;
+5. emissão de `refresh_token`;
+6. devolução dos dados de identidade úteis ao cliente, como `role` e `customer_id`.
 
 O valor desse fluxo está em estabelecer o contexto autenticado reutilizado pelos demais módulos.
 

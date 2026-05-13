@@ -86,6 +86,22 @@ type sessionRepositoryMock struct {
 	createErr     error
 }
 
+type accountProvisioningCheckerMock struct {
+	existsByCustomerIDCalls int
+	existsByCustomerIDValue uuid.UUID
+	existsByCustomerIDOK    bool
+	existsByCustomerIDErr   error
+}
+
+func (m *accountProvisioningCheckerMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
+	m.existsByCustomerIDCalls++
+	m.existsByCustomerIDValue = customerID
+	if m.existsByCustomerIDErr != nil {
+		return false, m.existsByCustomerIDErr
+	}
+	return m.existsByCustomerIDOK, nil
+}
+
 func (m *sessionRepositoryMock) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
 	m.createCalls++
 	m.createUserID = userID
@@ -139,12 +155,14 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 			PasswordHash: "stored-hash",
 			Role:         domain.RoleCustomer,
 			CustomerID:   &customerID,
+			Status:       domain.UserStatusActive,
 		},
 	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
 	hasher := &loginPasswordHasherMock{}
 	tokenService := &tokenServiceMock{accessToken: "jwt-token", refreshToken: "refresh-token"}
 	sessionRepo := &sessionRepositoryMock{}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    " USER@EXAMPLE.COM ",
@@ -203,6 +221,14 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected Compare password %q, got %q", "password123", hasher.comparePassword)
 	}
 
+	if accountProvisioning.existsByCustomerIDCalls != 1 {
+		t.Fatalf("expected ExistsByCustomerID to be called once, got %d", accountProvisioning.existsByCustomerIDCalls)
+	}
+
+	if accountProvisioning.existsByCustomerIDValue != customerID {
+		t.Fatalf("expected ExistsByCustomerID customer ID %q, got %q", customerID, accountProvisioning.existsByCustomerIDValue)
+	}
+
 	if tokenService.generateAccessCalls != 1 {
 		t.Fatalf("expected GenerateAccessToken to be called once, got %d", tokenService.generateAccessCalls)
 	}
@@ -245,12 +271,258 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 	}
 }
 
+func TestLoginUserUseCase_Execute_PendingCustomerRequiresApproval(t *testing.T) {
+	customerID := uuid.New()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:           uuid.New(),
+			Email:        "user@example.com",
+			PasswordHash: "stored-hash",
+			Role:         domain.RoleCustomer,
+			CustomerID:   &customerID,
+			Status:       domain.UserStatusPending,
+		},
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+
+	if !errors.Is(err, domain.ErrAccountApprovalRequired) {
+		t.Fatalf("expected error %v, got %v", domain.ErrAccountApprovalRequired, err)
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if accountProvisioning.existsByCustomerIDCalls != 0 {
+		t.Fatalf("expected account provisioning not to be checked, got %d calls", accountProvisioning.existsByCustomerIDCalls)
+	}
+
+	if tokenService.generateAccessCalls != 0 {
+		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected GenerateRefreshToken not to be called, got %d calls", tokenService.generateRefreshCalls)
+	}
+
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected session Create not to be called, got %d calls", sessionRepo.createCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_ActiveCustomerWithoutAccountRequiresApproval(t *testing.T) {
+	customerID := uuid.New()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:           uuid.New(),
+			Email:        "user@example.com",
+			PasswordHash: "stored-hash",
+			Role:         domain.RoleCustomer,
+			CustomerID:   &customerID,
+			Status:       domain.UserStatusActive,
+		},
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: false}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+
+	if !errors.Is(err, domain.ErrAccountApprovalRequired) {
+		t.Fatalf("expected error %v, got %v", domain.ErrAccountApprovalRequired, err)
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if accountProvisioning.existsByCustomerIDCalls != 1 {
+		t.Fatalf("expected ExistsByCustomerID to be called once, got %d", accountProvisioning.existsByCustomerIDCalls)
+	}
+
+	if accountProvisioning.existsByCustomerIDValue != customerID {
+		t.Fatalf("expected ExistsByCustomerID customer ID %q, got %q", customerID, accountProvisioning.existsByCustomerIDValue)
+	}
+
+	if tokenService.generateAccessCalls != 0 {
+		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected GenerateRefreshToken not to be called, got %d calls", tokenService.generateRefreshCalls)
+	}
+
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected session Create not to be called, got %d calls", sessionRepo.createCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_ActiveCustomerWithoutCustomerIDRequiresApproval(t *testing.T) {
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:           uuid.New(),
+			Email:        "user@example.com",
+			PasswordHash: "stored-hash",
+			Role:         domain.RoleCustomer,
+			Status:       domain.UserStatusActive,
+		},
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+
+	if !errors.Is(err, domain.ErrAccountApprovalRequired) {
+		t.Fatalf("expected error %v, got %v", domain.ErrAccountApprovalRequired, err)
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if accountProvisioning.existsByCustomerIDCalls != 0 {
+		t.Fatalf("expected account provisioning not to be checked, got %d calls", accountProvisioning.existsByCustomerIDCalls)
+	}
+
+	if tokenService.generateAccessCalls != 0 {
+		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected session Create not to be called, got %d calls", sessionRepo.createCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_AdminWithoutAccountCanLogin(t *testing.T) {
+	userID := uuid.New()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:           userID,
+			Email:        "admin@example.com",
+			PasswordHash: "stored-hash",
+			Role:         domain.RoleAdmin,
+			Status:       domain.UserStatusActive,
+		},
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{accessToken: "admin-jwt", refreshToken: "admin-refresh"}
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "admin@example.com",
+		Password: "password123",
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if output == nil {
+		t.Fatal("expected output to be non-nil")
+	}
+
+	if output.Role != string(domain.RoleAdmin) {
+		t.Fatalf("expected role %q, got %q", domain.RoleAdmin, output.Role)
+	}
+
+	if output.CustomerID != nil {
+		t.Fatalf("expected customer ID to be nil, got %v", output.CustomerID)
+	}
+
+	if accountProvisioning.existsByCustomerIDCalls != 0 {
+		t.Fatalf("expected account provisioning not to be checked for admin, got %d calls", accountProvisioning.existsByCustomerIDCalls)
+	}
+
+	if tokenService.generateAccessCalls != 1 {
+		t.Fatalf("expected GenerateAccessToken to be called once, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 1 {
+		t.Fatalf("expected GenerateRefreshToken to be called once, got %d calls", tokenService.generateRefreshCalls)
+	}
+
+	if sessionRepo.createCalls != 1 {
+		t.Fatalf("expected session Create to be called once, got %d calls", sessionRepo.createCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_AccountProvisioningErrorIsWrapped(t *testing.T) {
+	customerID := uuid.New()
+	expectedErr := errors.New("database unavailable")
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:           uuid.New(),
+			Email:        "user@example.com",
+			PasswordHash: "stored-hash",
+			Role:         domain.RoleCustomer,
+			CustomerID:   &customerID,
+			Status:       domain.UserStatusActive,
+		},
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDErr: expectedErr}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+
+	if errors.Is(err, domain.ErrAccountApprovalRequired) {
+		t.Fatalf("expected repository error not to map to %v", domain.ErrAccountApprovalRequired)
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if tokenService.generateAccessCalls != 0 {
+		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected GenerateRefreshToken not to be called, got %d calls", tokenService.generateRefreshCalls)
+	}
+
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected session Create not to be called, got %d calls", sessionRepo.createCalls)
+	}
+}
+
 func TestLoginUserUseCase_Execute_UserNotFound(t *testing.T) {
 	userRepo := &loginUserRepositoryMock{}
 	hasher := &loginPasswordHasherMock{}
 	tokenService := &tokenServiceMock{}
 	sessionRepo := &sessionRepositoryMock{}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	useCase := NewLoginUserUseCase(userRepo, nil, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",
@@ -290,7 +562,7 @@ func TestLoginUserUseCase_Execute_WrongPassword(t *testing.T) {
 	hasher := &loginPasswordHasherMock{compareErr: errors.New("wrong password")}
 	tokenService := &tokenServiceMock{}
 	sessionRepo := &sessionRepositoryMock{}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	useCase := NewLoginUserUseCase(userRepo, nil, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",
@@ -327,7 +599,7 @@ func TestLoginUserUseCase_Execute_TokenGenerationFailure(t *testing.T) {
 	hasher := &loginPasswordHasherMock{}
 	tokenService := &tokenServiceMock{generateAccessErr: expectedErr}
 	sessionRepo := &sessionRepositoryMock{}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	useCase := NewLoginUserUseCase(userRepo, nil, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",
@@ -368,7 +640,7 @@ func TestLoginUserUseCase_Execute_RefreshTokenGenerationFailure(t *testing.T) {
 		generateRefreshErr: expectedErr,
 	}
 	sessionRepo := &sessionRepositoryMock{}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	useCase := NewLoginUserUseCase(userRepo, nil, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",
@@ -410,7 +682,7 @@ func TestLoginUserUseCase_Execute_SessionPersistenceFailure(t *testing.T) {
 	hasher := &loginPasswordHasherMock{}
 	tokenService := &tokenServiceMock{accessToken: "jwt-token", refreshToken: "refresh-token"}
 	sessionRepo := &sessionRepositoryMock{createErr: expectedErr}
-	useCase := NewLoginUserUseCase(userRepo, hasher, tokenService, sessionRepo)
+	useCase := NewLoginUserUseCase(userRepo, nil, hasher, tokenService, sessionRepo)
 
 	output, err := useCase.Execute(context.Background(), LoginUserInput{
 		Email:    "user@example.com",

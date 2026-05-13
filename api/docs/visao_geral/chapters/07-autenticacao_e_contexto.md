@@ -42,6 +42,11 @@ No registro, o sistema cria um usuário e o customer associado.
 
 No login, a API valida credenciais e retorna os tokens necessários para o uso posterior das rotas protegidas.
 
+Para usuários `customer`, credenciais válidas não bastam: o usuário precisa ter
+sido aprovado por `POST /admin/users/{id}/approve`, fluxo que provisiona a
+primeira conta. Enquanto essa aprovação/provisionamento não estiver completo, o
+login retorna `ACCOUNT_APPROVAL_REQUIRED` e não cria sessão.
+
 ### Sessão autenticada
 
 Depois do login, o cliente recebe:

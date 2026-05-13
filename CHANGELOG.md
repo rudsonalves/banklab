@@ -1,5 +1,94 @@
 # Changelog
 
+## 2026/05/13 — api/login-approved-account-01
+
+Implemented login eligibility enforcement for customer users, requiring completed approval and account provisioning before session creation.
+
+### Authentication Flow
+
+* Added account provisioning validation to `LoginUserUseCase`
+* Injected `AccountRepository` as an `AccountProvisioningChecker` dependency during application wiring
+* Introduced `validateLoginEligibility()` to centralize operational login checks
+* Restricted customer login based on:
+
+  * `pending` status → `ACCOUNT_APPROVAL_REQUIRED`
+  * missing `customer_id` → `ACCOUNT_APPROVAL_REQUIRED`
+  * no provisioned account → `ACCOUNT_APPROVAL_REQUIRED`
+  * `blocked` or invalid lifecycle states → `FORBIDDEN`
+* Preserved admin login behavior without requiring account provisioning
+* Prevented token generation and session persistence when approval requirements are not satisfied
+
+### Domain and Error Handling
+
+* Added new domain error:
+
+  * `ErrAccountApprovalRequired`
+* Added shared stable error code:
+
+  * `ACCOUNT_APPROVAL_REQUIRED`
+* Registered HTTP mapping:
+
+  * HTTP 403 Forbidden
+  * message: `Account approval required`
+* Extended centralized error registry with the new authorization/business-state error
+
+### Application Layer
+
+* Added `AccountProvisioningChecker` interface abstraction to the auth application layer
+* Improved constructor dependency documentation and responsibility description
+* Added defensive validation for missing provisioning checker configuration
+* Wrapped infrastructure failures during account provisioning verification with contextual errors
+
+### Tests
+
+* Expanded `login_user_test.go` with approval/account provisioning coverage:
+
+  * successful active customer login
+  * pending customer rejection
+  * active customer without account rejection
+  * active customer without customer_id rejection
+  * admin login without account success
+  * provisioning repository error wrapping
+* Added provisioning checker mock implementation
+* Added assertions ensuring:
+
+  * token generation is skipped on rejection
+  * sessions are not persisted on rejection
+  * provisioning checks are invoked only when required
+* Updated existing login tests to support new constructor signature
+* Added delivery-layer handler test validating:
+
+  * HTTP 403 response
+  * `ACCOUNT_APPROVAL_REQUIRED` payload contract
+* Updated auth integration test bootstrap wiring with account repository injection
+
+### Documentation
+
+* Updated REST API documentation:
+
+  * login eligibility behavior
+  * new `ACCOUNT_APPROVAL_REQUIRED` error
+  * explicit 403 response example
+  * onboarding/account provisioning dependency explanation
+* Updated implementation documentation describing:
+
+  * login blocking for unapproved customers
+* Updated architectural and conceptual docs:
+
+  * authentication lifecycle
+  * onboarding boundary
+  * operational eligibility semantics
+  * approval/account provisioning relationship
+* Clarified that customer login now depends on:
+
+  * admin approval
+  * atomic account provisioning via `/admin/users/{id}/approve`
+
+### Result
+
+The authentication flow now enforces a stricter operational lifecycle boundary, ensuring that customer users can only establish authenticated sessions after administrative approval and successful account provisioning. This aligns login behavior with the system’s lifecycle and operational consistency model.
+
+
 ## 2026/05/13 — api-mobile/routes-02-statement-04
 
 Refactored account provisioning boundaries, removed customer self-service account creation routes, and aligned the API surface with the intended operational model for admin-controlled account provisioning and future terminal channels.

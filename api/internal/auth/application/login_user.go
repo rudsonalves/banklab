@@ -13,31 +13,39 @@ import (
 )
 
 type LoginUserUseCase struct {
-	userRepo     domain.UserRepository
-	hasher       domain.PasswordHasher
-	tokenService domain.TokenService
-	sessionRepo  domain.SessionRepository
+	userRepo                   domain.UserRepository
+	accountProvisioningChecker AccountProvisioningChecker
+	hasher                     domain.PasswordHasher
+	tokenService               domain.TokenService
+	sessionRepo                domain.SessionRepository
 }
 
 const refreshSessionTTL = 30 * 24 * time.Hour
 
+type AccountProvisioningChecker interface {
+	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)
+}
+
 // NewLoginUserUseCase creates a new instance of the LoginUserUseCase with the
-// provided dependencies. It requires a user repository for fetching user data, a
-// password hasher for verifying passwords, a token service for generating access
-// and refresh tokens, and a session repository for managing user sessions. This
-// use case is responsible for handling the login process, including validating
-// credentials, generating tokens, and creating sessions.
+// provided dependencies. It requires a user repository for fetching user data,
+// a provisioning checker for account approval checks, a password hasher for
+// verifying passwords, a token service for generating access and refresh tokens,
+// and a session repository for managing user sessions. This use case is
+// responsible for handling the login process, including validating credentials,
+// generating tokens, and creating sessions.
 func NewLoginUserUseCase(
 	userRepo domain.UserRepository,
+	accountProvisioningChecker AccountProvisioningChecker,
 	hasher domain.PasswordHasher,
 	tokenService domain.TokenService,
 	sessionRepo domain.SessionRepository,
 ) *LoginUserUseCase {
 	return &LoginUserUseCase{
-		userRepo:     userRepo,
-		hasher:       hasher,
-		tokenService: tokenService,
-		sessionRepo:  sessionRepo,
+		userRepo:                   userRepo,
+		accountProvisioningChecker: accountProvisioningChecker,
+		hasher:                     hasher,
+		tokenService:               tokenService,
+		sessionRepo:                sessionRepo,
 	}
 }
 
@@ -86,6 +94,10 @@ func (uc *LoginUserUseCase) Execute(
 		return nil, domain.ErrInvalidCredentials
 	}
 
+	if err := uc.validateLoginEligibility(ctx, user); err != nil {
+		return nil, err
+	}
+
 	accessToken, err := uc.tokenService.GenerateAccessToken(domain.TokenClaims{
 		UserID:     user.ID,
 		Role:       user.Role,
@@ -116,4 +128,37 @@ func (uc *LoginUserUseCase) Execute(
 		Role:         string(user.Role),
 		CustomerID:   user.CustomerID,
 	}, nil
+}
+
+func (uc *LoginUserUseCase) validateLoginEligibility(ctx context.Context, user *domain.User) error {
+	if user.Role != domain.RoleCustomer {
+		return nil
+	}
+
+	switch user.Status {
+	case domain.UserStatusPending:
+		return domain.ErrAccountApprovalRequired
+	case domain.UserStatusBlocked:
+		return domain.ErrForbidden
+	case domain.UserStatusActive:
+	default:
+		return domain.ErrForbidden
+	}
+
+	if user.CustomerID == nil {
+		return domain.ErrAccountApprovalRequired
+	}
+	if uc.accountProvisioningChecker == nil {
+		return fmt.Errorf("account provisioning checker not configured")
+	}
+
+	exists, err := uc.accountProvisioningChecker.ExistsByCustomerID(ctx, *user.CustomerID)
+	if err != nil {
+		return fmt.Errorf("check account provisioning: %w", err)
+	}
+	if !exists {
+		return domain.ErrAccountApprovalRequired
+	}
+
+	return nil
 }
