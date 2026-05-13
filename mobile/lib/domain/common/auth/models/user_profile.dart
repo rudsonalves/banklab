@@ -29,8 +29,8 @@ class UserProfile {
       email: map['email'] as String,
       role: UserRole.byName(map['role'] as String),
       customerId: map['customer_id'] as String,
-      createdAt: DateTimeExtensions.parseOrNull(map['created_at'] as String)!,
-      updatedAt: DateTimeExtensions.parseOrNull(map['updated_at'] as String)!,
+      createdAt: DateParser.parseOrNull(map['created_at'] as String)!,
+      updatedAt: DateParser.parseOrNull(map['updated_at'] as String)!,
     );
   }
 

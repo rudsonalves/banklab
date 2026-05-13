@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
+import '/core/extensions/datetime_extension.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/account/dtos/statement_query_params_dto.dart';
 import '/data/services/apis/account/dtos/statement_response_dto.dart';
@@ -9,7 +9,9 @@ import '/uis/core/base/safe_scaffold.dart';
 import '/uis/core/messages/app_snackbar.dart';
 import 'viewmodel/statement_viewmodel.dart';
 import 'widgets/day_header.dart';
+import 'widgets/load_statement_error.dart';
 import 'widgets/month_header.dart';
+import 'widgets/no_transactions_card.dart';
 import 'widgets/statement_item_card.dart';
 
 class StatementPage extends StatefulWidget {
@@ -63,39 +65,9 @@ class _StatementPageState extends State<StatementPage> {
 
           if ((isFailure || statement == null) &&
               _viewModel.lastStatement == null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: greyColor,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Não foi possível carregar o extrato',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: isLoading ? null : _loadStatement,
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('Tentar novamente'),
-                  ),
-                ],
-              ),
+            return LoadStatementError(
+              isLoading: isLoading,
+              onRetry: _loadStatement,
             );
           }
 
@@ -105,26 +77,7 @@ class _StatementPageState extends State<StatementPage> {
           }
 
           if (visibleStatement.items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.receipt_long_rounded,
-                    size: 64,
-                    color: greyColor,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Nenhuma transação encontrada',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return NoTransactionsCard(greyColor: greyColor);
           }
 
           return RefreshIndicator(
@@ -150,17 +103,18 @@ class _StatementPageState extends State<StatementPage> {
     List<StatementItemDto> items,
     Color greyColor,
   ) {
-    final groupedByMonthDay = <String, Map<String, List<StatementItemDto>>>{};
-    final lastOperationByDay = <String, StatementItemDto>{};
+    final groupedByMonthDay =
+        <DateTime, Map<DateTime, List<StatementItemDto>>>{};
+    final lastOperationByDay = <DateTime, StatementItemDto>{};
 
     for (final item in items) {
-      final date = _tryParseDate(item.createdAt);
-      final monthKey = DateFormat('yyyy-MM').format(date);
-      final dayKey = DateFormat('yyyy-MM-dd').format(date);
+      final date = item.createdAt;
+      final monthKey = DateTime(date.year, date.month);
+      final dayKey = DateTime(date.year, date.month, date.day);
 
       groupedByMonthDay.putIfAbsent(
         monthKey,
-        () => <String, List<StatementItemDto>>{},
+        () => <DateTime, List<StatementItemDto>>{},
       );
       groupedByMonthDay[monthKey]!.putIfAbsent(
         dayKey,
@@ -169,8 +123,7 @@ class _StatementPageState extends State<StatementPage> {
       groupedByMonthDay[monthKey]![dayKey]!.add(item);
 
       final currentLast = lastOperationByDay[dayKey];
-      if (currentLast == null ||
-          _tryParseDate(currentLast.createdAt).isBefore(date)) {
+      if (currentLast == null || currentLast.createdAt.isBefore(date)) {
         lastOperationByDay[dayKey] = item;
       }
     }
@@ -180,7 +133,7 @@ class _StatementPageState extends State<StatementPage> {
     final children = <Widget>[];
 
     for (final monthKey in monthKeys) {
-      children.add(MonthHeader(label: _formatMonthLabel(monthKey)));
+      children.add(MonthHeader(label: monthKey.formatMonthLabel));
 
       final dayMap = groupedByMonthDay[monthKey]!;
       final dayKeys = dayMap.keys.toList()..sort((a, b) => b.compareTo(a));
@@ -189,27 +142,20 @@ class _StatementPageState extends State<StatementPage> {
         final dayBalance = lastOperationByDay[dayKey]?.balanceAfter;
         children.add(
           DayHeader(
-            label: _formatDayLabel(dayKey),
+            label: dayKey.formatDayLabel,
             greyColor: greyColor,
             balance: dayBalance,
           ),
         );
 
         final dayItems = dayMap[dayKey]!;
-        dayItems.sort(
-          (a, b) =>
-              _tryParseDate(a.createdAt).compareTo(_tryParseDate(b.createdAt)),
-        );
+        dayItems.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-        // final lastOperation = lastOperationByDay[dayKey];
         for (final item in dayItems) {
           children.add(
             StatementItemCard(
               item: item,
-              // showConsolidatedBalance:
-              //     lastOperation != null &&
-              //     item.transactionId == lastOperation.transactionId,
-              hourLabel: _formatHour(item.createdAt),
+              hourLabel: item.createdAt.formatHour,
               onTap: () => _openDetails(context, item),
             ),
           );
@@ -218,37 +164,6 @@ class _StatementPageState extends State<StatementPage> {
     }
 
     return children;
-  }
-
-  String _formatMonthLabel(String monthKey) {
-    try {
-      final date = DateTime.parse('$monthKey-01');
-      return DateFormat('MMMM yyyy').format(date);
-    } catch (_) {
-      return monthKey;
-    }
-  }
-
-  String _formatDayLabel(String dayKey) {
-    try {
-      final date = DateTime.parse(dayKey);
-      return DateFormat('dd/MM/yyyy').format(date);
-    } catch (_) {
-      return dayKey;
-    }
-  }
-
-  String _formatHour(String createdAt) {
-    try {
-      final date = DateTime.parse(createdAt);
-      return DateFormat('HH:mm').format(date);
-    } catch (_) {
-      return createdAt;
-    }
-  }
-
-  DateTime _tryParseDate(String input) {
-    return DateTime.tryParse(input) ?? DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   void _openDetails(BuildContext context, StatementItemDto item) {

@@ -7,12 +7,25 @@ extension DateTimeExtensions on DateTime {
     return DateFormat(pattern, locale).format(this);
   }
 
-  static DateTime? parseOrNull(String? dateString) {
-    if (dateString == null || dateString.isEmpty) return null;
+  String get formatMonthLabel => DateFormat('MMMM yyyy').format(this);
 
-    final str = dateString.toString();
-    if (str.isEmpty) return null;
+  String get formatDayLabel => DateFormat('dd/MM/yyyy').format(this);
+
+  String get formatHour => DateFormat('HH:mm').format(this);
+}
+
+final class DateParser {
+  static DateTime? parseOrNull(String? dateString) {
+    final str = dateString?.trim();
+    if (str == null || str.isEmpty) return null;
 
     return DateTime.tryParse(str);
+  }
+
+  static DateTime parseOrNow(String? dateString) {
+    final str = dateString?.trim();
+    if (str == null || str.isEmpty) return DateTime.now();
+
+    return DateTime.tryParse(str) ?? DateTime.now();
   }
 }

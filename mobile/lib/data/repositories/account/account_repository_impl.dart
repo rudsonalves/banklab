@@ -122,6 +122,7 @@ class AccountRepositoryImpl implements AccountRepository {
   AsyncResult<StatementResponseDto> getStatement(
     StatementQueryParamsDto queryParams,
   ) async {
+    _statementCache = null;
     if (_selectedAccount == null) {
       return Failure(
         AppError(

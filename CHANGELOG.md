@@ -1,5 +1,214 @@
 # Changelog
 
+## 2026/05/13 — api-mobile/routes-02-statement-04
+
+Refactored account provisioning boundaries, removed customer self-service account creation routes, and aligned the API surface with the intended operational model for admin-controlled account provisioning and future terminal channels.
+
+### API and Route Architecture
+
+1. `api/cmd/api/main.go`
+
+   * Extracted API route registration into `newAPIRouter(...)` for clearer composition and isolated router testing.
+   * Added admin route:
+
+     * `POST /admin/customers/{customer_id}/accounts`
+   * Removed customer-facing:
+
+     * `POST /accounts`
+   * Kept terminal cash routes commented and intentionally unregistered:
+
+     * `/terminal/accounts/{id}/deposit`
+     * `/terminal/accounts/{id}/withdraw`
+   * Simplified `main()` wiring responsibilities.
+
+2. `api/cmd/api/routes_test.go`
+
+   * Added router-level tests validating that:
+
+     * `POST /accounts` is no longer registered.
+     * terminal deposit route is not exposed.
+     * terminal withdraw route is not exposed.
+   * Ensured operational-only endpoints remain outside the public REST surface.
+
+### Account Provisioning Refactor
+
+3. `api/internal/account/bankaccount/application/create_account.go`
+
+   * Refactored account creation flow to support explicit admin provisioning.
+   * Added `CustomerID` to `CreateAccountInput`.
+   * Changed authorization model:
+
+     * now requires authenticated admin role.
+   * Removed dependency on authenticated customer ownership context.
+   * Updated documentation/comments to reflect provisioning semantics.
+
+4. `api/internal/account/bankaccount/delivery/account_handler.go`
+
+   * Replaced `CreateAccount` with:
+
+     * `CreateAccountForCustomer`
+   * Added:
+
+     * admin role validation
+     * path-based `customer_id` parsing
+     * invalid UUID handling
+   * Updated operational logging to:
+
+     * `event=admin_create_account`
+
+5. `api/internal/account/bankaccount/delivery/auth_test.go`
+
+   * Added `testAdminRequest(...)` helper for admin-authenticated request contexts.
+
+### Account Provisioning Tests
+
+6. `api/internal/account/bankaccount/application/create_account_test.go`
+
+   * Migrated all account creation tests to admin provisioning semantics.
+   * Added explicit `CustomerID` usage throughout tests.
+   * Updated use case expectations for admin execution context.
+
+7. `api/internal/account/bankaccount/delivery/account_handler_test.go`
+
+   * Reworked handler tests for:
+
+     * admin-only provisioning
+     * invalid customer ID handling
+     * unknown field rejection
+     * empty-body success flow
+     * non-admin rejection
+   * Removed obsolete customer self-service account creation tests.
+
+### Documentation Updates
+
+8. `api/README.md`
+
+   * Updated exposed API surface.
+   * Clarified that:
+
+     * account creation is an admin provisioning capability.
+     * terminal deposit/withdraw channels are intentionally disabled.
+
+9. `api/docs/06-implementation.md`
+
+   * Updated runtime route registration section.
+   * Documented disabled terminal operations.
+
+10. `api/docs/07-api-rest.md`
+
+    * Added:
+
+      * `3.6 Create Customer Account (Admin Only)`
+    * Removed customer-facing `POST /accounts` documentation.
+    * Updated error scenarios and route references.
+    * Clarified provisioning responsibilities and onboarding behavior.
+
+11. `api/docs/ARCHITECTURE.md`
+
+    * Updated registered route inventory.
+    * Documented inactive terminal routes.
+
+12. `api/docs/presentation/presentation-api-architecture.md`
+
+    * Refined presentation narrative around:
+
+      * admin provisioning
+      * disabled terminal operations
+      * active REST surface
+      * future terminal channel direction
+
+13. `api/docs/visao_geral/chapters/*`
+
+    * Updated architectural overview chapters to reflect:
+
+      * removal of `POST /accounts`
+      * admin provisioning semantics
+      * disabled terminal routes
+      * ownership/context derivation adjustments
+      * revised operational flows
+
+### Mobile Statement Improvements
+
+14. `mobile/lib/core/extensions/datetime_extension.dart`
+
+    * Added:
+
+      * `formatMonthLabel`
+      * `formatDayLabel`
+      * `formatHour`
+
+* Introduced `DateParser` utility class.
+* Added `parseOrNow(...)`.
+
+15. `mobile/lib/data/services/apis/account/dtos/statement_response_dto.dart`
+
+    * Migrated statement date fields from `String` to `DateTime`.
+    * Improved parsing consistency for:
+
+      * statement items
+      * pagination cursors
+
+16. `mobile/lib/data/services/auth/api/dtos/customer_me_response_dto.dart`
+
+    * Replaced legacy parsing with `DateParser.parseOrNow(...)`.
+
+17. `mobile/lib/domain/common/auth/models/user_profile.dart`
+
+    * Replaced legacy parsing helpers with `DateParser`.
+
+18. `mobile/lib/data/repositories/account/account_repository_impl.dart`
+
+    * Reset statement cache before loading a new statement request.
+
+### Statement UI Refactor
+
+19. `mobile/lib/uis/pages/statement/statement_page.dart`
+
+    * Refactored statement grouping to use typed `DateTime` keys.
+    * Removed legacy string/date parsing helpers.
+    * Simplified sorting and grouping logic.
+    * Improved formatting reuse through extension methods.
+    * Extracted reusable widgets for:
+
+      * load error state
+      * empty transaction state
+
+20. `mobile/lib/uis/pages/statement/widgets/load_statement_error.dart`
+
+    * Added reusable error-state widget with retry support.
+
+21. `mobile/lib/uis/pages/statement/widgets/no_transactions_card.dart`
+
+    * Added reusable empty-state widget.
+
+22. `mobile/lib/uis/pages/statement/widgets/statement_item_card.dart`
+
+    * Simplified layout structure.
+    * Reduced visual nesting complexity.
+    * Improved transaction amount visibility.
+    * Reworked description/hour alignment.
+    * Removed obsolete commented balance display code.
+
+### Mobile Tests
+
+23. `mobile/test/core/extensions/datetime_extension_test.dart`
+
+    * Added coverage for:
+
+      * `DateParser.parseOrNull`
+      * `DateParser.parseOrNow`
+      * locale-aware formatting
+      * month/day/hour formatting extensions
+
+### Tooling
+
+24. `tools/postman/Environment.postman_environment.json`
+
+    * Updated local `base_url` environment IP.
+
+This commit consolidates the transition from customer self-service account creation to explicit administrative provisioning while preserving the future architectural direction for terminal-based cash operations. It also significantly improves statement rendering consistency on mobile through typed date handling, reusable UI components, and cleaner formatting utilities.
+
+
 ## 2026/05/13 — api/routes-01
 
 Refined the API route surface to better distinguish operational ledger endpoints from customer-facing product flows, while aligning runtime wiring, documentation, and tests around the new terminal-oriented route structure.

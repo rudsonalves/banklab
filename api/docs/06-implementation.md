@@ -73,15 +73,19 @@ Current route registration:
 - POST /auth/login (public)
 - POST /auth/refresh (refresh token required)
 - GET /auth/me (JWT required)
+- POST /admin/customers/{customer_id}/accounts (JWT admin required)
 - GET /customers/me (JWT required)
 - GET /accounts (JWT required)
-- POST /accounts (JWT required)
-- POST /terminal/accounts/{id}/deposit (JWT required)
-- POST /terminal/accounts/{id}/withdraw (JWT required)
 - GET /accounts/{id}/balance (JWT required)
 - GET /accounts/{id}/statement (JWT required)
 - GET /accounts/internal-transfers/recipients (JWT required)
 - POST /accounts/internal-transfers (JWT required)
+
+Terminal cash operations are intentionally not registered while a real terminal
+channel is not defined:
+
+- POST /terminal/accounts/{id}/deposit
+- POST /terminal/accounts/{id}/withdraw
 
 ## 5. Domain Model
 

@@ -13,9 +13,10 @@
     - [3.3 Refresh Access Token](#33-refresh-access-token)
     - [3.4 Get Current User](#34-get-current-user)
     - [3.5 Approve User (Admin Only)](#35-approve-user-admin-only)
+    - [3.6 Create Customer Account (Admin Only)](#36-create-customer-account-admin-only)
   - [4. Account Endpoints](#4-account-endpoints)
     - [4.1 List Accounts](#41-list-accounts)
-    - [4.2 Create Account](#42-create-account)
+    - [4.2 Customer Account Creation Removed](#42-customer-account-creation-removed)
     - [4.3 Deposit](#43-deposit)
     - [4.4 Withdraw](#44-withdraw)
     - [4.5 Internal Transfer Recipient Lookup](#45-internal-transfer-recipient-lookup)
@@ -34,7 +35,7 @@
     - [9.3 POST /auth/refresh](#93-post-authrefresh)
     - [9.4 GET /auth/me](#94-get-authme)
     - [9.5 GET /accounts](#95-get-accounts)
-    - [9.6 POST /accounts](#96-post-accounts)
+    - [9.6 POST /admin/customers/{customer_id}/accounts](#96-post-admincustomerscustomer_idaccounts)
     - [9.7 POST /terminal/accounts/{id}/deposit](#97-post-terminalaccountsiddeposit)
     - [9.8 POST /terminal/accounts/{id}/withdraw](#98-post-terminalaccountsidwithdraw)
     - [9.9 GET /accounts/internal-transfers/recipients](#99-get-accountsinternal-transfersrecipients)
@@ -358,6 +359,55 @@ Possible errors:
 - 409 USER_ALREADY_ACTIVE: user is already active (cannot approve active/blocked users)
 - 500 INTERNAL_ERROR: unexpected internal error
 
+### 3.6 Create Customer Account (Admin Only)
+
+- Method: POST
+- Path: /admin/customers/{customer_id}/accounts
+- Auth required: JWT (admin role)
+
+Creates an additional account for an existing customer. Account creation is a
+provisioning action and is not exposed as customer self-service.
+
+Onboarding approval remains responsible for creating the first account
+automatically. Additional accounts for the same `customer_id` are allowed.
+
+Path parameters:
+
+- `customer_id`: UUID of the customer that will receive the new account
+
+Request body:
+
+Empty object or no body required. Extra fields are rejected.
+
+```json
+{}
+```
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
+    "number": "10000001",
+    "branch": "0001",
+    "balance": 0,
+    "status": "active"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid `customer_id`
+- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
+- 403 FORBIDDEN: authenticated user does not have admin role
+- 404 CUSTOMER_NOT_FOUND: customer does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
 ## 4. Account Endpoints
 
 All account routes are protected and require Authorization header with Bearer token.
@@ -403,55 +453,14 @@ Possible errors:
 - 403 FORBIDDEN: authenticated user has no customer context
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.2 Create Account
+### 4.2 Customer Account Creation Removed
 
-- Method: POST
-- Path: /accounts
-- Auth required: yes
+The customer-facing `POST /accounts` route is not registered. Account creation is
+available only through onboarding approval and the admin provisioning route:
 
-Creates a new account for the authenticated user. The user **must have status = active** to create an account.
-
-The `customer_id` is derived automatically from the authenticated user's JWT token. The client MUST NOT send a `customer_id` in the request body.
-
-Operational note:
-- This endpoint is not intended for mobile or customer-facing web clients in
-  the target product flow. Account provisioning should happen as part of
-  onboarding/approval or through a protected administrative surface.
-- Future work should move this capability to an admin route, such as
-  `/admin/accounts` or `/admin/customers/{customer_id}/accounts`, with explicit
-  authorization and account provisioning rules.
-
-Request body:
-
-```json
-{}
+```http
+POST /admin/customers/{customer_id}/accounts
 ```
-
-Body can also be empty. Any extra fields are rejected (400 INVALID_REQUEST).
-
-Success response (201):
-
-```json
-{
-  "data": {
-    "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
-    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
-    "number": "10000001",
-    "branch": "0001",
-    "balance": 0,
-    "status": "active"
-  },
-  "error": null
-}
-```
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_REQUEST: invalid JSON body
-- 403 FORBIDDEN: user is not active or access denied
-- 404 CUSTOMER_NOT_FOUND: customer does not exist
-- 500 INTERNAL_ERROR: unexpected internal error
 
 ### 4.3 Deposit
 
@@ -1060,9 +1069,9 @@ Scenario: unexpected query params
 }
 ```
 
-### 9.6 POST /accounts
+### 9.6 POST /admin/customers/{customer_id}/accounts
 
-Scenario: authenticated user cannot create account for requested context
+Scenario: authenticated user is not admin
 - Status: 403
 - Code: FORBIDDEN
 

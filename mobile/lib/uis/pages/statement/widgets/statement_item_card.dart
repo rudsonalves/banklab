@@ -5,14 +5,12 @@ import '/uis/core/transaction/transaction_movement.dart';
 
 class StatementItemCard extends StatelessWidget {
   final StatementItemDto item;
-  // final bool showConsolidatedBalance;
   final String hourLabel;
   final VoidCallback? onTap;
 
   const StatementItemCard({
     super.key,
     required this.item,
-    // required this.showConsolidatedBalance,
     required this.hourLabel,
     this.onTap,
   });
@@ -38,71 +36,26 @@ class StatementItemCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
+            spacing: 8,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          movement.label,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (description.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 4),
-                        Text(
-                          hourLabel,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      movement.label,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${movement.sign}${item.amount.format()}',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: amountColor,
-                        ),
-                      ),
-                      // if (showConsolidatedBalance) ...[
-                      //   const SizedBox(height: 6),
-                      //   Text(
-                      //     'Saldo após',
-                      //     style: theme.textTheme.labelSmall?.copyWith(
-                      //       color: colorScheme.primary,
-                      //       fontWeight: FontWeight.w700,
-                      //     ),
-                      //   ),
-                      //   Text(
-                      //     item.balanceAfter.format(),
-                      //     style: theme.textTheme.bodySmall?.copyWith(
-                      //       color: colorScheme.primary,
-                      //       fontWeight: FontWeight.w700,
-                      //     ),
-                      //   ),
-                      // ],
-                    ],
+                  Text(
+                    '${movement.sign}${item.amount.format()}',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: amountColor,
+                    ),
                   ),
                   if (hasDetails) ...[
                     const SizedBox(width: 4),
@@ -114,17 +67,34 @@ class StatementItemCard extends StatelessWidget {
                   ],
                 ],
               ),
-              // if (reference != null && reference.isNotEmpty) ...[
-              //   const SizedBox(height: 12),
-              //   Text(
-              //     'Ref: $reference',
-              //     maxLines: 1,
-              //     overflow: TextOverflow.ellipsis,
-              //     style: theme.textTheme.labelSmall?.copyWith(
-              //       color: colorScheme.onSurfaceVariant,
-              //     ),
-              //   ),
-              // ],
+
+              Row(
+                spacing: 4,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text(
+                      hourLabel,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

@@ -65,7 +65,6 @@ Em fluxos como:
 
 - `GET /customers/me`;
 - `GET /accounts`;
-- `POST /accounts`;
 
 o `customer_id` é derivado a partir do contexto autenticado.
 

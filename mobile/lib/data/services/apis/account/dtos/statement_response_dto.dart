@@ -9,7 +9,7 @@ class StatementItemDto {
   final Money balanceAfter;
   final String? referenceId;
   final String description;
-  final String createdAt;
+  final DateTime createdAt;
 
   StatementItemDto({
     required this.transactionId,
@@ -29,13 +29,13 @@ class StatementItemDto {
       balanceAfter: ApiParse.toMoney(map['balance_after']),
       referenceId: map['reference_id'] as String?,
       description: (map['description'] as String?) ?? '',
-      createdAt: map['created_at'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
 }
 
 class StatementNextCursorDto {
-  final String createdAt;
+  final DateTime createdAt;
   final String id;
 
   StatementNextCursorDto({
@@ -45,7 +45,7 @@ class StatementNextCursorDto {
 
   factory StatementNextCursorDto.fromMap(Map<String, dynamic> map) {
     return StatementNextCursorDto(
-      createdAt: map['created_at'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
       id: map['id'] as String,
     );
   }

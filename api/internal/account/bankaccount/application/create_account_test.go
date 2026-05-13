@@ -138,7 +138,7 @@ func TestCreateAccount_Execute_UserRepositoryNotConfigured(t *testing.T) {
 	customerID := uuid.New()
 	useCase := NewCreateAccount(accountRepo, customerRepo, nil, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if err == nil || err.Error() != "user repository not configured" {
 		t.Fatalf("expected error %q, got %v", "user repository not configured", err)
@@ -164,7 +164,7 @@ func TestCreateAccount_Execute_CustomerNotFound(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if !errors.Is(err, domain.ErrCustomerNotFound) {
 		t.Fatalf("expected error %v, got %v", domain.ErrCustomerNotFound, err)
@@ -199,7 +199,7 @@ func TestCreateAccount_Execute_CustomerExistsReturnsError(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -230,7 +230,7 @@ func TestCreateAccount_Execute_UserLookupReturnsError(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDErr: expectedErr}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -256,7 +256,7 @@ func TestCreateAccount_Execute_UserNotFound(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
@@ -282,7 +282,7 @@ func TestCreateAccount_Execute_PendingUserIsForbidden(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusPending)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
@@ -308,7 +308,7 @@ func TestCreateAccount_Execute_BlockedUserIsForbidden(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusBlocked)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("expected error %v, got %v", domain.ErrForbidden, err)
@@ -335,7 +335,7 @@ func TestCreateAccount_Execute_NextAccountNumberReturnsError(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -357,7 +357,7 @@ func TestCreateAccount_Execute_BranchPolicyNotConfigured(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, nil)
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if err == nil || err.Error() != "branch policy not configured" {
 		t.Fatalf("expected error %q, got %v", "branch policy not configured", err)
@@ -383,7 +383,7 @@ func TestCreateAccount_Execute_CreateReturnsError(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
@@ -413,7 +413,7 @@ func TestCreateAccount_Execute_Success(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(inputCustomerID, authdomain.UserStatusActive)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(inputCustomerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: inputCustomerID})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -447,7 +447,7 @@ func TestCreateAccount_Execute_InteractionCountsOnSuccess(t *testing.T) {
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	account, err := useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -481,7 +481,7 @@ func TestCreateAccount_Execute_DoesNotCallCreateWhenCustomerNotFound(t *testing.
 	userRepo := &userRepositoryMock{findByIDValue: testUserWithStatus(customerID, authdomain.UserStatusActive)}
 	useCase := NewCreateAccount(accountRepo, customerRepo, userRepo, NewDefaultBranchPolicy())
 
-	_, _ = useCase.Execute(context.Background(), CreateAccountInput{User: testCustomerUser(customerID)})
+	_, _ = useCase.Execute(context.Background(), CreateAccountInput{User: testAdminUser(), CustomerID: customerID})
 
 	if accountRepo.createCalls != 0 {
 		t.Fatalf("Create must not be called when customer does not exist, got %d calls", accountRepo.createCalls)

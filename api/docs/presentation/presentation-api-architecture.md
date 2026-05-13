@@ -553,7 +553,7 @@ O grupo `statement` concentra
 ---
 ---
 
-Um fluxo de depósito, por exemplo, passa pelas camadas assim:
+Um fluxo de depósito por terminal, quando esse canal existir, passará pelas camadas assim:
 
 ```text
 POST /terminal/accounts/{id}/deposit
@@ -845,13 +845,13 @@ Account:
 
 ```text
 GET  /accounts
-POST /accounts
+POST /admin/customers/{customer_id}/accounts
 GET  /accounts/{id}/balance
-POST /terminal/accounts/{id}/deposit
-POST /terminal/accounts/{id}/withdraw
 POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
 ```
+
+As rotas de depósito e saque por terminal estão previstas, mas não são registradas no roteador HTTP atual.
 
 ## Superfície REST
 
@@ -889,9 +889,12 @@ O grupo `admin` concentra operações restritas a administradores:
 
 ```text
 POST /admin/users/{id}/approve
+POST /admin/customers/{customer_id}/accounts
 ```
 
 Esse endpoint aprova um usuário pendente. A aprovação altera o status do usuário para `active` e cria uma conta associada de forma atômica. É uma operação administrativa porque exige permissão elevada, mas ela orquestra regras que pertencem também a outros módulos, como `account` e `customer`.
+
+`POST /admin/customers/{customer_id}/accounts` cria contas adicionais para um customer existente. A criação de conta não é self-service do cliente.
 
 O grupo `customer` concentra informações do cliente vinculado ao usuário autenticado:
 
@@ -905,23 +908,18 @@ O grupo `account` concentra funcionalidades de conta bancária:
 
 ```text
 GET  /accounts
-POST /accounts
 GET  /accounts/{id}/balance
-POST /terminal/accounts/{id}/deposit
-POST /terminal/accounts/{id}/withdraw
 POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
 ```
 
-`GET /accounts` lista as contas do usuário autenticado. Ele usa o `customer_id` presente no contexto autenticado e não aceita filtros neste momento. O saldo é omitido propositalmente, pois a consulta de saldo possui endpoint próprio. (**BUGFIX:** *este endpoint deve ser limitado a acesso apenas por usuário admin.*)
+As rotas de depósito e saque por terminal não fazem parte da superfície REST ativa enquanto não existir um canal de terminal real.
 
-`POST /accounts` cria uma nova conta para o usuário autenticado. O usuário precisa estar ativo, e o `customer_id` não é recebido do payload. Ele vem do contexto do usuário logado. 
+`GET /accounts` lista as contas do usuário autenticado. Ele usa o `customer_id` presente no contexto autenticado e não aceita filtros neste momento. O saldo é omitido propositalmente, pois a consulta de saldo possui endpoint próprio.
 
 `GET /accounts/{id}/balance` retorna o saldo atual de uma conta específica. O acesso é validado para garantir que o usuário pode consultar aquela conta.
 
-`POST /terminal/accounts/{id}/deposit` realiza depósito em uma conta. A operação valida valor positivo, status da conta e registra a movimentação.
-
-`POST /terminal/accounts/{id}/withdraw` realiza saque de uma conta. A operação valida valor positivo, status da conta e saldo suficiente.
+`POST /terminal/accounts/{id}/deposit` e `POST /terminal/accounts/{id}/withdraw` permanecem como paths planejados para terminal, mas estão comentados no wiring HTTP atual.
 
 `POST /accounts/internal-transfers` realiza transferência interna entre duas contas usando `from_account_id` e `to_account_id`. Esse é um dos fluxos mais críticos porque envolve débito, crédito, locks, ledger e idempotência opcional.
 
@@ -1968,8 +1966,8 @@ Exemplos:
 - `POST /auth/login`
 - `GET /auth/me`
 - `POST /admin/users/{id}/approve`
+- `POST /admin/customers/{customer_id}/accounts`
 - `GET /accounts`
-- `POST /accounts`
 - `POST /accounts/internal-transfers`
 - `GET /accounts/{id}/statement`
 
@@ -2091,7 +2089,7 @@ Esses testes são importantes porque garantem que a borda HTTP da API está est�
 Por exemplo, um teste de handler pode verificar que:
 
 - `GET /accounts` rejeita query params inesperados;
-- `POST /terminal/accounts/{id}/deposit` retorna `400` para body inválido;
+- handlers de depósito e saque mantêm validações de body inválido em testes internos;
 - `POST /admin/users/{id}/approve` retorna `403` quando o chamador não é admin;
 - erros de domínio são convertidos para os status codes corretos.
 

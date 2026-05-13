@@ -17,3 +17,12 @@ func testAuthenticatedRequest(req *http.Request, customerID uuid.UUID) *http.Req
 
 	return req.WithContext(ctx)
 }
+
+func testAdminRequest(req *http.Request) *http.Request {
+	ctx := sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
+		UserID: uuid.New(),
+		Role:   authdomain.RoleAdmin,
+	})
+
+	return req.WithContext(ctx)
+}

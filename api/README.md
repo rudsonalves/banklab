@@ -34,12 +34,10 @@ Dependency direction:
 - balance-changing operations: deposit, withdraw, transfer
 - account statement listing with pagination support
 
-Note: `POST /accounts`, `deposit`, and `withdraw` are currently provisioning or
-core ledger operations for development, testing, sandbox, or controlled
-operational use. They should not be exposed as mobile or customer-facing web
-capabilities until they are moved behind protected admin/operational boundaries
-or replaced by product flows such as onboarding approval and real
-cash-in/cash-out flows.
+Note: account creation is an admin provisioning capability exposed through
+`POST /admin/customers/{customer_id}/accounts`. Direct `deposit` and `withdraw`
+terminal routes are intentionally not registered while a real terminal channel
+is outside the project scope.
 
 ## API routes
 
@@ -50,11 +48,11 @@ POST   /auth/refresh
 GET    /auth/me
 
 POST   /admin/users/{id}/approve
+POST   /admin/customers/{customer_id}/accounts
 
 GET    /customers/me
 
 GET    /accounts
-POST   /accounts
 GET    /accounts/{id}/balance
 GET    /accounts/internal-transfers/recipients
 POST   /accounts/internal-transfers
