@@ -556,7 +556,7 @@ O grupo `statement` concentra
 Um fluxo de depósito, por exemplo, passa pelas camadas assim:
 
 ```text
-POST /accounts/{id}/deposit
+POST /terminal/accounts/{id}/deposit
   -> account/delivery
   -> account/application/transaction
   -> account/domain
@@ -847,8 +847,8 @@ Account:
 GET  /accounts
 POST /accounts
 GET  /accounts/{id}/balance
-POST /accounts/{id}/deposit
-POST /accounts/{id}/withdraw
+POST /terminal/accounts/{id}/deposit
+POST /terminal/accounts/{id}/withdraw
 POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
 ```
@@ -907,8 +907,8 @@ O grupo `account` concentra funcionalidades de conta bancária:
 GET  /accounts
 POST /accounts
 GET  /accounts/{id}/balance
-POST /accounts/{id}/deposit
-POST /accounts/{id}/withdraw
+POST /terminal/accounts/{id}/deposit
+POST /terminal/accounts/{id}/withdraw
 POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
 ```
@@ -919,9 +919,9 @@ GET  /accounts/{id}/statement
 
 `GET /accounts/{id}/balance` retorna o saldo atual de uma conta específica. O acesso é validado para garantir que o usuário pode consultar aquela conta.
 
-`POST /accounts/{id}/deposit` realiza depósito em uma conta. A operação valida valor positivo, status da conta e registra a movimentação.
+`POST /terminal/accounts/{id}/deposit` realiza depósito em uma conta. A operação valida valor positivo, status da conta e registra a movimentação.
 
-`POST /accounts/{id}/withdraw` realiza saque de uma conta. A operação valida valor positivo, status da conta e saldo suficiente.
+`POST /terminal/accounts/{id}/withdraw` realiza saque de uma conta. A operação valida valor positivo, status da conta e saldo suficiente.
 
 `POST /accounts/internal-transfers` realiza transferência interna entre duas contas usando `from_account_id` e `to_account_id`. Esse é um dos fluxos mais críticos porque envolve débito, crédito, locks, ledger e idempotência opcional.
 
@@ -2091,7 +2091,7 @@ Esses testes são importantes porque garantem que a borda HTTP da API está est�
 Por exemplo, um teste de handler pode verificar que:
 
 - `GET /accounts` rejeita query params inesperados;
-- `POST /accounts/{id}/deposit` retorna `400` para body inválido;
+- `POST /terminal/accounts/{id}/deposit` retorna `400` para body inválido;
 - `POST /admin/users/{id}/approve` retorna `403` quando o chamador não é admin;
 - erros de domínio são convertidos para os status codes corretos.
 

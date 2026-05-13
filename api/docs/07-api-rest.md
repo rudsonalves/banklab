@@ -35,8 +35,8 @@
     - [9.4 GET /auth/me](#94-get-authme)
     - [9.5 GET /accounts](#95-get-accounts)
     - [9.6 POST /accounts](#96-post-accounts)
-    - [9.7 POST /accounts/{id}/deposit](#97-post-accountsiddeposit)
-    - [9.8 POST /accounts/{id}/withdraw](#98-post-accountsidwithdraw)
+    - [9.7 POST /terminal/accounts/{id}/deposit](#97-post-terminalaccountsiddeposit)
+    - [9.8 POST /terminal/accounts/{id}/withdraw](#98-post-terminalaccountsidwithdraw)
     - [9.9 GET /accounts/internal-transfers/recipients](#99-get-accountsinternal-transfersrecipients)
     - [9.10 POST /accounts/internal-transfers](#910-post-accountsinternal-transfers)
     - [9.11 GET /accounts/transfer/{transaction_reference}/receipt](#911-get-accountstransfertransaction_referencereceipt)
@@ -413,6 +413,14 @@ Creates a new account for the authenticated user. The user **must have status = 
 
 The `customer_id` is derived automatically from the authenticated user's JWT token. The client MUST NOT send a `customer_id` in the request body.
 
+Operational note:
+- This endpoint is not intended for mobile or customer-facing web clients in
+  the target product flow. Account provisioning should happen as part of
+  onboarding/approval or through a protected administrative surface.
+- Future work should move this capability to an admin route, such as
+  `/admin/accounts` or `/admin/customers/{customer_id}/accounts`, with explicit
+  authorization and account provisioning rules.
+
 Request body:
 
 ```json
@@ -448,8 +456,15 @@ Possible errors:
 ### 4.3 Deposit
 
 - Method: POST
-- Path: /accounts/{id}/deposit
-- Auth required: yes
+- Path: /terminal/accounts/{id}/deposit
+- Auth required: n/a (route disabled)
+
+Operational note:
+- This endpoint is not intended for mobile or customer-facing web clients. It
+  directly injects balance into the ledger and is positioned as a terminal
+  operation.
+- The route is intentionally disabled in the API wiring and is not callable.
+- A real terminal channel is outside the current project scope.
 
 Request body:
 
@@ -485,8 +500,15 @@ Possible errors:
 ### 4.4 Withdraw
 
 - Method: POST
-- Path: /accounts/{id}/withdraw
-- Auth required: yes
+- Path: /terminal/accounts/{id}/withdraw
+- Auth required: n/a (route disabled)
+
+Operational note:
+- This endpoint is not intended for mobile or customer-facing web clients. It
+  directly removes balance from the ledger and is positioned as a terminal
+  operation.
+- The route is intentionally disabled in the API wiring and is not callable.
+- A real terminal channel is outside the current project scope.
 
 Request body:
 
@@ -1068,7 +1090,7 @@ Scenario: customer does not exist
 }
 ```
 
-### 9.7 POST /accounts/{id}/deposit
+### 9.7 POST /terminal/accounts/{id}/deposit
 
 Scenario: invalid amount
 - Status: 400
@@ -1112,7 +1134,7 @@ Scenario: account inactive
 }
 ```
 
-### 9.8 POST /accounts/{id}/withdraw
+### 9.8 POST /terminal/accounts/{id}/withdraw
 
 Scenario: insufficient funds
 - Status: 422

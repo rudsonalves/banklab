@@ -1,5 +1,90 @@
 # Changelog
 
+## 2026/05/13 — api/routes-01
+
+Refined the API route surface to better distinguish operational ledger endpoints from customer-facing product flows, while aligning runtime wiring, documentation, and tests around the new terminal-oriented route structure.
+
+### Main Changes
+
+1. Route surface restructuring and operational boundary clarification
+
+   * Repositioned deposit and withdraw endpoints from:
+
+     * `/accounts/{id}/deposit`
+     * `/accounts/{id}/withdraw`
+   * To:
+
+     * `/terminal/accounts/{id}/deposit`
+     * `/terminal/accounts/{id}/withdraw`
+   * Explicitly documented these operations as terminal/operational ledger flows rather than customer-facing product capabilities.
+   * Added architectural guidance clarifying that:
+
+     * account creation is still a provisioning-oriented operation
+     * deposit/withdraw should eventually move behind protected operational/admin surfaces
+     * future onboarding and cash-in/cash-out flows should replace direct ledger mutation endpoints
+
+2. Runtime API wiring hardening
+
+   * Removed active registration of deposit and withdraw routes from `cmd/api/main.go`.
+   * Left the route definitions commented with explanatory notes indicating intentional disabling until a real terminal channel exists.
+   * Preserved transfer, balance, statement, and recipient routes unchanged.
+
+3. Documentation consistency updates
+
+   * Updated REST documentation references, route indexes, endpoint sections, examples, and error scenario sections to use `/terminal/accounts/...`.
+   * Added operational notes to:
+
+     * account creation
+     * deposit
+     * withdraw
+   * Clarified that deposit/withdraw routes are intentionally disabled in the current runtime wiring.
+   * Updated architecture and implementation documents to reflect the revised route semantics and operational positioning.
+   * Updated presentation and “visão geral” chapters to maintain consistency across:
+
+     * flow descriptions
+     * examples
+     * diagrams
+     * route listings
+     * testing references
+
+4. Test suite alignment
+
+   * Updated integration and handler tests to use the new terminal route namespace.
+   * Adjusted:
+
+     * deposit integration tests
+     * authorization integration tests
+     * handler tests for deposit and withdraw
+   * Preserved existing authorization and ownership validation behavior while aligning with the renamed routes.
+
+5. Added implementation snapshot reports
+
+   * Added `docs/relatorio-api-implementada-2026-05-12.md`
+
+     * comprehensive implementation inventory of the API
+     * architecture, auth model, persistence, transactional guarantees, routes, flows, invariants, migrations, and operational notes
+   * Added `docs/relatorio-mobile-implementado-2026-05-12.md`
+
+     * detailed overview of the Flutter mobile implementation
+     * architecture, navigation, DI, auth/session handling, repositories, use cases, and implemented user journeys
+
+### Architectural Impact
+
+This change improves conceptual separation between:
+
+* customer-facing banking flows
+* operational ledger mutation endpoints
+* future onboarding/admin provisioning surfaces
+
+The current API now communicates more explicitly that:
+
+* transfer is a real customer operation
+* deposit/withdraw are infrastructure or terminal-oriented operations
+* account provisioning is transitional and expected to evolve into administrative onboarding flows
+
+This reduces ambiguity in the public API contract and strengthens the long-term architectural direction of the project.
+
+
 ## 2026/05/12 — mobile/statement-02
 
 Implemented the first complete statement flow for the mobile application, including backend support for transaction descriptions, statement navigation, grouped UI rendering, cached state handling, and receipt behavior improvements.

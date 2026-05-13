@@ -29,10 +29,17 @@ Dependency direction:
 
 - auth: register, login, current user
 - customer self-profile lookup
-- account creation
+- account creation/provisioning
 - account balance lookup
 - balance-changing operations: deposit, withdraw, transfer
 - account statement listing with pagination support
+
+Note: `POST /accounts`, `deposit`, and `withdraw` are currently provisioning or
+core ledger operations for development, testing, sandbox, or controlled
+operational use. They should not be exposed as mobile or customer-facing web
+capabilities until they are moved behind protected admin/operational boundaries
+or replaced by product flows such as onboarding approval and real
+cash-in/cash-out flows.
 
 ## API routes
 
@@ -48,8 +55,6 @@ GET    /customers/me
 
 GET    /accounts
 POST   /accounts
-POST   /accounts/{id}/deposit
-POST   /accounts/{id}/withdraw
 GET    /accounts/{id}/balance
 GET    /accounts/internal-transfers/recipients
 POST   /accounts/internal-transfers
@@ -58,6 +63,10 @@ GET    /accounts/{id}/statement
 ```
 
 All routes except register/login require JWT authentication.
+
+`POST /terminal/accounts/{id}/deposit` and
+`POST /terminal/accounts/{id}/withdraw` are intentionally not registered while a
+real terminal channel is outside the project scope.
 
 ## Local setup
 

@@ -139,8 +139,8 @@ Exemplos atuais incluem:
 - `GET /accounts`;
 - `POST /accounts`;
 - `GET /accounts/{id}/balance`;
-- `POST /accounts/{id}/deposit`;
-- `POST /accounts/{id}/withdraw`;
+- `POST /terminal/accounts/{id}/deposit`;
+- `POST /terminal/accounts/{id}/withdraw`;
 - `GET /accounts/internal-transfers/recipients`;
 - `POST /accounts/internal-transfers`;
 - `GET /accounts/{id}/statement`.

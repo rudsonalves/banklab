@@ -176,8 +176,8 @@ Registered routes include:
 - `GET /customers/me`
 - `GET /accounts`
 - `POST /accounts`
-- `POST /accounts/{id}/deposit`
-- `POST /accounts/{id}/withdraw`
+- `POST /terminal/accounts/{id}/deposit`
+- `POST /terminal/accounts/{id}/withdraw`
 - `GET /accounts/{id}/balance`
 - `GET /accounts/internal-transfers/recipients`
 - `POST /accounts/internal-transfers`

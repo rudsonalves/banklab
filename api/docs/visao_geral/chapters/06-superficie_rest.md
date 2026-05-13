@@ -117,8 +117,8 @@ Os endpoints atuais são:
 GET  /accounts
 POST /accounts
 GET  /accounts/{id}/balance
-POST /accounts/{id}/deposit
-POST /accounts/{id}/withdraw
+POST /terminal/accounts/{id}/deposit
+POST /terminal/accounts/{id}/withdraw
 GET  /accounts/internal-transfers/recipients
 POST /accounts/internal-transfers
 GET  /accounts/{id}/statement
@@ -142,13 +142,13 @@ Consulta o saldo atual de uma conta específica.
 
 Esse endpoint existe separadamente da listagem de contas para manter o propósito da operação explícito e permitir tratamento próprio do saldo.
 
-### `POST /accounts/{id}/deposit`
+### `POST /terminal/accounts/{id}/deposit`
 
 Executa um depósito em uma conta.
 
 O endpoint expressa diretamente uma ação de negócio, em vez de expor uma atualização genérica de saldo.
 
-### `POST /accounts/{id}/withdraw`
+### `POST /terminal/accounts/{id}/withdraw`
 
 Executa um saque em uma conta.
 

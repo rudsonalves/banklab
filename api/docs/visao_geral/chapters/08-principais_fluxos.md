@@ -241,7 +241,7 @@ Mesmo sendo uma leitura, ele é importante no sistema porque o saldo é um dado 
 Esse fluxo acontece em:
 
 ```text
-POST /accounts/{id}/deposit
+POST /terminal/accounts/{id}/deposit
 ```
 
 Seu objetivo é incrementar o saldo de uma conta e registrar a movimentação correspondente.
@@ -262,7 +262,7 @@ O depósito é um fluxo financeiramente mais simples do que transferência, mas 
 Esse fluxo acontece em:
 
 ```text
-POST /accounts/{id}/withdraw
+POST /terminal/accounts/{id}/withdraw
 ```
 
 Seu objetivo é reduzir o saldo da conta e registrar a movimentação correspondente.

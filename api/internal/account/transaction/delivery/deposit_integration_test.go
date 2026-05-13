@@ -39,7 +39,7 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 	handler := New(depositUC, nil, nil, nil)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /accounts/{id}/deposit", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /terminal/accounts/{id}/deposit", func(w http.ResponseWriter, r *http.Request) {
 		ctx := sharedauthctx.WithAuthenticatedUser(r.Context(), sharedauthctx.AuthenticatedUser{
 			UserID:     uuid.New(),
 			Role:       authdomain.RoleCustomer,
@@ -51,7 +51,7 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 	defer server.Close()
 
 	payload := bytes.NewBufferString(`{"amount": 50}`)
-	resp, err := http.Post(server.URL+"/accounts/"+accountID.String()+"/deposit", "application/json", payload)
+	resp, err := http.Post(server.URL+"/terminal/accounts/"+accountID.String()+"/deposit", "application/json", payload)
 	if err != nil {
 		t.Fatalf("failed to call deposit endpoint: %v", err)
 	}
