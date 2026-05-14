@@ -1,5 +1,155 @@
 # Changelog
 
+## 2026/05/14 — docs/update-13
+
+Expanded the project documentation structure to position BankLab as a collaborative engineering-oriented financial systems laboratory, improving contributor onboarding, public narrative, roadmap visibility, and repository guidance.
+
+### Main changes
+
+1. `CONTRIBUTING.md`
+
+   * Replaced the previous lightweight GitHub project organization note with a complete contribution guide in Portuguese.
+   * Added:
+
+     * project introduction and contribution philosophy;
+     * onboarding guidance for new contributors;
+     * issue classification standards (`Type`, `Area`, `Priority`);
+     * suggested issue template;
+     * recommended development workflow;
+     * branch naming examples;
+     * commit message guidelines;
+     * local setup and test commands;
+     * API architectural responsibilities and layering guidance;
+     * Flutter/mobile contribution conventions;
+     * pull request expectations and suggested template;
+     * documentation update rules;
+     * collaboration and communication principles;
+     * explicit out-of-scope contribution boundaries.
+   * Established the repository as a learning-oriented but engineering-focused environment for backend, mobile, financial systems, and architecture discussions.
+
+2. `README.md`
+
+   * Completely rewrote and expanded the repository root documentation.
+   * Migrated the README from a concise English technical summary to a broader Portuguese presentation focused on:
+
+     * project vision;
+     * financial engineering rationale;
+     * architectural principles;
+     * collaboration narrative;
+     * onboarding clarity.
+   * Added:
+
+     * detailed project objectives;
+     * explicit architectural and financial consistency principles;
+     * current scope and future exclusions;
+     * stack overview for API, mobile, and infrastructure;
+     * repository structure explanation;
+     * implemented feature summary;
+     * local bootstrap instructions;
+     * endpoint overview;
+     * development command reference;
+     * contribution guidance;
+     * suggested first contributions;
+     * expanded documentation index;
+     * current project status section.
+   * Updated endpoint references to reflect newer flows:
+
+     * `/admin/customers/{customer_id}/accounts`
+     * `/accounts/internal-transfers`
+     * `/accounts/internal-transfers/recipients`
+     * transfer receipt endpoint.
+   * Improved the positioning of the project as:
+
+     * an engineering laboratory;
+     * a transactional consistency study project;
+     * a collaboration-oriented fintech sandbox.
+
+3. `docs/ROADMAP.md`
+
+   * Added a new long-form roadmap document.
+   * Structured the roadmap around:
+
+     * project identity;
+     * engineering motivations;
+     * long-term evolution goals;
+     * architectural and product directions.
+   * Added strategic sections for:
+
+     * public narrative and collaboration;
+     * progressive onboarding;
+     * Zero Trust Architecture evolution;
+     * backend-mediated external integrations;
+     * local payment experimentation;
+     * web/admin channels;
+     * architectural evolution strategy.
+   * Added phased planning sections:
+
+     * `Agora`
+     * `Próximo`
+     * `Futuro`
+   * Introduced roadmap items covering:
+
+     * onboarding checkpoints;
+     * transactional password modeling;
+     * device registration;
+     * TOTP and step-up authentication;
+     * Pix/DOC/TED mock flows;
+     * CI/testing improvements;
+     * observability;
+     * educational and technical communication goals.
+   * Explicitly documented:
+
+     * evolution philosophy;
+     * consistency-first mindset;
+     * modular monolith rationale;
+     * future microservice extraction criteria.
+
+4. `tools/postman/Banklab_API.postman_collection.json`
+
+   * Added a new authenticated request:
+
+     * `GET /customers/me`
+   * Configured bearer token authentication using `{{access_token}}`.
+   * Expanded the Postman collection coverage for authenticated customer flows.
+
+5. `docs/.gitignore`
+
+   * Added `disclosure` directory to ignored documentation artifacts.
+
+### Documentation direction improvements
+
+* Strengthened the repository positioning as a serious engineering study project rather than a generic CRUD banking demo.
+* Improved the public-facing narrative for:
+
+  * potential collaborators;
+  * recruiters;
+  * technical readers;
+  * contributors interested in fintech architecture.
+* Consolidated roadmap, contribution, and repository guidance into a more coherent collaboration model.
+* Expanded documentation around:
+
+  * transactional consistency;
+  * ledger-based modeling;
+  * onboarding evolution;
+  * Zero Trust Architecture ambitions;
+  * engineering rationale and trade-offs.
+
+### Architectural alignment
+
+The new documentation reinforces and contextualizes previously documented concepts such as:
+
+* modular monolith architecture; 
+* ledger-centered financial modeling; 
+* transactional consistency guarantees; 
+* application-layer ownership enforcement; 
+* JWT + AppToken authentication model; 
+* standardized API response contracts. 
+
+### Result
+
+This commit significantly improves the project’s discoverability, contributor onboarding experience, architectural communication quality, and long-term roadmap clarity, while also preparing the repository for broader technical collaboration and public presentation.
+
+
 ## 2026/05/13 — mobile/login-approved-account-01
 
 Implemented approval-aware authentication feedback for the mobile client, introducing semantic handling for pending-account login attempts and expanding documentation around the current mobile architecture and implemented features.

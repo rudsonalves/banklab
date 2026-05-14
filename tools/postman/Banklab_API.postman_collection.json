@@ -206,6 +206,34 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Customer/Me",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/customers/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customers",
+                "me"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }

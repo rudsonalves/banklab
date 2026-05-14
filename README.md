@@ -1,128 +1,159 @@
-# banklab
+# BankLab
 
-banklab is a monorepo built around a simplified banking core with emphasis on **transactional consistency** and **explicit business invariants**.
+BankLab é um monorepo de estudo e construção de um sistema bancário simplificado, com foco em **consistência transacional**, **regras de negócio explícitas** e **boas práticas de arquitetura**.
 
-The system is structured around the premise that financial movements are the central element: balances are derived from ledger records, not treated as the primary source of truth.
+A ideia central do projeto é tratar movimentações financeiras como a fonte da verdade. O saldo de uma conta não é apenas um número solto: ele deve ser consequência dos registros no ledger, persistidos na tabela `transactions`.
 
-The authoritative ledger is persisted in `transactions` (append-only).
+O projeto tem duas aplicações principais:
 
-It consists of two applications:
+- **API em Go**: implementa o núcleo bancário, incluindo autenticação, clientes, contas e movimentações financeiras.
+- **Mobile em Flutter**: consome a API e valida fluxos ponta a ponta de autenticação, contas e transações.
 
-- **API (Go)** — implements the banking core: customers, accounts, and financial operations with reliable transactional control
-- **Mobile (Flutter)** — consumes the API and validates end-to-end flows across auth, account management, and transactions
+Este repositório ainda está em evolução. A proposta é que ele sirva como um laboratório prático para pessoas que querem estudar backend, mobile, testes, produto financeiro e colaboração em um projeto com cara de sistema real.
 
-The project is intentionally focused on correctness, consistency, and architecture decisions, not on feature volume.
+## Objetivo
 
-## Repository structure
+Construir, de forma incremental, uma base bancária simplificada capaz de:
+
+- cadastrar usuários e clientes;
+- aprovar usuários antes do acesso completo;
+- abrir e consultar contas;
+- registrar movimentações financeiras;
+- consultar saldo e extrato;
+- realizar transferências internas;
+- manter rastreabilidade e consistência dos dados.
+
+O foco não é ter muitas funcionalidades rapidamente. O foco é construir pouco, mas com cuidado: regras claras, testes, documentação e decisões técnicas bem explicadas.
+
+## Princípios do projeto
+
+- **Integridade financeira**: toda alteração relevante deve ser registrada.
+- **Atomicidade**: operações críticas, como transferências, devem acontecer por completo ou não acontecer.
+- **Rastreabilidade**: mudanças de saldo precisam ser auditáveis.
+- **Ledger como autoridade**: os registros em `transactions` são a fonte da verdade para movimentações.
+- **Consistência antes de volume**: o projeto privilegia confiabilidade, não quantidade de telas ou endpoints.
+- **Arquitetura explícita**: as camadas e responsabilidades devem ser fáceis de entender.
+
+## Escopo atual
+
+| Domínio | Responsabilidades |
+| --- | --- |
+| Autenticação | registro, login, refresh token, usuário atual e controle por JWT |
+| Usuários | cadastro, estado de aprovação e fluxo administrativo |
+| Clientes | criação automática a partir do usuário, CPF e email |
+| Contas | abertura, listagem, consulta de saldo e ciclo de vida |
+| Ledger | depósito, saque, transferência interna e histórico de movimentações |
+| Extrato | listagem paginada de transações por conta |
+| Mobile | experiência Flutter integrada com a API |
+
+## Fora do escopo por enquanto
+
+- Pix, TED ou integrações bancárias externas;
+- antifraude e análise de risco;
+- notificações por email, push ou SMS;
+- múltiplas moedas;
+- conciliação bancária externa;
+- processamento assíncrono de transações financeiras.
+
+Esses pontos podem aparecer no roadmap futuro, mas a base precisa ficar sólida primeiro.
+
+## Stack
+
+### API
+
+- Go 1.26.1
+- PostgreSQL 16
+- `net/http`
+- `pgx/v5`
+- JWT
+- migrations com `golang-migrate`
+
+### Mobile
+
+- Flutter
+- Dart SDK ^3.11.4
+- `dio`
+- `go_router`
+- `flutter_secure_storage`
+- `auto_injector`
+
+### Infra local
+
+- Docker
+- Docker Compose
+- Makefile para comandos de desenvolvimento
+
+## Estrutura do repositório
 
 ```text
 banklab/
-|-- api/            # Go backend (modular monolith)
-|-- mobile/         # Flutter app (BankFlow)
-|-- docs/           # Architecture and design docs
-|-- infra/          # Docker and infrastructure scripts
-|-- docker-compose.yml
-`-- Makefile
+|-- api/                 # Backend em Go
+|-- mobile/              # App Flutter BankFlow
+|-- docs/                # Documentos gerais e relatórios
+|-- infra/               # Scripts e configurações de infraestrutura
+|-- tools/postman/       # Coleções e apoio para testar a API
+|-- docker-compose.yml   # PostgreSQL local
+`-- Makefile             # Atalhos de desenvolvimento
 ```
 
-## System scope
+## O que já existe
 
-### Goal
+### API em Go
 
-Implement a simplified banking core capable of:
+- registro, login, refresh token e usuário atual;
+- criação automática de cliente durante o cadastro;
+- fluxo de aprovação administrativa de usuários pendentes;
+- abertura e listagem de contas;
+- consulta de saldo;
+- transferências internas;
+- recibo de transferência;
+- extrato paginado;
+- persistência append-only das movimentações em `transactions`;
+- testes automatizados em módulos importantes.
 
-- managing customers
-- maintaining bank accounts
-- recording financial movements
-- guaranteeing balance consistency
+### Mobile em Flutter
 
-The focus is on **reliable transactional control**, not on peripheral features.
+- fluxo de autenticação com JWT;
+- tratamento de usuário pendente de aprovação;
+- visualização e criação de contas;
+- transferência entre contas;
+- histórico de transações;
+- integração com a API local.
 
-### Nature
+## Como rodar localmente
 
-> A balance-control system based on records of financial movements.
+### Pré-requisitos
 
-- the balance is a consequence
-- ledger entries in `transactions` are the source of truth
+- Docker e Docker Compose;
+- Go 1.26.1 ou superior;
+- Flutter configurado na máquina;
+- `golang-migrate`.
 
-### In scope
-
-| Domain    | Responsibilities                                |
-| --------- | ----------------------------------------------- |
-| Customers | creation, identification by CPF and email       |
-| Accounts  | opening, balance query, status control          |
-| Movements | deposit, withdraw, transfer, full operation log |
-| Statement | transaction listing per account                 |
-
-### Out of scope (at this stage)
-
-- integration with external systems (Pix, TED, etc.)
-- anti-fraud and risk analysis
-- notifications (email, push)
-- multi-currency
-- bank reconciliation and external settlement
-
-### System guarantees
-
-- **Financial integrity** — no balance inconsistency; every movement is recorded
-- **Atomicity** — critical operations (especially transfers) are indivisible
-- **Traceability** — all operations are auditable; no balance change without a record
-- **Ledger authority** — financial records are persisted in `transactions` only
-- **Consistency** — system state is always valid, even under concurrency
-- **Synchronous model** — all operations complete at request time; no eventual consistency
-- **Single source of truth** — the relational database is the only authority
-
----
-
-## What is implemented
-
-### API (Go)
-
-- auth: register, login, refresh, current user (JWT)
-- user registration with automatic customer creation (CPF and email)
-- admin approval flow for pending users
-- account opening, balance query, status control
-- financial operations: deposit, withdraw, transfer between accounts
-- account statement with pagination
-- ledger persistence in `transactions` (append-only)
-- transactional consistency enforced at the database level
-
-### Mobile (Flutter)
-
-- authentication flow with JWT
-- account creation and management
-- deposit, withdrawal, and transfer operations integrated with the API
-- transaction history browsing
-
-## Quick start
-
-For the most up-to-date setup instructions, use:
-
-- [api/docs/00-getting_started.md](api/docs/00-getting_started.md)
-- [mobile/docs/00-getting_started.md](mobile/docs/00-getting_started.md)
-
-### Prerequisites
-
-- Docker and Docker Compose
-- Go 1.26.1+
-- Flutter SDK (matching your local setup)
-- golang-migrate CLI
-
-Install golang-migrate (macOS/Homebrew):
+No macOS, o `golang-migrate` pode ser instalado com:
 
 ```bash
 brew install golang-migrate
 ```
 
-### 1) Start API stack (recommended)
+### 1. Subir a API
+
+Na raiz do repositório:
 
 ```bash
 make run
 ```
 
-This validates Docker, starts PostgreSQL, applies migrations, and starts the API.
+Esse comando valida o Docker, sobe o PostgreSQL, aguarda o banco ficar pronto, aplica as migrations e inicia a API.
 
-### 2) Run mobile app
+URL padrão da API:
+
+```text
+http://localhost:8080
+```
+
+### 2. Rodar o app mobile
+
+Em outro terminal:
 
 ```bash
 cd mobile
@@ -130,9 +161,12 @@ flutter pub get
 flutter run --dart-define-from-file=dev.env
 ```
 
-For environment variables and detailed bootstrap/reset instructions, see the getting started guides above.
+Os guias detalhados ficam em:
 
-## Main endpoints
+- [api/docs/00-getting_started.md](api/docs/00-getting_started.md)
+- [mobile/docs/00-getting_started.md](mobile/docs/00-getting_started.md)
+
+## Endpoints principais
 
 ```text
 POST   /auth/register
@@ -141,73 +175,109 @@ POST   /auth/refresh
 GET    /auth/me
 
 POST   /admin/users/{id}/approve
+POST   /admin/customers/{customer_id}/accounts
+
 GET    /customers/me
 
-POST   /accounts
-POST   /accounts/{id}/deposit
-POST   /accounts/{id}/withdraw
-POST   /accounts/transfer
-GET    /accounts/transfer/{transaction_reference}/receipt
+GET    /accounts
 GET    /accounts/{id}/balance
+GET    /accounts/internal-transfers/recipients
+POST   /accounts/internal-transfers
+GET    /accounts/transfer/{transaction_reference}/receipt
 GET    /accounts/{id}/statement
 ```
 
-`/auth/register` and `/auth/login` require `X-App-Token`.
-All other routes require JWT authentication.
-`/admin/users/{id}/approve` additionally requires an authenticated user with the `admin` role.
+As rotas de registro e login exigem `X-App-Token`. As demais rotas exigem autenticação por JWT. Rotas administrativas também exigem um usuário com papel de administrador.
 
-## Development commands
+## Comandos úteis
 
 ```bash
 make help
 
-# monorepo
-make build
-make test
+# ambiente local
+make setup
+make run
+make reset
 
-# api
+# API
 make api-build
-make api-migrate-up
-make api-migrate-down
-make api-test
+make api-tests
 
-# mobile
-make mobile-test
+# Mobile
+make mobile-tests
 make mobile-test-unit
-make fclean
-make fbuild
 
-# docker
+# Todos os testes
+make tests
+
+# Docker
 make docker-up
 make docker-down
 make docker-logs
+make docker-clean
 ```
 
-## Project docs
+## Como contribuir
 
-### API (Go)
+O BankLab está aberto para colaboração, especialmente de pessoas que querem praticar em português e crescer junto com um projeto local.
 
-- [api/README.md](api/README.md) — API guide and setup
-- [api/docs/00-getting_started.md](api/docs/00-getting_started.md) — API getting started
-- [api/docs/ARCHITECTURE.md](api/docs/ARCHITECTURE.md) — API Architecture
-- [api/docs/objetivos.md](api/docs/objetivos.md) — System Scope — Bank API
-- [api/docs/01-domain_model.md](api/docs/01-domain_model.md) — Domain Model
-- [api/docs/02-use_case_flows.md](api/docs/02-use_case_flows.md) — Use Case Flows
-- [api/docs/03-application_model.md](api/docs/03-application_model.md) — Application Model
-- [api/docs/04-consistency_and_concorrency.md](api/docs/04-consistency_and_concorrency.md) — Consistency and Concurrency Strategy
-- [api/docs/05-error_and_response.md](api/docs/05-error_and_response.md) — Error and Response Standard
-- [api/docs/06-implementation.md](api/docs/06-implementation.md) — Implementation Documentation
-- [api/docs/07-api-rest.md](api/docs/07-api-rest.md) — REST API Documentation
-- [api/docs/08-auth_implementation.md](api/docs/08-auth_implementation.md) — Auth & Authorization
-- [api/docs/09-database.md](api/docs/09-database.md) — Database Documentation
-- [api/docs/infra.md](api/docs/infra.md) — Infrastructure
+Boas frentes para contribuir:
 
-### Mobile (Flutter)
+- **Backend Go**: novos casos de uso, testes, handlers, regras de domínio e melhoria de consistência.
+- **Flutter**: telas, navegação, estados de erro, componentes e experiência de uso.
+- **Testes**: unitários, integração, cenários de concorrência e cobertura de fluxos críticos.
+- **Documentação**: guias de setup, explicação da arquitetura, diagramas e exemplos de uso.
+- **Produto financeiro**: modelagem de fluxos, regras de negócio e refinamento do roadmap.
+- **Infra e DevEx**: automação, scripts, CI, ambiente local e coleções Postman.
 
-- [mobile/README.md](mobile/README.md) — Mobile guide and setup
-- [mobile/docs/00-getting_started.md](mobile/docs/00-getting_started.md) — Mobile getting started
-- [mobile/docs/ARCHITECTURE.md](mobile/docs/ARCHITECTURE.md) — Mobile Architecture
+Para organizar o trabalho, use o padrão descrito em [CONTRIBUTING.md](CONTRIBUTING.md). A ideia é classificar cada tarefa por tipo, área e prioridade, facilitando a entrada de novos colaboradores.
 
-## License
+## Sugestões de primeiras contribuições
 
-MIT. See [LICENSE](LICENSE).
+- revisar o guia de setup e reportar pontos confusos;
+- melhorar mensagens de erro no mobile;
+- adicionar testes para cenários de transferência;
+- criar exemplos de payload para endpoints principais;
+- documentar fluxos com diagramas simples;
+- melhorar telas de extrato e recibo;
+- propor issues pequenas com escopo bem definido.
+
+## Documentação
+
+### Geral
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [CHANGELOG.md](CHANGELOG.md)
+- [tools/postman/README.md](tools/postman/README.md)
+
+### API
+
+- [api/README.md](api/README.md)
+- [api/docs/00-getting_started.md](api/docs/00-getting_started.md)
+- [api/docs/ARCHITECTURE.md](api/docs/ARCHITECTURE.md)
+- [api/docs/01-domain_model.md](api/docs/01-domain_model.md)
+- [api/docs/02-use_case_flows.md](api/docs/02-use_case_flows.md)
+- [api/docs/03-application_model.md](api/docs/03-application_model.md)
+- [api/docs/04-consistency_and_concorrency.md](api/docs/04-consistency_and_concorrency.md)
+- [api/docs/05-error_and_response.md](api/docs/05-error_and_response.md)
+- [api/docs/06-implementation.md](api/docs/06-implementation.md)
+- [api/docs/07-api-rest.md](api/docs/07-api-rest.md)
+- [api/docs/08-auth_implementation.md](api/docs/08-auth_implementation.md)
+- [api/docs/09-database.md](api/docs/09-database.md)
+- [api/docs/infra.md](api/docs/infra.md)
+
+### Mobile
+
+- [mobile/README.md](mobile/README.md)
+- [mobile/docs/00-getting_started.md](mobile/docs/00-getting_started.md)
+- [mobile/docs/ARCHITECTURE.md](mobile/docs/ARCHITECTURE.md)
+- [mobile/docs/01-implemented-features.md](mobile/docs/01-implemented-features.md)
+
+## Status
+
+Projeto em desenvolvimento ativo. A base já permite estudar fluxos reais de uma aplicação bancária simplificada, mas ainda há espaço para evoluir produto, testes, documentação e experiência mobile.
+
+## Licença
+
+MIT. Veja [LICENSE](LICENSE).
