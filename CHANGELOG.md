@@ -1,5 +1,261 @@
 # Changelog
 
+## 2026/05/15 — docs/update-14
+
+Expanded and reorganized the public project documentation structure, transforming the former internal discussion notes into a documented and versioned public decision process for the project.
+
+This update formalizes `docs/` and `docs/backlogs/` as part of the collaborative surface of the repository, exposing architectural discussions, onboarding evolution plans, and implementation debates that were previously treated as internal working material.
+
+The documentation now reflects the reality of the project:
+
+* a constantly evolving codebase;
+* iterative architectural refinement;
+* ongoing redesigns and trade-off evaluations;
+* historical preservation of technical decisions and discarded approaches.
+
+### Documentation Structure Reorganization
+
+1. `README.md`
+
+   * Updated the repository structure description.
+   * Repositioned `docs/` as a central area for:
+
+     * roadmap
+     * backlogs
+     * architectural decisions
+     * reports
+   * Added direct references to:
+
+     * `docs/README.md`
+     * `docs/backlogs/README.md`
+     * active onboarding-related backlogs.
+
+2. `docs/README.md`
+
+   * Added a new root-level documentation guide for the `docs/` directory.
+   * Documented:
+
+     * overall documentation structure
+     * purpose of each directory
+     * public communication goals
+     * relationship between roadmap, backlogs, and disclosure material.
+   * Explicitly established backlogs as part of the project documentation process instead of temporary private notes.
+
+3. `docs/backlogs/README.md`
+
+   * Added a dedicated guide for backlog organization and decision tracking.
+   * Defined:
+
+     * active vs resolved backlog separation
+     * `done/` directory conventions
+     * historical preservation policy
+     * contributor guidance for consulting previous discussions before implementation.
+
+4. `docs/ROADMAP.md`
+
+   * Added roadmap guidance reinforcing:
+
+     * public documentation of decision processes;
+     * separation between active and completed backlogs;
+     * long-term maintainability of collaborative discussions.
+
+5. `CONTRIBUTING.md`
+
+   * Expanded contributor onboarding instructions.
+   * Added references to:
+
+     * documentation organization;
+     * backlog tracking;
+     * architectural discussion history.
+   * Established backlog files as first-class project documentation artifacts.
+   * Defined preservation rules for completed discussions and implementation history.
+
+6. `docs/.gitignore`
+
+   * Removed backlog exclusion from git tracking.
+   * Officially versioned the backlog structure as public repository content.
+
+### Public Backlog Integration
+
+1. `docs/backlogs/api/000 - pre-onboarding.md`
+
+   * Added a large architectural backlog discussing the pre-onboarding restructuring phase.
+   * Documented extensive discussions regarding:
+
+     * separation between authentication identity and business identity;
+     * restructuring of `users` and `customers`;
+     * introduction of:
+
+       * `customer_documents`
+       * `customer_addresses`
+     * migration strategy for CPF handling;
+     * onboarding preparation before full onboarding implementation.
+   * Preserved iterative architectural reasoning and evolving decisions instead of reducing the document to a finalized specification.
+
+### Project Philosophy Reinforcement
+
+This update also reinforces an important characteristic of the repository:
+
+* architectural maturity is treated as an incremental process;
+* discussions, reversals, refinements, and discarded approaches are intentionally preserved;
+* documentation is used not only to describe the final state, but also to expose the reasoning path behind the evolution of the system.
+
+The result is a repository that documents both:
+
+* the implemented software;
+* and the engineering decision process that shaped it.
+
+
+## 2026/05/14 — docs/update-13
+
+Expanded the project documentation structure to position BankLab as a collaborative engineering-oriented financial systems laboratory, improving contributor onboarding, public narrative, roadmap visibility, and repository guidance.
+
+### Main changes
+
+1. `CONTRIBUTING.md`
+
+   * Replaced the previous lightweight GitHub project organization note with a complete contribution guide in Portuguese.
+   * Added:
+
+     * project introduction and contribution philosophy;
+     * onboarding guidance for new contributors;
+     * issue classification standards (`Type`, `Area`, `Priority`);
+     * suggested issue template;
+     * recommended development workflow;
+     * branch naming examples;
+     * commit message guidelines;
+     * local setup and test commands;
+     * API architectural responsibilities and layering guidance;
+     * Flutter/mobile contribution conventions;
+     * pull request expectations and suggested template;
+     * documentation update rules;
+     * collaboration and communication principles;
+     * explicit out-of-scope contribution boundaries.
+   * Established the repository as a learning-oriented but engineering-focused environment for backend, mobile, financial systems, and architecture discussions.
+
+2. `README.md`
+
+   * Completely rewrote and expanded the repository root documentation.
+   * Migrated the README from a concise English technical summary to a broader Portuguese presentation focused on:
+
+     * project vision;
+     * financial engineering rationale;
+     * architectural principles;
+     * collaboration narrative;
+     * onboarding clarity.
+   * Added:
+
+     * detailed project objectives;
+     * explicit architectural and financial consistency principles;
+     * current scope and future exclusions;
+     * stack overview for API, mobile, and infrastructure;
+     * repository structure explanation;
+     * implemented feature summary;
+     * local bootstrap instructions;
+     * endpoint overview;
+     * development command reference;
+     * contribution guidance;
+     * suggested first contributions;
+     * expanded documentation index;
+     * current project status section.
+   * Updated endpoint references to reflect newer flows:
+
+     * `/admin/customers/{customer_id}/accounts`
+     * `/accounts/internal-transfers`
+     * `/accounts/internal-transfers/recipients`
+     * transfer receipt endpoint.
+   * Improved the positioning of the project as:
+
+     * an engineering laboratory;
+     * a transactional consistency study project;
+     * a collaboration-oriented fintech sandbox.
+
+3. `docs/ROADMAP.md`
+
+   * Added a new long-form roadmap document.
+   * Structured the roadmap around:
+
+     * project identity;
+     * engineering motivations;
+     * long-term evolution goals;
+     * architectural and product directions.
+   * Added strategic sections for:
+
+     * public narrative and collaboration;
+     * progressive onboarding;
+     * Zero Trust Architecture evolution;
+     * backend-mediated external integrations;
+     * local payment experimentation;
+     * web/admin channels;
+     * architectural evolution strategy.
+   * Added phased planning sections:
+
+     * `Agora`
+     * `Próximo`
+     * `Futuro`
+   * Introduced roadmap items covering:
+
+     * onboarding checkpoints;
+     * transactional password modeling;
+     * device registration;
+     * TOTP and step-up authentication;
+     * Pix/DOC/TED mock flows;
+     * CI/testing improvements;
+     * observability;
+     * educational and technical communication goals.
+   * Explicitly documented:
+
+     * evolution philosophy;
+     * consistency-first mindset;
+     * modular monolith rationale;
+     * future microservice extraction criteria.
+
+4. `tools/postman/Banklab_API.postman_collection.json`
+
+   * Added a new authenticated request:
+
+     * `GET /customers/me`
+   * Configured bearer token authentication using `{{access_token}}`.
+   * Expanded the Postman collection coverage for authenticated customer flows.
+
+5. `docs/.gitignore`
+
+   * Added `disclosure` directory to ignored documentation artifacts.
+
+### Documentation direction improvements
+
+* Strengthened the repository positioning as a serious engineering study project rather than a generic CRUD banking demo.
+* Improved the public-facing narrative for:
+
+  * potential collaborators;
+  * recruiters;
+  * technical readers;
+  * contributors interested in fintech architecture.
+* Consolidated roadmap, contribution, and repository guidance into a more coherent collaboration model.
+* Expanded documentation around:
+
+  * transactional consistency;
+  * ledger-based modeling;
+  * onboarding evolution;
+  * Zero Trust Architecture ambitions;
+  * engineering rationale and trade-offs.
+
+### Architectural alignment
+
+The new documentation reinforces and contextualizes previously documented concepts such as:
+
+* modular monolith architecture; 
+* ledger-centered financial modeling; 
+* transactional consistency guarantees; 
+* application-layer ownership enforcement; 
+* JWT + AppToken authentication model; 
+* standardized API response contracts. 
+
+### Result
+
+This commit significantly improves the project’s discoverability, contributor onboarding experience, architectural communication quality, and long-term roadmap clarity, while also preparing the repository for broader technical collaboration and public presentation.
+
+
 ## 2026/05/13 — mobile/login-approved-account-01
 
 Implemented approval-aware authentication feedback for the mobile client, introducing semantic handling for pending-account login attempts and expanding documentation around the current mobile architecture and implemented features.
