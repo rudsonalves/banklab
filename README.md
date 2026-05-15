@@ -89,7 +89,7 @@ Esses pontos podem aparecer no roadmap futuro, mas a base precisa ficar sólida 
 banklab/
 |-- api/                 # Backend em Go
 |-- mobile/              # App Flutter BankFlow
-|-- docs/                # Documentos gerais e relatórios
+|-- docs/                # Roadmap, backlogs, decisões e relatórios
 |-- infra/               # Scripts e configurações de infraestrutura
 |-- tools/postman/       # Coleções e apoio para testar a API
 |-- docker-compose.yml   # PostgreSQL local
@@ -247,7 +247,11 @@ Para organizar o trabalho, use o padrão descrito em [CONTRIBUTING.md](CONTRIBUT
 ### Geral
 
 - [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/README.md](docs/README.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md)
+- [docs/backlogs/README.md](docs/backlogs/README.md)
+- [docs/backlogs/api/000 - pre-onboarding.md](<docs/backlogs/api/000 - pre-onboarding.md>)
+- [docs/backlogs/api/001 - onboarding.md](<docs/backlogs/api/001 - onboarding.md>)
 - [CHANGELOG.md](CHANGELOG.md)
 - [tools/postman/README.md](tools/postman/README.md)
 

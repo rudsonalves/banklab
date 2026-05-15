@@ -9,6 +9,8 @@ Este projeto é um laboratório local para estudar engenharia de software aplica
 Leia primeiro:
 
 - [README.md](README.md), para entender objetivo, escopo e como rodar o projeto;
+- [docs/README.md](docs/README.md), para entender a organização da documentação;
+- [docs/backlogs/README.md](docs/backlogs/README.md), para acompanhar discussões ativas e histórico de decisões;
 - [api/README.md](api/README.md), se for mexer na API;
 - [mobile/README.md](mobile/README.md), se for mexer no app Flutter;
 - [api/docs/ARCHITECTURE.md](api/docs/ARCHITECTURE.md), se a mudança tocar arquitetura ou regras importantes.
@@ -270,6 +272,8 @@ Atualize a documentação quando a mudança:
 - cria migration;
 - afeta setup local;
 - muda fluxo visível no mobile.
+
+Backlogs em `docs/backlogs/` também fazem parte da documentação do projeto. Use essa pasta para registrar discussões, decisões e recortes de implementação antes de mudanças relevantes. Quando um backlog for resolvido ou substituído por decisão mais nova, mova-o para o diretório `done/` correspondente, preservando o histórico.
 
 ## Comunicação
 

@@ -25,6 +25,8 @@ O diferencial do projeto não é apenas a stack. A parte mais importante é o ra
 
 O projeto ainda não pretende ser um banco completo. Ele é uma base arquitetural e funcional para estudar um recorte específico do domínio financeiro com profundidade suficiente para gerar decisões reais de engenharia. A partir dessa base, a intenção é evoluir para temas mais ambiciosos, como Zero Trust Architecture, KYC, meios de pagamento locais, app web, painel administrativo e, quando fizer sentido, decomposição em serviços menores.
 
+Parte importante dessa proposta é documentar também o processo de decisão. O BankLab deve mostrar não apenas o software implementado, mas o caminho de engenharia que levou a ele: discussões, alternativas, trade-offs, correções de rumo e decisões preservadas em backlog.
+
 ## Por que este projeto existe
 
 O BankLab foi criado para praticar decisões reais de engenharia em um domínio onde não basta criar telas e endpoints. Em sistemas financeiros, regras de negócio, autorização, saldo e histórico de movimentações precisam ser tratados com clareza e consistência desde o início.
@@ -179,6 +181,7 @@ Prioridades para estabilizar a base atual e melhorar a entrada de colaboradores.
 - Criar templates de issue e pull request.
 - Organizar futuras issues de colaboração com escopo pequeno e critérios de aceite.
 - Selecionar temas técnicos para uma primeira série de posts públicos.
+- Manter `docs/` e `docs/backlogs/` como documentação pública do processo de decisão.
 
 ### Documentação e onboarding
 
@@ -187,6 +190,7 @@ Prioridades para estabilizar a base atual e melhorar a entrada de colaboradores.
 - Melhorar documentação de autenticação, aprovação de usuário e uso de `X-App-Token`.
 - Registrar decisões de onboarding antes da implementação.
 - Reescrever discussões importantes em português quando forem voltadas para colaboração local.
+- Separar backlogs ativos de backlogs concluídos usando diretórios `done/`.
 
 ### API
 

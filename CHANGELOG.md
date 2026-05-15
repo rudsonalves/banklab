@@ -1,5 +1,111 @@
 # Changelog
 
+## 2026/05/15 — docs/update-14
+
+Expanded and reorganized the public project documentation structure, transforming the former internal discussion notes into a documented and versioned public decision process for the project.
+
+This update formalizes `docs/` and `docs/backlogs/` as part of the collaborative surface of the repository, exposing architectural discussions, onboarding evolution plans, and implementation debates that were previously treated as internal working material.
+
+The documentation now reflects the reality of the project:
+
+* a constantly evolving codebase;
+* iterative architectural refinement;
+* ongoing redesigns and trade-off evaluations;
+* historical preservation of technical decisions and discarded approaches.
+
+### Documentation Structure Reorganization
+
+1. `README.md`
+
+   * Updated the repository structure description.
+   * Repositioned `docs/` as a central area for:
+
+     * roadmap
+     * backlogs
+     * architectural decisions
+     * reports
+   * Added direct references to:
+
+     * `docs/README.md`
+     * `docs/backlogs/README.md`
+     * active onboarding-related backlogs.
+
+2. `docs/README.md`
+
+   * Added a new root-level documentation guide for the `docs/` directory.
+   * Documented:
+
+     * overall documentation structure
+     * purpose of each directory
+     * public communication goals
+     * relationship between roadmap, backlogs, and disclosure material.
+   * Explicitly established backlogs as part of the project documentation process instead of temporary private notes.
+
+3. `docs/backlogs/README.md`
+
+   * Added a dedicated guide for backlog organization and decision tracking.
+   * Defined:
+
+     * active vs resolved backlog separation
+     * `done/` directory conventions
+     * historical preservation policy
+     * contributor guidance for consulting previous discussions before implementation.
+
+4. `docs/ROADMAP.md`
+
+   * Added roadmap guidance reinforcing:
+
+     * public documentation of decision processes;
+     * separation between active and completed backlogs;
+     * long-term maintainability of collaborative discussions.
+
+5. `CONTRIBUTING.md`
+
+   * Expanded contributor onboarding instructions.
+   * Added references to:
+
+     * documentation organization;
+     * backlog tracking;
+     * architectural discussion history.
+   * Established backlog files as first-class project documentation artifacts.
+   * Defined preservation rules for completed discussions and implementation history.
+
+6. `docs/.gitignore`
+
+   * Removed backlog exclusion from git tracking.
+   * Officially versioned the backlog structure as public repository content.
+
+### Public Backlog Integration
+
+1. `docs/backlogs/api/000 - pre-onboarding.md`
+
+   * Added a large architectural backlog discussing the pre-onboarding restructuring phase.
+   * Documented extensive discussions regarding:
+
+     * separation between authentication identity and business identity;
+     * restructuring of `users` and `customers`;
+     * introduction of:
+
+       * `customer_documents`
+       * `customer_addresses`
+     * migration strategy for CPF handling;
+     * onboarding preparation before full onboarding implementation.
+   * Preserved iterative architectural reasoning and evolving decisions instead of reducing the document to a finalized specification.
+
+### Project Philosophy Reinforcement
+
+This update also reinforces an important characteristic of the repository:
+
+* architectural maturity is treated as an incremental process;
+* discussions, reversals, refinements, and discarded approaches are intentionally preserved;
+* documentation is used not only to describe the final state, but also to expose the reasoning path behind the evolution of the system.
+
+The result is a repository that documents both:
+
+* the implemented software;
+* and the engineering decision process that shaped it.
+
+
 ## 2026/05/14 — docs/update-13
 
 Expanded the project documentation structure to position BankLab as a collaborative engineering-oriented financial systems laboratory, improving contributor onboarding, public narrative, roadmap visibility, and repository guidance.
