@@ -13,7 +13,7 @@ O BankLab possui documentação em diferentes níveis:
 - documentação técnica da API e do mobile;
 - backlogs e histórico de decisões;
 - instruções locais para agentes de IA;
-- relatórios e material de divulgação.
+- relatórios de implementação.
 
 Parte desses documentos é lida por pessoas. Outra parte também é útil para agentes de IA entenderem limites, padrões e decisões já tomadas.
 
@@ -94,20 +94,6 @@ Função:
 
 Esses arquivos são mais operacionais e locais. Eles devem ser objetivos, específicos e alinhados com a documentação pública e técnica.
 
-### Material de divulgação
-
-Arquivos principais:
-
-- [docs/disclosure](disclosure)
-
-Função:
-
-- apoiar apresentação pública do projeto;
-- comunicar valor técnico;
-- organizar material para LinkedIn, portfólio e colaboradores.
-
-Esse material pode ser mais narrativo, mas deve continuar coerente com o estado real do projeto.
-
 ## Como decidir onde documentar
 
 Use esta regra geral:
@@ -117,7 +103,6 @@ Use esta regra geral:
 - **docs/backlogs**: decisões em discussão, trade-offs e histórico de deliberação.
 - **api/docs e mobile/docs**: comportamento técnico já implementado ou contrato aceito.
 - **AGENT.md e .github/instructions**: orientação local para agentes e navegação por área.
-- **docs/disclosure**: comunicação externa e narrativa pública.
 
 ## Quando atualizar
 
@@ -159,4 +144,3 @@ Backlogs concluídos devem ser movidos para `done/`, não apagados sem motivo.
 Documentos orientados a IA existem para melhorar contexto, consistência e produtividade. Eles não substituem decisão humana.
 
 Quando houver conflito entre sugestão automatizada e documentação do projeto, a documentação versionada deve prevalecer até que uma nova decisão seja registrada.
-
