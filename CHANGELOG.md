@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026/05/15 — main
+
+Refine collaboration and communication language across project documentation.
+
+### Documentation updates
+
+1. `CONTRIBUTING.md`
+
+   * Reworked the collaboration section to remove the explicit focus on Portuguese-only communication.
+   * Clarified that documentation may exist in either Portuguese or English depending on the context.
+   * Reinforced the importance of clarity, respect, and collaborative improvement over language preference.
+
+2. `README.md`
+
+   * Adjusted the contribution invitation text to make the project more broadly welcoming.
+   * Replaced the “local project” emphasis with a more technical and engineering-oriented positioning.
+
+3. `docs/ROADMAP.md`
+
+   * Updated the roadmap introduction to emphasize technical collaboration instead of local collaboration.
+   * Simplified references to “local collaborators” and “local open source” to a more inclusive collaboration model.
+   * Replaced the “Collaboration in Portuguese” principle with a clearer documentation-oriented communication principle.
+   * Refined backlog and documentation guidance to prioritize clarity and accessibility rather than language-specific requirements.
+   * Adjusted wording in contributor-oriented sections to better support mixed-language technical documentation.
+
+### Result
+
+This commit improves the project’s positioning for broader technical collaboration while preserving the original educational and engineering-focused identity of BankLab.
+
+
 ## 2026/05/15 — docs/update-14
 
 Expanded and reorganized the public project documentation structure, transforming the former internal discussion notes into a documented and versioned public decision process for the project.

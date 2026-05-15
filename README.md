@@ -219,7 +219,7 @@ make docker-clean
 
 ## Como contribuir
 
-O BankLab está aberto para colaboração, especialmente de pessoas que querem praticar em português e crescer junto com um projeto local.
+O BankLab está aberto para colaboração de pessoas que queiram praticar, aprender e crescer junto com um projeto de engenharia aplicada.
 
 Boas frentes para contribuir:
 

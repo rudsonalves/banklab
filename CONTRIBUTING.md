@@ -277,7 +277,7 @@ Backlogs em `docs/backlogs/` também fazem parte da documentação do projeto. U
 
 ## Comunicação
 
-Este projeto valoriza colaboração em português. Perguntas são bem-vindas, inclusive perguntas básicas. O importante é manter clareza, respeito e vontade de melhorar o projeto junto.
+Este projeto valoriza colaboração clara e respeitosa. Perguntas são bem-vindas, inclusive perguntas básicas. A documentação pode estar em português ou inglês, conforme o contexto; o importante é manter clareza e vontade de melhorar o projeto junto.
 
 Se estiver em dúvida entre implementar direto ou abrir uma discussão, abra uma issue de **Research** ou descreva a dúvida no pull request.
 

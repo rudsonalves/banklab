@@ -1,6 +1,6 @@
 # Roadmap do BankLab
 
-Este roadmap organiza a direção do BankLab para colaboração local. Ele começa explicando o que o projeto é, por que ele existe e quais caminhos fazem sentido para sua evolução.
+Este roadmap organiza a direção do BankLab para colaboração técnica. Ele começa explicando o que o projeto é, por que ele existe e quais caminhos fazem sentido para sua evolução.
 
 Ele não é uma promessa fechada de entrega. É um guia para alinhar prioridades, abrir issues e escolher boas contribuições.
 
@@ -43,7 +43,7 @@ A motivação principal é praticar engenharia em um contexto onde algumas decis
 
 Em outras palavras: o BankLab existe para ser um projeto de aprendizado sério, com cara de sistema real, mas sem a pretensão de operar dinheiro real.
 
-Ele também serve como vitrine técnica. O objetivo é mostrar capacidade de construir, explicar e evoluir uma aplicação com backend, mobile, testes, documentação e raciocínio de produto financeiro. Para colaboradores locais, ele deve funcionar como um ambiente de prática, troca e crescimento.
+Ele também serve como vitrine técnica. O objetivo é mostrar capacidade de construir, explicar e evoluir uma aplicação com backend, mobile, testes, documentação e raciocínio de produto financeiro. Para colaboradores, ele deve funcionar como um ambiente de prática, troca e crescimento.
 
 ## Onde o projeto quer chegar
 
@@ -59,7 +59,7 @@ O caminho do projeto tem sete frentes principais:
 - abrir caminho para app web, painel administrativo e evolução arquitetural incremental;
 - transformar a engenharia já construída em uma narrativa pública clara, capaz de atrair colaboradores alinhados com a visão do projeto.
 
-Com o tempo, o projeto deve evoluir de uma base funcional para um laboratório mais completo de segurança transacional, experiência mobile, canais web, gestão administrativa, pagamentos locais e colaboração open source local.
+Com o tempo, o projeto deve evoluir de uma base funcional para um laboratório mais completo de segurança transacional, experiência mobile, canais web, gestão administrativa, pagamentos locais e colaboração open source.
 
 ## Eixos estratégicos
 
@@ -167,7 +167,7 @@ Microserviços não são objetivo por si só. Eles são uma opção futura quand
 - **Produto antes de endpoint**: uma rota só deve existir se representar uma capacidade clara do sistema.
 - **Pequenos passos revisáveis**: mudanças menores ajudam novos colaboradores a entrar com mais segurança.
 - **Documentação como parte da entrega**: decisões importantes devem ficar registradas.
-- **Colaboração em português**: o projeto prioriza pessoas locais e comunicação clara em pt_BR.
+- **Comunicação clara**: a documentação pode existir em português ou inglês, conforme o contexto, mas deve permanecer compreensível e alinhada às decisões do projeto.
 
 ## Agora
 
@@ -189,7 +189,7 @@ Prioridades para estabilizar a base atual e melhorar a entrada de colaboradores.
 - Atualizar exemplos de payload para endpoints principais.
 - Melhorar documentação de autenticação, aprovação de usuário e uso de `X-App-Token`.
 - Registrar decisões de onboarding antes da implementação.
-- Reescrever discussões importantes em português quando forem voltadas para colaboração local.
+- Reescrever discussões importantes quando o texto original não estiver claro para colaboradores.
 - Separar backlogs ativos de backlogs concluídos usando diretórios `done/`.
 
 ### API
@@ -258,7 +258,7 @@ Prioridades para tornar o BankLab mais completo como laboratório de produto fin
 - Atualizar coleção Postman ou alternativa equivalente.
 - Criar uma lista de tarefas `good first issue`.
 - Padronizar templates de issue e pull request.
-- Documentar decisões arquiteturais relevantes em português.
+- Documentar decisões arquiteturais relevantes de forma clara, em português ou inglês conforme o contexto.
 
 ### Comunicação técnica
 
