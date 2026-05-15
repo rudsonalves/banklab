@@ -2,12 +2,12 @@ import 'package:go_router/go_router.dart';
 
 import '/core/config/dependencies.dart';
 import '/core/routing/routes.dart';
-import '/uis/pages/home/home_page.dart';
-import '/uis/pages/home/viewmodel/home_viewmodel.dart';
-import '/uis/pages/splash/splash_page.dart';
-import '/uis/pages/splash/viewmodel/splash_viewmodel.dart';
-import '/uis/pages/statement/statement_page.dart';
-import '/uis/pages/statement/viewmodel/statement_viewmodel.dart';
+import '/ui/pages/home/home_page.dart';
+import '/ui/pages/home/viewmodel/home_viewmodel.dart';
+import '/ui/pages/splash/splash_page.dart';
+import '/ui/pages/splash/viewmodel/splash_viewmodel.dart';
+import '/ui/pages/statement/statement_page.dart';
+import '/ui/pages/statement/viewmodel/statement_viewmodel.dart';
 
 List<RouteBase> baseRoutes() => [
   GoRoute(

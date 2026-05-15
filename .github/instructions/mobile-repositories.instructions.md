@@ -174,7 +174,7 @@ When adding a repository:
 1. Create the contract and implementation under `data/repositories/<feature>/`.
 2. Add constructor dependencies for required APIs or core services.
 3. Register the repository in `data/repositories.dart`.
-4. Inject the repository into the relevant view model in `uis/viewmodels.dart` or via
+4. Inject the repository into the relevant view model in `ui/viewmodels.dart` or via
    the existing constructor injection pattern.
 
 Never instantiate repository implementations directly inside pages.

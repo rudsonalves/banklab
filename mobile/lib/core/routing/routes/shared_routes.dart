@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 
-import '/uis/pages/shared/details/details_page.dart';
-import '/uis/pages/shared/details/viewmodel/details_viewmodel.dart';
+import '/ui/pages/shared/details/details_page.dart';
+import '/ui/pages/shared/details/viewmodel/details_viewmodel.dart';
 import '../../config/dependencies.dart';
 import '../routes.dart';
 

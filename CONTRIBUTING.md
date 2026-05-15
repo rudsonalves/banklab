@@ -217,7 +217,7 @@ Mudanças em ledger, saldo e transferência devem preservar:
 
 Ao contribuir no Flutter:
 
-- mantenha a separação entre `core`, `data`, `domain` e `uis`;
+- mantenha a separação entre `core`, `data`, `domain` e `ui`;
 - preserve os contratos da API;
 - trate estados de carregamento, erro e vazio;
 - evite acoplar tela diretamente a detalhes de transporte quando já existir camada apropriada;

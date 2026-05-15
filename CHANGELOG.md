@@ -1,5 +1,230 @@
 # Changelog
 
+## 2026/05/15 — docs/update-15
+
+Refactored the Flutter presentation layer naming from `uis` to `ui`, consolidating the shared widget area into `ui/components` and aligning architecture, documentation, agent guides, imports, and tests with the updated structure.
+
+### Architectural and Naming Consolidation
+
+* Renamed the presentation root directory from `mobile/lib/uis` to `mobile/lib/ui`
+* Renamed the shared presentation primitives area from `uis/core` to `ui/components`
+* Standardized terminology across the project:
+
+  * `uis` → `ui`
+  * `shared UI primitives` → `shared UI components`
+* Clarified that `ui/components` acts as:
+
+  * a reusable presentation layer
+  * a staging area for a future internal mobile widget/feature package
+* Reinforced separation rules between:
+
+  * `core`
+  * `data`
+  * `domain`
+  * `ui`
+
+### GitHub Copilot / Agent Instruction Updates
+
+Updated all `.github/instructions/*` guides to reflect the new structure and terminology.
+
+#### Updated instruction files
+
+* `mobile-core.instructions.md`
+* `mobile-data.instructions.md`
+* `mobile-overview.instructions.md`
+* `mobile-pages.instructions.md`
+* `mobile-repositories.instructions.md`
+
+#### Renamed instruction guides
+
+* `mobile-uis.instructions.md`
+  → `mobile-ui.instructions.md`
+
+* `mobile-uis-core.instructions.md`
+  → `mobile-ui-components.instructions.md`
+
+#### Improvements added
+
+* Updated all `applyTo` paths
+* Updated dependency rules
+* Updated architectural flow references
+* Updated shared widget promotion guidance
+* Added explicit guidance for future reusable widget packaging
+* Clarified component promotion expectations:
+
+  * reusable
+  * presentation-only
+  * feature-independent
+
+### Mobile Documentation Refactor
+
+Updated mobile documentation to reflect the new folder structure.
+
+#### Updated files
+
+* `mobile/README.md`
+* `mobile/AGENT.md`
+* `mobile/docs/00-getting_started.md`
+* `mobile/docs/01-implemented-features.md`
+* `mobile/docs/ARCHITECTURE.md`
+* `mobile/Changelog.md`
+
+#### Documentation adjustments
+
+* Replaced all references from:
+
+  * `lib/uis`
+  * `uis/core`
+  * `shared UI primitives`
+* With:
+
+  * `lib/ui`
+  * `ui/components`
+  * `shared UI components`
+
+#### Added architectural clarification
+
+Expanded documentation around `ui/components`:
+
+* reusable presentation elements
+* visual consistency patterns
+* future extraction potential into a dedicated package
+* distinction between:
+
+  * page-local widgets
+  * reusable shared components
+
+### Contribution and Backlog Documentation
+
+Updated project-wide documentation references.
+
+#### Updated files
+
+* `CONTRIBUTING.md`
+* `docs/relatorio-mobile-implementado-2026-05-12.md`
+* backlog documents under:
+
+  * `docs/backlogs/mobile/done/...`
+
+#### Adjustments
+
+* Updated architecture references to `ui`
+* Updated snackbar and component paths
+* Updated test references
+* Preserved the existing architectural intent while aligning terminology
+
+### Flutter Source Refactor
+
+Performed the physical migration of the Flutter UI layer.
+
+#### Renamed root structure
+
+* `mobile/lib/uis`
+  → `mobile/lib/ui`
+
+#### Renamed shared UI structure
+
+* `mobile/lib/uis/core`
+  → `mobile/lib/ui/components`
+
+### Shared Component Migration
+
+Migrated all reusable widgets and presentation helpers into `ui/components`.
+
+#### Moved component categories
+
+* base
+* buttons
+* cards
+* input_formatters
+* messages
+* text
+* text_form_field
+* themes
+* transaction
+
+#### Examples migrated
+
+* `SafeScaffold`
+* `AppSnackbar`
+* `BigButton`
+* `BalanceCard`
+* `RecipientCard`
+* `BasicTextFormField`
+* `CpfInputFormatter`
+* `MaterialTheme`
+* `TransactionMovement`
+
+### Page and ViewModel Migration
+
+Migrated all page modules into the new `ui/pages` structure.
+
+#### Migrated areas
+
+* auth
+* home
+* transfer
+* shared/details
+* splash
+* statement
+
+#### Included migrations
+
+* pages
+* view models
+* local widgets
+* presentation models
+* exceptions
+* route extras
+
+### Routing and Dependency Injection Updates
+
+Updated all imports and references across:
+
+* route registration
+* dependency injection
+* router extras
+* page builders
+* typed route payloads
+
+#### Updated files
+
+* `dependencies.dart`
+* `main.dart`
+* all route registration files
+* `extra_codec.dart`
+
+### Test Suite Alignment
+
+Updated Flutter test imports and paths to match the new structure.
+
+#### Updated test files
+
+* `mobile/test/ui/pages/auth/login_feedback_behavior_test.dart`
+
+### Cleanup and Formatting
+
+Performed small consistency improvements during the refactor.
+
+#### Included
+
+* fixed missing trailing newlines
+* normalized exports
+* aligned import organization
+* cleaned obsolete references to `uis`
+* updated comments and architecture wording
+
+### Result
+
+This refactor consolidates the Flutter presentation layer into a cleaner and more scalable structure:
+
+* `ui` becomes the single presentation boundary
+* `ui/components` becomes the canonical reusable presentation layer
+* architectural documentation and agent guidance now align with the actual codebase
+* future extraction of reusable mobile UI packages becomes significantly easier
+* naming consistency improves readability, onboarding, and long-term maintenance across the entire mobile stack.
+
+
 ## 2026/05/15 — main
 
 Refine collaboration and communication language across project documentation.

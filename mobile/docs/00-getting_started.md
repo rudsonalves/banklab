@@ -138,9 +138,9 @@ Relevant agent guides:
 - [mobile/lib/data/services/apis/AGENT.md](../lib/data/services/apis/AGENT.md): API services and DTOs
 - [mobile/lib/domain/AGENT.md](../lib/domain/AGENT.md): domain models and enums
 - [mobile/lib/domain/usecases/AGENT.md](../lib/domain/usecases/AGENT.md): use cases for complex workflows
-- [mobile/lib/uis/AGENT.md](../lib/uis/AGENT.md): UI layer
-- [mobile/lib/uis/pages/AGENT.md](../lib/uis/pages/AGENT.md): pages and view models
-- [mobile/lib/uis/core/AGENT.md](../lib/uis/core/AGENT.md): shared UI primitives
+- [mobile/lib/ui/AGENT.md](../lib/ui/AGENT.md): UI layer
+- [mobile/lib/ui/pages/AGENT.md](../lib/ui/pages/AGENT.md): pages and view models
+- [mobile/lib/ui/components/AGENT.md](../lib/ui/components/AGENT.md): shared UI components
 
 ---
 

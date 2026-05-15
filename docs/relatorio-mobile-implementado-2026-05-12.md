@@ -5,7 +5,7 @@ Escopo analisado: `mobile/` (código-fonte Flutter, camada de dados, roteamento,
 
 ## 1. Resumo Executivo
 
-O aplicativo mobile (BankFlow) está implementado em Flutter com arquitetura em camadas (core, data, domain e uis), injeção de dependências centralizada com `auto_injector`, navegação por `go_router`, comunicação HTTP via `dio` e persistência de sessão com `flutter_secure_storage`.
+O aplicativo mobile (BankFlow) está implementado em Flutter com arquitetura em camadas (core, data, domain e ui), injeção de dependências centralizada com `auto_injector`, navegação por `go_router`, comunicação HTTP via `dio` e persistência de sessão com `flutter_secure_storage`.
 
 As jornadas implementadas hoje cobrem:
 

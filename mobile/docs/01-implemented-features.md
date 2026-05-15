@@ -36,14 +36,14 @@ The current auth stack includes:
 - [AuthRepository](../lib/data/repositories/auth/auth_repository.dart)
 - [AuthRepositoryImpl](../lib/data/repositories/auth/auth_repository_impl.dart)
 - [AuthApi](../lib/data/services/auth/api/auth_api.dart)
-- [LoginPage](../lib/uis/pages/auth/login/login_page.dart)
-- [ShortLoginPage](../lib/uis/pages/auth/short_login/short_login_page.dart)
-- [RegisterPage](../lib/uis/pages/auth/register/register_page.dart)
-- [SplashPage](../lib/uis/pages/splash/splash_page.dart)
-- [LoginViewModel](../lib/uis/pages/auth/login/viewmodel/login_viewmodel.dart)
-- [ShortLoginViewModel](../lib/uis/pages/auth/short_login/viewmodel/short_login_viewmodel.dart)
-- [RegisterViewmodel](../lib/uis/pages/auth/register/viewmodel/register_viewmodel.dart)
-- [SplashViewModel](../lib/uis/pages/splash/viewmodel/splash_viewmodel.dart)
+- [LoginPage](../lib/ui/pages/auth/login/login_page.dart)
+- [ShortLoginPage](../lib/ui/pages/auth/short_login/short_login_page.dart)
+- [RegisterPage](../lib/ui/pages/auth/register/register_page.dart)
+- [SplashPage](../lib/ui/pages/splash/splash_page.dart)
+- [LoginViewModel](../lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart)
+- [ShortLoginViewModel](../lib/ui/pages/auth/short_login/viewmodel/short_login_viewmodel.dart)
+- [RegisterViewmodel](../lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart)
+- [SplashViewModel](../lib/ui/pages/splash/viewmodel/splash_viewmodel.dart)
 
 Implemented auth behavior:
 
@@ -80,12 +80,12 @@ Relevant files include:
 - [BalanceApi](../lib/data/services/apis/account/balance_api.dart)
 - [ListAccountsApi](../lib/data/services/apis/account/list_accounts_api.dart)
 - [StatementApi](../lib/data/services/apis/account/statement_api.dart)
-- [HomePage](../lib/uis/pages/home/home_page.dart)
-- [HomeViewModel](../lib/uis/pages/home/viewmodel/home_viewmodel.dart)
-- [StatementPage](../lib/uis/pages/statement/statement_page.dart)
-- [StatementViewModel](../lib/uis/pages/statement/viewmodel/statement_viewmodel.dart)
-- [DetailsPage](../lib/uis/pages/shared/details/details_page.dart)
-- [DetailsViewModel](../lib/uis/pages/shared/details/viewmodel/details_viewmodel.dart)
+- [HomePage](../lib/ui/pages/home/home_page.dart)
+- [HomeViewModel](../lib/ui/pages/home/viewmodel/home_viewmodel.dart)
+- [StatementPage](../lib/ui/pages/statement/statement_page.dart)
+- [StatementViewModel](../lib/ui/pages/statement/viewmodel/statement_viewmodel.dart)
+- [DetailsPage](../lib/ui/pages/shared/details/details_page.dart)
+- [DetailsViewModel](../lib/ui/pages/shared/details/viewmodel/details_viewmodel.dart)
 
 Implemented account behavior:
 
@@ -112,11 +112,11 @@ Relevant files include:
 - [TransactionRepositoryImpl](../lib/data/repositories/transaction/transaction_repository_impl.dart)
 - [ApiTransfer](../lib/data/services/apis/transfer/api_transfer.dart)
 - [ApiReceipt](../lib/data/services/apis/receipt/api_receipt.dart)
-- [TransferPage](../lib/uis/pages/home/transfer/transfer_recipient_page.dart)
-- [TransferConfirmationPage](../lib/uis/pages/home/transfer/transfer_confirmation_page.dart)
-- [TransferPaymentPage](../lib/uis/pages/home/transfer/transfer_payment_page.dart)
-- [TransferStatusPage](../lib/uis/pages/home/transfer/transfer_status_page.dart)
-- [TransferViewModel](../lib/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart)
+- [TransferPage](../lib/ui/pages/home/transfer/transfer_recipient_page.dart)
+- [TransferConfirmationPage](../lib/ui/pages/home/transfer/transfer_confirmation_page.dart)
+- [TransferPaymentPage](../lib/ui/pages/home/transfer/transfer_payment_page.dart)
+- [TransferStatusPage](../lib/ui/pages/home/transfer/transfer_status_page.dart)
+- [TransferViewModel](../lib/ui/pages/home/transfer/viewmodel/transfer_viewmodel.dart)
 
 Implemented transfer behavior:
 
@@ -179,6 +179,11 @@ Shared UI primitives already in use include:
 - account, balance, and recipient cards
 - `TransactionMovement` for transaction labels, signs, and colors
 
+These primitives live under `mobile/lib/ui/components`, which is also the staging
+area for a future internal mobile widget/feature package. Components should
+only move there when they are reusable, presentation-only, and not tied to a
+single page workflow.
+
 ## HTTP And Session Infrastructure
 
 The mobile app has a reusable HTTP layer around Dio:
@@ -236,7 +241,7 @@ The newly added approval-required handling is covered by focused tests in:
 
 - [dio_error_mapper_test.dart](../test/core/services/client_http/dio/dio_error_mapper_test.dart)
 - [auth_repository_impl_test.dart](../test/data/repositories/auth/auth_repository_impl_test.dart)
-- [login_feedback_behavior_test.dart](../test/uis/pages/auth/login_feedback_behavior_test.dart)
+- [login_feedback_behavior_test.dart](../test/ui/pages/auth/login_feedback_behavior_test.dart)
 
 ## Notes
 

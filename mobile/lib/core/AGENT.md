@@ -7,7 +7,7 @@ Use these instructions before creating or editing code under `mobile/lib/core`.
 ## Role In The Architecture
 
 `core` is the application's cross-cutting layer. It provides contracts, adapters,
-and plumbing used by `data`, `domain`, and `uis`, but it must not contain
+and plumbing used by `data`, `domain`, and `ui`, but it must not contain
 screen-specific rules or feature-specific business flows.
 
 Current architectural flow:
@@ -45,7 +45,7 @@ The `core` layer supports this flow with:
 
 - `core` may depend on infrastructure libraries such as Flutter, Dio, GoRouter,
   secure storage, and AutoInjector.
-- `core` must not depend on `data`, `domain`, or `uis`.
+- `core` must not depend on `data`, `domain`, or `ui`.
 - Shared contracts belong in `core`; concrete implementations belong in the
   appropriate subdirectory.
 - Avoid importing Dio details outside `services/client_http/dio` and
@@ -213,7 +213,7 @@ Avoid:
 - Be conservative: changes here have broad impact.
 - Preserve compatibility when practical.
 - Prefer small, additive changes over broad rewrites.
-- Check imports to keep `core` independent from `data`, `domain`, and `uis`.
+- Check imports to keep `core` independent from `data`, `domain`, and `ui`.
 - Update tests when changing Result, Command, HTTP, storage, config, or
   interceptor behavior.
 - Run at least the related tests under `mobile/test/core/...` when the change
