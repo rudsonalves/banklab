@@ -216,6 +216,6 @@ Login/ShortLogin -> login succeeds -> profile loads -> cache updates -> Home
 - Do not clear remembered login cache on `ACCOUNT_APPROVAL_REQUIRED`.
 - Add `AppErrorCode.accountApprovalRequired`.
 - Use `AppSnackbar` from
-  `mobile/lib/uis/core/messages/app_snackbar.dart` as the standard feedback
+  `mobile/lib/ui/components/messages/app_snackbar.dart` as the standard feedback
   mechanism for this message.
 - Blocked-user handling remains outside this backlog.

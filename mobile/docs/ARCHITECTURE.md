@@ -36,7 +36,7 @@ Current source root:
 
 Main layers:
 
-- UI layer: app shell, screens, widgets, view models, and shared UI primitives
+- UI layer: app shell, screens, widgets, view models, and shared UI components
 - Domain layer: app-facing models, enums, and use cases for complex workflows
 - Data layer: repositories, API services, DTOs, and data orchestration
 - Core layer: dependency injection, routing, HTTP client, secure storage,
@@ -67,7 +67,7 @@ Main layers:
   app-facing models and enums grouped by context
 - [mobile/lib/domain/usecases](../../mobile/lib/domain/usecases): use cases for
   complex application workflows
-- [mobile/lib/uis](../../mobile/lib/uis): app widget, pages, shared UI
+- [mobile/lib/ui](../../mobile/lib/ui): app widget, pages, shared UI
   primitives, themes, and view models
 - [mobile/test](../../mobile/test): unit and widget tests
 
@@ -83,9 +83,9 @@ code changes:
 - [mobile/lib/data/services/apis/AGENT.md](../../mobile/lib/data/services/apis/AGENT.md): API services and DTOs
 - [mobile/lib/domain/AGENT.md](../../mobile/lib/domain/AGENT.md): domain models and enums
 - [mobile/lib/domain/usecases/AGENT.md](../../mobile/lib/domain/usecases/AGENT.md): use cases
-- [mobile/lib/uis/AGENT.md](../../mobile/lib/uis/AGENT.md): UI layer
-- [mobile/lib/uis/pages/AGENT.md](../../mobile/lib/uis/pages/AGENT.md): pages and view models
-- [mobile/lib/uis/core/AGENT.md](../../mobile/lib/uis/core/AGENT.md): shared UI primitives
+- [mobile/lib/ui/AGENT.md](../../mobile/lib/ui/AGENT.md): UI layer
+- [mobile/lib/ui/pages/AGENT.md](../../mobile/lib/ui/pages/AGENT.md): pages and view models
+- [mobile/lib/ui/components/AGENT.md](../../mobile/lib/ui/components/AGENT.md): shared UI components
 
 ## Copilot Instructions Mirror (.github/instructions)
 
@@ -103,9 +103,9 @@ Current mobile instruction files:
 - [mobile-repositories.instructions.md](../../.github/instructions/mobile-repositories.instructions.md): repository rules under `mobile/lib/data/repositories/**`
 - [mobile-domain.instructions.md](../../.github/instructions/mobile-domain.instructions.md): domain model rules under `mobile/lib/domain/**`
 - [mobile-usecases.instructions.md](../../.github/instructions/mobile-usecases.instructions.md): use case rules under `mobile/lib/domain/usecases/**`
-- [mobile-uis.instructions.md](../../.github/instructions/mobile-uis.instructions.md): UI layer rules under `mobile/lib/uis/**`
-- [mobile-pages.instructions.md](../../.github/instructions/mobile-pages.instructions.md): page and view model rules under `mobile/lib/uis/pages/**`
-- [mobile-uis-core.instructions.md](../../.github/instructions/mobile-uis-core.instructions.md): shared UI primitives under `mobile/lib/uis/core/**`
+- [mobile-ui.instructions.md](../../.github/instructions/mobile-ui.instructions.md): UI layer rules under `mobile/lib/ui/**`
+- [mobile-pages.instructions.md](../../.github/instructions/mobile-pages.instructions.md): page and view model rules under `mobile/lib/ui/pages/**`
+- [mobile-ui-components.instructions.md](../../.github/instructions/mobile-ui-components.instructions.md): shared UI components under `mobile/lib/ui/components/**`
 
 Maintenance note:
 
@@ -120,7 +120,7 @@ At startup:
 1. [mobile/lib/main.dart](../../mobile/lib/main.dart) calls `setupDependencies`
 2. [mobile/lib/core/config/dependencies.dart](../../mobile/lib/core/config/dependencies.dart)
    registers all modules
-3. [mobile/lib/uis/app_widget.dart](../../mobile/lib/uis/app_widget.dart)
+3. [mobile/lib/ui/app_widget.dart](../../mobile/lib/ui/app_widget.dart)
    builds `MaterialApp.router`
 
 Current registration order in the injector:
@@ -180,7 +180,7 @@ Contains cross-cutting infrastructure:
 - Secure storage abstraction and implementation:
   [mobile/lib/core/services/secure_storage](../../mobile/lib/core/services/secure_storage)
 
-Core must not depend on `data`, `domain`, or `uis`.
+Core must not depend on `data`, `domain`, or `ui`.
 
 ### Data Layer
 
@@ -219,7 +219,7 @@ Account example:
 - Repository:
   [mobile/lib/data/repositories/account/account_repository_impl.dart](../../mobile/lib/data/repositories/account/account_repository_impl.dart)
 
-Data may depend on `core` and `domain`, but must not depend on `uis`.
+Data may depend on `core` and `domain`, but must not depend on `ui`.
 
 ### Domain Layer
 
@@ -252,19 +252,30 @@ Use case rules:
 Contains presentation and interaction state:
 
 - App shell:
-  [mobile/lib/uis/app_widget.dart](../../mobile/lib/uis/app_widget.dart)
+  [mobile/lib/ui/app_widget.dart](../../mobile/lib/ui/app_widget.dart)
 - UI dependency registration:
-  [mobile/lib/uis/viewmodels.dart](../../mobile/lib/uis/viewmodels.dart)
+  [mobile/lib/ui/viewmodels.dart](../../mobile/lib/ui/viewmodels.dart)
 - Pages and page view models:
-  [mobile/lib/uis/pages](../../mobile/lib/uis/pages)
+  [mobile/lib/ui/pages](../../mobile/lib/ui/pages)
 - Shared UI primitives:
-  [mobile/lib/uis/core](../../mobile/lib/uis/core)
+  [mobile/lib/ui/components](../../mobile/lib/ui/components)
+
+`mobile/lib/ui/components` is intentionally more than a folder for incidental shared
+widgets. It is the current staging area for reusable UI elements, formatting
+helpers, feedback patterns, cards, buttons, theme primitives, and small
+presentation features that may later become an internal widget/feature package
+for the mobile app.
+
+This does not mean every page widget should be promoted into `ui/components`. The
+folder should grow from repeated use, clear visual consistency needs, or
+feature-independent interaction patterns. Page-specific widgets should remain
+under `pages/<feature>/.../widgets` until reuse is clear.
 
 View model examples:
 
-- [mobile/lib/uis/pages/auth/login/viewmodel/login_viewmodel.dart](../../mobile/lib/uis/pages/auth/login/viewmodel/login_viewmodel.dart)
-- [mobile/lib/uis/pages/auth/register/viewmodel/register_viewmodel.dart](../../mobile/lib/uis/pages/auth/register/viewmodel/register_viewmodel.dart)
-- [mobile/lib/uis/pages/home/viewmodel/home_viewmodel.dart](../../mobile/lib/uis/pages/home/viewmodel/home_viewmodel.dart)
+- [mobile/lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart](../../mobile/lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart)
+- [mobile/lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart](../../mobile/lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart)
+- [mobile/lib/ui/pages/home/viewmodel/home_viewmodel.dart](../../mobile/lib/ui/pages/home/viewmodel/home_viewmodel.dart)
 
 UI rules:
 
@@ -274,7 +285,7 @@ UI rules:
 - Complex view models should inject use cases instead of coordinating multiple
   repositories directly
 - Pages should use
-  [AppSnackbar](../../mobile/lib/uis/core/messages/app_snackbar.dart) as the
+  [AppSnackbar](../../mobile/lib/ui/components/messages/app_snackbar.dart) as the
   standard mechanism for transient user-facing messages when snackbar feedback is
   appropriate
 - UI must not call API services, `RestClient`, or Dio directly

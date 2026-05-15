@@ -15,7 +15,7 @@ The app currently follows a layered structure:
 - `lib/core`: cross-cutting infrastructure and app plumbing
 - `lib/data`: APIs and repository implementations
 - `lib/domain`: app-facing models, enums, and use cases
-- `lib/uis`: pages, view models, themes, and UI building blocks
+- `lib/ui`: pages, view models, themes, and UI building blocks
 - `test`: unit tests for core services and adapters
 
 The practical flow in the current codebase is:
@@ -32,7 +32,7 @@ The practical flow in the current codebase is:
 - Match the naming and file placement already used by neighboring code.
 - Keep use case orchestration in `lib/domain/usecases` when a workflow spans multiple repositories or needs reusable application coordination.
 - Keep imports layer-appropriate:
-  - `uis` may depend on `data`, `domain`, and `core`
+  - `ui` may depend on `data`, `domain`, and `core`
   - `data` may depend on `domain` and `core`
   - `domain` should stay lightweight and framework-agnostic
 - Keep changes focused. Do not mix architectural rewrites into a feature task unless clearly requested.
@@ -49,7 +49,7 @@ The practical flow in the current codebase is:
 - Register new dependencies in the corresponding module entrypoint instead of instantiating them ad hoc in pages:
   - repositories in `lib/data/repositories.dart`
   - use cases in `lib/domain/usecases/usecases.dart`
-  - view models in `lib/uis/viewmodels.dart`
+  - view models in `lib/ui/viewmodels.dart`
 
 ## Routing
 
@@ -82,8 +82,8 @@ Check whether the project already has an established place for the change:
 - New HTTP contract: `lib/data/services/apis/...`
 - New repository behavior: `lib/data/repositories/...`
 - New app model/enum: `lib/domain/...`
-- New screen/view model: `lib/uis/pages/...`
-- New shared UI primitive: `lib/uis/core/...`
+- New screen/view model: `lib/ui/pages/...`
+- New shared UI primitive: `lib/ui/components/...`
 - New cross-cutting infra utility: `lib/core/...`
 
 ## Testing

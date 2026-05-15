@@ -143,7 +143,7 @@ Opinion: Injecting ViewModels at the routing boundary is a pragmatic choice. It 
 ### 5. Application Entry Point Refactor
 
 * Renamed `MainApp` to `AppWidget`
-* Moved it into `/uis`, reinforcing UI ownership
+* Moved it into `/ui`, reinforcing UI ownership
 * Introduced internal router instance (`GoRouter`) inside the widget
 * Replaced `home:` with `routerConfig`, aligning app initialization with navigation system
 
@@ -189,7 +189,7 @@ Opinion: Injecting ViewModels at the routing boundary is a pragmatic choice. It 
 
 * `HomePage` now receives `HomeViewmodel` via constructor
 * Ensures consistency with DI-driven UI pattern
-* Created centralized `uis.dart` for ViewModel registration
+* Created centralized `ui.dart` for ViewModel registration
 
 ### 9. Codebase Cleanup and Direction
 

@@ -83,7 +83,7 @@ mobile/
 |   |-- core/
 |   |-- data/
 |   |-- domain/
-|   `-- uis/
+|   `-- ui/
 |-- test/
 |-- android/
 |-- ios/
@@ -95,7 +95,7 @@ Dependency injection entrypoints currently live in:
 
 - `lib/data/repositories.dart`
 - `lib/domain/usecases/usecases.dart`
-- `lib/uis/viewmodels.dart`
+- `lib/ui/viewmodels.dart`
 
 ## Related docs
 

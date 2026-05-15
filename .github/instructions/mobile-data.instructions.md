@@ -56,7 +56,7 @@ Data may depend on:
 
 Data must not depend on:
 
-- `uis`
+- `ui`
 - pages, widgets, themes, or view models
 - `BuildContext`
 - GoRouter navigation behavior

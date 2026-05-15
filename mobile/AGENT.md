@@ -13,7 +13,7 @@ The app currently follows a layered structure:
 - `lib/domain`: domain root organized for growth
 - `lib/domain/common`: app-facing models and enums grouped by context
 - `lib/domain/usecases`: app workflow orchestration use cases
-- `lib/uis`: pages, view models, themes, and UI building blocks
+- `lib/ui`: pages, view models, themes, and UI building blocks
 - `test`: unit tests for core services and adapters
 
 The practical flow in the current codebase is:
@@ -30,7 +30,7 @@ The practical flow in the current codebase is:
 - Match the naming and file placement already used by neighboring code.
 - Avoid introducing a new “use case” layer unless the task explicitly includes that refactor. The architecture doc lists it as future work, not current structure.
 - Keep imports layer-appropriate:
-  - `uis` may depend on `data`, `domain`, and `core`
+  - `ui` may depend on `data`, `domain`, and `core`
   - `data` may depend on `domain` and `core`
   - `domain` should stay lightweight and framework-agnostic
 - Keep changes focused. Do not mix architectural rewrites into a feature task unless clearly requested.
@@ -77,8 +77,8 @@ Check whether the project already has an established place for the change:
 - New repository behavior: `lib/data/repositories/...`
 - New app model/enum: `lib/domain/common/<area>/{models|enums}/...`
 - New domain workflow orchestration: `lib/domain/usecases/...`
-- New screen/view model: `lib/uis/pages/...`
-- New shared UI primitive: `lib/uis/core/...`
+- New screen/view model: `lib/ui/pages/...`
+- New shared UI primitive: `lib/ui/components/...`
 - New cross-cutting infra utility: `lib/core/...`
 
 ## Testing

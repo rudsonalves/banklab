@@ -73,7 +73,7 @@ Show the approval-pending message on the full login screen when login fails with
 
 - Update the full login page error handling.
 - Use `AppSnackbar.show(...)` from
-  `mobile/lib/uis/core/messages/app_snackbar.dart`.
+  `mobile/lib/ui/components/messages/app_snackbar.dart`.
 - Show the approved copy for `AppErrorCode.accountApprovalRequired`.
 - Do not navigate to home on this error.
 - Do not show the invalid credentials message for this condition.

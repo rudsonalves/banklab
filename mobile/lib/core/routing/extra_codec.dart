@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import '../../data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '../../data/services/auth/cache/models/last_login_identity.dart';
-import '../../uis/pages/home/transfer/models/transfer_confirmation_data.dart';
+import '../../ui/pages/home/transfer/models/transfer_confirmation_data.dart';
 
 class ExtraCodec extends Codec<Object?, String> {
   const ExtraCodec();

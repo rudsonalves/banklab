@@ -1,12 +1,12 @@
 import 'package:go_router/go_router.dart';
 
 import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
-import '/uis/pages/home/transfer/models/transfer_confirmation_data.dart';
-import '/uis/pages/home/transfer/transfer_confirmation_page.dart';
-import '/uis/pages/home/transfer/transfer_payment_page.dart';
-import '/uis/pages/home/transfer/transfer_recipient_page.dart';
-import '/uis/pages/home/transfer/transfer_status_page.dart';
-import '/uis/pages/home/transfer/viewmodel/transfer_viewmodel.dart';
+import '/ui/pages/home/transfer/models/transfer_confirmation_data.dart';
+import '/ui/pages/home/transfer/transfer_confirmation_page.dart';
+import '/ui/pages/home/transfer/transfer_payment_page.dart';
+import '/ui/pages/home/transfer/transfer_recipient_page.dart';
+import '/ui/pages/home/transfer/transfer_status_page.dart';
+import '/ui/pages/home/transfer/viewmodel/transfer_viewmodel.dart';
 import '../../config/dependencies.dart';
 import '../routes.dart';
 

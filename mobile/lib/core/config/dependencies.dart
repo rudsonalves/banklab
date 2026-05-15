@@ -2,7 +2,7 @@ import 'package:auto_injector/auto_injector.dart';
 
 import '../../data/repositories.dart';
 import '/data/services/services.dart';
-import '../../uis/viewmodels.dart';
+import '../../ui/viewmodels.dart';
 import '../../domain/usecases/usecases.dart';
 import '../services/core_services.dart';
 
