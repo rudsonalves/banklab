@@ -1,5 +1,139 @@
 # Changelog
 
+## 2026/05/18 - api/pre-onboarding-03
+
+Implemented the first pre-onboarding contact verification flow, introducing a dedicated verification lifecycle for email and phone channels before user registration completion.
+
+### Added contact verification domain model and repository contracts
+
+* Introduced the `ContactVerification` entity with:
+
+  * verification channel normalization
+  * expiration handling
+  * verification token support
+  * validation rules for email and phone channels
+* Added `ContactVerificationRepository` interface to the auth domain layer.
+* Expanded auth domain errors with:
+
+  * `ErrContactVerificationNotFound`
+  * `ErrInvalidVerificationToken`
+  * `ErrContactVerificationExpired`
+
+### Implemented contact verification use cases
+
+Added two new application use cases:
+
+1. `RequestContactVerificationUseCase`
+2. `ConfirmContactVerificationUseCase`
+
+Main behaviors implemented:
+
+* generation of secure numeric verification tokens
+* verification expiration control with TTL
+* verification token issuance after successful confirmation
+* validation of verification channel and target
+* verification state validation before confirmation
+
+The implementation also introduced:
+
+* cryptographically secure numeric token generation
+* UTC-based deterministic time handling
+* normalized channel processing (`email` and `phone`)
+
+### Added PostgreSQL contact verification repository
+
+Implemented `PostgresContactVerificationRepository` with support for:
+
+* verification creation
+* lookup by verification ID
+* verification confirmation persistence
+* transaction-aware executor support
+* nullable verification metadata mapping
+* PostgreSQL constraint error translation to domain errors
+
+### Added database migration for contact verifications
+
+Created migration `000007_contact_verifications` with:
+
+* `contact_verifications` table
+* channel constraint validation
+* target/channel lookup index
+* unique verification token index
+* expiration and verification metadata fields
+
+### Integrated pre-onboarding verification into API bootstrap
+
+Updated `cmd/api/main.go` to:
+
+* instantiate the new repository
+* wire the new use cases
+* inject verification flows into the auth handler
+* expose new onboarding endpoints
+
+New endpoints added:
+
+* `POST /auth/contact-verifications`
+* `POST /auth/contact-verifications/confirm`
+
+Both endpoints are protected with the existing `AppToken` middleware, preserving the onboarding boundary architecture already established in the authentication model. 
+
+### Extended auth delivery layer
+
+Updated the auth handler to support:
+
+* request payload parsing
+* verification confirmation parsing
+* UUID validation
+* response serialization
+* centralized error mapping
+* structured error logging
+
+Added dedicated request DTOs for:
+
+* contact verification request
+* contact verification confirmation
+
+### Expanded automated test coverage
+
+Added comprehensive unit coverage for:
+
+* successful verification request flow
+* invalid verification input
+* successful verification confirmation
+* invalid verification token handling
+
+Expanded HTTP handler tests for:
+
+* request endpoint success path
+* confirmation endpoint success path
+* response payload validation
+* request parsing validation
+
+Updated existing integration wiring tests to support the expanded auth handler constructor.
+
+### Architectural impact
+
+This commit establishes the first reusable onboarding verification primitive inside the authentication module.
+
+The implementation keeps the architecture aligned with the current layered modular monolith approach:
+
+* delivery → application → domain
+* infrastructure → domain
+
+while preserving explicit runtime composition through `cmd/api/main.go`. 
+
+This also creates the foundation for future onboarding flows such as:
+
+* email ownership validation
+* phone validation
+* transactional onboarding checkpoints
+* device registration
+* Zero Trust onboarding signals
+* multi-step identity verification workflows
+
+The solution was intentionally implemented as an isolated verification lifecycle instead of coupling verification state directly into the user entity, allowing future reuse across independent onboarding and security flows.
+
+
 ## 2026/05/18 — api/pre-onboarding-02
 
 This commit advances the pre-onboarding cadastral redesign by introducing the first structural migrations for contact verification, customer documents, and customer addresses, while also formalizing the migration strategy and implementation backlog for the new onboarding model.

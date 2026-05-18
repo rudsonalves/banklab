@@ -49,6 +49,7 @@ func main() {
 
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
 	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
+	contactVerificationRepo := authInfrastructure.NewPostgresContactVerificationRepository(db)
 	transactor := authInfrastructure.NewPostgresTransactor(db)
 
 	// ======================
@@ -76,6 +77,8 @@ func main() {
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
+	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo)
+	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
 	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
@@ -86,7 +89,14 @@ func main() {
 	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC, lookupInternalTransferRecipientsUC)
 	statementHandler := statementDelivery.New(statementUC)
 	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC, transferReceiptUC)
-	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
+	authHandler := authDelivery.New(
+		registerUserUC,
+		loginUserUC,
+		getCurrentUserUC,
+		refreshAccessTokenUC,
+		requestContactVerificationUC,
+		confirmContactVerificationUC,
+	)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
 
@@ -106,6 +116,8 @@ func main() {
 	authRouter := http.NewServeMux()
 
 	// Onboarding (AppToken)
+	authRouter.Handle("POST /auth/contact-verifications", appTokenMiddleware(http.HandlerFunc(authHandler.RequestContactVerification)))
+	authRouter.Handle("POST /auth/contact-verifications/confirm", appTokenMiddleware(http.HandlerFunc(authHandler.ConfirmContactVerification)))
 	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))
 	authRouter.Handle("POST /auth/login", appTokenMiddleware(http.HandlerFunc(authHandler.Login)))
 

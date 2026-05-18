@@ -23,6 +23,12 @@ type UserRepository interface {
 	FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*User, error)
 }
 
+type ContactVerificationRepository interface {
+	CreateContactVerification(ctx context.Context, verification *ContactVerification) error
+	FindContactVerificationByID(ctx context.Context, id uuid.UUID) (*ContactVerification, error)
+	ConfirmContactVerification(ctx context.Context, id uuid.UUID, verificationToken string, verifiedAt time.Time) error
+}
+
 type PasswordHasher interface {
 	Hash(password string) (string, error)
 	Compare(hash string, password string) error

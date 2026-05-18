@@ -30,11 +30,21 @@ type refreshAccessTokenUseCase interface {
 	Execute(ctx context.Context, input application.RefreshAccessTokenInput) (*application.RefreshAccessTokenOutput, error)
 }
 
+type requestContactVerificationUseCase interface {
+	Execute(ctx context.Context, input application.RequestContactVerificationInput) (*application.RequestContactVerificationOutput, error)
+}
+
+type confirmContactVerificationUseCase interface {
+	Execute(ctx context.Context, input application.ConfirmContactVerificationInput) (*application.ConfirmContactVerificationOutput, error)
+}
+
 type Handler struct {
-	registerUser       registerUserUseCase
-	loginUser          loginUserUseCase
-	getCurrentUser     getCurrentUserUseCase
-	refreshAccessToken refreshAccessTokenUseCase
+	registerUser               registerUserUseCase
+	loginUser                  loginUserUseCase
+	getCurrentUser             getCurrentUserUseCase
+	refreshAccessToken         refreshAccessTokenUseCase
+	requestContactVerification requestContactVerificationUseCase
+	confirmContactVerification confirmContactVerificationUseCase
 }
 
 type registerUserRequest struct {
@@ -52,6 +62,16 @@ type loginUserRequest struct {
 
 type refreshAccessTokenRequest struct {
 	RefreshToken string `json:"refresh_token"`
+}
+
+type requestContactVerificationRequest struct {
+	Channel string `json:"channel"`
+	Target  string `json:"target"`
+}
+
+type confirmContactVerificationRequest struct {
+	VerificationID string `json:"verification_id"`
+	Token          string `json:"token"`
 }
 
 type userData struct {
@@ -83,12 +103,16 @@ func New(
 	loginUser loginUserUseCase,
 	getCurrentUser getCurrentUserUseCase,
 	refreshAccessToken refreshAccessTokenUseCase,
+	requestContactVerification requestContactVerificationUseCase,
+	confirmContactVerification confirmContactVerificationUseCase,
 ) *Handler {
 	return &Handler{
-		registerUser:       registerUser,
-		loginUser:          loginUser,
-		getCurrentUser:     getCurrentUser,
-		refreshAccessToken: refreshAccessToken,
+		registerUser:               registerUser,
+		loginUser:                  loginUser,
+		getCurrentUser:             getCurrentUser,
+		refreshAccessToken:         refreshAccessToken,
+		requestContactVerification: requestContactVerification,
+		confirmContactVerification: confirmContactVerification,
 	}
 }
 
@@ -142,6 +166,62 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Role:       output.Role,
 		CustomerID: output.CustomerID,
 	})
+}
+
+func (h *Handler) RequestContactVerification(w http.ResponseWriter, r *http.Request) {
+	if h.requestContactVerification == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	var req requestContactVerificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	output, err := h.requestContactVerification.Execute(r.Context(), application.RequestContactVerificationInput{
+		Channel: req.Channel,
+		Target:  req.Target,
+	})
+	if err != nil {
+		log.Printf("event=request_contact_verification error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusCreated, output)
+}
+
+func (h *Handler) ConfirmContactVerification(w http.ResponseWriter, r *http.Request) {
+	if h.confirmContactVerification == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	var req confirmContactVerificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	verificationID, err := uuid.Parse(strings.TrimSpace(req.VerificationID))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	output, err := h.confirmContactVerification.Execute(r.Context(), application.ConfirmContactVerificationInput{
+		VerificationID: verificationID,
+		Token:          req.Token,
+	})
+	if err != nil {
+		log.Printf("event=confirm_contact_verification error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, output)
 }
 
 // isValidRegisterRequest validates the registration request by checking if all

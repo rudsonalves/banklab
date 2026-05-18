@@ -94,4 +94,25 @@ func RegisterErrors() {
 		"User is already active",
 		http.StatusConflict,
 	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrContactVerificationNotFound,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrInvalidVerificationToken,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrContactVerificationExpired,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
 }

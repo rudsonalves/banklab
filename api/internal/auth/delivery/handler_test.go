@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
@@ -57,6 +58,38 @@ type refreshAccessTokenUseCaseMock struct {
 	called bool
 }
 
+type requestContactVerificationUseCaseMock struct {
+	output *application.RequestContactVerificationOutput
+	err    error
+	input  application.RequestContactVerificationInput
+	called bool
+}
+
+func (m *requestContactVerificationUseCaseMock) Execute(
+	ctx context.Context,
+	input application.RequestContactVerificationInput,
+) (*application.RequestContactVerificationOutput, error) {
+	m.called = true
+	m.input = input
+	return m.output, m.err
+}
+
+type confirmContactVerificationUseCaseMock struct {
+	output *application.ConfirmContactVerificationOutput
+	err    error
+	input  application.ConfirmContactVerificationInput
+	called bool
+}
+
+func (m *confirmContactVerificationUseCaseMock) Execute(
+	ctx context.Context,
+	input application.ConfirmContactVerificationInput,
+) (*application.ConfirmContactVerificationOutput, error) {
+	m.called = true
+	m.input = input
+	return m.output, m.err
+}
+
 func (m *refreshAccessTokenUseCaseMock) Execute(ctx context.Context, input application.RefreshAccessTokenInput) (*application.RefreshAccessTokenOutput, error) {
 	m.called = true
 	m.input = input
@@ -74,7 +107,7 @@ func TestHandler_Register_Success(t *testing.T) {
 			CustomerID: &customerID,
 		},
 	}
-	handler := New(registerUC, nil, nil, nil)
+	handler := New(registerUC, nil, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
@@ -131,9 +164,116 @@ func TestHandler_Register_Success(t *testing.T) {
 	}
 }
 
+func TestHandler_RequestContactVerification_Success(t *testing.T) {
+	verificationID := uuid.New()
+	expiresAt := time.Date(2026, 5, 18, 12, 10, 0, 0, time.UTC)
+	requestUC := &requestContactVerificationUseCaseMock{
+		output: &application.RequestContactVerificationOutput{
+			VerificationID: verificationID,
+			Channel:        "email",
+			Target:         "user@example.com",
+			Token:          "123456",
+			ExpiresAt:      expiresAt,
+		},
+	}
+	handler := New(nil, nil, nil, nil, requestUC, nil)
+	req := httptest.NewRequest(http.MethodPost, "/auth/contact-verifications", strings.NewReader(`{"channel":"email","target":"user@example.com"}`))
+	rec := httptest.NewRecorder()
+
+	handler.RequestContactVerification(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, rec.Code)
+	}
+	if !requestUC.called {
+		t.Fatal("expected use case to be called")
+	}
+	if requestUC.input.Channel != "email" {
+		t.Fatalf("expected channel email, got %q", requestUC.input.Channel)
+	}
+	if requestUC.input.Target != "user@example.com" {
+		t.Fatalf("expected target user@example.com, got %q", requestUC.input.Target)
+	}
+
+	var got struct {
+		Data struct {
+			VerificationID string `json:"verification_id"`
+			Channel        string `json:"channel"`
+			Target         string `json:"target"`
+			Token          string `json:"token"`
+		} `json:"data"`
+		Error any `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Data.VerificationID != verificationID.String() {
+		t.Fatalf("expected verification ID %q, got %q", verificationID.String(), got.Data.VerificationID)
+	}
+	if got.Data.Token != "123456" {
+		t.Fatalf("expected token %q, got %q", "123456", got.Data.Token)
+	}
+	if got.Error != nil {
+		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
+}
+
+func TestHandler_ConfirmContactVerification_Success(t *testing.T) {
+	verificationID := uuid.New()
+	verifiedAt := time.Date(2026, 5, 18, 12, 5, 0, 0, time.UTC)
+	confirmUC := &confirmContactVerificationUseCaseMock{
+		output: &application.ConfirmContactVerificationOutput{
+			VerificationToken: "verified-token",
+			Channel:           "phone",
+			Target:            "+5511999999999",
+			VerifiedAt:        verifiedAt,
+		},
+	}
+	handler := New(nil, nil, nil, nil, nil, confirmUC)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/auth/contact-verifications/confirm",
+		strings.NewReader(`{"verification_id":"`+verificationID.String()+`","token":"123456"}`),
+	)
+	rec := httptest.NewRecorder()
+
+	handler.ConfirmContactVerification(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+	if !confirmUC.called {
+		t.Fatal("expected use case to be called")
+	}
+	if confirmUC.input.VerificationID != verificationID {
+		t.Fatalf("expected verification ID %v, got %v", verificationID, confirmUC.input.VerificationID)
+	}
+	if confirmUC.input.Token != "123456" {
+		t.Fatalf("expected token %q, got %q", "123456", confirmUC.input.Token)
+	}
+
+	var got struct {
+		Data struct {
+			VerificationToken string `json:"verification_token"`
+			Channel           string `json:"channel"`
+			Target            string `json:"target"`
+		} `json:"data"`
+		Error any `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Data.VerificationToken != "verified-token" {
+		t.Fatalf("expected verification token %q, got %q", "verified-token", got.Data.VerificationToken)
+	}
+	if got.Error != nil {
+		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
+}
+
 func TestHandler_Register_UserAlreadyExists(t *testing.T) {
 	registerUC := &registerUserUseCaseMock{err: domain.ErrEmailAlreadyExists}
-	handler := New(registerUC, nil, nil, nil)
+	handler := New(registerUC, nil, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
@@ -193,7 +333,7 @@ func TestHandler_Register_InvalidInput(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			registerUC := &registerUserUseCaseMock{}
-			handler := New(registerUC, nil, nil, nil)
+			handler := New(registerUC, nil, nil, nil, nil, nil)
 			req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(tc.body))
 			rec := httptest.NewRecorder()
 
@@ -237,7 +377,7 @@ func TestHandler_Login_Success(t *testing.T) {
 			CustomerID:   &customerID,
 		},
 	}
-	handler := New(nil, loginUC, nil, nil)
+	handler := New(nil, loginUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
 	rec := httptest.NewRecorder()
 
@@ -286,7 +426,7 @@ func TestHandler_Login_Success(t *testing.T) {
 
 func TestHandler_Login_InvalidCredentials(t *testing.T) {
 	loginUC := &loginUserUseCaseMock{err: domain.ErrInvalidCredentials}
-	handler := New(nil, loginUC, nil, nil)
+	handler := New(nil, loginUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"wrong"}`))
 	rec := httptest.NewRecorder()
 
@@ -313,7 +453,7 @@ func TestHandler_Login_InvalidCredentials(t *testing.T) {
 
 func TestHandler_Login_AccountApprovalRequired(t *testing.T) {
 	loginUC := &loginUserUseCaseMock{err: domain.ErrAccountApprovalRequired}
-	handler := New(nil, loginUC, nil, nil)
+	handler := New(nil, loginUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
 	rec := httptest.NewRecorder()
 
@@ -353,7 +493,7 @@ func TestHandler_Refresh_Success(t *testing.T) {
 		AccessToken:  "new-access-token",
 		RefreshToken: "new-refresh-token",
 	}}
-	handler := New(nil, nil, nil, refreshUC)
+	handler := New(nil, nil, nil, refreshUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"valid-refresh-token"}`))
 	rec := httptest.NewRecorder()
 
@@ -398,7 +538,7 @@ func TestHandler_Refresh_Success(t *testing.T) {
 
 func TestHandler_Refresh_InvalidToken(t *testing.T) {
 	refreshUC := &refreshAccessTokenUseCaseMock{err: domain.ErrInvalidToken}
-	handler := New(nil, nil, nil, refreshUC)
+	handler := New(nil, nil, nil, refreshUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"bad-token"}`))
 	rec := httptest.NewRecorder()
 
@@ -425,7 +565,7 @@ func TestHandler_Refresh_InvalidToken(t *testing.T) {
 
 func TestHandler_Me_Unauthorized(t *testing.T) {
 	currentUserUC := &getCurrentUserUseCaseMock{err: domain.ErrUnauthorized}
-	handler := New(nil, nil, currentUserUC, nil)
+	handler := New(nil, nil, currentUserUC, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	rec := httptest.NewRecorder()
 

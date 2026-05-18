@@ -1,0 +1,157 @@
+package infrastructure
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	"github.com/seu-usuario/bank-api/internal/database"
+)
+
+type PostgresContactVerificationRepository struct {
+	db *pgxpool.Pool
+}
+
+var _ domain.ContactVerificationRepository = (*PostgresContactVerificationRepository)(nil)
+
+func NewPostgresContactVerificationRepository(db *pgxpool.Pool) *PostgresContactVerificationRepository {
+	return &PostgresContactVerificationRepository{db: db}
+}
+
+func (r *PostgresContactVerificationRepository) executor(ctx context.Context) dbExecutor {
+	if tx, ok := database.TxFromContext(ctx); ok {
+		return tx
+	}
+
+	return r.db
+}
+
+func (r *PostgresContactVerificationRepository) CreateContactVerification(
+	ctx context.Context,
+	verification *domain.ContactVerification,
+) error {
+	query := `
+		INSERT INTO contact_verifications (
+			id,
+			channel,
+			target,
+			token,
+			expires_at,
+			created_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+
+	_, err := r.executor(ctx).Exec(
+		ctx,
+		query,
+		verification.ID,
+		string(verification.Channel),
+		verification.Target,
+		verification.Token,
+		verification.ExpiresAt,
+		verification.CreatedAt,
+	)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23514" {
+			return domain.ErrInvalidData
+		}
+
+		return fmt.Errorf("create contact verification: %w", err)
+	}
+
+	return nil
+}
+
+func (r *PostgresContactVerificationRepository) FindContactVerificationByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*domain.ContactVerification, error) {
+	query := `
+		SELECT
+			id,
+			channel,
+			target,
+			token,
+			verification_token,
+			verified_at,
+			expires_at,
+			created_at
+		FROM contact_verifications
+		WHERE id = $1
+	`
+
+	verification, err := scanContactVerification(r.executor(ctx).QueryRow(ctx, query, id))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("find contact verification by id: %w", err)
+	}
+
+	return verification, nil
+}
+
+func (r *PostgresContactVerificationRepository) ConfirmContactVerification(
+	ctx context.Context,
+	id uuid.UUID,
+	verificationToken string,
+	verifiedAt time.Time,
+) error {
+	query := `
+		UPDATE contact_verifications
+		SET verification_token = $1,
+		    verified_at = $2
+		WHERE id = $3
+	`
+
+	result, err := r.executor(ctx).Exec(ctx, query, verificationToken, verifiedAt, id)
+	if err != nil {
+		return fmt.Errorf("confirm contact verification: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return domain.ErrContactVerificationNotFound
+	}
+
+	return nil
+}
+
+func scanContactVerification(s scanner) (*domain.ContactVerification, error) {
+	var verification domain.ContactVerification
+	var channel string
+	var verificationToken sql.NullString
+	var verifiedAt sql.NullTime
+
+	err := s.Scan(
+		&verification.ID,
+		&channel,
+		&verification.Target,
+		&verification.Token,
+		&verificationToken,
+		&verifiedAt,
+		&verification.ExpiresAt,
+		&verification.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	verification.Channel = domain.ContactVerificationChannel(channel)
+	if verificationToken.Valid {
+		verification.VerificationToken = &verificationToken.String
+	}
+	if verifiedAt.Valid {
+		verification.VerifiedAt = &verifiedAt.Time
+	}
+
+	return &verification, nil
+}
