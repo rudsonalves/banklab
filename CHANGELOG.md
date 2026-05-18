@@ -1,5 +1,122 @@
 # Changelog
 
+## 2026/05/18 — mobile/pre-onboarding-01
+
+This commit introduces the first mobile foundation for the new pre-onboarding flow with contact verification support. The work aligns the Flutter client with the updated authentication contract from the API, where users must verify both e-mail and phone before completing registration.
+
+A major focus of this commit was the backlog reorganization and the creation of a dedicated mobile onboarding specification covering the new multi-step registration journey.
+
+### Documentation and backlog restructuring
+
+1. Reorganized onboarding backlog numbering and lifecycle
+
+   * Renamed API onboarding backlog identifiers to maintain sequence consistency.
+   * Moved completed pre-onboarding backlog items into the `done/` directory.
+   * Preserved historical references and backlog traceability.
+
+2. Added the mobile pre-onboarding specification
+
+   * Created:
+
+     * `docs/backlogs/mobile/009 - pre_onboarding_contact_verification.md`
+     * `docs/backlogs/mobile/009 - pre_onboarding_contact_verification_tasks.md`
+   * Documented:
+
+     * new API contracts;
+     * contact verification flow;
+     * UI and ViewModel responsibilities;
+     * login behavior for `CONTACT_NOT_VERIFIED`;
+     * DTO and repository expectations;
+     * acceptance criteria for all implementation phases.
+   * Defined the complete multi-step registration journey:
+
+     * e-mail verification;
+     * phone verification;
+     * birth date collection;
+     * final registration with verification tokens.
+   * Added a structured task breakdown with dependency mapping for incremental implementation.
+
+### Mobile auth API integration
+
+3. Added contact verification support to `AuthApi`
+
+   * Implemented:
+
+     * `requestContactVerification()`
+     * `confirmContactVerification()`
+   * Added integration with:
+
+     * `POST /auth/contact-verifications`
+     * `POST /auth/contact-verifications/confirm`
+   * Added `X-App-Token` propagation for onboarding endpoints.
+   * Added HTTP status validation and envelope parsing.
+   * Preserved the existing `Result<AppError>` flow.
+   * Added structured logging for:
+
+     * request failures;
+     * API envelope failures;
+     * parsing failures.
+   * Added development-mode debug logging for returned verification tokens.
+
+### Contact verification DTOs
+
+4. Added request and response DTOs for contact verification
+
+   * Created:
+
+     * `ContactVerificationRequestDto`
+     * `ContactVerificationRequestResponseDto`
+     * `ContactVerificationConfirmRequestDto`
+     * `ContactVerificationConfirmResponseDto`
+   * Added:
+
+     * request serialization;
+     * response parsing;
+     * verification token mapping;
+     * ISO datetime parsing for expiration and verification timestamps.
+
+### Automated tests
+
+5. Added DTO unit tests
+
+   * Added serialization and parsing coverage for all new DTOs.
+   * Validated:
+
+     * request payload generation;
+     * verification response parsing;
+     * datetime conversion behavior.
+
+6. Added `AuthApi` integration-oriented tests
+
+   * Added coverage for:
+
+     * request verification endpoint;
+     * confirmation endpoint;
+     * API error envelope mapping;
+     * `X-App-Token` propagation;
+     * request body generation.
+   * Added fake REST client infrastructure for isolated testing.
+
+### Architectural alignment
+
+7. Advanced the mobile onboarding architecture toward the new API contract
+
+   * Established the initial infrastructure required for:
+
+     * multi-step onboarding;
+     * pre-registration verification;
+     * channel-specific verification handling;
+     * future onboarding orchestration in `RegisterViewmodel`.
+   * Prepared the mobile layer for upcoming support of:
+
+     * `CONTACT_NOT_VERIFIED`;
+     * `error.details`;
+     * redesigned registration UI;
+     * onboarding state management.
+
+This commit represents the first operational mobile step toward the new onboarding model and establishes the API integration base required for the future multi-stage registration experience.
+
+
 ## 2026/05/18 — api/pre-onboarding-06
 
 This commit advances the pre-onboarding and authentication flow by introducing contact verification enforcement during login, removing the remaining direct CPF dependency from the `customers` table, and consolidating document handling through `customer_documents`.
