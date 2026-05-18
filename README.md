@@ -1,15 +1,21 @@
 # BankLab
 
-BankLab é um monorepo de estudo e construção de um sistema bancário simplificado, com foco em **consistência transacional**, **regras de negócio explícitas** e **boas práticas de arquitetura**.
+BankLab é um laboratório open source para estudar e praticar engenharia aplicada a sistemas financeiros, unindo **backend em Go**, **app mobile em Flutter**, **consistência transacional**, **onboarding** e evolução futura para **Zero Trust Architecture**.
 
-A ideia central do projeto é tratar movimentações financeiras como a fonte da verdade. O saldo de uma conta não é apenas um número solto: ele deve ser consequência dos registros no ledger, persistidos na tabela `transactions`.
+![BankLab](docs/images/Capa_BankLab_LinkedIn_v3.png)
 
-O projeto tem duas aplicações principais:
+O projeto nasceu de uma lacuna prática: depois de estudar Zero Trust em aplicações financeiras, faltava um ambiente próprio onde fosse possível transformar pesquisa, artigos e decisões arquiteturais em implementação real, com tempo para errar, revisar, documentar e amadurecer o desenho.
+
+Um domínio bancário, mesmo simplificado, é uma boa base para esse tipo de estudo porque obriga a lidar com problemas que aparecem em sistemas reais: identidade, autenticação, aprovação de usuários, movimentações financeiras, rastreabilidade, contratos de API, integração mobile/backend e fluxos de cadastro que não podem ser tratados como simples formulários.
+
+A ideia central do BankLab é tratar movimentações financeiras como fonte da verdade. O saldo de uma conta não é apenas um número solto: ele deve ser consequência dos registros no ledger, persistidos na tabela `transactions`.
+
+O projeto, atualmente, possui duas aplicações principais:
 
 - **API em Go**: implementa o núcleo bancário, incluindo autenticação, clientes, contas e movimentações financeiras.
 - **Mobile em Flutter**: consome a API e valida fluxos ponta a ponta de autenticação, contas e transações.
 
-Este repositório ainda está em evolução. A proposta é que ele sirva como um laboratório prático para pessoas que querem estudar backend, mobile, testes, produto financeiro e colaboração em um projeto com cara de sistema real.
+Este repositório ainda está em evolução. A proposta é que ele sirva como um laboratório prático para estudar backend, mobile, testes, produto financeiro, documentação técnica e colaboração em um projeto com cara de sistema real.
 
 ## Objetivo
 
@@ -36,15 +42,15 @@ O foco não é ter muitas funcionalidades rapidamente. O foco é construir pouco
 
 ## Escopo atual
 
-| Domínio | Responsabilidades |
-| --- | --- |
-| Autenticação | registro, login, refresh token, usuário atual e controle por JWT |
-| Usuários | cadastro, estado de aprovação e fluxo administrativo |
-| Clientes | criação automática a partir do usuário, CPF e email |
-| Contas | abertura, listagem, consulta de saldo e ciclo de vida |
-| Ledger | depósito, saque, transferência interna e histórico de movimentações |
-| Extrato | listagem paginada de transações por conta |
-| Mobile | experiência Flutter integrada com a API |
+| Domínio      | Responsabilidades                                                   |
+| ------------ | ------------------------------------------------------------------- |
+| Autenticação | registro, login, refresh token, usuário atual e controle por JWT    |
+| Usuários     | cadastro, estado de aprovação e fluxo administrativo                |
+| Clientes     | criação automática a partir do usuário, CPF e email                 |
+| Contas       | abertura, listagem, consulta de saldo e ciclo de vida               |
+| Ledger       | depósito, saque, transferência interna e histórico de movimentações |
+| Extrato      | listagem paginada de transações por conta                           |
+| Mobile       | experiência Flutter integrada com a API                             |
 
 ## Fora do escopo por enquanto
 
@@ -87,13 +93,20 @@ Esses pontos podem aparecer no roadmap futuro, mas a base precisa ficar sólida 
 
 ```text
 banklab/
-|-- api/                 # Backend em Go
-|-- mobile/              # App Flutter BankFlow
-|-- docs/                # Roadmap, backlogs, decisões e relatórios
-|-- infra/               # Scripts e configurações de infraestrutura
-|-- tools/postman/       # Coleções e apoio para testar a API
-|-- docker-compose.yml   # PostgreSQL local
-`-- Makefile             # Atalhos de desenvolvimento
+├── CHANGELOG.md       # Registro de mudanças no projeto
+├── CONTRIBUTING.md    # Diretrizes para contribuições
+├── LICENSE            # Licença do projeto
+├── Makefile           # Atalhos de desenvolvimento
+├── README.md          # Documentação principal em português
+├── README_en.md       # Documentação principal em inglês
+├── api/               # Backend em Go
+├── docker-compose.yml # Configuração PostgreSQL local
+├── docs/              # Roadmap, backlogs, decisões e relatórios
+├── infra/             # Scripts e configurações de infraestrutura
+├── mobile/            # App Flutter BankFlow
+├── packages/          # Futuro repositório de pacotes auxiliares
+├── templates/         # Templates do pandoc
+└── tools/postman/     # Coleções e apoio para testar a API
 ```
 
 ## O que já existe
