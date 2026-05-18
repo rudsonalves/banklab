@@ -13,6 +13,12 @@ import 'viewmodel/short_login_viewmodel.dart';
 
 const _accountApprovalRequiredMessage =
     'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar sua conta.';
+const _contactNotVerifiedGenericMessage =
+    'Confirme seu e-mail e telefone antes de entrar.';
+const _contactNotVerifiedEmailOnlyMessage =
+    'Confirme seu e-mail antes de entrar.';
+const _contactNotVerifiedPhoneOnlyMessage =
+    'Confirme seu telefone antes de entrar.';
 
 class ShortLoginPage extends StatefulWidget {
   final ShortLoginViewModel viewModel;
@@ -193,9 +199,7 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
     if (loginCommand.isFailure) {
       final error = loginCommand.error;
-      final message = error?.code == AppErrorCode.accountApprovalRequired
-          ? _accountApprovalRequiredMessage
-          : error?.message ?? 'Falha ao autenticar.';
+      final message = _resolveLoginErrorMessage(error);
 
       AppSnackbar.show(
         context,
@@ -218,6 +222,38 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
     if (!mounted) return;
     context.goNamed(BaseRoutes.home.name);
+  }
+
+  String _resolveLoginErrorMessage(AppError? error) {
+    if (error == null) return 'Falha ao autenticar.';
+
+    if (error.code == AppErrorCode.accountApprovalRequired) {
+      return _accountApprovalRequiredMessage;
+    }
+
+    if (error.code == AppErrorCode.contactNotVerified) {
+      final details = error.details;
+      if (details is Map<String, dynamic>) {
+        final emailVerified = details['email_verified'];
+        final phoneVerified = details['phone_verified'];
+
+        if (emailVerified == false && phoneVerified == true) {
+          return _contactNotVerifiedEmailOnlyMessage;
+        }
+
+        if (emailVerified == true && phoneVerified == false) {
+          return _contactNotVerifiedPhoneOnlyMessage;
+        }
+
+        return _contactNotVerifiedGenericMessage;
+      }
+
+      return error.message.isNotEmpty
+          ? error.message
+          : _contactNotVerifiedGenericMessage;
+    }
+
+    return error.message.isNotEmpty ? error.message : 'Falha ao autenticar.';
   }
 
   Future<void> _submit() async {

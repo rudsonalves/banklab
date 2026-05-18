@@ -1,5 +1,170 @@
 # Changelog
 
+## 2026/05/18 — mobile/pre-onboarding-03
+
+This commit introduces the first complete pre-onboarding and contact verification flow for the mobile application, evolving the authentication experience from a simple registration form into a staged onboarding process with explicit e-mail and phone verification steps.
+
+The implementation also improves authentication feedback behavior by making login errors context-aware, especially for partially verified accounts.
+
+### Authentication Feedback Improvements
+
+#### `mobile/lib/ui/pages/auth/login/login_page.dart`
+
+* Added structured login feedback resolution through `_resolveLoginErrorMessage`.
+* Introduced differentiated feedback for:
+
+  * pending account approval
+  * missing e-mail verification
+  * missing phone verification
+  * both contact channels pending verification
+* Added support for reading `error.details` to interpret backend verification state.
+* Centralized login failure message resolution instead of directly exposing raw backend messages.
+* Improved UX consistency for authentication failures.
+
+#### `mobile/lib/ui/pages/auth/short_login/short_login_page.dart`
+
+* Mirrored the same verification-aware login feedback logic implemented in the full login flow.
+* Preserved remembered identity context while presenting verification-related authentication errors.
+* Improved short-login usability for partially onboarded users.
+
+### Multi-Step Registration Flow
+
+#### `mobile/lib/ui/pages/auth/register/register_page.dart`
+
+* Reworked the registration screen into a multi-step onboarding flow:
+
+  * Personal data
+  * Contact data
+  * E-mail verification
+  * Phone verification
+  * Final review
+* Added visual onboarding step indicators.
+* Introduced step-aware navigation and validation.
+* Added support for:
+
+  * birth date selection
+  * Brazilian phone formatting
+  * phone normalization for API communication
+  * review/confirmation step before submission
+* Added command orchestration for:
+
+  * requesting e-mail verification codes
+  * confirming e-mail verification codes
+  * requesting phone verification codes
+  * confirming phone verification codes
+* Added reusable snackbar feedback using `AppSnackbar`.
+* Added state persistence between steps.
+* Added conditional primary action behavior based on onboarding stage.
+* Introduced command aggregation through `Listenable.merge`.
+* Added UI locking while asynchronous operations are running.
+* Added dynamic CTA labels according to current onboarding step.
+* Added verification-aware enable/disable behavior for onboarding progression.
+* Added custom `_BrazilPhoneInputFormatter`.
+* Added birth date validation and date picker integration.
+* Added review screen summarizing collected onboarding data before final registration.
+
+### Registration ViewModel Refactor
+
+#### `mobile/lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart`
+
+* Refactored the viewmodel into a full `ChangeNotifier` state machine.
+* Introduced `RegisterStep` enum for explicit onboarding progression.
+* Added internal onboarding state management:
+
+  * personal data
+  * contact data
+  * verification identifiers
+  * verification tokens
+  * step errors
+* Added onboarding progression methods:
+
+  * `nextStep`
+  * `previousStep`
+  * `goToStep`
+* Added validation-aware onboarding transitions.
+* Added explicit onboarding state guards.
+* Added e-mail verification orchestration.
+* Added phone verification orchestration.
+* Added final registration orchestration dependent on verification tokens.
+* Added command-based async flow integration:
+
+  * `Command0`
+  * `Command1`
+* Added validation helpers for:
+
+  * e-mail
+  * phone
+  * CPF
+  * onboarding state
+* Added step-specific error propagation and recovery behavior.
+* Added support for preserving entered data across onboarding navigation.
+* Added registration payload enrichment with:
+
+  * `birthDate`
+  * `phone`
+  * `emailVerificationToken`
+  * `phoneVerificationToken`
+
+### Authentication Feedback Tests
+
+#### `mobile/test/ui/pages/auth/login_feedback_behavior_test.dart`
+
+* Added tests covering:
+
+  * generic contact-not-verified login feedback
+  * e-mail-only pending verification feedback
+  * phone-only pending verification feedback
+  * short-login verification feedback behavior
+* Added verification-state-aware error fixtures using `error.details`.
+
+### Registration Flow Widget Tests
+
+#### `mobile/test/ui/pages/auth/register/register_page_flow_test.dart`
+
+* Added end-to-end widget test covering the entire onboarding process.
+* Validated:
+
+  * multi-step navigation
+  * date picker integration
+  * phone formatting
+  * e-mail verification flow
+  * phone verification flow
+  * review step
+  * final registration submission
+* Added verification token assertions in final payload validation.
+* Added navigation validation after successful registration.
+
+### Registration ViewModel Tests
+
+#### `mobile/test/ui/pages/auth/register/viewmodel/register_viewmodel_test.dart`
+
+* Added unit tests validating:
+
+  * initial onboarding state
+  * invalid step progression blocking
+  * onboarding data persistence
+  * e-mail verification transitions
+  * phone verification transitions
+  * verification token requirements
+  * final registration payload generation
+* Added coverage for onboarding state machine behavior.
+
+### Architectural Notes
+
+This commit significantly advances the onboarding architecture toward a more realistic fintech onboarding model aligned with the project's Zero Trust and evidence-based authentication direction.
+
+The new flow establishes the foundation for:
+
+* progressive onboarding
+* contextual trust evaluation
+* stronger identity validation
+* future device registration flows
+* transactional security expansion
+* adaptive authentication mechanisms
+
+It also moves the mobile application closer to the backend authentication strategy already documented in the API architecture and authentication specifications.  
+
+
 ## 2026/05/18 — mobile/pre-onboarding-02
 
 This commit introduces the first structural layer of the pre-onboarding flow for the mobile application, focusing on contact verification before account registration and improving the error propagation model between API and Flutter client.

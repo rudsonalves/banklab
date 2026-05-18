@@ -19,6 +19,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _approvalRequiredMessage =
     'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar sua conta.';
+const _contactNotVerifiedGenericMessage =
+    'Confirme seu e-mail e telefone antes de entrar.';
+const _contactNotVerifiedEmailOnlyMessage =
+    'Confirme seu e-mail antes de entrar.';
+const _contactNotVerifiedPhoneOnlyMessage =
+    'Confirme seu telefone antes de entrar.';
 
 void main() {
   group('Login UI feedback behavior', () {
@@ -112,6 +118,70 @@ void main() {
     );
 
     testWidgets(
+      'full login shows contact-not-verified feedback when both channels are pending',
+      (tester) async {
+        final repository = _FakeAuthRepository(
+          loginResult: Failure(
+            AppError(
+              code: AppErrorCode.contactNotVerified,
+              message: _contactNotVerifiedGenericMessage,
+              details: {
+                'email_verified': false,
+                'phone_verified': false,
+              },
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LoginPage(
+              viewModel: LoginViewModel(authRepository: repository),
+            ),
+          ),
+        );
+
+        await _submitFullLogin(tester);
+
+        expect(find.text(_contactNotVerifiedGenericMessage), findsOneWidget);
+        expect(
+          find.text('Acesse sua conta para continuar no BankFlow.'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'full login shows contact-not-verified feedback when only e-mail is pending',
+      (tester) async {
+        final repository = _FakeAuthRepository(
+          loginResult: Failure(
+            AppError(
+              code: AppErrorCode.contactNotVerified,
+              message: _contactNotVerifiedGenericMessage,
+              details: {
+                'email_verified': false,
+                'phone_verified': true,
+              },
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LoginPage(
+              viewModel: LoginViewModel(authRepository: repository),
+            ),
+          ),
+        );
+
+        await _submitFullLogin(tester);
+
+        expect(find.text(_contactNotVerifiedEmailOnlyMessage), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'short login keeps generic failure feedback unchanged',
       (tester) async {
         final repository = _FakeAuthRepository(
@@ -139,6 +209,42 @@ void main() {
 
         expect(find.text('Falha temporaria no servidor'), findsOneWidget);
         expect(find.text(_approvalRequiredMessage), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'short login shows contact-not-verified feedback when only phone is pending and keeps remembered identity visible',
+      (tester) async {
+        final repository = _FakeAuthRepository(
+          loginResult: Failure(
+            AppError(
+              code: AppErrorCode.contactNotVerified,
+              message: _contactNotVerifiedGenericMessage,
+              details: {
+                'email_verified': true,
+                'phone_verified': false,
+              },
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ShortLoginPage(
+              viewModel: ShortLoginViewModel(authRepository: repository),
+              identity: LastLoginIdentity(
+                name: 'Maria Silva',
+                identifier: 'maria@example.com',
+              ),
+            ),
+          ),
+        );
+
+        await _submitShortLogin(tester);
+
+        expect(find.text(_contactNotVerifiedPhoneOnlyMessage), findsOneWidget);
+        expect(find.text('Maria Silva'), findsOneWidget);
+        expect(find.text('Entrar com outra conta'), findsOneWidget);
       },
     );
   });
