@@ -3,8 +3,9 @@ package domain
 import "errors"
 
 var (
-	ErrNameRequired = errors.New("name is required")
-	ErrCPFRequired  = errors.New("cpf is required")
+	ErrNameRequired      = errors.New("name is required")
+	ErrCPFRequired       = errors.New("cpf is required")
+	ErrBirthDateRequired = errors.New("birth date is required")
 
 	ErrCPFInvalid       = errors.New("cpf is invalid")
 	ErrCPFAlreadyExists = errors.New("cpf already exists")

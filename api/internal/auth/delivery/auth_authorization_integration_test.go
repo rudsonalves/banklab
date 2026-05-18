@@ -45,10 +45,11 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 		password := "P@ssword123"
 
 		registerResp := performJSONRequest(t, server.URL+"/auth/register", http.MethodPost, map[string]any{
-			"email":    email,
-			"password": password,
-			"name":     "Integration User",
-			"cpf":      fmt.Sprintf("%011d", time.Now().UnixNano()%100000000000),
+			"email":      email,
+			"password":   password,
+			"name":       "Integration User",
+			"birth_date": "1990-01-15",
+			"cpf":        fmt.Sprintf("%011d", time.Now().UnixNano()%100000000000),
 		}, "")
 		if registerResp.StatusCode != http.StatusCreated {
 			t.Fatalf("expected register status %d, got %d", http.StatusCreated, registerResp.StatusCode)
@@ -230,7 +231,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	tokenService := authinfrastructure.NewJWTTokenService("integration-secret", 20*time.Minute)
 
 	accountRepo := accountinfrastructure.New(pool)
-	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, customerRepo, hasher, transactor)
 	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
@@ -293,16 +294,35 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		`CREATE TABLE IF NOT EXISTS customers (
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
-			cpf VARCHAR(11) NOT NULL UNIQUE,
+			cpf VARCHAR(11) UNIQUE,
+			birth_date DATE,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
 		)`,
+		`ALTER TABLE customers ALTER COLUMN cpf DROP NOT NULL`,
+		`ALTER TABLE customers ADD COLUMN IF NOT EXISTS birth_date DATE`,
 		// Repair constraint if a previous test run created it with a broken regex.
 		`DO $$ BEGIN
 			ALTER TABLE customers DROP CONSTRAINT IF EXISTS chk_cpf_format;
 			ALTER TABLE customers ADD CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$');
 		EXCEPTION WHEN duplicate_object THEN NULL;
 		END $$`,
+		`CREATE TABLE IF NOT EXISTS customer_documents (
+			id UUID PRIMARY KEY,
+			customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+			type VARCHAR(30) NOT NULL,
+			value VARCHAR(80) NOT NULL,
+			issuer VARCHAR(80),
+			issuer_state VARCHAR(30),
+			country CHAR(2) NOT NULL DEFAULT 'BR',
+			is_primary BOOLEAN NOT NULL DEFAULT false,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			CONSTRAINT customer_documents_unique_document UNIQUE (type, value, country)
+		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS customer_documents_one_primary_per_customer
+			ON customer_documents(customer_id)
+			WHERE is_primary = true`,
 		`CREATE TABLE IF NOT EXISTS accounts (
 			id UUID PRIMARY KEY,
 			customer_id UUID NOT NULL REFERENCES customers(id),

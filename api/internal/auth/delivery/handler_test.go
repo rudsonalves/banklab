@@ -75,7 +75,7 @@ func TestHandler_Register_Success(t *testing.T) {
 		},
 	}
 	handler := New(registerUC, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","cpf":"12345678901"}`))
+	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
 	handler.Register(rec, req)
@@ -94,6 +94,10 @@ func TestHandler_Register_Success(t *testing.T) {
 
 	if registerUC.input.Name != "Maria Silva" {
 		t.Fatalf("expected name %q, got %q", "Maria Silva", registerUC.input.Name)
+	}
+
+	if registerUC.input.BirthDate.Format("2006-01-02") != "1990-01-15" {
+		t.Fatalf("expected birth date %q, got %q", "1990-01-15", registerUC.input.BirthDate.Format("2006-01-02"))
 	}
 
 	if registerUC.input.CPF != "12345678901" {
@@ -130,7 +134,7 @@ func TestHandler_Register_Success(t *testing.T) {
 func TestHandler_Register_UserAlreadyExists(t *testing.T) {
 	registerUC := &registerUserUseCaseMock{err: domain.ErrEmailAlreadyExists}
 	handler := New(registerUC, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","cpf":"12345678901"}`))
+	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901"}`))
 	rec := httptest.NewRecorder()
 
 	handler.Register(rec, req)
@@ -170,11 +174,19 @@ func TestHandler_Register_InvalidInput(t *testing.T) {
 		},
 		{
 			name: "empty password",
-			body: `{"email":"user@example.com","password":"   ","name":"Maria Silva","cpf":"12345678901"}`,
+			body: `{"email":"user@example.com","password":"   ","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901"}`,
 		},
 		{
 			name: "empty name",
-			body: `{"email":"user@example.com","password":"password123","name":"   ","cpf":"12345678901"}`,
+			body: `{"email":"user@example.com","password":"password123","name":"   ","birth_date":"1990-01-15","cpf":"12345678901"}`,
+		},
+		{
+			name: "empty birth date",
+			body: `{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"   ","cpf":"12345678901"}`,
+		},
+		{
+			name: "invalid birth date",
+			body: `{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"15/01/1990","cpf":"12345678901"}`,
 		},
 	}
 

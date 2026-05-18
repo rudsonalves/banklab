@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
@@ -37,10 +38,11 @@ type Handler struct {
 }
 
 type registerUserRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
-	CPF      string `json:"cpf"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	Name      string `json:"name"`
+	BirthDate string `json:"birth_date"`
+	CPF       string `json:"cpf"`
 }
 
 type loginUserRequest struct {
@@ -90,11 +92,9 @@ func New(
 	}
 }
 
-// Handler is responsible for handling HTTP requests related to authentication,
-// including user registration, login, retrieving the current authenticated user's
-// information, and refreshing access tokens. It uses the provided use cases to
-// perform the necessary operations and returns appropriate HTTP responses based
-// on the outcome of each operation.
+// Register handles HTTP requests for user registration.
+// It validates the request, parses the birth date, and executes the register use case.
+// Returns appropriate HTTP responses with user data on success or errors on failure.
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if h.registerUser == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -112,11 +112,18 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	birthDate, err := time.Parse("2006-01-02", strings.TrimSpace(req.BirthDate))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
 	output, err := h.registerUser.Execute(r.Context(), application.RegisterUserInput{
-		Email:    strings.TrimSpace(req.Email),
-		Password: strings.TrimSpace(req.Password),
-		Name:     strings.TrimSpace(req.Name),
-		CPF:      strings.TrimSpace(req.CPF),
+		Email:     strings.TrimSpace(req.Email),
+		Password:  strings.TrimSpace(req.Password),
+		Name:      strings.TrimSpace(req.Name),
+		BirthDate: birthDate,
+		CPF:       strings.TrimSpace(req.CPF),
 	})
 	if err != nil {
 		log.Printf("event=register_user error=%v", err)
@@ -137,19 +144,17 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// isValidRegisterRequest validates the registration request by checking if the
-// email, password, name, and CPF fields are not empty. It trims any leading or
-// trailing whitespace from the input values before performing the validation. If
-// any of the required fields are empty after trimming, it returns false, indicating
-// that the request is invalid. Otherwise, it returns true, indicating that the
-// request is valid and can be processed further.
+// isValidRegisterRequest validates the registration request by checking if all
+// required fields (email, password, name, birth date, and CPF) are provided and
+// not empty after whitespace trimming.
 func isValidRegisterRequest(req registerUserRequest) bool {
 	email := strings.TrimSpace(req.Email)
 	password := strings.TrimSpace(req.Password)
 	name := strings.TrimSpace(req.Name)
+	birthDate := strings.TrimSpace(req.BirthDate)
 	cpf := strings.TrimSpace(req.CPF)
 
-	if email == "" || password == "" || name == "" || cpf == "" {
+	if email == "" || password == "" || name == "" || birthDate == "" || cpf == "" {
 		return false
 	}
 

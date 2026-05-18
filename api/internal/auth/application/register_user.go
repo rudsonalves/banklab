@@ -12,39 +12,44 @@ import (
 )
 
 type RegisterUserUseCase struct {
-	userRepo     domain.UserRepository
-	transactor   domain.Transactor
-	customerRepo customerdomain.CustomerRepository
-	hasher       domain.PasswordHasher
+	userRepo             domain.UserRepository
+	transactor           domain.Transactor
+	customerRepo         customerdomain.CustomerRepository
+	customerDocumentRepo customerdomain.CustomerDocumentRepository
+	hasher               domain.PasswordHasher
 }
 
-// NewRegisterUserUseCase creates a new instance of the RegisterUserUseCase with the
-// provided dependencies. It requires a user repository for managing user data, a
-// customer repository for managing customer data, a password hasher for securely
-// hashing user passwords, and a transactor for executing database operations within
-// a transaction. This use case is responsible for handling the registration of new
-// users, including validating input data, creating associated customer records, and
-// ensuring that the entire operation is performed atomically to maintain data
-// integrity.
+// NewRegisterUserUseCase cria uma nova instância do RegisterUserUseCase com as
+// dependências fornecidas. Requer um repositório de usuários para gerenciar dados
+// de usuários, um repositório de clientes para gerenciar dados de clientes, um
+// hasher de senha para criptografar senhas de usuários com segurança, um repositório
+// de documentos de cliente para gerenciar documentos do cliente, e um transactor
+// para executar operações de banco de dados dentro de uma transação. Este caso de
+// uso é responsável por lidar com o registro de novos usuários, incluindo validação
+// de dados de entrada, criação de registros de clientes associados, e garantindo que
+// toda a operação seja executada atomicamente para manter a integridade dos dados.
 func NewRegisterUserUseCase(
 	userRepo domain.UserRepository,
 	customerRepo customerdomain.CustomerRepository,
+	customerDocumentRepo customerdomain.CustomerDocumentRepository,
 	hasher domain.PasswordHasher,
 	transactor domain.Transactor,
 ) *RegisterUserUseCase {
 	return &RegisterUserUseCase{
-		userRepo:     userRepo,
-		transactor:   transactor,
-		customerRepo: customerRepo,
-		hasher:       hasher,
+		userRepo:             userRepo,
+		transactor:           transactor,
+		customerRepo:         customerRepo,
+		customerDocumentRepo: customerDocumentRepo,
+		hasher:               hasher,
 	}
 }
 
 type RegisterUserInput struct {
-	Email    string
-	Password string
-	Name     string
-	CPF      string
+	Email     string
+	Password  string
+	Name      string
+	BirthDate time.Time
+	CPF       string
 }
 
 type RegisterUserOutput struct {
@@ -55,8 +60,9 @@ type RegisterUserOutput struct {
 }
 
 // Execute performs the user registration process. It validates the provided email
-// and password, creates a new customer record, hashes the password, and creates
-// a new user record.
+// and password, creates a new customer record with associated CPF document, hashes
+// the password, and creates a new user record. The entire operation is executed
+// within a database transaction to ensure atomicity and data integrity.
 func (uc *RegisterUserUseCase) Execute(
 	ctx context.Context,
 	input RegisterUserInput,
@@ -81,13 +87,22 @@ func (uc *RegisterUserUseCase) Execute(
 			return domain.ErrEmailAlreadyExists
 		}
 
-		customer, err := customerdomain.NewCustomer(input.Name, input.CPF)
+		customer, err := customerdomain.NewCustomer(input.Name, input.BirthDate)
+		if err != nil {
+			return err
+		}
+
+		cpfDocument, err := customerdomain.NewCPFDocument(customer.ID, input.CPF, true)
 		if err != nil {
 			return err
 		}
 
 		if err := uc.customerRepo.Create(txCtx, customer); err != nil {
 			return fmt.Errorf("create customer: %w", err)
+		}
+
+		if err := uc.customerDocumentRepo.CreateDocument(txCtx, cpfDocument); err != nil {
+			return fmt.Errorf("create customer cpf document: %w", err)
 		}
 
 		hash, err := uc.hasher.Hash(input.Password)

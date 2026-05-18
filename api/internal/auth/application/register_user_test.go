@@ -77,8 +77,37 @@ func (m *customerRepositoryMock) Exists(ctx context.Context, id uuid.UUID) (bool
 	return false, nil
 }
 
-func (m *customerRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*customerdomain.Customer, string, error) {
-	return nil, "", nil
+func (m *customerRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*customerdomain.CustomerProfile, error) {
+	return nil, nil
+}
+
+type customerDocumentRepositoryMock struct {
+	createCalls     int
+	createErr       error
+	createdDocument *customerdomain.CustomerDocument
+}
+
+func (m *customerDocumentRepositoryMock) CreateDocument(
+	ctx context.Context,
+	document *customerdomain.CustomerDocument,
+) error {
+	m.createCalls++
+	m.createdDocument = document
+	return m.createErr
+}
+
+func (m *customerDocumentRepositoryMock) GetPrimaryDocumentByCustomerID(
+	ctx context.Context,
+	customerID uuid.UUID,
+) (*customerdomain.CustomerDocument, error) {
+	return nil, nil
+}
+
+func (m *customerDocumentRepositoryMock) GetCPFByCustomerID(
+	ctx context.Context,
+	customerID uuid.UUID,
+) (*customerdomain.CustomerDocument, error) {
+	return nil, nil
 }
 
 type passwordHasherMock struct {
@@ -99,18 +128,22 @@ func (m *passwordHasherMock) Compare(hash string, password string) error {
 	return nil
 }
 
+var registerBirthDate = time.Date(1990, 1, 15, 0, 0, 0, 0, time.UTC)
+
 func TestRegisterUserUseCase_Execute_Success(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
+	customerDocumentRepo := &customerDocumentRepositoryMock{}
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:    "  USER@Example.com ",
-		Password: "password123",
-		Name:     "Maria Silva",
-		CPF:      "123.456.789-09",
+		Email:     "  USER@Example.com ",
+		Password:  "password123",
+		Name:      "Maria Silva",
+		BirthDate: registerBirthDate,
+		CPF:       "123.456.789-09",
 	})
 
 	if err != nil {
@@ -165,8 +198,36 @@ func TestRegisterUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected customer name %q, got %q", "Maria Silva", customerRepo.createdCustomer.Name)
 	}
 
-	if customerRepo.createdCustomer.CPF != "12345678909" {
-		t.Fatalf("expected customer cpf %q, got %q", "12345678909", customerRepo.createdCustomer.CPF)
+	if !customerRepo.createdCustomer.BirthDate.Equal(registerBirthDate) {
+		t.Fatalf("expected customer birth date %v, got %v", registerBirthDate, customerRepo.createdCustomer.BirthDate)
+	}
+
+	if customerDocumentRepo.createCalls != 1 {
+		t.Fatalf("expected customer document Create to be called once, got %d", customerDocumentRepo.createCalls)
+	}
+
+	if customerDocumentRepo.createdDocument == nil {
+		t.Fatal("expected created customer document to be captured")
+	}
+
+	if customerDocumentRepo.createdDocument.CustomerID != customerRepo.createdCustomer.ID {
+		t.Fatalf("expected document customer ID %v, got %v", customerRepo.createdCustomer.ID, customerDocumentRepo.createdDocument.CustomerID)
+	}
+
+	if customerDocumentRepo.createdDocument.Type != customerdomain.DocumentTypeCPF {
+		t.Fatalf("expected document type %q, got %q", customerdomain.DocumentTypeCPF, customerDocumentRepo.createdDocument.Type)
+	}
+
+	if customerDocumentRepo.createdDocument.Value != "12345678909" {
+		t.Fatalf("expected customer document value %q, got %q", "12345678909", customerDocumentRepo.createdDocument.Value)
+	}
+
+	if customerDocumentRepo.createdDocument.Country != customerdomain.DefaultCountry {
+		t.Fatalf("expected customer document country %q, got %q", customerdomain.DefaultCountry, customerDocumentRepo.createdDocument.Country)
+	}
+
+	if !customerDocumentRepo.createdDocument.IsPrimary {
+		t.Fatal("expected customer document to be primary")
 	}
 
 	if userRepo.createdUser == nil {
@@ -205,15 +266,17 @@ func TestRegisterUserUseCase_Execute_Success(t *testing.T) {
 func TestRegisterUserUseCase_Execute_DuplicateEmail(t *testing.T) {
 	userRepo := &userRepositoryMock{existsByEmailValue: true}
 	customerRepo := &customerRepositoryMock{}
+	customerDocumentRepo := &customerDocumentRepositoryMock{}
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:    "user@example.com",
-		Password: "password123",
-		Name:     "Maria Silva",
-		CPF:      "12345678909",
+		Email:     "user@example.com",
+		Password:  "password123",
+		Name:      "Maria Silva",
+		BirthDate: registerBirthDate,
+		CPF:       "12345678909",
 	})
 
 	if !errors.Is(err, domain.ErrEmailAlreadyExists) {
@@ -235,20 +298,26 @@ func TestRegisterUserUseCase_Execute_DuplicateEmail(t *testing.T) {
 	if customerRepo.createCalls != 0 {
 		t.Fatalf("expected customer Create not to be called, got %d calls", customerRepo.createCalls)
 	}
+
+	if customerDocumentRepo.createCalls != 0 {
+		t.Fatalf("expected customer document Create not to be called, got %d calls", customerDocumentRepo.createCalls)
+	}
 }
 
 func TestRegisterUserUseCase_Execute_InvalidEmail(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
+	customerDocumentRepo := &customerDocumentRepositoryMock{}
 	hasher := &passwordHasherMock{}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:    "invalid-email",
-		Password: "password123",
-		Name:     "Maria Silva",
-		CPF:      "12345678909",
+		Email:     "invalid-email",
+		Password:  "password123",
+		Name:      "Maria Silva",
+		BirthDate: registerBirthDate,
+		CPF:       "12345678909",
 	})
 
 	if !errors.Is(err, domain.ErrInvalidEmail) {
@@ -274,20 +343,26 @@ func TestRegisterUserUseCase_Execute_InvalidEmail(t *testing.T) {
 	if customerRepo.createCalls != 0 {
 		t.Fatalf("expected customer Create not to be called, got %d calls", customerRepo.createCalls)
 	}
+
+	if customerDocumentRepo.createCalls != 0 {
+		t.Fatalf("expected customer document Create not to be called, got %d calls", customerDocumentRepo.createCalls)
+	}
 }
 
 func TestRegisterUserUseCase_Execute_InvalidPassword(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
+	customerDocumentRepo := &customerDocumentRepositoryMock{}
 	hasher := &passwordHasherMock{}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:    "user@example.com",
-		Password: "short",
-		Name:     "Maria Silva",
-		CPF:      "12345678909",
+		Email:     "user@example.com",
+		Password:  "short",
+		Name:      "Maria Silva",
+		BirthDate: registerBirthDate,
+		CPF:       "12345678909",
 	})
 
 	if !errors.Is(err, domain.ErrInvalidPassword) {
@@ -313,20 +388,26 @@ func TestRegisterUserUseCase_Execute_InvalidPassword(t *testing.T) {
 	if customerRepo.createCalls != 0 {
 		t.Fatalf("expected customer Create not to be called, got %d calls", customerRepo.createCalls)
 	}
+
+	if customerDocumentRepo.createCalls != 0 {
+		t.Fatalf("expected customer document Create not to be called, got %d calls", customerDocumentRepo.createCalls)
+	}
 }
 
 func TestRegisterUserUseCase_Execute_InvalidCPF(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
+	customerDocumentRepo := &customerDocumentRepositoryMock{}
 	hasher := &passwordHasherMock{}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:    "user@example.com",
-		Password: "password123",
-		Name:     "Maria Silva",
-		CPF:      "12345678901",
+		Email:     "user@example.com",
+		Password:  "password123",
+		Name:      "Maria Silva",
+		BirthDate: registerBirthDate,
+		CPF:       "12345678901",
 	})
 
 	if !errors.Is(err, customerdomain.ErrCPFInvalid) {
@@ -339,6 +420,10 @@ func TestRegisterUserUseCase_Execute_InvalidCPF(t *testing.T) {
 
 	if customerRepo.createCalls != 0 {
 		t.Fatalf("expected customer Create not to be called, got %d calls", customerRepo.createCalls)
+	}
+
+	if customerDocumentRepo.createCalls != 0 {
+		t.Fatalf("expected customer document Create not to be called, got %d calls", customerDocumentRepo.createCalls)
 	}
 
 	if hasher.hashCalls != 0 {
@@ -354,15 +439,17 @@ func TestRegisterUserUseCase_Execute_HashingFailure(t *testing.T) {
 	expectedErr := errors.New("hash unavailable")
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
+	customerDocumentRepo := &customerDocumentRepositoryMock{}
 	hasher := &passwordHasherMock{hashErr: expectedErr}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:    "user@example.com",
-		Password: "password123",
-		Name:     "Maria Silva",
-		CPF:      "12345678909",
+		Email:     "user@example.com",
+		Password:  "password123",
+		Name:      "Maria Silva",
+		BirthDate: registerBirthDate,
+		CPF:       "12345678909",
 	})
 
 	if !errors.Is(err, expectedErr) {
@@ -380,21 +467,27 @@ func TestRegisterUserUseCase_Execute_HashingFailure(t *testing.T) {
 	if customerRepo.createCalls != 1 {
 		t.Fatalf("expected customer Create to be called once before hashing failure, got %d calls", customerRepo.createCalls)
 	}
+
+	if customerDocumentRepo.createCalls != 1 {
+		t.Fatalf("expected customer document Create to be called once before hashing failure, got %d calls", customerDocumentRepo.createCalls)
+	}
 }
 
 func TestRegisterUserUseCase_Execute_CustomerCreateFailure(t *testing.T) {
-	expectedErr := customerdomain.ErrCPFAlreadyExists
+	expectedErr := customerdomain.ErrInvalidData
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{createErr: expectedErr}
+	customerDocumentRepo := &customerDocumentRepositoryMock{}
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:    "user@example.com",
-		Password: "password123",
-		Name:     "Maria Silva",
-		CPF:      "12345678909",
+		Email:     "user@example.com",
+		Password:  "password123",
+		Name:      "Maria Silva",
+		BirthDate: registerBirthDate,
+		CPF:       "12345678909",
 	})
 
 	if !errors.Is(err, expectedErr) {
@@ -403,6 +496,52 @@ func TestRegisterUserUseCase_Execute_CustomerCreateFailure(t *testing.T) {
 
 	if output != nil {
 		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if userRepo.createCalls != 0 {
+		t.Fatalf("expected user Create not to be called, got %d calls", userRepo.createCalls)
+	}
+
+	if customerDocumentRepo.createCalls != 0 {
+		t.Fatalf("expected customer document Create not to be called, got %d calls", customerDocumentRepo.createCalls)
+	}
+}
+
+func TestRegisterUserUseCase_Execute_CustomerDocumentCreateFailure(t *testing.T) {
+	expectedErr := customerdomain.ErrCPFAlreadyExists
+	userRepo := &userRepositoryMock{}
+	customerRepo := &customerRepositoryMock{}
+	customerDocumentRepo := &customerDocumentRepositoryMock{createErr: expectedErr}
+	hasher := &passwordHasherMock{hashValue: "hashed-password"}
+	transactor := &registerTransactorMock{}
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+
+	output, err := useCase.Execute(context.Background(), RegisterUserInput{
+		Email:     "user@example.com",
+		Password:  "password123",
+		Name:      "Maria Silva",
+		BirthDate: registerBirthDate,
+		CPF:       "12345678909",
+	})
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if customerRepo.createCalls != 1 {
+		t.Fatalf("expected customer Create to be called once, got %d calls", customerRepo.createCalls)
+	}
+
+	if customerDocumentRepo.createCalls != 1 {
+		t.Fatalf("expected customer document Create to be called once, got %d calls", customerDocumentRepo.createCalls)
+	}
+
+	if hasher.hashCalls != 0 {
+		t.Fatalf("expected Hash not to be called, got %d calls", hasher.hashCalls)
 	}
 
 	if userRepo.createCalls != 0 {

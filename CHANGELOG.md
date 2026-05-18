@@ -1,5 +1,124 @@
 # Changelog
 
+## 2026/05/18 — api/pre-onboarding-02
+
+This commit advances the pre-onboarding cadastral redesign by introducing the first structural migrations for contact verification, customer documents, and customer addresses, while also formalizing the migration strategy and implementation backlog for the new onboarding model.
+
+### Database migrations
+
+1. Added `000004_pre_onboarding_cadastral` migration
+
+   * Extended `users` with:
+
+     * `phone`
+     * `email_verified_at`
+     * `phone_verified_at`
+   * Added `birth_date` to `customers`
+   * Introduced the new `customer_documents` table
+   * Introduced the new `customer_addresses` table
+   * Added unique document constraint:
+
+     * `(type, value, country)`
+   * Added partial unique indexes enforcing:
+
+     * a single primary document per customer
+     * a single primary address per customer
+   * Standardized country handling using:
+
+     * `CHAR(2) DEFAULT 'BR'`
+   * Added rollback support for all new structures
+
+2. Added `000005_migrate_customer_cpf_documents` migration
+
+   * Migrated existing `customers.cpf` data into `customer_documents`
+   * Preserved customer creation timestamps during migration
+   * Marked migrated CPF entries as primary documents
+   * Added defensive `NOT EXISTS` filtering for safer local retries
+   * Added rollback migration removing migrated CPF document entries
+
+### Pre-onboarding architecture and migration strategy
+
+3. Expanded the pre-onboarding backlog documentation
+
+   * Added an explicit migration order strategy to avoid:
+
+     * intermediate schema breakage
+     * data loss during CPF extraction
+   * Clarified that `customers.cpf` removal must happen only after:
+
+     * schema preparation
+     * data migration
+     * repository/query migration
+     * test adaptation
+   * Documented the transition from direct CPF ownership in `Customer`
+     to document-based identity modeling
+
+4. Added impact analysis checklist for the current codebase
+
+   * Identified affected layers and repositories:
+
+     * customer domain
+     * auth registration flow
+     * account lookup queries
+     * transfer recipient queries
+     * integration tests
+     * Postman collection
+     * technical documentation
+   * Documented required query migrations from:
+
+     * `customers.cpf`
+       to:
+     * `customer_documents`
+
+### Backlog decomposition and implementation planning
+
+5. Added `000 - pre-onboarding_tasks.md`
+
+   * Created a detailed 12-task execution plan for the onboarding redesign
+   * Structured the migration into isolated phases covering:
+
+     * schema preparation
+     * CPF migration
+     * customer document modeling
+     * contact verification flows
+     * auth updates
+     * login verification requirements
+     * repository migration
+     * final CPF column removal
+     * documentation/test updates
+   * Added:
+
+     * acceptance criteria
+     * dependency chains
+     * suggested execution order
+   * Explicitly separated:
+
+     * domain responsibilities
+     * persistence migration
+     * onboarding/session evolution
+     * verification workflows
+
+### Architectural direction reinforced
+
+6. Reinforced the transition toward a more extensible identity model
+
+   * Customer identity is no longer tied exclusively to CPF
+   * The system now evolves toward:
+
+     * multi-document support
+     * country-aware document modeling
+     * onboarding verification checkpoints
+     * future KYC extensibility
+   * Prepared the foundation for:
+
+     * email verification
+     * phone verification
+     * onboarding-scoped sessions
+     * future Zero Trust onboarding flows
+
+This commit establishes the structural base for the new onboarding architecture while preserving migration safety and preparing the codebase for the gradual removal of direct CPF coupling from the `Customer` model.
+
+
 ## 2026/05/18 - api/pre-onboarding-01
 
 Introduced the initial pre-onboarding cadastral foundation for the Bank API, focusing on evolving the customer identity model from a CPF-centric structure to a flexible document-based architecture. This commit establishes the database preparation, migration strategy, and execution roadmap required to support future onboarding checkpoints, contact verification, and expanded customer identity flows.

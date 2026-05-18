@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"time"
 
 	"github.com/seu-usuario/bank-api/internal/customer/domain"
 )
@@ -17,8 +18,8 @@ func NewCreateCustomer(repo domain.CustomerRepository) *CreateCustomer {
 }
 
 type Input struct {
-	Name string
-	CPF  string
+	Name      string
+	BirthDate time.Time
 }
 
 // Execute creates a new customer using the provided input data. It validates the
@@ -27,7 +28,7 @@ type Input struct {
 func (uc *CreateCustomer) Execute(ctx context.Context, input Input) (*domain.Customer, error) {
 	customer, err := domain.NewCustomer(
 		input.Name,
-		input.CPF,
+		input.BirthDate,
 	)
 	if err != nil {
 		return nil, err
