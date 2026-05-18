@@ -1,6 +1,7 @@
 package application
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
@@ -37,6 +38,23 @@ func RegisterErrors() {
 		sharederrors.ErrCodeInvalidCredentials,
 		"Invalid credentials",
 		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainErrorWithDetails(
+		domain.ErrContactNotVerified,
+		sharederrors.ErrCodeContactNotVerified,
+		"Contact not verified",
+		http.StatusForbidden,
+		func(err error) any {
+			var e *domain.ContactNotVerifiedError
+			if errors.As(err, &e) {
+				return map[string]bool{
+					"email_verified": e.EmailVerified,
+					"phone_verified": e.PhoneVerified,
+				}
+			}
+			return nil
+		},
 	)
 
 	sharederrors.RegisterDomainError(

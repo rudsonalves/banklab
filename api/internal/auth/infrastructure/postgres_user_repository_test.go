@@ -203,7 +203,6 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 		`CREATE TABLE IF NOT EXISTS customers (
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
-			cpf VARCHAR(11) NOT NULL UNIQUE,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS users (

@@ -152,14 +152,17 @@ func (m *tokenServiceMock) ParseRefreshToken(token string) (uuid.UUID, error) {
 func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 	customerID := uuid.New()
 	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           userID,
-			Email:        "user@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleCustomer,
-			CustomerID:   &customerID,
-			Status:       domain.UserStatusActive,
+			ID:              userID,
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
@@ -277,14 +280,17 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 
 func TestLoginUserUseCase_Execute_PendingCustomerRequiresApproval(t *testing.T) {
 	customerID := uuid.New()
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           uuid.New(),
-			Email:        "user@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleCustomer,
-			CustomerID:   &customerID,
-			Status:       domain.UserStatusPending,
+			ID:              uuid.New(),
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusPending,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
@@ -325,14 +331,17 @@ func TestLoginUserUseCase_Execute_PendingCustomerRequiresApproval(t *testing.T) 
 
 func TestLoginUserUseCase_Execute_ActiveCustomerWithoutAccountRequiresApproval(t *testing.T) {
 	customerID := uuid.New()
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           uuid.New(),
-			Email:        "user@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleCustomer,
-			CustomerID:   &customerID,
-			Status:       domain.UserStatusActive,
+			ID:              uuid.New(),
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: false}
@@ -376,13 +385,16 @@ func TestLoginUserUseCase_Execute_ActiveCustomerWithoutAccountRequiresApproval(t
 }
 
 func TestLoginUserUseCase_Execute_ActiveCustomerWithoutCustomerIDRequiresApproval(t *testing.T) {
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           uuid.New(),
-			Email:        "user@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleCustomer,
-			Status:       domain.UserStatusActive,
+			ID:              uuid.New(),
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
@@ -419,13 +431,16 @@ func TestLoginUserUseCase_Execute_ActiveCustomerWithoutCustomerIDRequiresApprova
 
 func TestLoginUserUseCase_Execute_AdminWithoutAccountCanLogin(t *testing.T) {
 	userID := uuid.New()
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           userID,
-			Email:        "admin@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleAdmin,
-			Status:       domain.UserStatusActive,
+			ID:              userID,
+			Email:           "admin@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleAdmin,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	accountProvisioning := &accountProvisioningCheckerMock{}
@@ -475,14 +490,17 @@ func TestLoginUserUseCase_Execute_AdminWithoutAccountCanLogin(t *testing.T) {
 func TestLoginUserUseCase_Execute_AccountProvisioningErrorIsWrapped(t *testing.T) {
 	customerID := uuid.New()
 	expectedErr := errors.New("database unavailable")
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           uuid.New(),
-			Email:        "user@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleCustomer,
-			CustomerID:   &customerID,
-			Status:       domain.UserStatusActive,
+			ID:              uuid.New(),
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDErr: expectedErr}
@@ -592,12 +610,15 @@ func TestLoginUserUseCase_Execute_WrongPassword(t *testing.T) {
 
 func TestLoginUserUseCase_Execute_TokenGenerationFailure(t *testing.T) {
 	expectedErr := errors.New("token unavailable")
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           uuid.New(),
-			Email:        "user@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleAdmin,
+			ID:              uuid.New(),
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleAdmin,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	hasher := &loginPasswordHasherMock{}
@@ -630,12 +651,15 @@ func TestLoginUserUseCase_Execute_TokenGenerationFailure(t *testing.T) {
 func TestLoginUserUseCase_Execute_RefreshTokenGenerationFailure(t *testing.T) {
 	expectedErr := errors.New("refresh token unavailable")
 	userID := uuid.New()
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           userID,
-			Email:        "user@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleAdmin,
+			ID:              userID,
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleAdmin,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	hasher := &loginPasswordHasherMock{}
@@ -675,12 +699,15 @@ func TestLoginUserUseCase_Execute_RefreshTokenGenerationFailure(t *testing.T) {
 func TestLoginUserUseCase_Execute_SessionPersistenceFailure(t *testing.T) {
 	expectedErr := errors.New("session unavailable")
 	userID := uuid.New()
+	verifiedAt := time.Now().UTC()
 	userRepo := &loginUserRepositoryMock{
 		findByEmailUser: &domain.User{
-			ID:           userID,
-			Email:        "user@example.com",
-			PasswordHash: "stored-hash",
-			Role:         domain.RoleAdmin,
+			ID:              userID,
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleAdmin,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
 		},
 	}
 	hasher := &loginPasswordHasherMock{}
@@ -703,5 +730,131 @@ func TestLoginUserUseCase_Execute_SessionPersistenceFailure(t *testing.T) {
 
 	if sessionRepo.createCalls != 1 {
 		t.Fatalf("expected session Create to be called once, got %d", sessionRepo.createCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_EmailNotVerified(t *testing.T) {
+	customerID := uuid.New()
+	verifiedAt := time.Now().UTC()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:              uuid.New(),
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			PhoneVerifiedAt: &verifiedAt,
+		},
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+
+	if !errors.Is(err, domain.ErrContactNotVerified) {
+		t.Fatalf("expected error %v, got %v", domain.ErrContactNotVerified, err)
+	}
+
+	var contactErr *domain.ContactNotVerifiedError
+	if !errors.As(err, &contactErr) {
+		t.Fatal("expected *domain.ContactNotVerifiedError")
+	}
+
+	if contactErr.EmailVerified {
+		t.Fatal("expected EmailVerified to be false")
+	}
+
+	if !contactErr.PhoneVerified {
+		t.Fatal("expected PhoneVerified to be true")
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if accountProvisioning.existsByCustomerIDCalls != 0 {
+		t.Fatalf("expected account provisioning not to be checked, got %d calls", accountProvisioning.existsByCustomerIDCalls)
+	}
+
+	if tokenService.generateAccessCalls != 0 {
+		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected GenerateRefreshToken not to be called, got %d calls", tokenService.generateRefreshCalls)
+	}
+
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected session Create not to be called, got %d calls", sessionRepo.createCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_PhoneNotVerified(t *testing.T) {
+	customerID := uuid.New()
+	verifiedAt := time.Now().UTC()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:              uuid.New(),
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+		},
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+
+	if !errors.Is(err, domain.ErrContactNotVerified) {
+		t.Fatalf("expected error %v, got %v", domain.ErrContactNotVerified, err)
+	}
+
+	var contactErr *domain.ContactNotVerifiedError
+	if !errors.As(err, &contactErr) {
+		t.Fatal("expected *domain.ContactNotVerifiedError")
+	}
+
+	if !contactErr.EmailVerified {
+		t.Fatal("expected EmailVerified to be true")
+	}
+
+	if contactErr.PhoneVerified {
+		t.Fatal("expected PhoneVerified to be false")
+	}
+
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+
+	if accountProvisioning.existsByCustomerIDCalls != 0 {
+		t.Fatalf("expected account provisioning not to be checked, got %d calls", accountProvisioning.existsByCustomerIDCalls)
+	}
+
+	if tokenService.generateAccessCalls != 0 {
+		t.Fatalf("expected GenerateAccessToken not to be called, got %d calls", tokenService.generateAccessCalls)
+	}
+
+	if tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected GenerateRefreshToken not to be called, got %d calls", tokenService.generateRefreshCalls)
+	}
+
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected session Create not to be called, got %d calls", sessionRepo.createCalls)
 	}
 }

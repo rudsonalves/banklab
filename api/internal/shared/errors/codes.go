@@ -12,6 +12,7 @@ const (
 	ErrCodeSameAccount             = "SAME_ACCOUNT_TRANSFER"
 	ErrCodeUserAlreadyExists       = "USER_ALREADY_EXISTS"
 	ErrCodeInvalidCredentials      = "INVALID_CREDENTIALS"
+	ErrCodeContactNotVerified      = "CONTACT_NOT_VERIFIED"
 	ErrCodeAccountApprovalRequired = "ACCOUNT_APPROVAL_REQUIRED"
 	ErrCodeUnauthorized            = "UNAUTHORIZED"
 	ErrCodeInvalidToken            = "INVALID_TOKEN"

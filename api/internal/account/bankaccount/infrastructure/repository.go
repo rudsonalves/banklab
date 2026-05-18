@@ -108,9 +108,13 @@ func (r *Repository) FindTransferRecipientsByBranchAndNumber(
 	branch, number string,
 ) ([]bankaccountdomain.TransferRecipient, error) {
 	query := `
-		SELECT a.id, c.name, c.cpf, a.branch, a.number
+		SELECT a.id, c.name, cd.value, a.branch, a.number
 		FROM accounts a
 		JOIN customers c ON c.id = a.customer_id
+		JOIN customer_documents cd ON cd.customer_id = c.id
+			AND cd.type = 'cpf'
+			AND cd.country = 'BR'
+			AND cd.is_primary = true
 		WHERE a.branch = $1
 		  AND a.number = $2
 		  AND a.status = $3
@@ -125,10 +129,13 @@ func (r *Repository) FindTransferRecipientsByDocument(
 	document string,
 ) ([]bankaccountdomain.TransferRecipient, error) {
 	query := `
-		SELECT a.id, c.name, c.cpf, a.branch, a.number
+		SELECT a.id, c.name, cd.value, a.branch, a.number
 		FROM accounts a
 		JOIN customers c ON c.id = a.customer_id
-		WHERE c.cpf = $1
+		JOIN customer_documents cd ON cd.customer_id = c.id
+			AND cd.type = 'cpf'
+			AND cd.country = 'BR'
+		WHERE cd.value = $1
 		  AND a.status = $2
 		ORDER BY a.created_at ASC, a.id ASC
 	`

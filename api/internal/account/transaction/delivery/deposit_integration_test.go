@@ -252,15 +252,24 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		`CREATE TABLE IF NOT EXISTS customers (
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
-			cpf VARCHAR(11) NOT NULL UNIQUE,
-			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
-		`DO $$ BEGIN
-			ALTER TABLE customers DROP CONSTRAINT IF EXISTS chk_cpf_format;
-			ALTER TABLE customers ADD CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$');
-		EXCEPTION WHEN duplicate_object THEN NULL;
-		END $$`,
+		`CREATE TABLE IF NOT EXISTS customer_documents (
+			id UUID PRIMARY KEY,
+			customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+			type VARCHAR(30) NOT NULL,
+			value VARCHAR(80) NOT NULL,
+			issuer VARCHAR(80),
+			issuer_state VARCHAR(30),
+			country CHAR(2) NOT NULL DEFAULT 'BR',
+			is_primary BOOLEAN NOT NULL DEFAULT false,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			CONSTRAINT customer_documents_unique_document UNIQUE (type, value, country)
+		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS customer_documents_one_primary_per_customer
+			ON customer_documents(customer_id)
+			WHERE is_primary = true`,
 		`CREATE TABLE IF NOT EXISTS accounts (
 			id UUID PRIMARY KEY,
 			customer_id UUID NOT NULL REFERENCES customers(id),
@@ -319,10 +328,26 @@ func seedDepositTestData(t *testing.T, ctx context.Context, pool *pgxpool.Pool, 
 	accountNumber := fmt.Sprintf("%08d", uniqueNumber%100000000)
 
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO customers (id, name, cpf, created_at)
-		VALUES ($1, $2, $3, $4)
-	`, customerID, "Deposit Test", cpfSuffix, time.Now().UTC()); err != nil {
+		INSERT INTO customers (id, name, created_at)
+		VALUES ($1, $2, $3)
+	`, customerID, "Deposit Test", time.Now().UTC()); err != nil {
 		t.Fatalf("failed to insert customer: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO customer_documents (
+			id,
+			customer_id,
+			type,
+			value,
+			country,
+			is_primary,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, 'cpf', $3, 'BR', true, $4, $4)
+	`, uuid.New(), customerID, cpfSuffix, time.Now().UTC()); err != nil {
+		t.Fatalf("failed to insert customer document: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, `
@@ -360,10 +385,26 @@ func insertCustomer(t *testing.T, ctx context.Context, pool *pgxpool.Pool, custo
 	t.Helper()
 
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO customers (id, name, cpf, created_at)
-		VALUES ($1, $2, $3, $4)
-	`, customerID, name, cpf, time.Now().UTC()); err != nil {
+		INSERT INTO customers (id, name, created_at)
+		VALUES ($1, $2, $3)
+	`, customerID, name, time.Now().UTC()); err != nil {
 		t.Fatalf("failed to insert customer %s: %v", name, err)
+	}
+
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO customer_documents (
+			id,
+			customer_id,
+			type,
+			value,
+			country,
+			is_primary,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, 'cpf', $3, 'BR', true, $4, $4)
+	`, uuid.New(), customerID, cpf, time.Now().UTC()); err != nil {
+		t.Fatalf("failed to insert customer document %s: %v", name, err)
 	}
 }
 

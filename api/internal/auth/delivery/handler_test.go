@@ -512,6 +512,52 @@ func TestHandler_Login_AccountApprovalRequired(t *testing.T) {
 	}
 }
 
+func TestHandler_Login_ContactNotVerified(t *testing.T) {
+	loginUC := &loginUserUseCaseMock{err: domain.NewContactNotVerifiedError(false, true)}
+	handler := New(nil, loginUC, nil, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	rec := httptest.NewRecorder()
+
+	handler.Login(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+
+	var got struct {
+		Data  any `json:"data"`
+		Error struct {
+			Code    string          `json:"code"`
+			Message string          `json:"message"`
+			Details map[string]bool `json:"details"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Data != nil {
+		t.Fatalf("expected nil data, got %#v", got.Data)
+	}
+
+	if got.Error.Code != "CONTACT_NOT_VERIFIED" {
+		t.Fatalf("expected error code %q, got %q", "CONTACT_NOT_VERIFIED", got.Error.Code)
+	}
+
+	if got.Error.Message != "Contact not verified" {
+		t.Fatalf("expected error message %q, got %q", "Contact not verified", got.Error.Message)
+	}
+
+	if got.Error.Details["email_verified"] {
+		t.Fatal("expected email_verified to be false")
+	}
+
+	if !got.Error.Details["phone_verified"] {
+		t.Fatal("expected phone_verified to be true")
+	}
+}
+
 func TestHandler_Refresh_Success(t *testing.T) {
 	refreshUC := &refreshAccessTokenUseCaseMock{output: &application.RefreshAccessTokenOutput{
 		AccessToken:  "new-access-token",

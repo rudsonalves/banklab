@@ -98,6 +98,8 @@ func (r *recipientRowsMock) Conn() *pgx.Conn {
 }
 
 func TestRepository_FindTransferRecipientsByBranchAndNumber_FiltersActiveAccounts(t *testing.T) {
+	legacyCPFRef := "customers." + "cpf"
+
 	accountID := uuid.New()
 	rows := &recipientRowsMock{
 		values: [][]any{{
@@ -115,6 +117,12 @@ func TestRepository_FindTransferRecipientsByBranchAndNumber_FiltersActiveAccount
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
+	}
+	if strings.Contains(exec.query, legacyCPFRef) {
+		t.Fatalf("expected query to avoid legacy cpf column reference, got %s", exec.query)
+	}
+	if !strings.Contains(exec.query, "customer_documents") {
+		t.Fatalf("expected customer_documents join in query, got %s", exec.query)
 	}
 	if !strings.Contains(exec.query, "a.status = $3") {
 		t.Fatalf("expected active status filter in query, got %s", exec.query)
@@ -134,6 +142,8 @@ func TestRepository_FindTransferRecipientsByBranchAndNumber_FiltersActiveAccount
 }
 
 func TestRepository_FindTransferRecipientsByDocument_FiltersActiveAccounts(t *testing.T) {
+	legacyCPFRef := "customers." + "cpf"
+
 	exec := &recipientExecutorMock{rows: &recipientRowsMock{}}
 	repo := &Repository{exec: exec}
 
@@ -141,6 +151,15 @@ func TestRepository_FindTransferRecipientsByDocument_FiltersActiveAccounts(t *te
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
+	}
+	if strings.Contains(exec.query, legacyCPFRef) {
+		t.Fatalf("expected query to avoid legacy cpf column reference, got %s", exec.query)
+	}
+	if !strings.Contains(exec.query, "customer_documents") {
+		t.Fatalf("expected customer_documents join in query, got %s", exec.query)
+	}
+	if !strings.Contains(exec.query, "cd.value = $1") {
+		t.Fatalf("expected document filter by customer_documents value, got %s", exec.query)
 	}
 	if !strings.Contains(exec.query, "a.status = $2") {
 		t.Fatalf("expected active status filter in query, got %s", exec.query)

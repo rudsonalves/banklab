@@ -365,19 +365,10 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		`CREATE TABLE IF NOT EXISTS customers (
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
-			cpf VARCHAR(11) UNIQUE,
 			birth_date DATE,
-			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
-		`ALTER TABLE customers ALTER COLUMN cpf DROP NOT NULL`,
 		`ALTER TABLE customers ADD COLUMN IF NOT EXISTS birth_date DATE`,
-		// Repair constraint if a previous test run created it with a broken regex.
-		`DO $$ BEGIN
-			ALTER TABLE customers DROP CONSTRAINT IF EXISTS chk_cpf_format;
-			ALTER TABLE customers ADD CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$');
-		EXCEPTION WHEN duplicate_object THEN NULL;
-		END $$`,
 		`CREATE TABLE IF NOT EXISTS customer_documents (
 			id UUID PRIMARY KEY,
 			customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -573,10 +564,26 @@ func seedCustomer(t *testing.T, ctx context.Context, pool *pgxpool.Pool) uuid.UU
 	cpf := fmt.Sprintf("%011d", unique%100000000000)
 
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO customers (id, name, cpf, created_at)
-		VALUES ($1, $2, $3, $4)
-	`, id, "Integration Customer", cpf, time.Now().UTC()); err != nil {
+		INSERT INTO customers (id, name, created_at)
+		VALUES ($1, $2, $3)
+	`, id, "Integration Customer", time.Now().UTC()); err != nil {
 		t.Fatalf("failed to seed customer: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO customer_documents (
+			id,
+			customer_id,
+			type,
+			value,
+			country,
+			is_primary,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, 'cpf', $3, 'BR', true, $4, $4)
+	`, uuid.New(), id, cpf, time.Now().UTC()); err != nil {
+		t.Fatalf("failed to seed customer cpf document: %v", err)
 	}
 
 	t.Cleanup(func() {
@@ -631,10 +638,22 @@ func seedUser(
 	}
 
 	now := time.Now().UTC()
+	phone := fmt.Sprintf("+5511%s", id[:8])
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO users (id, email, password_hash, role, customer_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, id, email, hash, string(role), nullableCustomerID, now, now); err != nil {
+		INSERT INTO users (
+			id,
+			email,
+			phone,
+			password_hash,
+			role,
+			customer_id,
+			email_verified_at,
+			phone_verified_at,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`, id, email, phone, hash, string(role), nullableCustomerID, now, now, now, now); err != nil {
 		t.Fatalf("failed to seed user: %v", err)
 	}
 

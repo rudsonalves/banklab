@@ -6,6 +6,7 @@ type AppError struct {
 	Code    string
 	Message string
 	Status  int
+	Details any
 }
 
 // RegisterDomainError registers a domain error with the provided code, message,
@@ -20,5 +21,22 @@ func RegisterDomainError(err error, code, message string, status int) {
 		Code:    code,
 		Message: message,
 		Status:  status,
+	})
+}
+
+// RegisterDomainErrorWithDetails registers a domain error whose AppError.Details
+// is populated dynamically by calling detailsFn with the original error.
+// Use this for errors that carry structured context (e.g. which contacts are missing).
+func RegisterDomainErrorWithDetails(sentinel error, code, message string, status int, detailsFn func(error) any) {
+	registry = append(registry, entry{
+		match: func(e error) bool {
+			return errors.Is(e, sentinel)
+		},
+		appErr: AppError{
+			Code:    code,
+			Message: message,
+			Status:  status,
+		},
+		detailsFn: detailsFn,
 	})
 }
