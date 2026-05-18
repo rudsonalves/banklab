@@ -203,6 +203,17 @@ Pontos de atenção já identificados:
 - erro de CPF duplicado hoje depende de constraint em `customers.cpf`;
 - o registro de usuário hoje recebe CPF diretamente.
 
+Checklist inicial de impacto no código atual:
+
+- `api/internal/customer/domain/entity.go`: remover `CPF` de `Customer` e alterar `NewCustomer` para criar customer sem documento direto;
+- `api/internal/customer/domain/cpf.go`: manter validação/normalização de CPF, mas mover seu uso para o domínio ou serviço de documentos do customer;
+- `api/internal/customer/infrastructure/postgres.go`: remover `cpf` do `INSERT INTO customers` e trocar leituras de `c.cpf` por join em `customer_documents`;
+- `api/internal/account/bankaccount/infrastructure/repository.go`: trocar `SELECT c.cpf` e `WHERE c.cpf = $1` por busca em `customer_documents` com `type = 'cpf'` e `country = 'BR'`;
+- `api/internal/auth/application/register_user.go`: criar customer sem CPF direto e criar o documento CPF na mesma transação;
+- `api/internal/auth/delivery/handler.go`: manter CPF como entrada do registro inicial, mas encaminhá-lo para criação de documento;
+- testes de auth, customer, account e transaction: substituir inserts diretos em `customers.cpf` por inserts em `customer_documents`;
+- documentação técnica e coleção Postman: atualizar exemplos e contratos afetados.
+
 ## 7. Estratégia de migração
 
 Estratégia sugerida:
@@ -218,6 +229,15 @@ Estratégia sugerida:
 9. Adicionar `phone`, `email_verified_at` e `phone_verified_at` em `users`.
 
 A remoção física de `customers.cpf` deve acontecer nesta fase, junto com a migração do código para `customer_documents`.
+
+Ordem obrigatória para evitar perda de dados ou quebra intermediária:
+
+1. Criar a tabela `customer_documents` enquanto `customers.cpf` ainda existe.
+2. Popular `customer_documents` a partir de `customers.cpf`.
+3. Ajustar aplicação, queries e testes para não dependerem mais de `customers.cpf`.
+4. Executar a remoção física de `customers.cpf`.
+
+Mesmo que os dados locais possam ser reiniciados em desenvolvimento, a migration deve expressar a transição correta do modelo para documentar a intenção e reduzir risco em ambientes compartilhados.
 
 ## 8. Pontos para discutir
 
@@ -245,19 +265,6 @@ Observações:
 - `email_verified_at` e `phone_verified_at` serão preenchidos durante o fluxo de registro mobile.
 - Login deve exigir email e telefone verificados.
 
-Alterações em `customers`:
-
-```sql
-ALTER TABLE customers
-    DROP CONSTRAINT IF EXISTS chk_cpf_format,
-    DROP CONSTRAINT IF EXISTS customers_cpf_key,
-    DROP COLUMN cpf;
-```
-
-Observação:
-
-- Como o projeto ainda está em desenvolvimento e os dados locais podem ser reiniciados, a remoção de `customers.cpf` pode acontecer nesta fase.
-
 Criar `customer_documents`:
 
 ```sql
@@ -278,6 +285,32 @@ CREATE TABLE customer_documents (
 );
 ```
 
+Migrar CPF existente para `customer_documents` antes de remover a coluna antiga:
+
+```sql
+INSERT INTO customer_documents (
+    id,
+    customer_id,
+    type,
+    value,
+    country,
+    is_primary,
+    created_at,
+    updated_at
+)
+SELECT
+    gen_random_uuid(),
+    id,
+    'cpf',
+    cpf,
+    'BR',
+    true,
+    created_at,
+    NOW()
+FROM customers
+WHERE cpf IS NOT NULL;
+```
+
 Criar índice para um documento primário por customer:
 
 ```sql
@@ -285,6 +318,19 @@ CREATE UNIQUE INDEX customer_documents_one_primary_per_customer
 ON customer_documents (customer_id)
 WHERE is_primary = true;
 ```
+
+Remover `customers.cpf` somente depois da migração dos dados e dos ajustes no código:
+
+```sql
+ALTER TABLE customers
+    DROP CONSTRAINT IF EXISTS chk_cpf_format,
+    DROP CONSTRAINT IF EXISTS customers_cpf_key,
+    DROP COLUMN cpf;
+```
+
+Observação:
+
+- Como o projeto ainda está em desenvolvimento e os dados locais podem ser reiniciados, a remoção de `customers.cpf` pode acontecer nesta fase, mas não deve preceder a criação e população de `customer_documents`.
 
 Criar `customer_addresses`:
 
