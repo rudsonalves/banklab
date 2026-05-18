@@ -1,6 +1,10 @@
 import '/core/result/result.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
+import '../../services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
+import '../../services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
+import '../../services/auth/api/dtos/contact_verification_request_dto.dart';
+import '../../services/auth/api/dtos/contact_verification_request_response_dto.dart';
 import '../../services/auth/api/dtos/login_request_dto.dart';
 import '../../services/auth/api/dtos/register_request_dto.dart';
 import '../../services/auth/cache/models/last_login_identity.dart';
@@ -31,6 +35,16 @@ abstract class AuthRepository {
   ///
   /// Returns a failure when called while there is an active logged-in session.
   AsyncResult<Unit> register(RegisterRequestDto dto);
+
+  /// Requests a contact verification code for email or phone.
+  AsyncResult<ContactVerificationRequestResponseDto> requestContactVerification(
+    ContactVerificationRequestDto dto,
+  );
+
+  /// Confirms a contact verification token and returns the verified token.
+  AsyncResult<ContactVerificationConfirmResponseDto> confirmContactVerification(
+    ContactVerificationConfirmRequestDto dto,
+  );
 
   /// Returns the authenticated user's profile.
   ///

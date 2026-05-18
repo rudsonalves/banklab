@@ -6,6 +6,10 @@ import 'package:bankflow/core/services/client_http/client/rest_client_response.d
 import 'package:bankflow/core/services/secure_storage/local_secure_storage.dart';
 import 'package:bankflow/data/repositories/auth/auth_repository_impl.dart';
 import 'package:bankflow/data/services/auth/api/auth_api.dart';
+import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
+import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
+import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_dto.dart';
+import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_response_dto.dart';
 import 'package:bankflow/data/services/auth/api/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/auth/cache/last_login_cache_service.dart';
 import 'package:bankflow/data/services/auth/cache/models/last_login_identity.dart';
@@ -28,6 +32,23 @@ void main() {
             ),
           ),
           profileResult: Success(_profile()),
+          requestContactVerificationResult: Success(
+            ContactVerificationRequestResponseDto(
+              verificationId: 'verification-id-1',
+              channel: 'email',
+              target: 'customer@example.com',
+              token: '123456',
+              expiresAt: DateTime.parse('2026-05-18T12:10:00Z'),
+            ),
+          ),
+          confirmContactVerificationResult: Success(
+            ContactVerificationConfirmResponseDto(
+              verificationToken: 'verified-token',
+              channel: 'email',
+              target: 'customer@example.com',
+              verifiedAt: DateTime.parse('2026-05-18T12:03:00Z'),
+            ),
+          ),
         );
         final storage = _FakeLocalSecureStorage();
         final cache = _FakeLastLoginCacheService();
@@ -60,6 +81,23 @@ void main() {
         final api = _FakeAuthApi(
           loginResult: Success(_loggedUser()),
           profileResult: Success(_profile()),
+          requestContactVerificationResult: Success(
+            ContactVerificationRequestResponseDto(
+              verificationId: 'verification-id-1',
+              channel: 'email',
+              target: 'customer@example.com',
+              token: '123456',
+              expiresAt: DateTime.parse('2026-05-18T12:10:00Z'),
+            ),
+          ),
+          confirmContactVerificationResult: Success(
+            ContactVerificationConfirmResponseDto(
+              verificationToken: 'verified-token',
+              channel: 'email',
+              target: 'customer@example.com',
+              verifiedAt: DateTime.parse('2026-05-18T12:03:00Z'),
+            ),
+          ),
         );
         final storage = _FakeLocalSecureStorage();
         final cache = _FakeLastLoginCacheService();
@@ -87,6 +125,173 @@ void main() {
         expect(repository.userProfile?.name, 'Maria Silva');
       },
     );
+  });
+
+  group('AuthRepositoryImpl.contactVerification', () {
+    test('request delegates to API and keeps auth session untouched', () async {
+      final api = _FakeAuthApi(
+        loginResult: Success(_loggedUser()),
+        profileResult: Success(_profile()),
+        requestContactVerificationResult: Success(
+          ContactVerificationRequestResponseDto(
+            verificationId: 'verification-id-1',
+            channel: 'email',
+            target: 'customer@example.com',
+            token: '123456',
+            expiresAt: DateTime.parse('2026-05-18T12:10:00Z'),
+          ),
+        ),
+        confirmContactVerificationResult: Success(
+          ContactVerificationConfirmResponseDto(
+            verificationToken: 'verified-token',
+            channel: 'email',
+            target: 'customer@example.com',
+            verifiedAt: DateTime.parse('2026-05-18T12:03:00Z'),
+          ),
+        ),
+      );
+      final storage = _FakeLocalSecureStorage();
+      final cache = _FakeLastLoginCacheService();
+
+      final repository = AuthRepositoryImpl(
+        api: api,
+        storage: storage,
+        lastLoginCacheService: cache,
+      );
+
+      final result = await repository.requestContactVerification(
+        ContactVerificationRequestDto(
+          channel: 'email',
+          target: 'customer@example.com',
+        ),
+      );
+
+      expect(result, isA<Success<ContactVerificationRequestResponseDto>>());
+      expect(api.requestContactVerificationCalls, 1);
+      expect(storage.writeCalls, 0);
+      expect(repository.isLoggedIn, isFalse);
+      expect(repository.userProfile, isNull);
+    });
+
+    test('request propagates AppError failure', () async {
+      final api = _FakeAuthApi(
+        loginResult: Success(_loggedUser()),
+        profileResult: Success(_profile()),
+        requestContactVerificationResult: const Failure(
+          AppError(
+            code: AppErrorCode.httpError,
+            message: 'target is invalid',
+          ),
+        ),
+        confirmContactVerificationResult: Success(
+          ContactVerificationConfirmResponseDto(
+            verificationToken: 'verified-token',
+            channel: 'email',
+            target: 'customer@example.com',
+            verifiedAt: DateTime.parse('2026-05-18T12:03:00Z'),
+          ),
+        ),
+      );
+
+      final repository = AuthRepositoryImpl(
+        api: api,
+        storage: _FakeLocalSecureStorage(),
+        lastLoginCacheService: _FakeLastLoginCacheService(),
+      );
+
+      final result = await repository.requestContactVerification(
+        ContactVerificationRequestDto(
+          channel: 'email',
+          target: 'invalid',
+        ),
+      );
+
+      expect(result, isA<Failure<ContactVerificationRequestResponseDto>>());
+      expect(result.error?.message, 'target is invalid');
+    });
+
+    test('confirm delegates to API and keeps auth session untouched', () async {
+      final api = _FakeAuthApi(
+        loginResult: Success(_loggedUser()),
+        profileResult: Success(_profile()),
+        requestContactVerificationResult: Success(
+          ContactVerificationRequestResponseDto(
+            verificationId: 'verification-id-1',
+            channel: 'phone',
+            target: '+5511999999999',
+            token: '123456',
+            expiresAt: DateTime.parse('2026-05-18T12:10:00Z'),
+          ),
+        ),
+        confirmContactVerificationResult: Success(
+          ContactVerificationConfirmResponseDto(
+            verificationToken: 'verified-token',
+            channel: 'phone',
+            target: '+5511999999999',
+            verifiedAt: DateTime.parse('2026-05-18T12:03:00Z'),
+          ),
+        ),
+      );
+      final storage = _FakeLocalSecureStorage();
+      final cache = _FakeLastLoginCacheService();
+
+      final repository = AuthRepositoryImpl(
+        api: api,
+        storage: storage,
+        lastLoginCacheService: cache,
+      );
+
+      final result = await repository.confirmContactVerification(
+        ContactVerificationConfirmRequestDto(
+          verificationId: 'verification-id-1',
+          token: '123456',
+        ),
+      );
+
+      expect(result, isA<Success<ContactVerificationConfirmResponseDto>>());
+      expect(api.confirmContactVerificationCalls, 1);
+      expect(storage.writeCalls, 0);
+      expect(repository.isLoggedIn, isFalse);
+      expect(repository.userProfile, isNull);
+    });
+
+    test('confirm propagates AppError failure', () async {
+      final api = _FakeAuthApi(
+        loginResult: Success(_loggedUser()),
+        profileResult: Success(_profile()),
+        requestContactVerificationResult: Success(
+          ContactVerificationRequestResponseDto(
+            verificationId: 'verification-id-1',
+            channel: 'phone',
+            target: '+5511999999999',
+            token: '123456',
+            expiresAt: DateTime.parse('2026-05-18T12:10:00Z'),
+          ),
+        ),
+        confirmContactVerificationResult: const Failure(
+          AppError(
+            code: AppErrorCode.httpError,
+            message: 'invalid verification token',
+          ),
+        ),
+      );
+
+      final repository = AuthRepositoryImpl(
+        api: api,
+        storage: _FakeLocalSecureStorage(),
+        lastLoginCacheService: _FakeLastLoginCacheService(),
+      );
+
+      final result = await repository.confirmContactVerification(
+        ContactVerificationConfirmRequestDto(
+          verificationId: 'verification-id-1',
+          token: '000000',
+        ),
+      );
+
+      expect(result, isA<Failure<ContactVerificationConfirmResponseDto>>());
+      expect(result.error?.message, 'invalid verification token');
+    });
   });
 }
 
@@ -116,13 +321,21 @@ UserProfile _profile() {
 class _FakeAuthApi extends AuthApi {
   Result<LoggedUser> loginResult;
   Result<UserProfile> profileResult;
+  Result<ContactVerificationRequestResponseDto>
+  requestContactVerificationResult;
+  Result<ContactVerificationConfirmResponseDto>
+  confirmContactVerificationResult;
 
   int loginCalls = 0;
   int getProfileCalls = 0;
+  int requestContactVerificationCalls = 0;
+  int confirmContactVerificationCalls = 0;
 
   _FakeAuthApi({
     required this.loginResult,
     required this.profileResult,
+    required this.requestContactVerificationResult,
+    required this.confirmContactVerificationResult,
   }) : super(_NoopRestClient());
 
   @override
@@ -135,6 +348,22 @@ class _FakeAuthApi extends AuthApi {
   AsyncResult<UserProfile> getProfile() async {
     getProfileCalls++;
     return profileResult;
+  }
+
+  @override
+  AsyncResult<ContactVerificationRequestResponseDto> requestContactVerification(
+    ContactVerificationRequestDto dto,
+  ) async {
+    requestContactVerificationCalls++;
+    return requestContactVerificationResult;
+  }
+
+  @override
+  AsyncResult<ContactVerificationConfirmResponseDto> confirmContactVerification(
+    ContactVerificationConfirmRequestDto dto,
+  ) async {
+    confirmContactVerificationCalls++;
+    return confirmContactVerificationResult;
   }
 }
 

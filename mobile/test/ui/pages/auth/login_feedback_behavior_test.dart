@@ -1,5 +1,9 @@
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/data/repositories/auth/auth_repository.dart';
+import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
+import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
+import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_dto.dart';
+import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_response_dto.dart';
 import 'package:bankflow/data/services/auth/api/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/auth/api/dtos/register_request_dto.dart';
 import 'package:bankflow/data/services/auth/cache/models/last_login_identity.dart';
@@ -203,5 +207,23 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   AsyncResult<Unit> register(RegisterRequestDto dto) async {
     return Success(unit);
+  }
+
+  @override
+  AsyncResult<ContactVerificationRequestResponseDto> requestContactVerification(
+    ContactVerificationRequestDto dto,
+  ) async {
+    return const Failure(
+      AppError(code: AppErrorCode.unexpected, message: 'Not implemented'),
+    );
+  }
+
+  @override
+  AsyncResult<ContactVerificationConfirmResponseDto> confirmContactVerification(
+    ContactVerificationConfirmRequestDto dto,
+  ) async {
+    return const Failure(
+      AppError(code: AppErrorCode.unexpected, message: 'Not implemented'),
+    );
   }
 }

@@ -49,6 +49,99 @@ void main() {
       expect(error.statusCode, 403);
     });
 
+    test('maps CONTACT_NOT_VERIFIED with both channels pending', () {
+      final error = mapHttpError(
+        _dioBadResponse(
+          statusCode: 403,
+          data: {
+            'data': null,
+            'error': {
+              'code': 'CONTACT_NOT_VERIFIED',
+              'message': 'Contact not verified',
+              'details': {
+                'email_verified': false,
+                'phone_verified': false,
+              },
+            },
+          },
+        ),
+      );
+
+      expect(error.code, AppErrorCode.contactNotVerified);
+      expect(error.message, 'Confirme seu e-mail e telefone antes de entrar.');
+      expect(error.statusCode, 403);
+      expect(error.details, isA<Map<String, dynamic>>());
+      final details = error.details! as Map<String, dynamic>;
+      expect(details['email_verified'], isFalse);
+      expect(details['phone_verified'], isFalse);
+    });
+
+    test('maps CONTACT_NOT_VERIFIED with only e-mail pending', () {
+      final error = mapHttpError(
+        _dioBadResponse(
+          statusCode: 403,
+          data: {
+            'data': null,
+            'error': {
+              'code': 'CONTACT_NOT_VERIFIED',
+              'message': 'Contact not verified',
+              'details': {
+                'email_verified': false,
+                'phone_verified': true,
+              },
+            },
+          },
+        ),
+      );
+
+      expect(error.code, AppErrorCode.contactNotVerified);
+      expect(error.message, 'Confirme seu e-mail antes de entrar.');
+      expect(error.statusCode, 403);
+    });
+
+    test('maps CONTACT_NOT_VERIFIED with only phone pending', () {
+      final error = mapHttpError(
+        _dioBadResponse(
+          statusCode: 403,
+          data: {
+            'data': null,
+            'error': {
+              'code': 'CONTACT_NOT_VERIFIED',
+              'message': 'Contact not verified',
+              'details': {
+                'email_verified': true,
+                'phone_verified': false,
+              },
+            },
+          },
+        ),
+      );
+
+      expect(error.code, AppErrorCode.contactNotVerified);
+      expect(error.message, 'Confirme seu telefone antes de entrar.');
+      expect(error.statusCode, 403);
+    });
+
+    test('maps CONTACT_NOT_VERIFIED without details to generic message', () {
+      final error = mapHttpError(
+        _dioBadResponse(
+          statusCode: 403,
+          data: {
+            'data': null,
+            'error': {
+              'code': 'CONTACT_NOT_VERIFIED',
+              'message': 'Contact not verified',
+            },
+          },
+        ),
+      );
+
+      expect(error.code, AppErrorCode.contactNotVerified);
+      expect(error.message, 'Confirme seu e-mail e telefone antes de entrar.');
+      expect(error.statusCode, 403);
+      expect(error.details, isNull);
+    });
+
     test('keeps generic forbidden as httpError when code is not approval', () {
       final error = mapHttpError(
         _dioBadResponse(
@@ -62,6 +155,26 @@ void main() {
       );
 
       expect(error.code, AppErrorCode.httpError);
+      expect(error.message, 'Forbidden');
+      expect(error.statusCode, 403);
+    });
+
+    test('does not map generic 403 to contactNotVerified', () {
+      final error = mapHttpError(
+        _dioBadResponse(
+          statusCode: 403,
+          data: {
+            'data': null,
+            'error': {
+              'code': 'FORBIDDEN',
+              'message': 'Forbidden',
+            },
+          },
+        ),
+      );
+
+      expect(error.code, AppErrorCode.httpError);
+      expect(error.code, isNot(AppErrorCode.contactNotVerified));
       expect(error.message, 'Forbidden');
       expect(error.statusCode, 403);
     });

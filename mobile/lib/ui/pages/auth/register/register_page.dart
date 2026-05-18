@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '/core/routing/routes.dart';
-import '/data/services/auth/api/dtos/register_request_dto.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/input_formatters/cpf_input_formatter.dart';
@@ -271,31 +270,15 @@ class _RegisterPageState extends State<RegisterPage> {
 
     FocusScope.of(context).unfocus();
 
-    await _viewmodel.register.execute(
-      RegisterRequestDto(
-        name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        cpf: _cpfController.text.replaceAll(RegExp(r'\D'), ''),
-      ),
-    );
-
-    final result = _viewmodel.register.result!;
-    if (result.isFailure) {
-      final message = result.error?.message ?? 'Falha ao cadastrar.';
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Confirme seu e-mail e telefone antes de concluir o cadastro.',
           ),
-        );
-      return;
-    }
-
-    if (!mounted) return;
-    context.goNamed(AuthRoutes.login.name);
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 }

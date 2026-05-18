@@ -1,5 +1,149 @@
 # Changelog
 
+## 2026/05/18 — mobile/pre-onboarding-02
+
+This commit introduces the first structural layer of the pre-onboarding flow for the mobile application, focusing on contact verification before account registration and improving the error propagation model between API and Flutter client.
+
+The implementation establishes the initial foundation for a more robust onboarding process, where e-mail and phone validation become explicit prerequisites before authentication and account activation flows.
+
+### Backlog and Project Organization
+
+1. Reorganized onboarding backlog numbering
+
+   * Renamed:
+
+     * `docs/backlogs/api/006 - onboarding.md`
+     * → `docs/backlogs/api/001 - onboarding.md`
+   * Normalized onboarding backlog priority within the API planning structure.
+   * Reinforced onboarding as one of the primary architectural flows of the platform.
+
+### Contact Verification Flow Foundation
+
+1. Added contact verification support to the authentication repository
+
+   * Introduced:
+
+     * `requestContactVerification(...)`
+     * `confirmContactVerification(...)`
+   * Added DTO integration for:
+
+     * verification request
+     * verification confirmation
+     * verification tokens
+     * verification responses
+
+2. Extended repository implementation
+
+   * Added delegation to `AuthApi` for verification operations.
+   * Preserved authentication session isolation:
+
+     * verification operations do not create sessions
+     * verification operations do not persist login state
+     * verification operations do not modify cached profile state
+
+3. Added support for verification tokens during registration
+
+   * `RegisterRequestDto` now includes:
+
+     * `phone`
+     * `birthDate`
+     * `emailVerificationToken`
+     * `phoneVerificationToken`
+   * Added CPF normalization before serialization.
+   * Added birth date serialization using ISO date-only format.
+   * Added parsing validation for `birth_date`.
+
+### HTTP Error Mapping Evolution
+
+1. Introduced new application error code
+
+   * Added:
+
+     * `AppErrorCode.contactNotVerified`
+
+2. Extended Dio error mapper
+
+   * Added backend mapping for:
+
+     * `CONTACT_NOT_VERIFIED`
+   * Implemented contextual user feedback based on verification state:
+
+     * both channels pending
+     * only e-mail pending
+     * only phone pending
+
+3. Improved backend error details propagation
+
+   * Added support for:
+
+     * `error.details`
+   * Preserved generic compatibility for legacy error payloads.
+   * Improved HTTP error fallback handling.
+
+4. Extended API envelope parsing
+
+   * `ApiError` now supports structured `details`.
+   * Added safe parsing for dynamic map payloads.
+
+### Register Flow Transition
+
+1. Adjusted register page behavior
+
+   * Removed direct registration execution from the page.
+   * Temporarily redirected flow toward pre-verification guidance.
+   * Added onboarding feedback snackbar:
+
+     * “Confirme seu e-mail e telefone antes de concluir o cadastro.”
+
+2. Prepared the UI for the upcoming staged onboarding flow
+
+   * The register page now behaves as an entry point for future:
+
+     * e-mail confirmation
+     * SMS confirmation
+     * pre-auth onboarding orchestration
+
+### Test Coverage Expansion
+
+1. Added exhaustive tests for contact verification error mapping
+
+   * Covered scenarios:
+
+     * both channels pending
+     * e-mail only pending
+     * phone only pending
+     * missing details fallback
+     * generic 403 isolation
+
+2. Added repository tests for verification flows
+
+   * Verified:
+
+     * API delegation
+     * session isolation
+     * failure propagation
+     * success propagation
+
+3. Added DTO serialization and parsing tests
+
+   * Verified:
+
+     * CPF normalization
+     * token persistence
+     * birth date formatting
+     * payload compatibility
+
+4. Added API envelope compatibility tests
+
+   * Covered:
+
+     * envelopes with details
+     * envelopes without details
+     * backward compatibility behavior
+
+This commit establishes the first concrete layer of a staged onboarding architecture in the mobile application, moving the project away from immediate account creation and toward a verification-first model aligned with stronger identity validation and future Zero Trust onboarding flows.
+
+
 ## 2026/05/18 — mobile/pre-onboarding-01
 
 This commit introduces the first mobile foundation for the new pre-onboarding flow with contact verification support. The work aligns the Flutter client with the updated authentication contract from the API, where users must verify both e-mail and phone before completing registration.

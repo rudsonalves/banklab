@@ -4,6 +4,10 @@ import '/core/services/logging/console_log.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
 import '/data/repositories/auth/auth_repository.dart';
 import '/data/services/auth/api/auth_api.dart';
+import '/data/services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
+import '/data/services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
+import '/data/services/auth/api/dtos/contact_verification_request_dto.dart';
+import '/data/services/auth/api/dtos/contact_verification_request_response_dto.dart';
 import '/data/services/auth/api/dtos/login_request_dto.dart';
 import '/data/services/auth/api/dtos/register_request_dto.dart';
 import '/data/services/auth/cache/last_login_cache_service.dart';
@@ -131,5 +135,23 @@ class AuthRepositoryImpl implements AuthRepository {
     if (result.isFailure) return Result.failure(result.error!);
 
     return Success(unit);
+  }
+
+  @override
+  AsyncResult<ContactVerificationRequestResponseDto> requestContactVerification(
+    ContactVerificationRequestDto dto,
+  ) async {
+    final result = await _api.requestContactVerification(dto);
+    if (result.isFailure) return Result.failure(result.error!);
+    return Success(result.value!);
+  }
+
+  @override
+  AsyncResult<ContactVerificationConfirmResponseDto> confirmContactVerification(
+    ContactVerificationConfirmRequestDto dto,
+  ) async {
+    final result = await _api.confirmContactVerification(dto);
+    if (result.isFailure) return Result.failure(result.error!);
+    return Success(result.value!);
   }
 }
