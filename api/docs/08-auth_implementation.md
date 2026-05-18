@@ -74,6 +74,8 @@ A user-scoped token issued after successful authentication.
 
 Endpoints:
 
+* `POST /auth/contact-verifications`
+* `POST /auth/contact-verifications/confirm`
 * `POST /auth/register`
 * `POST /auth/login`
 
@@ -91,6 +93,10 @@ Auth Handler
 
 * `X-App-Token` header is mandatory
 * JWT is not required
+* registration requires confirmed verification tokens for e-mail and phone
+
+On register, CPF is persisted as a primary customer document (`customer_documents`)
+instead of a direct `customers.cpf` column.
 
 ---
 
@@ -114,6 +120,10 @@ Auth Handler
 
 * valid `Authorization: Bearer <access_token>`
 * App Token is not required
+
+Login may fail with `CONTACT_NOT_VERIFIED` when contact verification was not
+completed. In this case, error details include channel verification flags to
+drive client onboarding UX.
 
 ### 4.3 Refresh Endpoint
 
@@ -212,13 +222,13 @@ Account status governs whether a specific account is operational.
 
 ### Examples
 
-| Scenario                                 | JWT Valid? | Role OK? | User Status | Account Status | Can Open Account? | Can Move Funds? |
-| ---------------------------------------- | ---------- | -------- | ----------- | -------------- | ----------------- | --------------- |
-| Pending user, valid JWT                  | ✓          | ✓        | pending     | -              | ✗                 | N/A             |
-| Active user, valid JWT, active account   | ✓          | ✓        | active      | active         | ✓                 | ✓               |
-| Active user, valid JWT, blocked account  | ✓          | ✓        | active      | blocked        | ✓                 | ✗               |
-| Blocked user, valid JWT, active account  | ✓          | ✓        | blocked     | active         | ✗                 | account-defined |
-| No JWT                                   | ✗          | -        | -           | -              | ✗                 | ✗               |
+| Scenario                                | JWT Valid? | Role OK? | User Status | Account Status | Can Open Account? | Can Move Funds? |
+| --------------------------------------- | ---------- | -------- | ----------- | -------------- | ----------------- | --------------- |
+| Pending user, valid JWT                 | ✓          | ✓        | pending     | -              | ✗                 | N/A             |
+| Active user, valid JWT, active account  | ✓          | ✓        | active      | active         | ✓                 | ✓               |
+| Active user, valid JWT, blocked account | ✓          | ✓        | active      | blocked        | ✓                 | ✗               |
+| Blocked user, valid JWT, active account | ✓          | ✓        | blocked     | active         | ✗                 | account-defined |
+| No JWT                                  | ✗          | -        | -           | -              | ✗                 | ✗               |
 
 ### Responsibility
 

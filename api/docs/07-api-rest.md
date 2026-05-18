@@ -8,6 +8,8 @@
   - [2. Response Envelope](#2-response-envelope)
     - [2.1 Error Payload Examples (Standard)](#21-error-payload-examples-standard)
   - [3. Authentication Endpoints](#3-authentication-endpoints)
+    - [3.0 Request Contact Verification](#30-request-contact-verification)
+    - [3.0.1 Confirm Contact Verification](#301-confirm-contact-verification)
     - [3.1 Register User](#31-register-user)
     - [3.2 Login User](#32-login-user)
     - [3.3 Refresh Access Token](#33-refresh-access-token)
@@ -62,7 +64,7 @@ Content type:
 - response: application/json
 
 Authentication:
-- `POST /auth/register` and `POST /auth/login` require header `X-App-Token: <app_token>`
+- `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, and `POST /auth/login` require header `X-App-Token: <app_token>`
 - `POST /auth/refresh` requires a valid `refresh_token` in the request body
 - `GET /auth/me`, all `/accounts` and `/accounts/*`, and all `/customers/*` require JWT Bearer token
 - Send JWT in header `Authorization: Bearer <access_token>`
@@ -99,7 +101,7 @@ Error:
 
 Notes:
 - Current implementation returns `error.code` and `error.message`.
-- `error.details` is not currently populated by handlers.
+- `error.details` may be populated for selected errors, such as `CONTACT_NOT_VERIFIED`.
 
 ### 2.1 Error Payload Examples (Standard)
 
@@ -153,6 +155,73 @@ Example - 500 INTERNAL_ERROR:
 
 ## 3. Authentication Endpoints
 
+Before registration, the client must request and confirm contact verifications
+for both e-mail and phone.
+
+### 3.0 Request Contact Verification
+
+- Method: POST
+- Path: /auth/contact-verifications
+- Auth required: AppToken (`X-App-Token`)
+
+Request body:
+
+```json
+{
+  "channel": "email",
+  "target": "user@example.com"
+}
+```
+
+`channel` accepts `email` or `phone`.
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "verification_id": "8d9ad65f-f837-4f6f-bd20-63f2c7cefab6",
+    "channel": "email",
+    "target": "user@example.com",
+    "token": "123456",
+    "expires_at": "2026-05-18T12:10:00Z"
+  },
+  "error": null
+}
+```
+
+### 3.0.1 Confirm Contact Verification
+
+- Method: POST
+- Path: /auth/contact-verifications/confirm
+- Auth required: AppToken (`X-App-Token`)
+
+Request body:
+
+```json
+{
+  "verification_id": "8d9ad65f-f837-4f6f-bd20-63f2c7cefab6",
+  "token": "123456"
+}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "verification_token": "12adf6b7-2c5f-4895-96a3-a8e45db5c1d1",
+    "channel": "email",
+    "target": "user@example.com",
+    "verified_at": "2026-05-18T12:03:00Z"
+  },
+  "error": null
+}
+```
+
+The `verification_token` from this response is required by
+`POST /auth/register`.
+
 ### 3.1 Register User
 
 - Method: POST
@@ -166,13 +235,17 @@ Request body:
 ```json
 {
   "email": "user@example.com",
+  "phone": "+5511999999999",
   "password": "P@ssword123",
   "name": "Maria Silva",
-  "cpf": "12345678901"
+  "birth_date": "1990-01-15",
+  "cpf": "12345678901",
+  "email_verification_token": "12adf6b7-2c5f-4895-96a3-a8e45db5c1d1",
+  "phone_verification_token": "95d3102d-c58f-4fa3-a1e8-2f0834bb9a39"
 }
 ```
 
-All four fields are required.
+All fields are required.
 
 Success response (201):
 
@@ -194,8 +267,7 @@ Possible errors:
 - 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_DATA: invalid email or password format
-- 409 USER_ALREADY_EXISTS: duplicate email
-- 409 (customer domain): duplicate CPF or email in customers table
+- 409 USER_ALREADY_EXISTS: duplicate e-mail, phone, or CPF document
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ### 3.2 Login User
@@ -243,6 +315,7 @@ Possible errors:
 - 400 INVALID_REQUEST: invalid JSON body or unknown fields
 - 400 INVALID_DATA: invalid email or password input
 - 401 INVALID_CREDENTIALS: invalid email/password
+- 403 CONTACT_NOT_VERIFIED: e-mail and/or phone not verified
 - 403 ACCOUNT_APPROVAL_REQUIRED: customer user still requires admin approval or account provisioning
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -865,6 +938,9 @@ All customer routes are protected and require Authorization header with Bearer t
 
 Returns the customer profile linked to the authenticated user. No path or query parameters required.
 
+Notes:
+- `cpf` is resolved from the customer's primary `customer_documents` row (`type=cpf`, `country=BR`).
+
 Success response (200):
 
 ```json
@@ -912,6 +988,7 @@ Common error codes currently used by handlers:
 - USER_ALREADY_EXISTS
 - CUSTOMER_NOT_FOUND
 - INVALID_CREDENTIALS
+- CONTACT_NOT_VERIFIED
 - ACCOUNT_APPROVAL_REQUIRED
 - UNAUTHORIZED
 - INVALID_TOKEN
@@ -929,6 +1006,10 @@ Common error codes currently used by handlers:
 customer user has valid credentials but cannot enter the app because admin
 approval/account provisioning is incomplete. Mobile clients should use this code
 to show an approval-pending guidance message.
+
+`CONTACT_NOT_VERIFIED` (HTTP 403) is returned by `POST /auth/login` when one or
+both contact channels are not verified. The payload may include
+`error.details.email_verified` and `error.details.phone_verified`.
 
 `INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or refresh token signature invalid.
 
@@ -1029,6 +1110,24 @@ Scenario: account approval required
   "error": {
     "code": "ACCOUNT_APPROVAL_REQUIRED",
     "message": "Account approval required"
+  }
+}
+```
+
+Scenario: contact not verified
+- Status: 403
+- Code: CONTACT_NOT_VERIFIED
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "CONTACT_NOT_VERIFIED",
+    "message": "Contact not verified",
+    "details": {
+      "email_verified": true,
+      "phone_verified": false
+    }
   }
 }
 ```
@@ -1476,6 +1575,10 @@ Use these variables when configuring the Postman environment:
 - `recipient_branch`: branch used for recipient lookup examples
 - `recipient_account_number`: account number used for recipient lookup examples
 - `recipient_document`: CPF used for recipient lookup examples
+- `email_verification_id`: id returned by `POST /auth/contact-verifications` (email)
+- `phone_verification_id`: id returned by `POST /auth/contact-verifications` (phone)
+- `email_verification_token`: token returned by `POST /auth/contact-verifications/confirm` (email)
+- `phone_verification_token`: token returned by `POST /auth/contact-verifications/confirm` (phone)
 - `transaction_reference`: public reference returned by successful transfer requests
 - `id`: user UUID used by admin approval route (`/admin/users/{id}/approve`)
 
@@ -1492,14 +1595,18 @@ Use these variables when configuring the Postman environment:
 
 Use this flow to bootstrap test data and credentials quickly:
 
-1. `Auth/Register`
-2. `Auth/Login` (copy `access_token` and `refresh_token` from response)
-3. `Auth/Me` (validate JWT)
-4. `Account/User/Approve` (admin only, using `id`)
-5. Account endpoints using `account_id` as needed
-6. Recipient lookup endpoint using `recipient_branch` + `recipient_account_number`, or `recipient_document`
-7. Internal transfer endpoint using `from_account_id` and `to_account_id`
-8. Receipt endpoint using `transaction_reference` from a successful transfer response
+1. `Auth/ContactVerifications/RequestEmail`
+2. `Auth/ContactVerifications/ConfirmEmail`
+3. `Auth/ContactVerifications/RequestPhone`
+4. `Auth/ContactVerifications/ConfirmPhone`
+5. `Auth/Register`
+6. `Auth/Login` (copy `access_token` and `refresh_token` from response)
+7. `Auth/Me` (validate JWT)
+8. `Account/User/Approve` (admin only, using `id`)
+9. Account endpoints using `account_id` as needed
+10. Recipient lookup endpoint using `recipient_branch` + `recipient_account_number`, or `recipient_document`
+11. Internal transfer endpoint using `from_account_id` and `to_account_id`
+12. Receipt endpoint using `transaction_reference` from a successful transfer response
 
 Notes:
 - Keep `X-App-Token` for register/login requests as documented in this file.

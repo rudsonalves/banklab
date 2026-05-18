@@ -97,13 +97,14 @@ return ErrInternal
 
 ---
 
-## 3. Constraint name coupling (still exists)
+## 3. Constraint name coupling
 
 ```go
-if pgErr.ConstraintName == "customers_cpf_key"
+if pgErr.ConstraintName == "customer_documents_unique_document"
 ```
 
-👉 This is **better than before**, but still:
+👉 This is acceptable when the constraint is part of the persistence contract,
+but still:
 
 * tied to migration naming
 * fragile if schema changes
@@ -116,7 +117,7 @@ Use **SQLSTATE only** and infer by input:
 
 ```go
 case "23505":
-	// assume CPF or email conflict based on input or context
+	// infer conflict based on repository operation/context
 ```
 
 Or standardize constraint names explicitly in migrations.

@@ -74,13 +74,15 @@ Each concept is represented once:
 
 ## 3. Schema Overview
 
-![Database Schema](images/databese.png)
+![Database Schema](images/database.png)
 
 ### Core Tables
 
 * `customers`
+* `customer_documents`
 * `users`
 * `user_sessions`
+* `contact_verifications`
 * `accounts`
 * `transactions`
 
@@ -100,18 +102,43 @@ Fields:
 
 * `id` (UUID, PK)
 * `name`
-* `cpf` (unique, validated)
-* `email` (unique)
+* `birth_date`
 * `created_at`
 
 Constraints:
 
-* CPF format validation
-* unique CPF and email
+* no direct CPF column in this table
+
+Notes:
+
+* CPF and other documents are stored in `customer_documents`
+* e-mail and phone identity are stored in `users`
 
 ---
 
-## 4.2 users
+## 4.2 customer_documents
+
+Represents customer identity documents.
+
+Fields:
+
+* `id` (UUID, PK)
+* `customer_id` (FK -> customers)
+* `type` (example: `cpf`)
+* `value`
+* `country`
+* `is_primary`
+* `created_at`
+* `updated_at`
+
+Constraints:
+
+* unique document by `(type, value, country)`
+* one primary document per customer
+
+---
+
+## 4.3 users
 
 Represents system authentication identity.
 
@@ -119,10 +146,13 @@ Fields:
 
 * `id` (UUID, PK)
 * `email` (unique)
+* `phone` (unique)
 * `password_hash`
 * `role`
 * `customer_id` (nullable)
 * `status`
+* `email_verified_at`
+* `phone_verified_at`
 * `created_at`
 * `updated_at`
 
@@ -137,7 +167,7 @@ Notes:
 
 ---
 
-## 4.3 user_sessions
+## 4.4 user_sessions
 
 Represents authentication sessions (refresh tokens).
 
@@ -191,6 +221,28 @@ Fields:
 * `related_account_id` (UUID, used for transfers)
 * `idempotency_key` (optional)
 * `created_at`
+
+---
+
+## 4.6 contact_verifications
+
+Represents temporary onboarding verifications for e-mail and phone.
+
+Fields:
+
+* `id` (UUID, PK)
+* `channel` (`email` or `phone`)
+* `target`
+* `token` (short code)
+* `verification_token` (token returned after confirmation)
+* `verified_at`
+* `expires_at`
+* `created_at`
+
+Notes:
+
+* register flow requires confirmed verification tokens for both e-mail and phone
+* these tokens are consumed by `POST /auth/register`
 
 ---
 

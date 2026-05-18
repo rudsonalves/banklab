@@ -26,14 +26,32 @@ Represents the account holder within the system.
 
 * id
 * name
-* cpf
-* email
+* birthDate
 * createdAt
 
 **Constraints**
 
-* CPF must be unique
-* email must be unique
+* CPF uniqueness is enforced in customer documents
+* customer identity data is split between customer profile and auth identity
+
+### 2.1.1 CustomerDocument
+
+Represents official customer documents (for now, CPF).
+
+**Attributes**
+
+* id
+* customerId
+* type (`cpf`)
+* value
+* country (`BR`)
+* isPrimary
+* createdAt
+
+**Constraints**
+
+* `(type, value, country)` must be unique
+* each customer may have only one primary document
 
 ---
 
@@ -45,8 +63,11 @@ Represents an authenticated system user with lifecycle management.
 
 * id
 * email
+* phone
 * status
 * customerId (for users with the customer role)
+* emailVerifiedAt
+* phoneVerifiedAt
 * createdAt
 
 **Status**
@@ -60,6 +81,7 @@ Represents an authenticated system user with lifecycle management.
 * email must be unique
 * all users start with `pending` status
 * only `active` users may access financial operations
+* login requires verified e-mail and phone before issuing session tokens
 
 ---
 

@@ -1,5 +1,171 @@
 # Changelog
 
+## 2026/05/18 — api/pre-onboarding-06
+
+This commit advances the pre-onboarding and authentication flow by introducing contact verification enforcement during login, removing the remaining direct CPF dependency from the `customers` table, and consolidating document handling through `customer_documents`.
+
+### Authentication and Contact Verification
+
+Implemented mandatory contact verification validation before session creation during login.
+
+#### `api/internal/auth/application/login_user.go`
+
+* Added `validateContactVerification` to enforce verified email and phone before authentication completes.
+* Introduced early interruption of the login flow when contact verification requirements are not satisfied.
+* Ensured validation happens before account provisioning checks and token generation.
+
+#### `api/internal/auth/domain/errors.go`
+
+* Added `ErrContactNotVerified`.
+* Introduced `ContactNotVerifiedError` carrying structured verification state:
+
+  * `EmailVerified`
+  * `PhoneVerified`
+* Implemented `Unwrap()` support for compatibility with `errors.Is` and `errors.As`.
+
+#### `api/internal/auth/application/errors_registry.go`
+
+* Added structured registration for `CONTACT_NOT_VERIFIED`.
+* Introduced dynamic error detail mapping for verification state exposure.
+
+#### `api/internal/shared/errors/*`
+
+* Extended `AppError` with `Details`.
+* Added `RegisterDomainErrorWithDetails`.
+* Updated mapper logic to dynamically populate structured error payloads.
+* Added new error code:
+
+  * `CONTACT_NOT_VERIFIED`
+
+#### `api/internal/shared/http/response.go`
+
+* Extended HTTP error responses to include:
+
+  * `error.details`
+
+### Login Flow Tests
+
+Expanded login coverage to validate all verification scenarios.
+
+#### `api/internal/auth/application/login_user_test.go`
+
+* Updated all successful authentication scenarios to include:
+
+  * `EmailVerifiedAt`
+  * `PhoneVerifiedAt`
+* Added tests for:
+
+  * email not verified
+  * phone not verified
+* Verified that failed verification:
+
+  * blocks token generation
+  * blocks session persistence
+  * skips provisioning validation
+
+#### `api/internal/auth/delivery/handler_test.go`
+
+* Added HTTP integration coverage for:
+
+  * `CONTACT_NOT_VERIFIED`
+* Validated:
+
+  * HTTP 403 status
+  * structured error response
+  * verification detail payload
+
+### Customer CPF Decoupling
+
+One of the main goals of this commit was removing the remaining runtime dependency on the legacy `customers.cpf` column and consolidating CPF access through `customer_documents`.
+
+#### `api/internal/account/bankaccount/infrastructure/repository.go`
+
+* Replaced direct `customers.cpf` usage with joins against `customer_documents`.
+* Updated transfer recipient lookup queries to:
+
+  * resolve CPF from `customer_documents`
+  * enforce:
+
+    * `type = 'cpf'`
+    * `country = 'BR'`
+    * `is_primary = true`
+
+#### `api/internal/account/bankaccount/infrastructure/repository_test.go`
+
+* Added guards ensuring:
+
+  * no legacy `customers.cpf` references remain
+  * queries use `customer_documents`
+  * document filtering uses `cd.value`
+
+### Database Migration
+
+Introduced migration removing the direct CPF column from `customers`.
+
+#### `api/migrations/000008_remove_customers_direct_cpf.up.sql`
+
+* Removed:
+
+  * `customers.cpf`
+  * CPF format constraint
+  * CPF unique constraint
+
+#### `api/migrations/000008_remove_customers_direct_cpf.down.sql`
+
+* Recreated:
+
+  * `customers.cpf`
+  * CPF constraints
+* Added restoration logic using `customer_documents`.
+
+### Integration and Repository Test Schema Updates
+
+Adjusted integration schemas and seed helpers to align with the new document model.
+
+#### Updated test schemas
+
+* `deposit_integration_test.go`
+* `auth_authorization_integration_test.go`
+* `postgres_user_repository_test.go`
+
+Changes include:
+
+* removal of direct CPF column usage
+* creation of `customer_documents`
+* primary document uniqueness index
+* document seeding helpers
+* explicit CPF document insertion
+
+### User Seed and Verification Improvements
+
+#### `api/internal/auth/delivery/auth_authorization_integration_test.go`
+
+* Updated seeded users to include:
+
+  * phone number
+  * `email_verified_at`
+  * `phone_verified_at`
+* Ensured integration login flows reflect real verification requirements.
+
+### Architectural Impact
+
+This commit significantly advances the onboarding and identity model by:
+
+* separating customer identity documents from the customer aggregate itself
+* enabling multi-document support in future onboarding flows
+* removing direct CPF coupling from transfer operations
+* introducing structured authentication failure responses
+* enforcing verified communication channels before authenticated access
+* improving API consistency around domain-driven error propagation
+
+The changes also prepare the platform for future onboarding expansion involving:
+
+* multiple document types
+* internationalization of identity records
+* staged onboarding and verification workflows
+* richer Zero Trust and pre-authentication validation strategies.
+
+
 ## 2026/05/18 — api/pre-onboarding-05
 
 This commit advances the pre-onboarding and authentication flow by consolidating customer document ownership into `customer_documents`, introducing mandatory contact verification before login, and extending the shared error infrastructure to support structured error details.

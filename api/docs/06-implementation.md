@@ -454,12 +454,13 @@ Transaction abstraction:
 
 Implemented behaviors:
 - create customer
+- create customer document
 - check customer existence by ID
-- get customer by ID with email projection
+- get customer by ID with auth email and CPF document projection
+- get primary document or CPF document by customer ID
 
 Error conversion:
-- unique violation on customers_cpf_key -> ErrCPFAlreadyExists
-- unique violation on customers_email_key -> ErrEmailAlreadyExists
+- unique violation on customer_documents_unique_document -> ErrCPFAlreadyExists
 - pgx.ErrNoRows on customer lookup -> ErrNotFound
 - check violation -> ErrInvalidData
 - unknown infra failures are wrapped with context
