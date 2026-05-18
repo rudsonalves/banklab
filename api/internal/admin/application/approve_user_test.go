@@ -42,6 +42,10 @@ func (m *approveUserRepoMock) ExistsByEmail(ctx context.Context, email string) (
 	return false, nil
 }
 
+func (m *approveUserRepoMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	return false, nil
+}
+
 type approveTransactorMock struct{}
 
 func (m *approveTransactorMock) RunInTx(ctx context.Context, fn func(context.Context) error) error {

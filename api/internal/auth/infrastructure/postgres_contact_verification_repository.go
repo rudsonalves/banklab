@@ -21,10 +21,14 @@ type PostgresContactVerificationRepository struct {
 
 var _ domain.ContactVerificationRepository = (*PostgresContactVerificationRepository)(nil)
 
+// NewPostgresContactVerificationRepository creates a PostgreSQL-backed
+// implementation of ContactVerificationRepository.
 func NewPostgresContactVerificationRepository(db *pgxpool.Pool) *PostgresContactVerificationRepository {
 	return &PostgresContactVerificationRepository{db: db}
 }
 
+// executor returns the current transaction executor when available in context,
+// otherwise it falls back to the shared pool.
 func (r *PostgresContactVerificationRepository) executor(ctx context.Context) dbExecutor {
 	if tx, ok := database.TxFromContext(ctx); ok {
 		return tx
@@ -33,6 +37,7 @@ func (r *PostgresContactVerificationRepository) executor(ctx context.Context) db
 	return r.db
 }
 
+// CreateContactVerification persists a new contact verification attempt.
 func (r *PostgresContactVerificationRepository) CreateContactVerification(
 	ctx context.Context,
 	verification *domain.ContactVerification,
@@ -71,6 +76,8 @@ func (r *PostgresContactVerificationRepository) CreateContactVerification(
 	return nil
 }
 
+// FindContactVerificationByID retrieves a contact verification by its primary ID.
+// It returns nil, nil when no record is found.
 func (r *PostgresContactVerificationRepository) FindContactVerificationByID(
 	ctx context.Context,
 	id uuid.UUID,
@@ -101,6 +108,40 @@ func (r *PostgresContactVerificationRepository) FindContactVerificationByID(
 	return verification, nil
 }
 
+// FindContactVerificationByVerificationToken retrieves a contact verification
+// by its confirmation token. It returns nil, nil when no record is found.
+func (r *PostgresContactVerificationRepository) FindContactVerificationByVerificationToken(
+	ctx context.Context,
+	verificationToken string,
+) (*domain.ContactVerification, error) {
+	query := `
+		SELECT
+			id,
+			channel,
+			target,
+			token,
+			verification_token,
+			verified_at,
+			expires_at,
+			created_at
+		FROM contact_verifications
+		WHERE verification_token = $1
+	`
+
+	verification, err := scanContactVerification(r.executor(ctx).QueryRow(ctx, query, verificationToken))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("find contact verification by verification token: %w", err)
+	}
+
+	return verification, nil
+}
+
+// ConfirmContactVerification stores the verification token and mark timestamp
+// for a previously created verification attempt.
 func (r *PostgresContactVerificationRepository) ConfirmContactVerification(
 	ctx context.Context,
 	id uuid.UUID,
@@ -125,6 +166,8 @@ func (r *PostgresContactVerificationRepository) ConfirmContactVerification(
 	return nil
 }
 
+// scanContactVerification maps a query row into a domain ContactVerification,
+// including nullable verification token and verified timestamp fields.
 func scanContactVerification(s scanner) (*domain.ContactVerification, error) {
 	var verification domain.ContactVerification
 	var channel string

@@ -73,7 +73,14 @@ func main() {
 	statementUC := statementApplication.NewGetStatement(statementRepo)
 	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 
-	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, customerRepo, hasher, transactor)
+	registerUserUC := authApplication.NewRegisterUserUseCase(
+		userRepo,
+		customerRepo,
+		customerRepo,
+		contactVerificationRepo,
+		hasher,
+		transactor,
+	)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)

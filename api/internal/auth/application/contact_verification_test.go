@@ -39,6 +39,13 @@ func (m *contactVerificationRepositoryMock) FindContactVerificationByID(
 	return m.findValue, m.findErr
 }
 
+func (m *contactVerificationRepositoryMock) FindContactVerificationByVerificationToken(
+	ctx context.Context,
+	verificationToken string,
+) (*domain.ContactVerification, error) {
+	return m.findValue, m.findErr
+}
+
 func (m *contactVerificationRepositoryMock) ConfirmContactVerification(
 	ctx context.Context,
 	id uuid.UUID,

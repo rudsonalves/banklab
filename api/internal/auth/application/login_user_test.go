@@ -48,6 +48,10 @@ func (m *loginUserRepositoryMock) ExistsByEmail(ctx context.Context, email strin
 	return false, nil
 }
 
+func (m *loginUserRepositoryMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	return false, nil
+}
+
 type loginPasswordHasherMock struct {
 	compareCalls    int
 	compareHash     string

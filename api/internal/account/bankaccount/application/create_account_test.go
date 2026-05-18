@@ -86,6 +86,10 @@ func (m *userRepositoryMock) ExistsByEmail(ctx context.Context, email string) (b
 	return false, nil
 }
 
+func (m *userRepositoryMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	return false, nil
+}
+
 func (m *userRepositoryMock) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*authdomain.User, error) {
 	return nil, nil
 }

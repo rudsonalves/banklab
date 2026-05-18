@@ -108,7 +108,7 @@ func TestHandler_Register_Success(t *testing.T) {
 		},
 	}
 	handler := New(registerUC, nil, nil, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901"}`))
+	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","phone":"+5511999999999","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901","email_verification_token":"email-token","phone_verification_token":"phone-token"}`))
 	rec := httptest.NewRecorder()
 
 	handler.Register(rec, req)
@@ -125,6 +125,10 @@ func TestHandler_Register_Success(t *testing.T) {
 		t.Fatalf("expected email %q, got %q", "user@example.com", registerUC.input.Email)
 	}
 
+	if registerUC.input.Phone != "+5511999999999" {
+		t.Fatalf("expected phone %q, got %q", "+5511999999999", registerUC.input.Phone)
+	}
+
 	if registerUC.input.Name != "Maria Silva" {
 		t.Fatalf("expected name %q, got %q", "Maria Silva", registerUC.input.Name)
 	}
@@ -135,6 +139,14 @@ func TestHandler_Register_Success(t *testing.T) {
 
 	if registerUC.input.CPF != "12345678901" {
 		t.Fatalf("expected cpf %q, got %q", "12345678901", registerUC.input.CPF)
+	}
+
+	if registerUC.input.EmailVerificationToken != "email-token" {
+		t.Fatalf("expected email verification token %q, got %q", "email-token", registerUC.input.EmailVerificationToken)
+	}
+
+	if registerUC.input.PhoneVerificationToken != "phone-token" {
+		t.Fatalf("expected phone verification token %q, got %q", "phone-token", registerUC.input.PhoneVerificationToken)
 	}
 
 	var got struct {
@@ -274,7 +286,7 @@ func TestHandler_ConfirmContactVerification_Success(t *testing.T) {
 func TestHandler_Register_UserAlreadyExists(t *testing.T) {
 	registerUC := &registerUserUseCaseMock{err: domain.ErrEmailAlreadyExists}
 	handler := New(registerUC, nil, nil, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901"}`))
+	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(`{"email":"user@example.com","phone":"+5511999999999","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901","email_verification_token":"email-token","phone_verification_token":"phone-token"}`))
 	rec := httptest.NewRecorder()
 
 	handler.Register(rec, req)
@@ -314,19 +326,31 @@ func TestHandler_Register_InvalidInput(t *testing.T) {
 		},
 		{
 			name: "empty password",
-			body: `{"email":"user@example.com","password":"   ","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901"}`,
+			body: `{"email":"user@example.com","phone":"+5511999999999","password":"   ","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901","email_verification_token":"email-token","phone_verification_token":"phone-token"}`,
 		},
 		{
 			name: "empty name",
-			body: `{"email":"user@example.com","password":"password123","name":"   ","birth_date":"1990-01-15","cpf":"12345678901"}`,
+			body: `{"email":"user@example.com","phone":"+5511999999999","password":"password123","name":"   ","birth_date":"1990-01-15","cpf":"12345678901","email_verification_token":"email-token","phone_verification_token":"phone-token"}`,
 		},
 		{
 			name: "empty birth date",
-			body: `{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"   ","cpf":"12345678901"}`,
+			body: `{"email":"user@example.com","phone":"+5511999999999","password":"password123","name":"Maria Silva","birth_date":"   ","cpf":"12345678901","email_verification_token":"email-token","phone_verification_token":"phone-token"}`,
 		},
 		{
 			name: "invalid birth date",
-			body: `{"email":"user@example.com","password":"password123","name":"Maria Silva","birth_date":"15/01/1990","cpf":"12345678901"}`,
+			body: `{"email":"user@example.com","phone":"+5511999999999","password":"password123","name":"Maria Silva","birth_date":"15/01/1990","cpf":"12345678901","email_verification_token":"email-token","phone_verification_token":"phone-token"}`,
+		},
+		{
+			name: "empty phone",
+			body: `{"email":"user@example.com","phone":"   ","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901","email_verification_token":"email-token","phone_verification_token":"phone-token"}`,
+		},
+		{
+			name: "empty email verification token",
+			body: `{"email":"user@example.com","phone":"+5511999999999","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901","email_verification_token":"   ","phone_verification_token":"phone-token"}`,
+		},
+		{
+			name: "empty phone verification token",
+			body: `{"email":"user@example.com","phone":"+5511999999999","password":"password123","name":"Maria Silva","birth_date":"1990-01-15","cpf":"12345678901","email_verification_token":"email-token","phone_verification_token":"   "}`,
 		},
 	}
 

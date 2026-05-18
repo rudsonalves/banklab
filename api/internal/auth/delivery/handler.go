@@ -48,11 +48,14 @@ type Handler struct {
 }
 
 type registerUserRequest struct {
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	Name      string `json:"name"`
-	BirthDate string `json:"birth_date"`
-	CPF       string `json:"cpf"`
+	Email                  string `json:"email"`
+	Phone                  string `json:"phone"`
+	Password               string `json:"password"`
+	Name                   string `json:"name"`
+	BirthDate              string `json:"birth_date"`
+	CPF                    string `json:"cpf"`
+	EmailVerificationToken string `json:"email_verification_token"`
+	PhoneVerificationToken string `json:"phone_verification_token"`
 }
 
 type loginUserRequest struct {
@@ -97,7 +100,8 @@ type refreshAccessTokenData struct {
 
 // New creates a new instance of the Handler with the provided use cases.
 // It requires use cases for registering a user, logging in a user, getting the
-// current user, and refreshing an access token.
+// current user, refreshing an access token, requesting contact verification,
+// and confirming contact verification.
 func New(
 	registerUser registerUserUseCase,
 	loginUser loginUserUseCase,
@@ -143,11 +147,14 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.registerUser.Execute(r.Context(), application.RegisterUserInput{
-		Email:     strings.TrimSpace(req.Email),
-		Password:  strings.TrimSpace(req.Password),
-		Name:      strings.TrimSpace(req.Name),
-		BirthDate: birthDate,
-		CPF:       strings.TrimSpace(req.CPF),
+		Email:                  strings.TrimSpace(req.Email),
+		Phone:                  strings.TrimSpace(req.Phone),
+		Password:               strings.TrimSpace(req.Password),
+		Name:                   strings.TrimSpace(req.Name),
+		BirthDate:              birthDate,
+		CPF:                    strings.TrimSpace(req.CPF),
+		EmailVerificationToken: strings.TrimSpace(req.EmailVerificationToken),
+		PhoneVerificationToken: strings.TrimSpace(req.PhoneVerificationToken),
 	})
 	if err != nil {
 		log.Printf("event=register_user error=%v", err)
@@ -168,6 +175,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// RequestContactVerification handles the HTTP request for creating a contact
+// verification attempt for the provided channel and target.
 func (h *Handler) RequestContactVerification(w http.ResponseWriter, r *http.Request) {
 	if h.requestContactVerification == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -193,6 +202,8 @@ func (h *Handler) RequestContactVerification(w http.ResponseWriter, r *http.Requ
 	sharedhttp.WriteJSON(w, http.StatusCreated, output)
 }
 
+// ConfirmContactVerification handles the HTTP request for confirming a contact
+// verification attempt using its identifier and token.
 func (h *Handler) ConfirmContactVerification(w http.ResponseWriter, r *http.Request) {
 	if h.confirmContactVerification == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -225,16 +236,26 @@ func (h *Handler) ConfirmContactVerification(w http.ResponseWriter, r *http.Requ
 }
 
 // isValidRegisterRequest validates the registration request by checking if all
-// required fields (email, password, name, birth date, and CPF) are provided and
-// not empty after whitespace trimming.
+// required fields (email, phone, password, name, birth date, CPF, and contact
+// verification tokens) are provided and not empty after whitespace trimming.
 func isValidRegisterRequest(req registerUserRequest) bool {
 	email := strings.TrimSpace(req.Email)
+	phone := strings.TrimSpace(req.Phone)
 	password := strings.TrimSpace(req.Password)
 	name := strings.TrimSpace(req.Name)
 	birthDate := strings.TrimSpace(req.BirthDate)
 	cpf := strings.TrimSpace(req.CPF)
+	emailVerificationToken := strings.TrimSpace(req.EmailVerificationToken)
+	phoneVerificationToken := strings.TrimSpace(req.PhoneVerificationToken)
 
-	if email == "" || password == "" || name == "" || birthDate == "" || cpf == "" {
+	if email == "" ||
+		phone == "" ||
+		password == "" ||
+		name == "" ||
+		birthDate == "" ||
+		cpf == "" ||
+		emailVerificationToken == "" ||
+		phoneVerificationToken == "" {
 		return false
 	}
 

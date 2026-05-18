@@ -19,6 +19,13 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		domain.ErrPhoneAlreadyExists,
+		sharederrors.ErrCodeUserAlreadyExists,
+		"User already exists",
+		http.StatusConflict,
+	)
+
+	sharederrors.RegisterDomainError(
 		domain.ErrForbidden,
 		sharederrors.ErrCodeForbidden,
 		"Access denied",

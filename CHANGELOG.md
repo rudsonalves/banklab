@@ -1,5 +1,147 @@
 # Changelog
 
+## 2026/05/18 — api/pre-onboarding-04
+
+This commit evolves the onboarding and registration flow with a new pre-onboarding contact verification stage, introducing verified e-mail and phone validation before user creation. The implementation expands the authentication domain, persistence model, HTTP contracts, and integration coverage to support a more realistic onboarding pipeline aligned with future security and Zero Trust directions.
+
+### Main Changes
+
+1. Registration flow now requires verified e-mail and phone tokens
+
+   * Extended `RegisterUserUseCase` to receive a `ContactVerificationRepository`
+   * Added support for:
+
+     * `phone`
+     * `email_verification_token`
+     * `phone_verification_token`
+   * Added validation logic for:
+
+     * verified e-mail token ownership
+     * verified phone token ownership
+     * channel consistency
+     * verified state existence
+   * Added phone uniqueness validation through `ExistsByPhone`
+   * Persisted:
+
+     * `phone`
+     * `email_verified_at`
+     * `phone_verified_at`
+   * Improved registration transaction flow to validate contact verification state before user creation
+
+2. Contact verification infrastructure expanded
+
+   * Added:
+
+     * `FindContactVerificationByVerificationToken`
+   * Implemented PostgreSQL lookup by verification token
+   * Added integration between:
+
+     * verification confirmation
+     * registration flow
+   * Improved repository documentation and internal scanning helpers
+
+3. User domain and persistence model expanded
+
+   * `User` entity now supports:
+
+     * `Phone`
+     * `EmailVerifiedAt`
+     * `PhoneVerifiedAt`
+   * PostgreSQL repository updated to:
+
+     * insert optional phone and verification timestamps
+     * load nullable verification fields
+     * support phone existence checks
+   * Added helper utilities for nullable string/time persistence
+
+4. Database schema updated for pre-onboarding verification support
+
+   * Added columns to `users`:
+
+     * `phone`
+     * `email_verified_at`
+     * `phone_verified_at`
+   * Added new `contact_verifications` table
+   * Added:
+
+     * verification token uniqueness index
+     * target/channel index
+   * Updated integration and repository test schemas accordingly
+
+5. HTTP authentication contract updated
+
+   * `/auth/register` now requires:
+
+     * phone
+     * e-mail verification token
+     * phone verification token
+   * Registration request validation expanded
+   * Added explicit handler documentation for:
+
+     * contact verification request
+     * contact verification confirmation
+
+6. Integration tests now execute the full pre-onboarding flow
+
+   * Added helper:
+
+     * `requestAndConfirmContactVerification`
+   * Integration flow now performs:
+
+     * verification request
+     * verification confirmation
+     * token retrieval
+     * final registration using verified tokens
+   * Registration integration tests now simulate realistic onboarding behavior
+
+7. Test suite updated across authentication and account modules
+
+   * Added mock support for:
+
+     * `ExistsByPhone`
+     * verification token lookups
+   * Added registration tests for:
+
+     * duplicate phone
+     * missing verification tokens
+     * verified timestamp persistence
+     * invalid phone scenarios
+   * Updated all registration-related tests to use the new onboarding contract
+
+8. Error handling expanded
+
+   * Added:
+
+     * `ErrPhoneAlreadyExists`
+   * Registered HTTP conflict mapping for duplicate phone scenarios
+
+### Architectural Impact
+
+This commit introduces an important transition in the onboarding model:
+
+* onboarding becomes stateful before account creation
+* contact ownership is now validated independently from user persistence
+* user registration becomes dependent on previously validated evidence
+* authentication flow starts evolving toward evidence-based onboarding
+
+The implementation also strengthens separation between:
+
+* verification lifecycle
+* onboarding orchestration
+* persistence concerns
+* HTTP delivery contracts
+
+This lays the groundwork for future onboarding stages such as:
+
+* device registration
+* transactional password setup
+* liveness verification
+* contextual risk analysis
+* Zero Trust evidence aggregation
+
+Relevant architecture and authentication references remain aligned with the current project documentation.  
+
+
 ## 2026/05/18 - api/pre-onboarding-03
 
 Implemented the first pre-onboarding contact verification flow, introducing a dedicated verification lifecycle for email and phone channels before user registration completion.

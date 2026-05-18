@@ -65,6 +65,14 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		if !exists {
 			t.Fatal("expected ExistsByEmail to return true")
 		}
+
+		exists, err = repo.ExistsByPhone(ctx, user.Phone)
+		if err != nil {
+			t.Fatalf("expected no error checking exists by phone, got %v", err)
+		}
+		if !exists {
+			t.Fatal("expected ExistsByPhone to return true")
+		}
 	})
 
 	t.Run("update status", func(t *testing.T) {
@@ -154,6 +162,14 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		if exists {
 			t.Fatal("expected ExistsByEmail to return false")
 		}
+
+		exists, err = repo.ExistsByPhone(ctx, "+5511000000000")
+		if err != nil {
+			t.Fatalf("expected no error for missing phone exists check, got %v", err)
+		}
+		if exists {
+			t.Fatal("expected ExistsByPhone to return false")
+		}
 	})
 }
 
@@ -193,10 +209,13 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 		`CREATE TABLE IF NOT EXISTS users (
 			id UUID PRIMARY KEY,
 			email VARCHAR(120) NOT NULL UNIQUE,
+			phone VARCHAR(20) UNIQUE,
 			password_hash TEXT NOT NULL,
 			role VARCHAR(20) NOT NULL,
 			customer_id UUID UNIQUE,
 			status VARCHAR(20) NOT NULL DEFAULT 'pending',
+			email_verified_at TIMESTAMP WITH TIME ZONE,
+			phone_verified_at TIMESTAMP WITH TIME ZONE,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			CONSTRAINT fk_users_customer_id FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
@@ -212,6 +231,15 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 	if _, err := pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending'`); err != nil {
 		t.Fatalf("failed to ensure users.status column: %v", err)
 	}
+	if _, err := pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20) UNIQUE`); err != nil {
+		t.Fatalf("failed to ensure users.phone column: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP WITH TIME ZONE`); err != nil {
+		t.Fatalf("failed to ensure users.email_verified_at column: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP WITH TIME ZONE`); err != nil {
+		t.Fatalf("failed to ensure users.phone_verified_at column: %v", err)
+	}
 }
 
 func cleanupUserByID(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID) {
@@ -226,6 +254,7 @@ func testUser(now time.Time) *domain.User {
 	return &domain.User{
 		ID:           uuid.New(),
 		Email:        strings.ToLower(uuid.NewString()) + "@example.com",
+		Phone:        "+5511" + strings.ReplaceAll(uuid.NewString(), "-", "")[:9],
 		PasswordHash: "hashed-password",
 		Role:         domain.RoleCustomer,
 		CustomerID:   nil,

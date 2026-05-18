@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	ErrEmailAlreadyExists          = errors.New("email already exists")
+	ErrPhoneAlreadyExists          = errors.New("phone already exists")
 	ErrForbidden                   = errors.New("forbidden")
 	ErrInvalidEmail                = errors.New("invalid email")
 	ErrInvalidData                 = errors.New("invalid data")

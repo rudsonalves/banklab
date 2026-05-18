@@ -2,7 +2,9 @@ package infrastructure
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -45,23 +47,24 @@ func (r *PostgresUserRepository) executor(ctx context.Context) dbExecutor {
 	return r.db
 }
 
-// Create inserts a new user record into the users table with the provided user data.
-// It generates a new UUID for the user and executes the SQL query to store the user
-// information in the database. If the operation is successful, it returns nil;
-// otherwise, it returns an error.
+// Create inserts a new user record into the users table using the values already
+// present in the provided domain.User.
 func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `
 		INSERT INTO users (
 			id,
 			email,
+			phone,
 			password_hash,
 			role,
 			customer_id,
 			status,
+			email_verified_at,
+			phone_verified_at,
 			created_at,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
 	_, err := r.executor(ctx).Exec(
@@ -69,10 +72,13 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 		query,
 		user.ID,
 		user.Email,
+		nullableStringValue(user.Phone),
 		user.PasswordHash,
 		string(user.Role),
 		nullableUUIDValue(user.CustomerID),
 		string(user.Status),
+		nullableTimeValue(user.EmailVerifiedAt),
+		nullableTimeValue(user.PhoneVerifiedAt),
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
@@ -115,10 +121,13 @@ func (r *PostgresUserRepository) FindByEmail(ctx context.Context, email string) 
 		SELECT
 			id,
 			email,
+			phone,
 			password_hash,
 			role,
 			customer_id,
 			status,
+			email_verified_at,
+			phone_verified_at,
 			created_at,
 			updated_at
 		FROM users
@@ -146,10 +155,13 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id uuid.UUID) (*d
 		SELECT
 			id,
 			email,
+			phone,
 			password_hash,
 			role,
 			customer_id,
 			status,
+			email_verified_at,
+			phone_verified_at,
 			created_at,
 			updated_at
 		FROM users
@@ -177,10 +189,13 @@ func (r *PostgresUserRepository) FindByIDForUpdate(ctx context.Context, id uuid.
 		SELECT
 			id,
 			email,
+			phone,
 			password_hash,
 			role,
 			customer_id,
 			status,
+			email_verified_at,
+			phone_verified_at,
 			created_at,
 			updated_at
 		FROM users
@@ -223,6 +238,28 @@ func (r *PostgresUserRepository) ExistsByEmail(ctx context.Context, email string
 	return true, nil
 }
 
+// ExistsByPhone checks if a user exists in the users table based on the provided
+// phone number. It returns true when a record is found, false when not found.
+func (r *PostgresUserRepository) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	query := `
+		SELECT 1
+		FROM users
+		WHERE phone = $1
+		LIMIT 1
+	`
+
+	var exists int
+	err := r.executor(ctx).QueryRow(ctx, query, phone).Scan(&exists)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }
@@ -235,14 +272,20 @@ func scanUser(s scanner) (*domain.User, error) {
 	var role string
 	var customerID *uuid.UUID
 	var status string
+	var phone sql.NullString
+	var emailVerifiedAt sql.NullTime
+	var phoneVerifiedAt sql.NullTime
 
 	err := s.Scan(
 		&user.ID,
 		&user.Email,
+		&phone,
 		&user.PasswordHash,
 		&role,
 		&customerID,
 		&status,
+		&emailVerifiedAt,
+		&phoneVerifiedAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -253,6 +296,15 @@ func scanUser(s scanner) (*domain.User, error) {
 	user.Role = domain.Role(role)
 	user.CustomerID = customerID
 	user.Status = domain.UserStatus(status)
+	if phone.Valid {
+		user.Phone = phone.String
+	}
+	if emailVerifiedAt.Valid {
+		user.EmailVerifiedAt = &emailVerifiedAt.Time
+	}
+	if phoneVerifiedAt.Valid {
+		user.PhoneVerifiedAt = &phoneVerifiedAt.Time
+	}
 
 	return &user, nil
 }
@@ -260,6 +312,26 @@ func scanUser(s scanner) (*domain.User, error) {
 // nullableUUIDValue is a helper function that returns the value of a nullable UUID.
 // If the UUID is nil, it returns nil. Otherwise, it returns the UUID value.
 func nullableUUIDValue(value *uuid.UUID) any {
+	if value == nil {
+		return nil
+	}
+
+	return *value
+}
+
+// nullableStringValue converts empty strings to nil so optional text fields can
+// be stored as SQL NULL.
+func nullableStringValue(value string) any {
+	if value == "" {
+		return nil
+	}
+
+	return value
+}
+
+// nullableTimeValue converts a nil time pointer to nil and returns the time
+// value otherwise.
+func nullableTimeValue(value *time.Time) any {
 	if value == nil {
 		return nil
 	}

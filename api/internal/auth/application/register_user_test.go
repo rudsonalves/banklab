@@ -15,6 +15,9 @@ type userRepositoryMock struct {
 	existsByEmailCalls int
 	existsByEmailValue bool
 	existsByEmailErr   error
+	existsByPhoneCalls int
+	existsByPhoneValue bool
+	existsByPhoneErr   error
 	createCalls        int
 	createErr          error
 	createdUser        *domain.User
@@ -45,6 +48,57 @@ func (m *userRepositoryMock) FindByID(ctx context.Context, id uuid.UUID) (*domai
 func (m *userRepositoryMock) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	m.existsByEmailCalls++
 	return m.existsByEmailValue, m.existsByEmailErr
+}
+
+func (m *userRepositoryMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	m.existsByPhoneCalls++
+	return m.existsByPhoneValue, m.existsByPhoneErr
+}
+
+type registerContactVerificationRepositoryMock struct {
+	emailVerification *domain.ContactVerification
+	phoneVerification *domain.ContactVerification
+	err               error
+}
+
+func (m *registerContactVerificationRepositoryMock) CreateContactVerification(
+	ctx context.Context,
+	verification *domain.ContactVerification,
+) error {
+	return nil
+}
+
+func (m *registerContactVerificationRepositoryMock) FindContactVerificationByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*domain.ContactVerification, error) {
+	return nil, nil
+}
+
+func (m *registerContactVerificationRepositoryMock) FindContactVerificationByVerificationToken(
+	ctx context.Context,
+	verificationToken string,
+) (*domain.ContactVerification, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	switch verificationToken {
+	case "email-token":
+		return m.emailVerification, nil
+	case "phone-token":
+		return m.phoneVerification, nil
+	default:
+		return nil, nil
+	}
+}
+
+func (m *registerContactVerificationRepositoryMock) ConfirmContactVerification(
+	ctx context.Context,
+	id uuid.UUID,
+	verificationToken string,
+	verifiedAt time.Time,
+) error {
+	return nil
 }
 
 type registerTransactorMock struct {
@@ -130,20 +184,54 @@ func (m *passwordHasherMock) Compare(hash string, password string) error {
 
 var registerBirthDate = time.Date(1990, 1, 15, 0, 0, 0, 0, time.UTC)
 
+func newRegisterContactVerificationRepo() *registerContactVerificationRepositoryMock {
+	verifiedAt := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
+	return &registerContactVerificationRepositoryMock{
+		emailVerification: &domain.ContactVerification{
+			ID:                uuid.New(),
+			Channel:           domain.ContactVerificationChannelEmail,
+			Target:            "user@example.com",
+			Token:             "111111",
+			VerificationToken: stringPtr("email-token"),
+			VerifiedAt:        &verifiedAt,
+			ExpiresAt:         verifiedAt.Add(time.Hour),
+			CreatedAt:         verifiedAt.Add(-time.Minute),
+		},
+		phoneVerification: &domain.ContactVerification{
+			ID:                uuid.New(),
+			Channel:           domain.ContactVerificationChannelPhone,
+			Target:            "+5511999999999",
+			Token:             "222222",
+			VerificationToken: stringPtr("phone-token"),
+			VerifiedAt:        &verifiedAt,
+			ExpiresAt:         verifiedAt.Add(time.Hour),
+			CreatedAt:         verifiedAt.Add(-time.Minute),
+		},
+	}
+}
+
+func stringPtr(value string) *string {
+	return &value
+}
+
 func TestRegisterUserUseCase_Execute_Success(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	customerDocumentRepo := &customerDocumentRepositoryMock{}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:     "  USER@Example.com ",
-		Password:  "password123",
-		Name:      "Maria Silva",
-		BirthDate: registerBirthDate,
-		CPF:       "123.456.789-09",
+		Email:                  "  USER@Example.com ",
+		Phone:                  "+5511999999999",
+		Password:               "password123",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "123.456.789-09",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
 	})
 
 	if err != nil {
@@ -238,6 +326,18 @@ func TestRegisterUserUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected hashed password to be persisted, got %q", userRepo.createdUser.PasswordHash)
 	}
 
+	if userRepo.createdUser.Phone != "+5511999999999" {
+		t.Fatalf("expected phone %q, got %q", "+5511999999999", userRepo.createdUser.Phone)
+	}
+
+	if userRepo.createdUser.EmailVerifiedAt == nil {
+		t.Fatal("expected email_verified_at to be set")
+	}
+
+	if userRepo.createdUser.PhoneVerifiedAt == nil {
+		t.Fatal("expected phone_verified_at to be set")
+	}
+
 	if userRepo.createdUser.Role != domain.RoleCustomer {
 		t.Fatalf("expected persisted role %q, got %q", domain.RoleCustomer, userRepo.createdUser.Role)
 	}
@@ -267,16 +367,20 @@ func TestRegisterUserUseCase_Execute_DuplicateEmail(t *testing.T) {
 	userRepo := &userRepositoryMock{existsByEmailValue: true}
 	customerRepo := &customerRepositoryMock{}
 	customerDocumentRepo := &customerDocumentRepositoryMock{}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:     "user@example.com",
-		Password:  "password123",
-		Name:      "Maria Silva",
-		BirthDate: registerBirthDate,
-		CPF:       "12345678909",
+		Email:                  "user@example.com",
+		Phone:                  "+5511999999999",
+		Password:               "password123",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "12345678909",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
 	})
 
 	if !errors.Is(err, domain.ErrEmailAlreadyExists) {
@@ -308,16 +412,20 @@ func TestRegisterUserUseCase_Execute_InvalidEmail(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	customerDocumentRepo := &customerDocumentRepositoryMock{}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
 	hasher := &passwordHasherMock{}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:     "invalid-email",
-		Password:  "password123",
-		Name:      "Maria Silva",
-		BirthDate: registerBirthDate,
-		CPF:       "12345678909",
+		Email:                  "invalid-email",
+		Phone:                  "+5511999999999",
+		Password:               "password123",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "12345678909",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
 	})
 
 	if !errors.Is(err, domain.ErrInvalidEmail) {
@@ -349,20 +457,61 @@ func TestRegisterUserUseCase_Execute_InvalidEmail(t *testing.T) {
 	}
 }
 
+func TestRegisterUserUseCase_Execute_DuplicatePhone(t *testing.T) {
+	userRepo := &userRepositoryMock{existsByPhoneValue: true}
+	customerRepo := &customerRepositoryMock{}
+	customerDocumentRepo := &customerDocumentRepositoryMock{}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
+	hasher := &passwordHasherMock{hashValue: "hashed-password"}
+	transactor := &registerTransactorMock{}
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
+
+	output, err := useCase.Execute(context.Background(), RegisterUserInput{
+		Email:                  "user@example.com",
+		Phone:                  "+5511999999999",
+		Password:               "password123",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "12345678909",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
+	})
+
+	if !errors.Is(err, domain.ErrPhoneAlreadyExists) {
+		t.Fatalf("expected error %v, got %v", domain.ErrPhoneAlreadyExists, err)
+	}
+	if output != nil {
+		t.Fatalf("expected output to be nil, got %+v", output)
+	}
+	if customerRepo.createCalls != 0 {
+		t.Fatalf("expected customer Create not to be called, got %d calls", customerRepo.createCalls)
+	}
+	if customerDocumentRepo.createCalls != 0 {
+		t.Fatalf("expected customer document Create not to be called, got %d calls", customerDocumentRepo.createCalls)
+	}
+	if userRepo.createCalls != 0 {
+		t.Fatalf("expected user Create not to be called, got %d calls", userRepo.createCalls)
+	}
+}
+
 func TestRegisterUserUseCase_Execute_InvalidPassword(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	customerDocumentRepo := &customerDocumentRepositoryMock{}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
 	hasher := &passwordHasherMock{}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:     "user@example.com",
-		Password:  "short",
-		Name:      "Maria Silva",
-		BirthDate: registerBirthDate,
-		CPF:       "12345678909",
+		Email:                  "user@example.com",
+		Phone:                  "+5511999999999",
+		Password:               "short",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "12345678909",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
 	})
 
 	if !errors.Is(err, domain.ErrInvalidPassword) {
@@ -398,16 +547,20 @@ func TestRegisterUserUseCase_Execute_InvalidCPF(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	customerDocumentRepo := &customerDocumentRepositoryMock{}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
 	hasher := &passwordHasherMock{}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:     "user@example.com",
-		Password:  "password123",
-		Name:      "Maria Silva",
-		BirthDate: registerBirthDate,
-		CPF:       "12345678901",
+		Email:                  "user@example.com",
+		Phone:                  "+5511999999999",
+		Password:               "password123",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "12345678901",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
 	})
 
 	if !errors.Is(err, customerdomain.ErrCPFInvalid) {
@@ -440,16 +593,20 @@ func TestRegisterUserUseCase_Execute_HashingFailure(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	customerDocumentRepo := &customerDocumentRepositoryMock{}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
 	hasher := &passwordHasherMock{hashErr: expectedErr}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:     "user@example.com",
-		Password:  "password123",
-		Name:      "Maria Silva",
-		BirthDate: registerBirthDate,
-		CPF:       "12345678909",
+		Email:                  "user@example.com",
+		Phone:                  "+5511999999999",
+		Password:               "password123",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "12345678909",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
 	})
 
 	if !errors.Is(err, expectedErr) {
@@ -478,16 +635,20 @@ func TestRegisterUserUseCase_Execute_CustomerCreateFailure(t *testing.T) {
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{createErr: expectedErr}
 	customerDocumentRepo := &customerDocumentRepositoryMock{}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:     "user@example.com",
-		Password:  "password123",
-		Name:      "Maria Silva",
-		BirthDate: registerBirthDate,
-		CPF:       "12345678909",
+		Email:                  "user@example.com",
+		Phone:                  "+5511999999999",
+		Password:               "password123",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "12345678909",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
 	})
 
 	if !errors.Is(err, expectedErr) {
@@ -512,16 +673,20 @@ func TestRegisterUserUseCase_Execute_CustomerDocumentCreateFailure(t *testing.T)
 	userRepo := &userRepositoryMock{}
 	customerRepo := &customerRepositoryMock{}
 	customerDocumentRepo := &customerDocumentRepositoryMock{createErr: expectedErr}
+	contactVerificationRepo := newRegisterContactVerificationRepo()
 	hasher := &passwordHasherMock{hashValue: "hashed-password"}
 	transactor := &registerTransactorMock{}
-	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, hasher, transactor)
+	useCase := NewRegisterUserUseCase(userRepo, customerRepo, customerDocumentRepo, contactVerificationRepo, hasher, transactor)
 
 	output, err := useCase.Execute(context.Background(), RegisterUserInput{
-		Email:     "user@example.com",
-		Password:  "password123",
-		Name:      "Maria Silva",
-		BirthDate: registerBirthDate,
-		CPF:       "12345678909",
+		Email:                  "user@example.com",
+		Phone:                  "+5511999999999",
+		Password:               "password123",
+		Name:                   "Maria Silva",
+		BirthDate:              registerBirthDate,
+		CPF:                    "12345678909",
+		EmailVerificationToken: "email-token",
+		PhoneVerificationToken: "phone-token",
 	})
 
 	if !errors.Is(err, expectedErr) {
