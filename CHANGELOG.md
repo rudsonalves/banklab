@@ -1,5 +1,98 @@
 # Changelog
 
+## 2026/05/18 - api/pre-onboarding-01
+
+Introduced the initial pre-onboarding cadastral foundation for the Bank API, focusing on evolving the customer identity model from a CPF-centric structure to a flexible document-based architecture. This commit establishes the database preparation, migration strategy, and execution roadmap required to support future onboarding checkpoints, contact verification, and expanded customer identity flows.
+
+### Database Migrations
+
+1. Added `000004_pre_onboarding_cadastral` migration
+
+   * Extended `users` table with:
+
+     * `phone`
+     * `email_verified_at`
+     * `phone_verified_at`
+   * Added `birth_date` to `customers`
+   * Introduced `customer_documents` table
+
+     * support for CPF, RG, CNH, and future document types
+     * unique document constraint using `(type, value, country)`
+     * optional issuer metadata
+     * partial unique index enforcing a single primary document per customer
+   * Introduced `customer_addresses` table
+
+     * normalized address structure
+     * partial unique index enforcing a single primary address per customer
+   * Added reversible down migration for the entire cadastral preparation layer
+
+2. Added `000005_migrate_customer_cpf_documents` migration
+
+   * Migrated existing `customers.cpf` values into `customer_documents`
+   * Preserved customer creation timestamps during migration
+   * Marked migrated CPF documents as primary
+   * Added rollback migration removing migrated CPF documents safely
+   * Designed migration flow to avoid intermediate data loss during transition
+
+### Backlog and Architectural Planning
+
+3. Expanded `docs/backlogs/api/000 - pre-onboarding.md`
+
+   * Documented the mandatory migration order to safely remove `customers.cpf`
+   * Added impact checklist covering:
+
+     * customer domain
+     * account repository
+     * auth registration flow
+     * transfer recipient queries
+     * tests and Postman collection
+   * Clarified that `customer_documents` must become the authoritative identity source before removing legacy CPF fields
+   * Reinforced transactional and migration safety concerns even for local development environments
+
+4. Added `docs/backlogs/api/000 - pre-onboarding_tasks.md`
+
+   * Introduced a complete execution roadmap with 12 detailed tasks
+   * Defined:
+
+     * objectives
+     * scope
+     * acceptance criteria
+     * dependencies
+     * suggested execution order
+   * Covered:
+
+     * domain refactoring
+     * customer document contracts
+     * repository migration
+     * onboarding verification flow
+     * login verification rules
+     * transfer lookup updates
+     * final CPF field removal
+     * documentation and testing updates
+
+### Architectural Direction
+
+5. Established the foundation for a normalized customer identity model
+
+   * Decouples `Customer` from direct CPF ownership
+   * Enables multi-document support per customer
+   * Creates a clear path for future onboarding checkpoints and KYC evolution
+   * Preserves transactional consistency during migration and future onboarding flows
+   * Prepares the authentication model for verified email and phone requirements
+
+### Migration Strategy Highlights
+
+6. Formalized the transitional migration approach
+
+   * Create new structures before removing legacy fields
+   * Copy existing CPF data into normalized tables
+   * Refactor application code and queries incrementally
+   * Remove `customers.cpf` only after all dependencies are eliminated
+   * Preserve operational continuity and rollback safety throughout the transition
+
+This commit represents the first structural step toward a richer onboarding and identity verification model, while maintaining compatibility with the current transactional architecture and existing authentication flow.
+
+
 ## 2026/05/18 — docs/update-17
 
 Expanded the project presentation and documentation structure to better position BankLab as an open-source financial systems engineering laboratory, while improving onboarding material for contributors and international readers.
