@@ -1,5 +1,134 @@
 # Changelog
 
+## 2026/05/18 - mobile/pre-onboarding-04
+
+This commit advances the pre-onboarding foundation by restructuring authentication route registration in the API, strengthening middleware coverage through focused router tests, and defining the complete multi-page mobile onboarding strategy for the future registration flow.
+
+### API
+
+1. Refactored authentication route registration in `api/cmd/api/main.go`
+
+   * Extracted auth route configuration into a dedicated `newAuthRouter` function.
+   * Reduced bootstrap noise inside `main()`.
+   * Improved separation between runtime wiring and route composition.
+   * Centralized onboarding and authentication endpoint registration.
+   * Prepared the auth router for future onboarding expansion and isolated testing.
+
+2. Preserved onboarding security boundaries
+
+   * Maintained `X-App-Token` protection for:
+
+     * `POST /auth/contact-verifications`
+     * `POST /auth/contact-verifications/confirm`
+     * `POST /auth/register`
+     * `POST /auth/login`
+   * Preserved JWT protection for authenticated endpoints such as `/auth/me`.
+   * Reinforced the current multi-stage authentication model already documented in the API architecture and auth documentation. 
+
+### API Tests
+
+3. Added onboarding middleware coverage tests in `api/cmd/api/routes_test.go`
+
+   * Introduced focused tests validating AppToken enforcement in onboarding endpoints.
+   * Added coverage for:
+
+     * missing app token
+     * invalid app token
+     * valid app token pass-through behavior
+   * Added reusable `assertInvalidAppToken` helper.
+   * Validated:
+
+     * HTTP 401 responses
+     * standardized error envelope structure
+     * `INVALID_APP_TOKEN` error code consistency
+   * Reinforced contract stability for the onboarding security boundary.
+
+4. Improved router-level validation strategy
+
+   * Tests now validate middleware composition directly from router registration.
+   * Reduced coupling between middleware expectations and handler implementation details.
+   * Increased confidence in future onboarding route expansion.
+
+### Mobile
+
+5. Added onboarding backlog specification in `docs/backlogs/mobile/010 - cadastro_multi_paginas.md`
+
+   * Defined the complete migration from a monolithic `RegisterPage` into a multi-step onboarding journey.
+   * Formalized a 10-step registration flow:
+
+     1. CPF
+     2. Full name
+     3. Birth date
+     4. Email
+     5. Email confirmation
+     6. Phone
+     7. Phone confirmation
+     8. Password
+     9. Password confirmation
+     10. Account creation
+
+6. Defined onboarding persistence strategy
+
+   * Added secure local onboarding draft persistence.
+   * Introduced CPF-derived storage keys using SHA-256 hashing.
+   * Explicitly prohibited persistence of:
+
+     * passwords
+     * password confirmation
+     * verification tokens
+     * session tokens
+   * Added onboarding recovery and resume strategy based on CPF lookup.
+   * Defined draft expiration and verification invalidation behavior.
+
+7. Defined mobile onboarding architecture decisions
+
+   * Preserved `RegisterViewmodel` as the registration orchestrator.
+   * Allowed `RegisterViewmodel` to remain a `lazySingleton`.
+   * Defined shared state behavior across onboarding pages.
+   * Established explicit separation between:
+
+     * onboarding flow
+     * verification flow
+     * account creation
+     * authentication/login flow
+
+8. Defined onboarding/API integration contract
+
+   * Specified use of:
+
+     * `POST /auth/contact-verifications`
+     * `POST /auth/contact-verifications/confirm`
+     * `POST /auth/register`
+   * Explicitly documented AppToken usage during onboarding requests.
+   * Preserved development-mode debug token logging behavior in `AuthApi`.
+
+9. Added onboarding acceptance criteria and scope boundaries
+
+   * Documented:
+
+     * persistence rules
+     * validation expectations
+     * navigation behavior
+     * onboarding recovery rules
+     * success flow requirements
+   * Clearly separated:
+
+     * current scope
+     * future scope
+     * non-goals
+     * pending architectural decisions
+
+### Mobile Tests
+
+10. Updated route builder signatures in `mobile/test/ui/pages/auth/register/register_page_flow_test.dart`
+
+* Adjusted `GoRoute` builders to use explicit `(context, state)` parameters.
+* Improved consistency with current `go_router` conventions.
+* Reduced ambiguity in future route evolution.
+
+This commit establishes the architectural and testing foundation for the upcoming pre-onboarding implementation while reinforcing the security model around onboarding endpoints and preparing the mobile application for a stateful, resumable, multi-step registration experience.
+
+
 ## 2026/05/18 — mobile/pre-onboarding-03
 
 This commit introduces the first complete pre-onboarding and contact verification flow for the mobile application, evolving the authentication experience from a simple registration form into a staged onboarding process with explicit e-mail and phone verification steps.

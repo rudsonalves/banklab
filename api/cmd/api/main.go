@@ -120,17 +120,7 @@ func main() {
 	// ======================
 
 	// --- Auth Router ---
-	authRouter := http.NewServeMux()
-
-	// Onboarding (AppToken)
-	authRouter.Handle("POST /auth/contact-verifications", appTokenMiddleware(http.HandlerFunc(authHandler.RequestContactVerification)))
-	authRouter.Handle("POST /auth/contact-verifications/confirm", appTokenMiddleware(http.HandlerFunc(authHandler.ConfirmContactVerification)))
-	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))
-	authRouter.Handle("POST /auth/login", appTokenMiddleware(http.HandlerFunc(authHandler.Login)))
-
-	// Session refresh is authenticated by the refresh token payload itself.
-	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
-	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
+	authRouter := newAuthRouter(authHandler, appTokenMiddleware, withAuth)
 
 	// --- API Router ---
 	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler)
@@ -148,6 +138,26 @@ func main() {
 	if err := http.ListenAndServe(":8080", mainRouter); err != nil {
 		log.Fatal("failed to start server:", err)
 	}
+}
+
+func newAuthRouter(
+	authHandler *authDelivery.Handler,
+	appTokenMiddleware func(http.Handler) http.Handler,
+	withAuth func(http.Handler) http.Handler,
+) *http.ServeMux {
+	authRouter := http.NewServeMux()
+
+	// Onboarding (AppToken)
+	authRouter.Handle("POST /auth/contact-verifications", appTokenMiddleware(http.HandlerFunc(authHandler.RequestContactVerification)))
+	authRouter.Handle("POST /auth/contact-verifications/confirm", appTokenMiddleware(http.HandlerFunc(authHandler.ConfirmContactVerification)))
+	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))
+	authRouter.Handle("POST /auth/login", appTokenMiddleware(http.HandlerFunc(authHandler.Login)))
+
+	// Session refresh is authenticated by the refresh token payload itself.
+	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
+	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
+
+	return authRouter
 }
 
 func newAPIRouter(

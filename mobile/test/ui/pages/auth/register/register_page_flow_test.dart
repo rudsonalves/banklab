@@ -27,12 +27,13 @@ void main() {
         GoRoute(
           path: '/register',
           name: 'register',
-          builder: (_, __) => RegisterPage(viewmodel: viewmodel),
+          builder: (context, state) => RegisterPage(viewmodel: viewmodel),
         ),
         GoRoute(
           path: '/login',
           name: 'login',
-          builder: (_, __) => const Scaffold(body: Text('Login Placeholder')),
+          builder: (context, state) =>
+              const Scaffold(body: Text('Login Placeholder')),
         ),
       ],
     );
