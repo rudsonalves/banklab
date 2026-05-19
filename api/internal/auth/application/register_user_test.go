@@ -150,6 +150,10 @@ func (m *customerDocumentRepositoryMock) CreateDocument(
 	return m.createErr
 }
 
+func (m *customerDocumentRepositoryMock) ExistsCPF(ctx context.Context, cpf string) (bool, error) {
+	return false, nil
+}
+
 func (m *customerDocumentRepositoryMock) GetPrimaryDocumentByCustomerID(
 	ctx context.Context,
 	customerID uuid.UUID,

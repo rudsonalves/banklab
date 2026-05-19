@@ -33,6 +33,7 @@ O grupo de autenticação é responsável por estabelecer e renovar a identidade
 Os endpoints atuais são:
 
 ```text
+POST /auth/cpf-check
 POST /auth/contact-verifications
 POST /auth/contact-verifications/confirm
 POST /auth/register
@@ -45,8 +46,9 @@ GET  /auth/me
 
 Esse endpoint registra um novo usuário e cria o customer associado.
 
-O fluxo exige tokens de verificação de e-mail e telefone previamente confirmados
-pelos endpoints de contact verification.
+O fluxo exige validação prévia de CPF (`/auth/cpf-check`) e tokens de
+verificação de e-mail e telefone previamente confirmados pelos endpoints de
+contact verification.
 
 Ele marca a entrada inicial do usuário no sistema. O registro já cria a base de identidade e associação com a entidade de cliente, mas isso não significa automaticamente que o usuário já esteja apto a executar todos os fluxos disponíveis. O processo de aprovação ainda pode ser necessário para liberar determinadas operações.
 

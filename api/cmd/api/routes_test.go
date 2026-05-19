@@ -19,6 +19,7 @@ import (
 func TestAuthRouter_OnboardingRoutesRequireAppToken(t *testing.T) {
 	router := newAuthRouter(
 		authDelivery.New(nil, nil, nil, nil, nil, nil),
+		customerDelivery.New(nil, nil),
 		sharedhttpmiddleware.AppToken("expected-token"),
 		func(next http.Handler) http.Handler { return next },
 	)
@@ -28,6 +29,11 @@ func TestAuthRouter_OnboardingRoutesRequireAppToken(t *testing.T) {
 		path string
 		body string
 	}{
+		{
+			name: "cpf check",
+			path: "/auth/cpf-check",
+			body: `{"cpf":"12345678909"}`,
+		},
 		{
 			name: "request contact verification",
 			path: "/auth/contact-verifications",

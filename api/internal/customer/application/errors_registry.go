@@ -30,6 +30,12 @@ func RegisterErrors() {
 		"Invalid CPF format",
 		http.StatusBadRequest,
 	)
+	sharederrors.RegisterDomainError(
+		domain.ErrCPFRequired,
+		sharederrors.ErrCodeInvalidData,
+		"CPF is required",
+		http.StatusBadRequest,
+	)
 
 	sharederrors.RegisterDomainError(
 		domain.ErrCPFAlreadyExists,

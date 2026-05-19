@@ -23,6 +23,49 @@ type contactVerificationRepositoryMock struct {
 	confirmedVerifiedAt time.Time
 }
 
+type contactVerificationUserRepositoryMock struct {
+	existsByEmailCalls int
+	existsByEmailValue string
+	existsByEmail      bool
+	existsByEmailErr   error
+	existsByPhoneCalls int
+	existsByPhoneValue string
+	existsByPhone      bool
+	existsByPhoneErr   error
+}
+
+func (m *contactVerificationUserRepositoryMock) Create(ctx context.Context, user *domain.User) error {
+	return nil
+}
+
+func (m *contactVerificationUserRepositoryMock) UpdateStatus(ctx context.Context, userID uuid.UUID, status domain.UserStatus) error {
+	return nil
+}
+
+func (m *contactVerificationUserRepositoryMock) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return nil, nil
+}
+
+func (m *contactVerificationUserRepositoryMock) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	return nil, nil
+}
+
+func (m *contactVerificationUserRepositoryMock) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	m.existsByEmailCalls++
+	m.existsByEmailValue = email
+	return m.existsByEmail, m.existsByEmailErr
+}
+
+func (m *contactVerificationUserRepositoryMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	m.existsByPhoneCalls++
+	m.existsByPhoneValue = phone
+	return m.existsByPhone, m.existsByPhoneErr
+}
+
+func (m *contactVerificationUserRepositoryMock) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	return nil, nil
+}
+
 func (m *contactVerificationRepositoryMock) CreateContactVerification(
 	ctx context.Context,
 	verification *domain.ContactVerification,
@@ -61,13 +104,14 @@ func (m *contactVerificationRepositoryMock) ConfirmContactVerification(
 
 func TestRequestContactVerificationUseCase_Execute_Success(t *testing.T) {
 	repo := &contactVerificationRepositoryMock{}
-	uc := NewRequestContactVerificationUseCase(repo)
+	userRepo := &contactVerificationUserRepositoryMock{}
+	uc := NewRequestContactVerificationUseCase(repo, userRepo)
 	now := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	uc.now = func() time.Time { return now }
 
 	output, err := uc.Execute(context.Background(), RequestContactVerificationInput{
 		Channel: " EMAIL ",
-		Target:  " user@example.com ",
+		Target:  " User@Example.com ",
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -82,7 +126,13 @@ func TestRequestContactVerificationUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected channel email, got %q", output.Channel)
 	}
 	if output.Target != "user@example.com" {
-		t.Fatalf("expected trimmed target, got %q", output.Target)
+		t.Fatalf("expected normalized target, got %q", output.Target)
+	}
+	if userRepo.existsByEmailCalls != 1 {
+		t.Fatalf("expected ExistsByEmail to be called once, got %d", userRepo.existsByEmailCalls)
+	}
+	if userRepo.existsByEmailValue != "user@example.com" {
+		t.Fatalf("expected ExistsByEmail value user@example.com, got %q", userRepo.existsByEmailValue)
 	}
 	if len(output.Token) != 6 {
 		t.Fatalf("expected token length 6, got %q", output.Token)
@@ -94,7 +144,8 @@ func TestRequestContactVerificationUseCase_Execute_Success(t *testing.T) {
 
 func TestRequestContactVerificationUseCase_Execute_InvalidInput(t *testing.T) {
 	repo := &contactVerificationRepositoryMock{}
-	uc := NewRequestContactVerificationUseCase(repo)
+	userRepo := &contactVerificationUserRepositoryMock{}
+	uc := NewRequestContactVerificationUseCase(repo, userRepo)
 
 	output, err := uc.Execute(context.Background(), RequestContactVerificationInput{
 		Channel: "fax",
@@ -108,6 +159,61 @@ func TestRequestContactVerificationUseCase_Execute_InvalidInput(t *testing.T) {
 	}
 	if repo.createCalls != 0 {
 		t.Fatalf("expected repository not to be called, got %d calls", repo.createCalls)
+	}
+	if userRepo.existsByEmailCalls != 0 || userRepo.existsByPhoneCalls != 0 {
+		t.Fatalf("expected user repository not to be called, got email=%d phone=%d", userRepo.existsByEmailCalls, userRepo.existsByPhoneCalls)
+	}
+}
+
+func TestRequestContactVerificationUseCase_Execute_DuplicateEmail(t *testing.T) {
+	repo := &contactVerificationRepositoryMock{}
+	userRepo := &contactVerificationUserRepositoryMock{existsByEmail: true}
+	uc := NewRequestContactVerificationUseCase(repo, userRepo)
+
+	output, err := uc.Execute(context.Background(), RequestContactVerificationInput{
+		Channel: "email",
+		Target:  "User@Example.com",
+	})
+	if !errors.Is(err, domain.ErrEmailAlreadyExists) {
+		t.Fatalf("expected ErrEmailAlreadyExists, got %v", err)
+	}
+	if output != nil {
+		t.Fatalf("expected nil output, got %+v", output)
+	}
+	if userRepo.existsByEmailCalls != 1 {
+		t.Fatalf("expected ExistsByEmail to be called once, got %d", userRepo.existsByEmailCalls)
+	}
+	if userRepo.existsByEmailValue != "user@example.com" {
+		t.Fatalf("expected normalized email, got %q", userRepo.existsByEmailValue)
+	}
+	if repo.createCalls != 0 {
+		t.Fatalf("expected contact verification not to be created, got %d calls", repo.createCalls)
+	}
+}
+
+func TestRequestContactVerificationUseCase_Execute_DuplicatePhone(t *testing.T) {
+	repo := &contactVerificationRepositoryMock{}
+	userRepo := &contactVerificationUserRepositoryMock{existsByPhone: true}
+	uc := NewRequestContactVerificationUseCase(repo, userRepo)
+
+	output, err := uc.Execute(context.Background(), RequestContactVerificationInput{
+		Channel: "phone",
+		Target:  " +5511999999999 ",
+	})
+	if !errors.Is(err, domain.ErrPhoneAlreadyExists) {
+		t.Fatalf("expected ErrPhoneAlreadyExists, got %v", err)
+	}
+	if output != nil {
+		t.Fatalf("expected nil output, got %+v", output)
+	}
+	if userRepo.existsByPhoneCalls != 1 {
+		t.Fatalf("expected ExistsByPhone to be called once, got %d", userRepo.existsByPhoneCalls)
+	}
+	if userRepo.existsByPhoneValue != "+5511999999999" {
+		t.Fatalf("expected trimmed phone, got %q", userRepo.existsByPhoneValue)
+	}
+	if repo.createCalls != 0 {
+		t.Fatalf("expected contact verification not to be created, got %d calls", repo.createCalls)
 	}
 }
 

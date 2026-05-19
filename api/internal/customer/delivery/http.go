@@ -29,9 +29,17 @@ type getCustomerMeUseCase interface {
 	) (*customerdomain.CustomerProfile, error)
 }
 
+type checkCPFUseCase interface {
+	Execute(
+		ctx context.Context,
+		input application.CheckCPFInput,
+	) (*application.CheckCPFOutput, error)
+}
+
 type Handler struct {
-	createUC createCustomerUseCase
-	getMeUC  getCustomerMeUseCase
+	createUC   createCustomerUseCase
+	getMeUC    getCustomerMeUseCase
+	checkCPFUC checkCPFUseCase
 }
 
 type createCustomerRequest struct {
@@ -48,9 +56,18 @@ type createCustomerData struct {
 	CreatedAt string `json:"created_at"`
 }
 
+type checkCPFRequest struct {
+	CPF string `json:"cpf"`
+}
+
 // New creates a new instance of the customer Handler with the provided use cases.
-func New(createUC createCustomerUseCase, getMeUC getCustomerMeUseCase) *Handler {
-	return &Handler{createUC: createUC, getMeUC: getMeUC}
+func New(createUC createCustomerUseCase, getMeUC getCustomerMeUseCase, checkCPFUC ...checkCPFUseCase) *Handler {
+	handler := &Handler{createUC: createUC, getMeUC: getMeUC}
+	if len(checkCPFUC) > 0 {
+		handler.checkCPFUC = checkCPFUC[0]
+	}
+
+	return handler
 }
 
 // Create handles the HTTP POST request for creating a new customer. It decodes the
@@ -152,6 +169,29 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		BirthDate: formatBirthDate(profile.Customer.BirthDate),
 		CreatedAt: profile.Customer.CreatedAt.Format(time.RFC3339),
 	})
+}
+
+// CheckCPF verifies whether a CPF is already registered in customer documents.
+func (h *Handler) CheckCPF(w http.ResponseWriter, r *http.Request) {
+	if h.checkCPFUC == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	var req checkCPFRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	output, err := h.checkCPFUC.Execute(r.Context(), application.CheckCPFInput{CPF: req.CPF})
+	if err != nil {
+		log.Println("check cpf error:", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, output)
 }
 
 // formatBirthDate formats the birth date as a string in "YYYY-MM-DD" format.

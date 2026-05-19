@@ -8,8 +8,9 @@
   - [2. Response Envelope](#2-response-envelope)
     - [2.1 Error Payload Examples (Standard)](#21-error-payload-examples-standard)
   - [3. Authentication Endpoints](#3-authentication-endpoints)
-    - [3.0 Request Contact Verification](#30-request-contact-verification)
-    - [3.0.1 Confirm Contact Verification](#301-confirm-contact-verification)
+    - [3.0 Check CPF](#30-check-cpf)
+    - [3.0.1 Request Contact Verification](#301-request-contact-verification)
+    - [3.0.2 Confirm Contact Verification](#302-confirm-contact-verification)
     - [3.1 Register User](#31-register-user)
     - [3.2 Login User](#32-login-user)
     - [3.3 Refresh Access Token](#33-refresh-access-token)
@@ -32,17 +33,18 @@
   - [7. Error Code Reference](#7-error-code-reference)
   - [8. Domain Notes for API Consumers](#8-domain-notes-for-api-consumers)
   - [9. Error Scenarios by Endpoint (with Payload)](#9-error-scenarios-by-endpoint-with-payload)
+    - [9.0 POST /auth/cpf-check](#90-post-authcpf-check)
     - [9.1 POST /auth/register](#91-post-authregister)
     - [9.2 POST /auth/login](#92-post-authlogin)
     - [9.3 POST /auth/refresh](#93-post-authrefresh)
     - [9.4 GET /auth/me](#94-get-authme)
     - [9.5 GET /accounts](#95-get-accounts)
-    - [9.6 POST /admin/customers/{customer_id}/accounts](#96-post-admincustomerscustomer_idaccounts)
+    - [9.6 POST /admin/customers/{customer\_id}/accounts](#96-post-admincustomerscustomer_idaccounts)
     - [9.7 POST /terminal/accounts/{id}/deposit](#97-post-terminalaccountsiddeposit)
     - [9.8 POST /terminal/accounts/{id}/withdraw](#98-post-terminalaccountsidwithdraw)
     - [9.9 GET /accounts/internal-transfers/recipients](#99-get-accountsinternal-transfersrecipients)
     - [9.10 POST /accounts/internal-transfers](#910-post-accountsinternal-transfers)
-    - [9.11 GET /accounts/transfer/{transaction_reference}/receipt](#911-get-accountstransfertransaction_referencereceipt)
+    - [9.11 GET /accounts/transfer/{transaction\_reference}/receipt](#911-get-accountstransfertransaction_referencereceipt)
     - [9.12 GET /accounts/{id}/balance](#912-get-accountsidbalance)
     - [9.13 GET /accounts/{id}/statement](#913-get-accountsidstatement)
     - [9.14 GET /customers/me](#914-get-customersme)
@@ -64,7 +66,7 @@ Content type:
 - response: application/json
 
 Authentication:
-- `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, and `POST /auth/login` require header `X-App-Token: <app_token>`
+- `POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, and `POST /auth/login` require header `X-App-Token: <app_token>`
 - `POST /auth/refresh` requires a valid `refresh_token` in the request body
 - `GET /auth/me`, all `/accounts` and `/accounts/*`, and all `/customers/*` require JWT Bearer token
 - Send JWT in header `Authorization: Bearer <access_token>`
@@ -155,10 +157,58 @@ Example - 500 INTERNAL_ERROR:
 
 ## 3. Authentication Endpoints
 
-Before registration, the client must request and confirm contact verifications
-for both e-mail and phone.
+Before registration, the client must check CPF availability and request and
+confirm contact verifications for both e-mail and phone.
 
-### 3.0 Request Contact Verification
+### 3.0 Check CPF
+
+- Method: POST
+- Path: /auth/cpf-check
+- Auth required: AppToken (`X-App-Token`)
+
+Request body:
+
+```json
+{
+  "cpf": "123.456.789-09"
+}
+```
+
+Success response (200), available CPF:
+
+```json
+{
+  "data": {
+    "cpf": "12345678909",
+    "exists": false,
+    "available": true
+  },
+  "error": null
+}
+```
+
+Success response (200), existing CPF:
+
+```json
+{
+  "data": {
+    "cpf": "12345678909",
+    "exists": true,
+    "available": false
+  },
+  "error": null
+}
+```
+
+The CPF is normalized before lookup. Invalid CPF values return `400 INVALID_DATA`.
+
+Possible errors:
+- 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
+- 400 INVALID_REQUEST: invalid JSON body
+- 400 INVALID_DATA: missing or invalid CPF
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 3.0.1 Request Contact Verification
 
 - Method: POST
 - Path: /auth/contact-verifications
@@ -175,6 +225,10 @@ Request body:
 
 `channel` accepts `email` or `phone`.
 
+The `target` value is normalized before creating a verification challenge:
+- `email`: trimmed and lowercased
+- `phone`: trimmed
+
 Success response (201):
 
 ```json
@@ -190,7 +244,12 @@ Success response (201):
 }
 ```
 
-### 3.0.1 Confirm Contact Verification
+Possible errors:
+- 400 INVALID_DATA: invalid channel or empty target
+- 409 USER_ALREADY_EXISTS: target e-mail or phone already belongs to a user
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 3.0.2 Confirm Contact Verification
 
 - Method: POST
 - Path: /auth/contact-verifications/confirm
@@ -1000,7 +1059,7 @@ Common error codes currently used by handlers:
 - TRANSACTION_NOT_FOUND
 - INTERNAL_ERROR
 
-`INVALID_APP_TOKEN` (HTTP 401) is returned when `POST /auth/register` or `POST /auth/login` is called without `X-App-Token` or with an invalid app token.
+`INVALID_APP_TOKEN` (HTTP 401) is returned when onboarding routes protected by AppToken (`POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, `POST /auth/login`) are called without `X-App-Token` or with an invalid app token.
 
 `ACCOUNT_APPROVAL_REQUIRED` (HTTP 403) is returned by `POST /auth/login` when a
 customer user has valid credentials but cannot enter the app because admin
@@ -1025,6 +1084,39 @@ both contact channels are not verified. The payload may include
 ## 9. Error Scenarios by Endpoint (with Payload)
 
 This section lists common error situations and the expected payload shape.
+
+### 9.0 POST /auth/cpf-check
+
+Scenario: missing or invalid app token
+- Status: 401
+- Code: INVALID_APP_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_APP_TOKEN",
+    "message": "invalid application token"
+  }
+}
+```
+
+Scenario: invalid cpf format or missing cpf
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+Examples of `error.message` for this scenario include `Invalid CPF format` and
+`CPF is required`.
 
 ### 9.1 POST /auth/register
 
@@ -1566,7 +1658,7 @@ The repository includes a ready-to-use Postman collection and environment under 
 Use these variables when configuring the Postman environment:
 
 - `base_url`: API base URL (default: `http://localhost:8080`)
-- `app_token`: application token used by auth entry routes (`/auth/register` and `/auth/login`)
+- `app_token`: application token used by auth entry routes (`/auth/cpf-check`, `/auth/contact-verifications`, `/auth/contact-verifications/confirm`, `/auth/register`, and `/auth/login`)
 - `access_token`: JWT used for protected routes
 - `refresh_token`: opaque refresh token used by `/auth/refresh`
 - `account_id`: account UUID for account operations
@@ -1595,20 +1687,21 @@ Use these variables when configuring the Postman environment:
 
 Use this flow to bootstrap test data and credentials quickly:
 
-1. `Auth/ContactVerifications/RequestEmail`
-2. `Auth/ContactVerifications/ConfirmEmail`
-3. `Auth/ContactVerifications/RequestPhone`
-4. `Auth/ContactVerifications/ConfirmPhone`
-5. `Auth/Register`
-6. `Auth/Login` (copy `access_token` and `refresh_token` from response)
-7. `Auth/Me` (validate JWT)
-8. `Account/User/Approve` (admin only, using `id`)
-9. Account endpoints using `account_id` as needed
-10. Recipient lookup endpoint using `recipient_branch` + `recipient_account_number`, or `recipient_document`
-11. Internal transfer endpoint using `from_account_id` and `to_account_id`
-12. Receipt endpoint using `transaction_reference` from a successful transfer response
+1. `Auth/CPFCheck`
+2. `Auth/ContactVerifications/RequestEmail`
+3. `Auth/ContactVerifications/ConfirmEmail`
+4. `Auth/ContactVerifications/RequestPhone`
+5. `Auth/ContactVerifications/ConfirmPhone`
+6. `Auth/Register`
+7. `Auth/Login` (copy `access_token` and `refresh_token` from response)
+8. `Auth/Me` (validate JWT)
+9. `Account/User/Approve` (admin only, using `id`)
+10. Account endpoints using `account_id` as needed
+11. Recipient lookup endpoint using `recipient_branch` + `recipient_account_number`, or `recipient_document`
+12. Internal transfer endpoint using `from_account_id` and `to_account_id`
+13. Receipt endpoint using `transaction_reference` from a successful transfer response
 
 Notes:
-- Keep `X-App-Token` for register/login requests as documented in this file.
+- Keep `X-App-Token` for onboarding requests (`/auth/cpf-check`, `/auth/contact-verifications`, `/auth/contact-verifications/confirm`, `/auth/register`, `/auth/login`) as documented in this file.
 - For protected routes, send `Authorization: Bearer <access_token>`.
 - If a request returns `401 INVALID_TOKEN`, run `Auth/Refresh` and update tokens.

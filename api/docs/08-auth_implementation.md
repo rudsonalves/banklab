@@ -74,6 +74,7 @@ A user-scoped token issued after successful authentication.
 
 Endpoints:
 
+* `POST /auth/cpf-check`
 * `POST /auth/contact-verifications`
 * `POST /auth/contact-verifications/confirm`
 * `POST /auth/register`
@@ -93,6 +94,8 @@ Auth Handler
 
 * `X-App-Token` header is mandatory
 * JWT is not required
+* `POST /auth/cpf-check` validates CPF format and availability before register
+* `POST /auth/contact-verifications` rejects already used e-mail/phone with `USER_ALREADY_EXISTS`
 * registration requires confirmed verification tokens for e-mail and phone
 
 On register, CPF is persisted as a primary customer document (`customer_documents`)

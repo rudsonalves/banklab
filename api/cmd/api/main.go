@@ -84,11 +84,12 @@ func main() {
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
-	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo)
+	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
 	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
 	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
+	checkCPFUC := customerApplication.NewCheckCPFUseCase(customerRepo)
 
 	// ======================
 	// Handlers
@@ -105,7 +106,7 @@ func main() {
 		confirmContactVerificationUC,
 	)
 	adminHandler := adminDelivery.New(approveUserUC)
-	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
+	customerHandler := customerDelivery.New(nil, getCustomerMeUC, checkCPFUC)
 
 	// ======================
 	// Middlewares
@@ -120,7 +121,7 @@ func main() {
 	// ======================
 
 	// --- Auth Router ---
-	authRouter := newAuthRouter(authHandler, appTokenMiddleware, withAuth)
+	authRouter := newAuthRouter(authHandler, customerHandler, appTokenMiddleware, withAuth)
 
 	// --- API Router ---
 	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler)
@@ -142,12 +143,14 @@ func main() {
 
 func newAuthRouter(
 	authHandler *authDelivery.Handler,
+	customerHandler *customerDelivery.Handler,
 	appTokenMiddleware func(http.Handler) http.Handler,
 	withAuth func(http.Handler) http.Handler,
 ) *http.ServeMux {
 	authRouter := http.NewServeMux()
 
 	// Onboarding (AppToken)
+	authRouter.Handle("POST /auth/cpf-check", appTokenMiddleware(http.HandlerFunc(customerHandler.CheckCPF)))
 	authRouter.Handle("POST /auth/contact-verifications", appTokenMiddleware(http.HandlerFunc(authHandler.RequestContactVerification)))
 	authRouter.Handle("POST /auth/contact-verifications/confirm", appTokenMiddleware(http.HandlerFunc(authHandler.ConfirmContactVerification)))
 	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))

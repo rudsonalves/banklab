@@ -32,6 +32,19 @@ seu estado seja limpo ao concluir, cancelar ou reiniciar explicitamente o
 cadastro. Assim ele só é carregado quando o onboarding de cadastro começa, mas
 preserva dados ao navegar entre páginas.
 
+A implementação deve começar com uma base específica para o cadastro de usuário,
+sem criar ainda um gerenciador genérico de onboarding. O desenho deve, porém,
+deixar clara a separação entre:
+
+- estado do rascunho do cadastro;
+- snapshot persistível em secure storage;
+- serviço de persistência do rascunho;
+- orquestração feita pelo `RegisterViewmodel`.
+
+Esse formato permite evoluir no futuro para um gerenciador de onboarding mais
+amplo quando houver mais etapas, como documentos, endereço e KYC, sem antecipar
+uma abstração genérica agora.
+
 ## Fluxo proposto
 
 ### Página 1: CPF
@@ -44,6 +57,10 @@ Comportamento:
 
 - CPF deve aceitar entrada formatada e armazenar apenas números no estado.
 - Ao avançar, validar formato básico do CPF.
+- Chamar `POST /auth/cpf-check` com `X-App-Token` para verificar se o CPF já
+  está cadastrado.
+- Se `available = false`, bloquear o cadastro e orientar o usuário a usar login
+  ou recuperação de acesso quando existir.
 - Após um CPF válido, tentar recuperar rascunho local de onboarding associado ao
   hash do CPF.
 - Se houver rascunho, hidratar o `RegisterViewmodel` com os dados persistidos e
@@ -230,6 +247,11 @@ tenta recuperar o rascunho correspondente.
 
 O valor persistido deve ser um JSON do rascunho.
 
+O estado do rascunho deve ter dirty tracking simples para registrar quais campos
+foram alterados desde a última persistência. Como o rascunho é pequeno e o
+secure storage trabalha bem com chave/valor, a persistência pode salvar o JSON
+inteiro quando houver campos alterados, em vez de aplicar patches parciais.
+
 ### Dados que podem ser persistidos
 
 - CPF normalizado, se necessário para reidratar a tela.
@@ -253,7 +275,9 @@ O valor persistido deve ser um JSON do rascunho.
 
 ### Expiração e retomada
 
-- O rascunho deve ter TTL.
+- O rascunho deve ter TTL de 24 horas.
+- Ao carregar o rascunho, se `created_at` ou `updated_at` indicarem expiração,
+  apagar o rascunho e iniciar o cadastro do zero para aquele CPF.
 - Se os tokens de verificação expirarem, limpar os tokens confirmados e voltar o
   fluxo para a etapa de verificação correspondente.
 - Se o app for encerrado e reaberto, tokens confirmados não devem ser
@@ -266,6 +290,7 @@ O valor persistido deve ser um JSON do rascunho.
 
 Todos os endpoints usados nesse fluxo devem funcionar com `app_token`, sem JWT:
 
+- `POST /auth/cpf-check`
 - `POST /auth/contact-verifications`
 - `POST /auth/contact-verifications/confirm`
 - `POST /auth/register`
@@ -281,8 +306,14 @@ No estado atual da API, esses endpoints já estão registrados com middleware de
 - Manter um único `RegisterViewmodel` compartilhado durante a jornada.
 - Registrar ou manter o `RegisterViewmodel` como `lazySingleton` para preservar
   estado entre páginas do cadastro.
+- Criar uma base simples e específica para o cadastro, separando estado do
+  rascunho, snapshot persistível e store seguro.
+- Usar dirty tracking simples no estado do rascunho para evitar persistências
+  desnecessárias.
+- Não criar ainda um gerenciador genérico de onboarding.
 - Evitar que voltar uma página perca os dados já informados.
 - Bloquear avanço quando a etapa atual estiver inválida.
+- Consultar disponibilidade do CPF antes de avançar da primeira página.
 - Persistir rascunho local por hash do CPF enquanto o cadastro não for
   concluído.
 - Persistir o rascunho em secure storage.
@@ -295,12 +326,14 @@ No estado atual da API, esses endpoints já estão registrados com middleware de
 
 Não há alteração funcional obrigatória identificada para viabilizar este fluxo.
 
-Possíveis ajustes de API, se quisermos reforçar cobertura:
+Possíveis ajustes de API já aplicados:
 
-- Adicionar ou revisar testes garantindo que os três endpoints do cadastro
+- Adicionar ou revisar testes garantindo que os endpoints do cadastro
   exigem `X-App-Token`.
+- Adicionar `POST /auth/cpf-check` para consulta de disponibilidade do CPF com
+  `X-App-Token`.
 - Garantir que a documentação continue clara sobre `app_token` em
-  contact verification e register.
+  CPF check, contact verification e register.
 
 ## Fora de escopo
 
@@ -322,11 +355,12 @@ Possíveis ajustes de API, se quisermos reforçar cobertura:
 - O rascunho é persistido em secure storage.
 - A senha não é persistida no rascunho.
 - Ao informar um CPF com rascunho existente, o fluxo pode ser retomado.
+- CPF já cadastrado bloqueia o avanço do fluxo antes da coleta dos demais dados.
 - E-mail só é considerado concluído após confirmação do token.
 - Telefone só é considerado concluído após confirmação do token.
 - A conta do usuário é criada ao final do fluxo, depois da confirmação da senha.
 - Após criar a conta, o usuário não fica conectado automaticamente.
-- `POST /auth/contact-verifications`,
+- `POST /auth/cpf-check`, `POST /auth/contact-verifications`,
   `POST /auth/contact-verifications/confirm` e `POST /auth/register` enviam
   `X-App-Token`.
 - O app continua imprimindo o token retornado no log de depuração em ambiente de
@@ -338,9 +372,14 @@ Possíveis ajustes de API, se quisermos reforçar cobertura:
 - O fluxo será dividido em páginas pequenas, começando por CPF.
 - O mesmo `RegisterViewmodel` gerencia todo o cadastro.
 - O `RegisterViewmodel` pode ser `lazySingleton`.
+- A base inicial será específica do cadastro de usuário.
+- Não será criado um gerenciador genérico de onboarding neste incremento.
+- O rascunho terá dirty tracking simples e salvará o JSON inteiro quando houver
+  alterações.
 - O onboarding de cadastro deve ter rascunho local persistido por CPF.
 - O rascunho deve ser salvo em secure storage.
 - A chave do rascunho deve usar hash do CPF normalizado, não CPF puro.
+- O TTL do rascunho local é de 24 horas.
 - Senha e confirmação de senha não devem ser persistidas.
 - Tokens confirmados de e-mail e telefone não devem ser persistidos.
 - Após criar a conta, o usuário não estará conectado.
@@ -348,4 +387,4 @@ Possíveis ajustes de API, se quisermos reforçar cobertura:
 
 ## Decisões pendentes
 
-- Qual TTL usar para o rascunho local de onboarding?
+- Nenhuma.

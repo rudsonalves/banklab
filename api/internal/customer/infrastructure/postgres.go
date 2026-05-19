@@ -223,6 +223,27 @@ func (r *Repository) CreateDocument(
 	return nil
 }
 
+// ExistsCPF checks whether a CPF document already exists in the customer_documents table.
+func (r *Repository) ExistsCPF(ctx context.Context, cpf string) (bool, error) {
+	query := `
+		SELECT EXISTS (
+			SELECT 1
+			FROM customer_documents
+			WHERE type = 'cpf'
+			  AND country = 'BR'
+			  AND value = $1
+		)
+	`
+
+	var exists bool
+	err := r.executor(ctx).QueryRow(ctx, query, cpf).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("customer document repository exists cpf: %w", err)
+	}
+
+	return exists, nil
+}
+
 // GetPrimaryDocumentByCustomerID retrieves the primary document associated with a given customer ID.
 // It queries the customer_documents table for the document where is_primary is true.
 // Returns the customer document if found, or domain.ErrNotFound if no primary document exists.

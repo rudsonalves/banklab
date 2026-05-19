@@ -15,16 +15,19 @@ import (
 const contactVerificationTTL = 10 * time.Minute
 
 type RequestContactVerificationUseCase struct {
-	repo domain.ContactVerificationRepository
-	now  func() time.Time
+	repo     domain.ContactVerificationRepository
+	userRepo domain.UserRepository
+	now      func() time.Time
 }
 
 func NewRequestContactVerificationUseCase(
 	repo domain.ContactVerificationRepository,
+	userRepo domain.UserRepository,
 ) *RequestContactVerificationUseCase {
 	return &RequestContactVerificationUseCase{
-		repo: repo,
-		now:  func() time.Time { return time.Now().UTC() },
+		repo:     repo,
+		userRepo: userRepo,
+		now:      func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -46,9 +49,30 @@ func (uc *RequestContactVerificationUseCase) Execute(
 	input RequestContactVerificationInput,
 ) (*RequestContactVerificationOutput, error) {
 	channel := domain.NormalizeContactVerificationChannel(input.Channel)
-	target := strings.TrimSpace(input.Target)
+	target := normalizeContactVerificationTarget(channel, input.Target)
 	if !channel.IsValid() || target == "" {
 		return nil, domain.ErrInvalidData
+	}
+
+	if uc.userRepo != nil {
+		switch channel {
+		case domain.ContactVerificationChannelEmail:
+			exists, err := uc.userRepo.ExistsByEmail(ctx, target)
+			if err != nil {
+				return nil, fmt.Errorf("check email uniqueness: %w", err)
+			}
+			if exists {
+				return nil, domain.ErrEmailAlreadyExists
+			}
+		case domain.ContactVerificationChannelPhone:
+			exists, err := uc.userRepo.ExistsByPhone(ctx, target)
+			if err != nil {
+				return nil, fmt.Errorf("check phone uniqueness: %w", err)
+			}
+			if exists {
+				return nil, domain.ErrPhoneAlreadyExists
+			}
+		}
 	}
 
 	token, err := generateNumericToken(6)
@@ -78,6 +102,18 @@ func (uc *RequestContactVerificationUseCase) Execute(
 		Token:          verification.Token,
 		ExpiresAt:      verification.ExpiresAt,
 	}, nil
+}
+
+func normalizeContactVerificationTarget(
+	channel domain.ContactVerificationChannel,
+	target string,
+) string {
+	target = strings.TrimSpace(target)
+	if channel == domain.ContactVerificationChannelEmail {
+		return strings.ToLower(target)
+	}
+
+	return target
 }
 
 type ConfirmContactVerificationUseCase struct {

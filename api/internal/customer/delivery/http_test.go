@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -26,6 +27,19 @@ type getCustomerMeUseCaseMock struct {
 }
 
 func (m *getCustomerMeUseCaseMock) Execute(ctx context.Context, input application.GetCustomerMeInput) (*domain.CustomerProfile, error) {
+	m.called = true
+	m.input = input
+	return m.output, m.err
+}
+
+type checkCPFUseCaseMock struct {
+	output *application.CheckCPFOutput
+	err    error
+	called bool
+	input  application.CheckCPFInput
+}
+
+func (m *checkCPFUseCaseMock) Execute(ctx context.Context, input application.CheckCPFInput) (*application.CheckCPFOutput, error) {
 	m.called = true
 	m.input = input
 	return m.output, m.err
@@ -121,6 +135,70 @@ func TestHandler_Me_Success(t *testing.T) {
 	}
 	if got.Error != nil {
 		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
+}
+
+func TestHandler_CheckCPF_Success(t *testing.T) {
+	ensureErrorsRegistered()
+
+	uc := &checkCPFUseCaseMock{output: &application.CheckCPFOutput{
+		CPF:       "12345678909",
+		Exists:    false,
+		Available: true,
+	}}
+	h := &Handler{checkCPFUC: uc}
+	req := httptest.NewRequest(http.MethodPost, "/auth/cpf-check", strings.NewReader(`{"cpf":"123.456.789-09"}`))
+	rec := httptest.NewRecorder()
+
+	h.CheckCPF(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+	if !uc.called {
+		t.Fatal("expected use case to be called")
+	}
+	if uc.input.CPF != "123.456.789-09" {
+		t.Fatalf("expected cpf input %q, got %q", "123.456.789-09", uc.input.CPF)
+	}
+
+	var got struct {
+		Data struct {
+			CPF       string `json:"cpf"`
+			Exists    bool   `json:"exists"`
+			Available bool   `json:"available"`
+		} `json:"data"`
+		Error any `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got.Data.CPF != "12345678909" {
+		t.Fatalf("expected cpf 12345678909, got %q", got.Data.CPF)
+	}
+	if got.Data.Exists {
+		t.Fatal("expected exists false")
+	}
+	if !got.Data.Available {
+		t.Fatal("expected available true")
+	}
+	if got.Error != nil {
+		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
+}
+
+func TestHandler_CheckCPF_InvalidCPF(t *testing.T) {
+	ensureErrorsRegistered()
+
+	uc := &checkCPFUseCaseMock{err: domain.ErrCPFInvalid}
+	h := &Handler{checkCPFUC: uc}
+	req := httptest.NewRequest(http.MethodPost, "/auth/cpf-check", strings.NewReader(`{"cpf":"12345678901"}`))
+	rec := httptest.NewRecorder()
+
+	h.CheckCPF(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
 	}
 }
 
