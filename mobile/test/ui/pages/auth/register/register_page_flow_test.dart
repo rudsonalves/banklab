@@ -27,7 +27,7 @@ void main() {
         GoRoute(
           path: '/register',
           name: 'register',
-          builder: (context, state) => RegisterPage(viewmodel: viewmodel),
+          builder: (context, state) => RegisterCpfPage(viewmodel: viewmodel),
         ),
         GoRoute(
           path: '/login',

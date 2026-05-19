@@ -177,7 +177,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _navToRegister() {
-    context.goNamed(AuthRoutes.register.name);
+    context.goNamed(RegisterRoutes.cpf.name);
   }
 
   void _obscurePasswordListener() {

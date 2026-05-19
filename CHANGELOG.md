@@ -1,5 +1,279 @@
 # Changelog
 
+## 2026/05/19 — mobile/pre-onboarding-06
+
+Refactor and restructure the mobile onboarding flow into a new pre-onboarding architecture focused on incremental navigation, CPF validation, local persistence, and future-proof step orchestration.
+
+### Main Changes
+
+1. Introduced the new pre-onboarding routing structure
+
+   * Added `RegisterRoutes` with dedicated routes for:
+
+     * CPF
+     * full name
+     * birth date
+     * email
+     * email token
+     * phone
+     * phone token
+     * password
+     * password confirmation
+     * success
+   * Added `register_routes.dart`
+   * Removed onboarding registration route from `AuthRoutes`
+   * Updated login navigation to redirect to the new CPF-first onboarding entry point
+   * Registered onboarding routes in the global router
+
+2. Started the onboarding flow decomposition
+
+   * Renamed `RegisterPage` to `RegisterCpfPage`
+   * Replaced the monolithic onboarding implementation with an isolated initial page
+   * Removed the previous multi-step widget orchestration from the UI layer
+   * Prepared the project for fully decoupled onboarding screens and state transitions
+
+3. Added CPF pre-validation support
+
+   * Added `cpfCheck()` to `AuthRepositoryImpl`
+   * Implemented `/auth/cpf-check` integration inside `AuthApi`
+   * Added `CpfCheckResponseDto`
+   * Added standardized HTTP and envelope parsing flow for CPF validation
+   * Centralized API error handling and parsing behavior for CPF checks
+
+4. Implemented onboarding draft persistence infrastructure
+
+   * Added `RegisterDraftStore`
+   * Added secure local onboarding persistence using `LocalSecureStorage`
+   * Added SHA-256 CPF hashing to generate non-plain-text storage keys
+   * Added automatic cleanup for corrupted onboarding snapshots
+   * Added lookup abstraction with `RegisterDraftLookup`
+
+5. Added onboarding domain models
+
+   * Added:
+
+     * `RegisterDraftField`
+     * `RegisterDraftStep`
+     * `RegisterDraftSnapshot`
+     * `RegisterDraftState`
+   * Implemented:
+
+     * dirty field tracking
+     * snapshot hydration
+     * persistable state serialization
+     * onboarding step persistence
+     * verification metadata persistence
+     * timestamp tracking
+   * Explicitly excluded sensitive transient runtime data from persistence:
+
+     * passwords
+     * verification tokens
+     * session tokens
+
+6. Improved core utility extensions
+
+   * Added:
+
+     * `DateTime.dateOnly`
+     * `DateParser.parseDateOnly`
+     * `String.trimToNull()`
+   * Simplified normalization and persistence serialization flows
+
+7. Simplified the registration viewmodel
+
+   * Removed the old monolithic registration orchestration
+   * Removed:
+
+     * internal step machine
+     * verification orchestration
+     * inline onboarding validations
+     * direct register execution flow
+   * Reduced the viewmodel to a lightweight injectable dependency base for future incremental onboarding modules
+
+8. Added comprehensive onboarding draft tests
+
+   * Added tests for:
+
+     * CPF hash generation
+     * secure storage persistence
+     * snapshot serialization
+     * invalid payload cleanup
+     * dirty field tracking
+     * hydration behavior
+     * persisted timestamp updates
+   * Added fake secure storage implementation for isolated testing
+
+9. Removed obsolete onboarding tests
+
+   * Deleted legacy `register_viewmodel_test.dart`
+   * Removed tests tied to the previous monolithic onboarding implementation
+
+10. Updated dependencies
+
+* Added direct dependency:
+
+  * `crypto: ^3.0.7`
+
+11. Updated backlog organization
+
+* Moved completed onboarding backlog documents to:
+
+  * `docs/backlogs/mobile/done/`
+* Archived:
+
+  * `009 - pre_onboarding_contact_verification.md`
+  * `009 - pre_onboarding_contact_verification_tasks.md`
+
+12. Updated Postman environment
+
+* Adjusted local `base_url` IP address for current development environment
+
+This commit establishes the foundation for a modular onboarding architecture with persistent draft recovery, CPF-first flow validation, and isolated onboarding stages, reducing coupling between UI, orchestration, and verification logic while preparing the system for more advanced onboarding and Zero Trust validation flows.
+
+
+## 2026/05/19 — mobile/pre-onboarding-05
+
+This commit introduces the first structural foundation for the new multi-page onboarding flow, centered around CPF pre-validation, onboarding hardening, and local draft persistence planning.
+
+The backend onboarding flow was expanded to support CPF availability checks before user registration, while the mobile backlog and onboarding architecture were redesigned around resumable multi-step registration.
+
+### API — Introduce CPF pre-check onboarding endpoint
+
+Implemented a new onboarding endpoint:
+
+* `POST /auth/cpf-check`
+
+Main goals:
+
+* validate CPF format before registration;
+* normalize CPF input;
+* verify CPF availability before collecting the remaining onboarding data;
+* block duplicated registrations early in the flow.
+
+The endpoint now integrates directly into the AppToken-protected onboarding surface.
+
+Main changes:
+
+* Added `CheckCPFUseCase`
+* Added `CustomerDocumentRepository.ExistsCPF`
+* Added PostgreSQL CPF existence query
+* Added HTTP handler `CheckCPF`
+* Added route registration in `main.go`
+* Added onboarding route protection tests
+* Added error mapping for:
+
+  * `ErrCPFRequired`
+  * `ErrCPFInvalid`
+* Exported `NormalizeCPF` from domain layer
+* Added complete use case and handler test coverage
+
+The onboarding entry flow is now:
+
+1. CPF check
+2. Contact verification
+3. Register
+4. Login
+
+This establishes a cleaner onboarding boundary and avoids unnecessary verification flows for already registered users.
+
+### API — Strengthen contact verification uniqueness rules
+
+`RequestContactVerificationUseCase` was expanded to validate uniqueness before issuing verification challenges.
+
+New behavior:
+
+* email normalization now lowercases input before lookup;
+* phone input is trimmed before lookup;
+* duplicated email now returns `ErrEmailAlreadyExists`;
+* duplicated phone now returns `ErrPhoneAlreadyExists`.
+
+This prevents generating verification challenges for identities already associated with existing users.
+
+Additional improvements:
+
+* added normalization helper for verification targets;
+* extended mocks and tests for uniqueness validation;
+* improved verification test coverage for:
+
+  * normalized email handling;
+  * duplicated email;
+  * duplicated phone;
+  * invalid input;
+  * repository invocation guarantees.
+
+### API — Documentation expansion for onboarding surface
+
+The REST and authentication documentation were heavily expanded to reflect the new onboarding sequence.
+
+Main documentation additions:
+
+* full `POST /auth/cpf-check` contract;
+* onboarding flow update;
+* onboarding AppToken clarification;
+* CPF normalization behavior;
+* new error scenarios;
+* onboarding Postman flow update;
+* onboarding security explanations;
+* verification uniqueness rules;
+* updated onboarding sequence references across architecture documents.
+
+Files updated include:
+
+* `07-api-rest.md`
+* `08-auth_implementation.md`
+* onboarding overview chapters
+* onboarding flow references and error sections
+
+The onboarding documentation now better reflects the intended progressive registration model.
+
+### Mobile backlog — Multi-page onboarding architecture definition
+
+The mobile onboarding backlog was substantially expanded and formalized.
+
+Key architectural decisions documented:
+
+* onboarding starts with CPF validation;
+* onboarding becomes multi-page instead of a monolithic form;
+* CPF availability must be checked before progressing;
+* onboarding state becomes resumable;
+* onboarding drafts are persisted in secure storage;
+* onboarding uses CPF-hash-based storage keys;
+* onboarding drafts expire after 24 hours;
+* passwords and verification tokens are never persisted;
+* dirty tracking is introduced for onboarding snapshots;
+* onboarding remains specific to user registration for now;
+* no generic onboarding engine will be created yet.
+
+A complete execution breakdown was added through a new task file containing 12 implementation stages.
+
+Topics covered:
+
+* draft state modeling;
+* secure storage persistence;
+* TTL management;
+* `RegisterViewmodel` orchestration redesign;
+* multi-route onboarding navigation;
+* CPF API integration;
+* e-mail verification pages;
+* phone verification pages;
+* password flow;
+* onboarding recovery;
+* onboarding cleanup;
+* migration away from the monolithic `RegisterPage`.
+
+### Architectural impact
+
+This commit significantly improves onboarding separation and prepares the project for:
+
+* resumable onboarding;
+* future KYC expansion;
+* progressive onboarding UX;
+* device-aware onboarding flows;
+* Zero Trust evidence collection during onboarding;
+* safer onboarding retries and recovery.
+
+It also reinforces the onboarding boundary protected by `X-App-Token`, keeping the public surface explicit and controlled.
+
 ## 2026/05/18 - mobile/pre-onboarding-04
 
 This commit advances the pre-onboarding foundation by restructuring authentication route registration in the API, strengthening middleware coverage through focused router tests, and defining the complete multi-page mobile onboarding strategy for the future registration flow.

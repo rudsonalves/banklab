@@ -10,6 +10,7 @@ import 'dtos/contact_verification_confirm_request_dto.dart';
 import 'dtos/contact_verification_confirm_response_dto.dart';
 import 'dtos/contact_verification_request_dto.dart';
 import 'dtos/contact_verification_request_response_dto.dart';
+import 'dtos/cpf_check_response_dto.dart';
 import 'dtos/customer_me_response_dto.dart';
 import 'dtos/login_request_dto.dart';
 import 'dtos/register_request_dto.dart';
@@ -149,6 +150,73 @@ class AuthApi {
         error: err,
         stack: stack,
         label: 'login',
+      );
+      return Failure(
+        AppError(
+          code: AppErrorCode.parsingError,
+          message: 'Failed to parse the response from the server.',
+        ),
+      );
+    }
+  }
+
+  AsyncResult<CpfCheckResponseDto> cpfCheck(String cpf) async {
+    final response = await _client.get(
+      RestClientRequest(
+        path: '/auth/cpf-check',
+        headers: {
+          'X-App-Token': AppEnv.appToken,
+        },
+        body: {
+          'cpf': cpf,
+        },
+      ),
+    );
+
+    if (response.isFailure) {
+      _log.error('Request failed: ${response.error}', label: 'cpfCheck');
+      return Result.failure(response.error!);
+    }
+
+    try {
+      final resp = response.value as RestClientResponse;
+      if (resp.statusCode == null ||
+          resp.statusCode! < 200 ||
+          resp.statusCode! >= 300) {
+        _log.error(
+          'HTTP error: ${resp.statusCode} ${resp.statusMessage}',
+          label: 'cpfCheck',
+        );
+        return Failure(
+          AppError(
+            code: AppErrorCode.httpError,
+            message: 'HTTP error: ${resp.statusCode} ${resp.statusMessage}',
+          ),
+        );
+      }
+
+      final envelope = ApiEnvelope<CpfCheckResponseDto>.fromMap(
+        resp.data as Map<String, dynamic>,
+        CpfCheckResponseDto.fromMap,
+      );
+
+      if (envelope.error != null) {
+        _log.error('API error: ${envelope.error!.message}', label: 'cpfCheck');
+        return Failure(
+          AppError(
+            code: AppErrorCode.httpError,
+            message: envelope.error!.message,
+          ),
+        );
+      }
+
+      return Success(envelope.data!);
+    } catch (err, stack) {
+      _log.error(
+        'Error parsing response: $err',
+        error: err,
+        stack: stack,
+        label: 'cpfCheck',
       );
       return Failure(
         AppError(
@@ -341,7 +409,6 @@ class AuthApi {
     }
   }
 
-  // Remove this to a profile API service.
   AsyncResult<UserProfile> getProfile() async {
     final respCustomer = await _client.get(
       RestClientRequest(

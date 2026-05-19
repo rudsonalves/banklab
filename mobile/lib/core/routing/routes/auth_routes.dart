@@ -5,8 +5,6 @@ import '/core/routing/routes.dart';
 import '/data/services/auth/cache/models/last_login_identity.dart';
 import '/ui/pages/auth/login/login_page.dart';
 import '/ui/pages/auth/login/viewmodel/login_viewmodel.dart';
-import '/ui/pages/auth/register/register_page.dart';
-import '/ui/pages/auth/register/viewmodel/register_viewmodel.dart';
 import '/ui/pages/auth/short_login/short_login_page.dart';
 import '/ui/pages/auth/short_login/viewmodel/short_login_viewmodel.dart';
 import '../animations_page/app_custom_transaction.dart';
@@ -20,14 +18,7 @@ List<RouteBase> authRoutes() => [
       child: LoginPage(viewModel: injector.get<LoginViewModel>()),
     ),
   ),
-  GoRoute(
-    path: AuthRoutes.register.path,
-    name: AuthRoutes.register.name,
-    pageBuilder: (context, state) => AppCustomTransactionPage(
-      key: state.pageKey,
-      child: RegisterPage(viewmodel: injector.get<RegisterViewmodel>()),
-    ),
-  ),
+
   GoRoute(
     path: AuthRoutes.shortLogin.path,
     name: AuthRoutes.shortLogin.name,

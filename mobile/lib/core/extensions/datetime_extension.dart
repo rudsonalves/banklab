@@ -12,6 +12,8 @@ extension DateTimeExtensions on DateTime {
   String get formatDayLabel => DateFormat('dd/MM/yyyy').format(this);
 
   String get formatHour => DateFormat('HH:mm').format(this);
+
+  String get dateOnly => toIso8601String().split('T').first;
 }
 
 final class DateParser {
@@ -27,5 +29,12 @@ final class DateParser {
     if (str == null || str.isEmpty) return DateTime.now();
 
     return DateTime.tryParse(str) ?? DateTime.now();
+  }
+
+  static DateTime? parseDateOnly(String? value) {
+    final str = value?.trim();
+    if (str == null || str.isEmpty) return null;
+
+    return DateTime.tryParse(str);
   }
 }

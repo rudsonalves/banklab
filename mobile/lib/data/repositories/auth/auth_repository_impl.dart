@@ -14,6 +14,7 @@ import '/data/services/auth/cache/last_login_cache_service.dart';
 import '/data/services/auth/cache/models/last_login_identity.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
+import '../../services/auth/api/dtos/cpf_check_response_dto.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApi _api;
@@ -135,6 +136,12 @@ class AuthRepositoryImpl implements AuthRepository {
     if (result.isFailure) return Result.failure(result.error!);
 
     return Success(unit);
+  }
+
+  AsyncResult<CpfCheckResponseDto> cpfCheck(String cpf) async {
+    final result = await _api.cpfCheck(cpf);
+    if (result.isFailure) return Result.failure(result.error!);
+    return Success(result.value!);
   }
 
   @override
