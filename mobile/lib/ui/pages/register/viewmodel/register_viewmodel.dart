@@ -11,7 +11,6 @@ class RegisterViewmodel extends ChangeNotifier {
   RegisterViewmodel({
     required RegisterUsecase usecase,
   }) : _usecase = usecase {
-    initialize = Command1(_usecase.initialize);
     submitCPF = Command1(_usecase.submitCPF);
     submitName = Command1(_usecase.submitName);
     submitBirthDate = Command1(_usecase.submitBirthDate);
@@ -24,7 +23,6 @@ class RegisterViewmodel extends ChangeNotifier {
     reset = Command0(_usecase.reset);
   }
 
-  late final Command1<Unit, String?> initialize;
   late final Command1<Unit, String> submitCPF;
   late final Command1<Unit, String> submitName;
   late final Command1<Unit, DateTime> submitBirthDate;
@@ -39,4 +37,6 @@ class RegisterViewmodel extends ChangeNotifier {
   RegisterDraftSnapshot? get draft => _usecase.draft;
 
   RegisterDraftState? get state => _usecase.state;
+
+  void startEmptyRegisterState() => _usecase.startEmptyRegisterState();
 }

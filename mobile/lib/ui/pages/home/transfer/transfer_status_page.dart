@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '/core/routing/routes.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
-import '/ui/components/buttons/big_text_button.dart';
+import '/ui/components/buttons/double_bottom_buttons.dart';
 
 class TransferStatusPage extends StatelessWidget {
   final bool isSuccess;
@@ -59,26 +59,13 @@ class TransferStatusPage extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: isSuccess
-          ? Row(
-              spacing: 12,
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: BigTextButton(
-                    onPressed: () => _navBack(context),
-                    label: 'Voltar',
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: BigButton(
-                    label: 'Comprovante',
-                    onPressed: () => _showReceipt(context),
-                    rightIcon: Icon(Icons.receipt_long_rounded, size: 24),
-                    enabled: transactionReference != null,
-                  ),
-                ),
-              ],
+          ? DoubleBottomButton(
+              leftButtonLabel: 'Voltar',
+              rightButtonLabel: 'Comprovante',
+              leftOnPressed: () => _navBack(context),
+              rightOnPressed: () => _showReceipt(context),
+              isRightEnabled: transactionReference != null,
+              rightButtonIcon: const Icon(Icons.receipt_long_rounded),
             )
           : BigButton(
               label: 'Voltar',

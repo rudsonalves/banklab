@@ -52,7 +52,7 @@ void main() {
           CpfCheckResponseDto(
             cpf: '12345678909',
             exists: true,
-            avaliable: false,
+            available: false,
           ),
         ),
       );
@@ -337,7 +337,7 @@ class _FakeRegistrationRepository implements RegistrationRepository {
              CpfCheckResponseDto(
                cpf: '12345678909',
                exists: false,
-               avaliable: true,
+               available: true,
              ),
            ),
        registerResult = registerResult ?? const Success<Unit>(unit);

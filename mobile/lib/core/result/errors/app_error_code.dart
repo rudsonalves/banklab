@@ -21,4 +21,7 @@ enum AppErrorCode {
 
   // Validation
   invalidData,
+
+  // Registration-specific
+  cpfAlreadyRegistered,
 }

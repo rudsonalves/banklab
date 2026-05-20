@@ -1,5 +1,144 @@
 # Changelog
 
+## 2026/05/20 — mobile/pre-onboarding-10
+
+This commit advances the mobile onboarding foundation by introducing the first functional CPF registration flow, refining registration state initialization, improving domain-specific error handling, and consolidating reusable bottom action components across the UI.
+
+### Registration and CPF onboarding flow
+
+* Implemented the first interactive CPF registration screen flow.
+* Added CPF validation and formatting support directly in the UI layer.
+* Added CPF availability verification before continuing registration.
+* Added navigation integration between registration steps using GoRouter.
+* Introduced snackbar-based feedback for onboarding validation failures.
+* Added automatic focus dismissal after valid CPF input.
+* Added login shortcut from the onboarding screen.
+
+#### `mobile/lib/ui/pages/register/register_cpf_page.dart`
+
+* Reworked the page from a placeholder screen into a functional onboarding step.
+* Added:
+
+  * `TextEditingController`
+  * CPF validation state
+  * formatted CPF input
+  * navigation handlers
+  * asynchronous CPF availability verification
+  * onboarding action buttons
+  * snackbar-based error presentation
+* Added integration with:
+
+  * `CpfInputFormatter`
+  * `String.onlyNumbers`
+  * `String.isValidCpf`
+  * `DoubleBottomButton`
+  * `AppSnackbar`
+
+### Registration state lifecycle refactor
+
+A major focus of this commit was simplifying the onboarding initialization flow by separating empty registration startup from future draft restoration logic.
+
+#### `mobile/lib/domain/usecases/register/register_usecase.dart`
+
+* Introduced `startEmptyRegisterState()`.
+* Removed the dependency on asynchronous initialization for empty registration flows.
+* Temporarily isolated the draft restoration logic through commented preservation for future recovery work.
+* Improved CPF validation behavior:
+
+  * replaced generic `invalidData`
+  * introduced specific `cpfAlreadyRegistered` handling
+
+#### `mobile/lib/ui/pages/register/viewmodel/register_viewmodel.dart`
+
+* Removed `initialize` command abstraction.
+* Added direct `startEmptyRegisterState()` forwarding to the use case.
+
+### Domain-specific onboarding errors
+
+#### `mobile/lib/core/result/errors/app_error_code.dart`
+
+* Added:
+
+  * `cpfAlreadyRegistered`
+
+This improves semantic error handling and prepares the onboarding pipeline for more granular validation flows.
+
+### DTO consistency and API alignment
+
+#### `mobile/lib/data/services/apis/registration/dtos/cpf_check_response_dto.dart`
+
+* Fixed typo:
+
+  * `avaliable` → `available`
+* Updated JSON parsing accordingly.
+* Improved naming consistency between backend payloads and frontend DTOs.
+
+### Registration navigation groundwork
+
+Several onboarding pages received route navigation preparation methods for the future multi-step registration flow.
+
+#### Updated pages
+
+* `register_name_page.dart`
+* `register_birthdate_page.dart`
+* `register_email_page.dart`
+* `register_token_page.dart`
+
+Changes include:
+
+* GoRouter integration
+* next-step navigation methods
+* cleanup of duplicated `super.initState()` calls
+
+### Reusable bottom action component
+
+#### `mobile/lib/ui/components/buttons/double_bottom_buttons.dart`
+
+* Added reusable dual-action bottom button component.
+* Encapsulates:
+
+  * primary action button
+  * secondary text button
+  * enable/disable logic
+  * optional icon support
+
+### Transfer status page cleanup
+
+#### `mobile/lib/ui/pages/home/transfer/transfer_status_page.dart`
+
+* Replaced duplicated bottom action layout with `DoubleBottomButton`.
+* Reduced UI duplication and improved consistency with onboarding screens.
+
+### General cleanup
+
+#### Registration pages
+
+* Removed duplicated `super.initState()` calls from:
+
+  * `register_birthdate_page.dart`
+  * `register_email_page.dart`
+  * `register_name_page.dart`
+  * `register_password_page.dart`
+  * `register_phone_page.dart`
+  * `register_token_page.dart`
+
+### Test coverage
+
+#### `mobile/test/data/services/apis/registration/dtos/cpf_check_response_dto_test.dart`
+
+* Added DTO parsing coverage for:
+
+  * `available`
+
+#### `mobile/test/domain/usecases/register/register_usecase_test.dart`
+
+* Updated tests to reflect DTO field rename:
+
+  * `avaliable` → `available`
+
+This commit establishes the first concrete onboarding interaction flow in the mobile application while also improving domain error semantics, reducing UI duplication, and preparing the registration pipeline for future persistence and recovery capabilities.
+
+
 ## 2026/05/20 — mobile/pre-onboarding-09
 
 Refactor and expand the mobile onboarding flow structure with dedicated register routes, draft persistence improvements, and the first implementation layer for the multi-step registration experience.

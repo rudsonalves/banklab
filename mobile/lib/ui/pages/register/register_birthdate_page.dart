@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '/ui/components/base/safe_scaffold.dart';
+import '../../../core/routing/routes.dart';
 import 'viewmodel/register_viewmodel.dart';
 
 class RegisterBirthdatePage extends StatefulWidget {
@@ -20,8 +22,6 @@ class _RegisterBirthdatePageState extends State<RegisterBirthdatePage> {
 
   @override
   void initState() {
-    super.initState();
-
     super.initState();
   }
 
@@ -45,4 +45,6 @@ class _RegisterBirthdatePageState extends State<RegisterBirthdatePage> {
       ),
     );
   }
+
+  void _navToEmail() => context.pushNamed(RegisterRoutes.email.name);
 }

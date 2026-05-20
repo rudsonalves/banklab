@@ -7,7 +7,6 @@ import '/data/services/apis/contact_verification/dtos/contact_verification_reque
 import '/data/services/apis/registration/dtos/register_request_dto.dart';
 import '/domain/common/auth/models/register_draft_snapshot.dart';
 import '/domain/common/auth/models/register_draft_state.dart';
-import '../../../data/services/cache/register_draft/register_draft_load_result.dart';
 
 class RegisterUsecase {
   final RegistrationRepository _registrationRepository;
@@ -32,30 +31,37 @@ class RegisterUsecase {
   String? _phoneVerificationToken;
   String? _password;
 
-  AsyncResult<Unit> initialize(String? cpf) async {
-    if (_started) return const Success(unit);
-
-    if (cpf != null) {
-      final result = await _registerDraftRepository.getByCPF(cpf);
-
-      if (result.isSuccess) {
-        final loadResult = result.value!;
-        if (loadResult.isFound) {
-          _state = RegisterDraftState.fromSnapshot(
-            (loadResult as RegisterDraftFound).snapshot,
-          );
-          _started = true;
-          return const Success(unit);
-        }
-      } else {
-        return Failure(result.error!);
-      }
-    }
+  void startEmptyRegisterState() {
+    if (_started) return;
 
     _state = RegisterDraftState();
     _started = true;
-    return const Success(unit);
   }
+
+  // AsyncResult<Unit> initialize(String? cpf) async {
+  //   if (_started) return const Success(unit);
+
+  //   if (cpf != null) {
+  //     final result = await _registerDraftRepository.getByCPF(cpf);
+
+  //     if (result.isSuccess) {
+  //       final loadResult = result.value!;
+  //       if (loadResult.isFound) {
+  //         _state = RegisterDraftState.fromSnapshot(
+  //           (loadResult as RegisterDraftFound).snapshot,
+  //         );
+  //         _started = true;
+  //         return const Success(unit);
+  //       }
+  //     } else {
+  //       return Failure(result.error!);
+  //     }
+  //   }
+
+  //   _state = RegisterDraftState();
+  //   _started = true;
+  //   return const Success(unit);
+  // }
 
   AsyncResult<Unit> submitCPF(String cpf) async {
     if (_state == null) {
@@ -70,10 +76,10 @@ class RegisterUsecase {
     final result = await _registrationRepository.cpfCheck(cpf);
     if (result.isFailure) return Result.failure(result.error!);
     final cpfCheck = result.value!;
-    if (!cpfCheck.avaliable) {
+    if (!cpfCheck.available) {
       return const Failure(
         AppError(
-          code: AppErrorCode.invalidData,
+          code: AppErrorCode.cpfAlreadyRegistered,
           message: 'CPF is already registered',
         ),
       );

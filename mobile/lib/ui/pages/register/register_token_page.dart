@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '/ui/components/base/safe_scaffold.dart';
+import '../../../core/routing/routes.dart';
 import 'viewmodel/register_viewmodel.dart';
 
 enum TokenType {
@@ -29,8 +31,6 @@ class _RegisterTokenPageState extends State<RegisterTokenPage> {
   @override
   void initState() {
     super.initState();
-
-    super.initState();
   }
 
   @override
@@ -52,5 +52,16 @@ class _RegisterTokenPageState extends State<RegisterTokenPage> {
         ),
       ),
     );
+  }
+
+  void _navToNext() {
+    switch (_tokenType) {
+      case TokenType.email:
+        context.pushNamed(RegisterRoutes.phone.name);
+        break;
+      case TokenType.phone:
+        context.pushNamed(RegisterRoutes.password.name);
+        break;
+    }
   }
 }

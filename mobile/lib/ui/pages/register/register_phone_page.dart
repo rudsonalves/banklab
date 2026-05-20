@@ -22,7 +22,6 @@ class _RegisterPhonePageState extends State<RegisterPhonePage> {
   void initState() {
     super.initState();
 
-    super.initState();
   }
 
   @override
