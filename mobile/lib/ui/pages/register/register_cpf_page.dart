@@ -58,10 +58,10 @@ class _RegisterCpfPageState extends State<RegisterCpfPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextHeader('Qual o seu CPF?'),
+              TextHeader('Informe o CPF'),
               BasicTextFormField(
                 controller: _cpfController,
-                hintText: 'Digite seu CPF',
+                hintText: 'Digite apenas os números do seu CPF',
                 keyboardType: TextInputType.number,
                 onChanged: _cpfChanged,
                 inputFormatters: [CpfInputFormatter()],

@@ -30,10 +30,8 @@ void main() {
 
       expect(saveResult.isSuccess, isTrue);
       expect(lookupResult.isSuccess, isTrue);
-      expect(lookupResult.value, isA<RegisterDraftFound>());
-      final found = lookupResult.value as RegisterDraftFound;
-      expect(found.snapshot.cpf, '12345678909');
-      expect(found.snapshot.name, 'Maria Silva');
+      expect(lookupResult.value?.cpf, '12345678909');
+      expect(lookupResult.value?.name, 'Maria Silva');
       expect(storage.values.keys.single, store.keyForCPF('12345678909'));
     });
 
@@ -42,8 +40,8 @@ void main() {
 
       final result = await store.getByCPF('12345678909');
 
-      expect(result.isSuccess, isTrue);
-      expect(result.value, isA<RegisterDraftNotFound>());
+      expect(result.isFailure, isTrue);
+      expect(result.error?.code, AppErrorCode.storageNotFound);
     });
 
     test('deletes invalid json and returns empty lookup', () async {
@@ -54,8 +52,8 @@ void main() {
 
       final result = await store.getByCPF('12345678909');
 
-      expect(result.isSuccess, isTrue);
-      expect(result.value, isA<RegisterDraftNotFound>());
+      expect(result.isFailure, isTrue);
+      expect(result.error?.code, AppErrorCode.storageNotFound);
       expect(storage.values.containsKey(key), isFalse);
       expect(storage.deletedKeys, contains(key));
     });
@@ -68,8 +66,8 @@ void main() {
 
       final result = await store.getByCPF('12345678909');
 
-      expect(result.isSuccess, isTrue);
-      expect(result.value, isA<RegisterDraftNotFound>());
+      expect(result.isFailure, isTrue);
+      expect(result.error?.code, AppErrorCode.storageNotFound);
       expect(storage.values.containsKey(key), isFalse);
     });
 

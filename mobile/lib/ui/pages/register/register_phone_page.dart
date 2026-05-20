@@ -21,7 +21,6 @@ class _RegisterPhonePageState extends State<RegisterPhonePage> {
   @override
   void initState() {
     super.initState();
-
   }
 
   @override
@@ -33,7 +32,7 @@ class _RegisterPhonePageState extends State<RegisterPhonePage> {
   Widget build(BuildContext context) {
     return SafeScaffold(
       appBar: AppBar(
-        title: const Text('Criar conta'),
+        title: const Text('Registro de Conta'),
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),

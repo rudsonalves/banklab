@@ -38,31 +38,6 @@ class RegisterUsecase {
     _started = true;
   }
 
-  // AsyncResult<Unit> initialize(String? cpf) async {
-  //   if (_started) return const Success(unit);
-
-  //   if (cpf != null) {
-  //     final result = await _registerDraftRepository.getByCPF(cpf);
-
-  //     if (result.isSuccess) {
-  //       final loadResult = result.value!;
-  //       if (loadResult.isFound) {
-  //         _state = RegisterDraftState.fromSnapshot(
-  //           (loadResult as RegisterDraftFound).snapshot,
-  //         );
-  //         _started = true;
-  //         return const Success(unit);
-  //       }
-  //     } else {
-  //       return Failure(result.error!);
-  //     }
-  //   }
-
-  //   _state = RegisterDraftState();
-  //   _started = true;
-  //   return const Success(unit);
-  // }
-
   AsyncResult<Unit> submitCPF(String cpf) async {
     if (_state == null) {
       return const Failure(
@@ -85,8 +60,13 @@ class RegisterUsecase {
       );
     }
 
-    _state!.updateCPF(cpf);
-    return await _saveDirty();
+    final recoverCacheResult = await _registerDraftRepository.getByCPF(cpf);
+    if (recoverCacheResult.isFailure) {
+      return Result.failure(recoverCacheResult.error!);
+    }
+
+    _state = RegisterDraftState.fromSnapshot(recoverCacheResult.value!);
+    return Success(unit);
   }
 
   AsyncResult<Unit> submitName(String name) async {

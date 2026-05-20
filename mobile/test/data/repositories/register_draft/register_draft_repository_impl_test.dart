@@ -10,9 +10,7 @@ void main() {
     test('returns found draft inside TTL', () async {
       final store = _FakeRegisterDraftStore(
         lookupResult: Future.value(
-          Success<RegisterDraftLoadResult>(
-            RegisterDraftFound(_snapshot(updatedAt: _now)),
-          ),
+          Success<RegisterDraftSnapshot>(_snapshot(updatedAt: _now)),
         ),
       );
       final repository = RegisterDraftRepositoryImpl(
@@ -22,19 +20,17 @@ void main() {
 
       final result = await repository.getByCPF('123.456.789-09');
 
-      expect(result, isA<Success<RegisterDraftLoadResult>>());
-      expect(result.value, isA<RegisterDraftFound>());
+      expect(result, isA<Success<RegisterDraftSnapshot>>());
+      expect(result.value?.cpf, '123.456.789-09');
       expect(repository.snapshot, isNotNull);
       expect(store.deleteCalls, 0);
     });
 
-    test('returns not found and removes expired draft', () async {
+    test('creates a new empty draft when persisted draft is expired', () async {
       final store = _FakeRegisterDraftStore(
         lookupResult: Future.value(
-          Success<RegisterDraftLoadResult>(
-            RegisterDraftFound(
-              _snapshot(updatedAt: _now.subtract(const Duration(hours: 25))),
-            ),
+          Success<RegisterDraftSnapshot>(
+            _snapshot(updatedAt: _now.subtract(const Duration(hours: 25))),
           ),
         ),
       );
@@ -45,19 +41,18 @@ void main() {
 
       final result = await repository.getByCPF('123.456.789-09');
 
-      expect(result, isA<Success<RegisterDraftLoadResult>>());
-      expect(result.value, isA<RegisterDraftNotFound>());
-      expect(repository.snapshot, isNull);
-      expect(store.deleteCalls, 1);
-      expect(store.deletedCpfs, contains('123.456.789-09'));
+      expect(result, isA<Success<RegisterDraftSnapshot>>());
+      expect(result.value?.cpf, '123.456.789-09');
+      expect(result.value?.name, isNull);
+      expect(repository.snapshot?.cpf, '123.456.789-09');
+      expect(store.savedSnapshots, hasLength(1));
+      expect(store.deleteCalls, 0);
     });
 
     test('expires draft exactly at TTL boundary', () async {
       final store = _FakeRegisterDraftStore(
         lookupResult: Future.value(
-          Success<RegisterDraftLoadResult>(
-            RegisterDraftFound(_snapshot(updatedAt: _now)),
-          ),
+          Success<RegisterDraftSnapshot>(_snapshot(updatedAt: _now)),
         ),
       );
       final repository = RegisterDraftRepositoryImpl(
@@ -67,32 +62,41 @@ void main() {
 
       final result = await repository.getByCPF('123.456.789-09');
 
-      expect(result, isA<Success<RegisterDraftLoadResult>>());
-      expect(result.value, isA<RegisterDraftNotFound>());
-      expect(repository.snapshot, isNull);
-      expect(store.deleteCalls, 1);
+      expect(result, isA<Success<RegisterDraftSnapshot>>());
+      expect(result.value?.cpf, '123.456.789-09');
+      expect(result.value?.name, isNull);
+      expect(repository.snapshot?.cpf, '123.456.789-09');
+      expect(store.savedSnapshots, hasLength(1));
+      expect(store.deleteCalls, 0);
     });
 
-    test('returns not found when draft is absent', () async {
+    test('creates a new empty draft when persisted draft is absent', () async {
       final store = _FakeRegisterDraftStore(
         lookupResult: Future.value(
-          const Success<RegisterDraftLoadResult>(RegisterDraftNotFound()),
+          const Failure<RegisterDraftSnapshot>(
+            AppError(
+              code: AppErrorCode.storageNotFound,
+              message: 'draft not found',
+            ),
+          ),
         ),
       );
       final repository = RegisterDraftRepositoryImpl(store);
 
       final result = await repository.getByCPF('123.456.789-09');
 
-      expect(result, isA<Success<RegisterDraftLoadResult>>());
-      expect(result.value, isA<RegisterDraftNotFound>());
-      expect(repository.snapshot, isNull);
+      expect(result, isA<Success<RegisterDraftSnapshot>>());
+      expect(result.value?.cpf, '123.456.789-09');
+      expect(result.value?.name, isNull);
+      expect(repository.snapshot?.cpf, '123.456.789-09');
+      expect(store.savedSnapshots, hasLength(1));
       expect(store.deleteCalls, 0);
     });
 
     test('propagates store failure on load', () async {
       final store = _FakeRegisterDraftStore(
         lookupResult: Future.value(
-          const Failure<RegisterDraftLoadResult>(
+          const Failure<RegisterDraftSnapshot>(
             AppError(code: AppErrorCode.unexpected, message: 'load failed'),
           ),
         ),
@@ -101,7 +105,7 @@ void main() {
 
       final result = await repository.getByCPF('123.456.789-09');
 
-      expect(result, isA<Failure<RegisterDraftLoadResult>>());
+      expect(result, isA<Failure<RegisterDraftSnapshot>>());
       expect(result.error?.message, 'load failed');
       expect(repository.snapshot, isNull);
     });
@@ -161,21 +165,27 @@ RegisterDraftSnapshot _snapshot({required DateTime updatedAt}) {
 }
 
 class _FakeRegisterDraftStore extends RegisterDraftStore {
-  final AsyncResult<RegisterDraftLoadResult> lookupResult;
+  final AsyncResult<RegisterDraftSnapshot> lookupResult;
   final AsyncResult<Unit> saveResult;
   final AsyncResult<Unit> deleteResult;
 
   int deleteCalls = 0;
   final List<String> deletedCpfs = [];
+  final List<RegisterDraftSnapshot> savedSnapshots = [];
 
   _FakeRegisterDraftStore({
-    AsyncResult<RegisterDraftLoadResult>? lookupResult,
+    AsyncResult<RegisterDraftSnapshot>? lookupResult,
     AsyncResult<Unit>? saveResult,
     AsyncResult<Unit>? deleteResult,
   }) : lookupResult =
            lookupResult ??
            Future.value(
-             Success<RegisterDraftLoadResult>(RegisterDraftNotFound()),
+             const Failure<RegisterDraftSnapshot>(
+               AppError(
+                 code: AppErrorCode.storageNotFound,
+                 message: 'draft not found',
+               ),
+             ),
            ),
        saveResult = saveResult ?? Future.value(const Success<Unit>(unit)),
        deleteResult = deleteResult ?? Future.value(const Success<Unit>(unit)),
@@ -183,11 +193,12 @@ class _FakeRegisterDraftStore extends RegisterDraftStore {
 
   @override
   AsyncResult<Unit> save(RegisterDraftSnapshot snapshot) async {
+    savedSnapshots.add(snapshot);
     return saveResult;
   }
 
   @override
-  AsyncResult<RegisterDraftLoadResult> getByCPF(String cpf) async {
+  AsyncResult<RegisterDraftSnapshot> getByCPF(String cpf) async {
     return lookupResult;
   }
 

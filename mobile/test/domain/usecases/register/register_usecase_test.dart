@@ -8,42 +8,40 @@ import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_ve
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
 import 'package:bankflow/data/services/apis/registration/dtos/cpf_check_response_dto.dart';
 import 'package:bankflow/data/services/apis/registration/dtos/register_request_dto.dart';
-import 'package:bankflow/data/services/cache/register_draft/register_draft_load_result.dart';
 import 'package:bankflow/domain/common/auth/models/register_draft_snapshot.dart';
 import 'package:bankflow/domain/usecases/register/register_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('RegisterUsecase', () {
-    test('initializes from saved draft when found', () async {
+    test('startEmptyRegisterState initializes empty state', () {
       final draftRepository = _FakeRegisterDraftRepository(
-        loadResult: Success<RegisterDraftLoadResult>(
-          RegisterDraftFound(_snapshot()),
-        ),
+        loadResult: Success<RegisterDraftSnapshot>(_snapshot()),
       );
       final usecase = _usecase(draftRepository: draftRepository);
 
-      final result = await usecase.initialize('123.456.789-09');
+      usecase.startEmptyRegisterState();
 
-      expect(result, isA<Success<Unit>>());
-      expect(usecase.state?.cpf, '12345678909');
-      expect(usecase.state?.name, 'Maria Silva');
-      expect(draftRepository.loadedCpfs, ['123.456.789-09']);
+      expect(usecase.state, isNotNull);
+      expect(usecase.state?.cpf, '');
+      expect(usecase.state?.name, isNull);
+      expect(draftRepository.loadedCpfs, isEmpty);
     });
 
-    test('propagates draft load failure on initialize', () async {
+    test('startEmptyRegisterState does not load draft or fail', () {
       final draftRepository = _FakeRegisterDraftRepository(
-        loadResult: const Failure<RegisterDraftLoadResult>(
+        loadResult: const Failure<RegisterDraftSnapshot>(
           AppError(code: AppErrorCode.unexpected, message: 'load failed'),
         ),
       );
       final usecase = _usecase(draftRepository: draftRepository);
 
-      final result = await usecase.initialize('12345678909');
+      usecase.startEmptyRegisterState();
 
-      expect(result, isA<Failure<Unit>>());
-      expect(result.error?.message, 'load failed');
-      expect(usecase.state, isNull);
+      expect(usecase.state, isNotNull);
+      expect(usecase.state?.cpf, '');
+      expect(usecase.state?.name, isNull);
+      expect(draftRepository.loadedCpfs, isEmpty);
     });
 
     test('submitCPF rejects unavailable cpf without saving draft', () async {
@@ -61,7 +59,7 @@ void main() {
         registrationRepository: registrationRepository,
         draftRepository: draftRepository,
       );
-      await usecase.initialize(null);
+      usecase.startEmptyRegisterState();
 
       final result = await usecase.submitCPF('123.456.789-09');
 
@@ -78,7 +76,7 @@ void main() {
         contactVerificationRepository: contactVerificationRepository,
         draftRepository: draftRepository,
       );
-      await usecase.initialize(null);
+      usecase.startEmptyRegisterState();
 
       final result = await usecase.submitAndRequestEmailToken(
         'maria@example.com',
@@ -131,7 +129,7 @@ void main() {
         contactVerificationRepository: contactVerificationRepository,
         draftRepository: draftRepository,
       );
-      await usecase.initialize(null);
+      usecase.startEmptyRegisterState();
       await usecase.submitAndRequestEmailToken('maria@example.com');
       await usecase.submitAndRequestPhoneToken('(27) 99999-9999');
 
@@ -180,10 +178,6 @@ void main() {
         expect(request.phoneVerificationToken, 'phone-verification-token');
         expect(draftRepository.deletedCpfs, ['12345678909']);
         expect(usecase.state, isNull);
-
-        final initializeResult = await usecase.initialize('00000000000');
-        expect(initializeResult, isA<Success<Unit>>());
-        expect(draftRepository.loadedCpfs.last, '00000000000');
       },
     );
 
@@ -212,24 +206,6 @@ void main() {
         expect(usecase.state, isNull);
       },
     );
-
-    test('reset is idempotent and allows a new initialize', () async {
-      final draftRepository = _FakeRegisterDraftRepository();
-      final usecase = _usecase(draftRepository: draftRepository);
-
-      final resetBeforeStart = await usecase.reset();
-      final firstInitialize = await usecase.initialize(null);
-      await usecase.submitCPF('123.456.789-09');
-      final resetAfterStart = await usecase.reset();
-      final secondInitialize = await usecase.initialize('00000000000');
-
-      expect(resetBeforeStart, isA<Success<Unit>>());
-      expect(firstInitialize, isA<Success<Unit>>());
-      expect(resetAfterStart, isA<Success<Unit>>());
-      expect(secondInitialize, isA<Success<Unit>>());
-      expect(draftRepository.deletedCpfs, ['12345678909']);
-      expect(draftRepository.loadedCpfs, ['00000000000']);
-    });
   });
 }
 
@@ -248,7 +224,7 @@ RegisterUsecase _usecase({
 }
 
 Future<void> _prepareValidRegistration(RegisterUsecase usecase) async {
-  await usecase.initialize(null);
+  usecase.startEmptyRegisterState();
   await usecase.submitCPF('123.456.789-09');
   await usecase.submitName('Maria Silva');
   await usecase.submitBirthDate(DateTime(1990, 1, 15));
@@ -276,7 +252,7 @@ RegisterDraftSnapshot _snapshot() {
 }
 
 class _FakeRegisterDraftRepository implements RegisterDraftRepository {
-  final Result<RegisterDraftLoadResult> loadResult;
+  final Result<RegisterDraftSnapshot> loadResult;
   final Result<Unit> saveResult;
   final Result<Unit> deleteResult;
 
@@ -288,21 +264,17 @@ class _FakeRegisterDraftRepository implements RegisterDraftRepository {
   final List<String> deletedCpfs = [];
 
   _FakeRegisterDraftRepository({
-    Result<RegisterDraftLoadResult>? loadResult,
+    Result<RegisterDraftSnapshot>? loadResult,
     Result<Unit>? saveResult,
     Result<Unit>? deleteResult,
-  }) : loadResult =
-           loadResult ??
-           const Success<RegisterDraftLoadResult>(RegisterDraftNotFound()),
+  }) : loadResult = loadResult ?? Success<RegisterDraftSnapshot>(_snapshot()),
        saveResult = saveResult ?? const Success<Unit>(unit),
        deleteResult = deleteResult ?? const Success<Unit>(unit);
 
   @override
-  AsyncResult<RegisterDraftLoadResult> getByCPF(String cpf) async {
+  AsyncResult<RegisterDraftSnapshot> getByCPF(String cpf) async {
     loadedCpfs.add(cpf);
-    if (loadResult.isSuccess && loadResult.value is RegisterDraftFound) {
-      snapshot = (loadResult.value! as RegisterDraftFound).snapshot;
-    }
+    if (loadResult.isSuccess) snapshot = loadResult.value;
     return loadResult;
   }
 

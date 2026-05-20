@@ -48,6 +48,14 @@ extension StringExtension on String {
     return cleaned.endsWith(firstCheckDigit + secondCheckDigit);
   }
 
+  /// Validates if the string is a valid email address.
+  bool get isValidEmail {
+    final email = trim();
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+    ).hasMatch(email);
+  }
+
   /// Convert amount string to Money object, assuming the string is in a
   /// valid currency format (e.g., "R$ 1.234,56").
   /// This method will remove currency symbols and formatting, and convert the

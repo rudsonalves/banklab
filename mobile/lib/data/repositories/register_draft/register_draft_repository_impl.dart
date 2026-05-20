@@ -1,6 +1,6 @@
 import '/core/result/result.dart';
+import '/data/services/cache/register_draft/register_draft_store.dart';
 import '/domain/common/auth/models/register_draft_snapshot.dart';
-import '../../services/cache/register_draft/register_draft_store.dart';
 import 'register_draft_repository.dart';
 
 class RegisterDraftRepositoryImpl implements RegisterDraftRepository {
@@ -23,36 +23,41 @@ class RegisterDraftRepositoryImpl implements RegisterDraftRepository {
   RegisterDraftSnapshot? get snapshot => _snapshot;
 
   @override
-  AsyncResult<RegisterDraftLoadResult> getByCPF(String cpf) async {
+  AsyncResult<RegisterDraftSnapshot> getByCPF(String cpf) async {
     final result = await _store.getByCPF(cpf);
 
     if (result.isFailure) {
+      if (result.error?.code == AppErrorCode.storageNotFound) {
+        return await _createASnapshotForCPF(cpf);
+      }
+
       _snapshot = null;
       return Failure(result.error!);
     }
 
-    final loadResult = result.value!;
-    if (loadResult.isNotFound) {
-      _snapshot = null;
-      return result;
+    final snapshot = result.value!;
+    if (_isOld(snapshot)) {
+      return await _createASnapshotForCPF(cpf);
     }
 
-    _snapshot = (loadResult as RegisterDraftFound).snapshot;
+    _snapshot = snapshot;
+    return Success(snapshot);
+  }
 
-    final expiresAt = _snapshot!.updatedAt.toUtc().add(_ttl);
+  AsyncResult<RegisterDraftSnapshot> _createASnapshotForCPF(String cpf) async {
+    final snapshot = RegisterDraftSnapshot.empty(cpf);
+    final result = await save(snapshot);
+    if (result.isSuccess) _snapshot = snapshot;
+
+    if (result.isSuccess) return Success(snapshot);
+
+    return Failure(result.error!);
+  }
+
+  bool _isOld(RegisterDraftSnapshot snapshot) {
+    final expiresAt = snapshot.updatedAt.toUtc().add(_ttl);
     final now = _now().toUtc();
-    if (!now.isBefore(expiresAt)) {
-      final deleteResult = await deleteByCPF(cpf);
-      if (deleteResult.isFailure) {
-        _snapshot = null;
-        return Failure(deleteResult.error!);
-      }
-
-      _snapshot = null;
-      return const Success(RegisterDraftNotFound());
-    }
-
-    return result;
+    return !now.isBefore(expiresAt);
   }
 
   @override

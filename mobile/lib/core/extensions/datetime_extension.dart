@@ -14,6 +14,15 @@ extension DateTimeExtensions on DateTime {
   String get formatHour => DateFormat('HH:mm').format(this);
 
   String get dateOnly => toIso8601String().split('T').first;
+
+  int get age {
+    final now = DateTime.now();
+    int age = now.year - year;
+    if (now.month < month || (now.month == month && now.day < day)) {
+      age--;
+    }
+    return age;
+  }
 }
 
 final class DateParser {

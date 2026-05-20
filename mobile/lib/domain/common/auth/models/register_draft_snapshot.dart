@@ -28,6 +28,17 @@ class RegisterDraftSnapshot {
     this.phoneVerificationId,
   });
 
+  factory RegisterDraftSnapshot.empty(String cpf) {
+    final now = DateTime.now().toUtc();
+    return RegisterDraftSnapshot(
+      cpf: cpf,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'cpf': cpf.onlyNumbers,

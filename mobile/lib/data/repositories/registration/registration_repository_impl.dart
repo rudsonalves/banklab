@@ -1,7 +1,7 @@
 import '/core/result/result.dart';
 import '/data/services/apis/registration/dtos/cpf_check_response_dto.dart';
 import '/data/services/apis/registration/dtos/register_request_dto.dart';
-import '../../services/apis/registration/registration_api.dart';
+import '/data/services/apis/registration/registration_api.dart';
 import 'registration_repository.dart';
 
 class RegistrationRepositoryImpl implements RegistrationRepository {

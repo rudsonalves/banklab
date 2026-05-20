@@ -42,7 +42,7 @@ class _RegisterTokenPageState extends State<RegisterTokenPage> {
   Widget build(BuildContext context) {
     return SafeScaffold(
       appBar: AppBar(
-        title: const Text('Criar conta'),
+        title: const Text('Registro de Conta'),
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),

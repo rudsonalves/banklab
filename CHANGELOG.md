@@ -1,5 +1,171 @@
 # Changelog
 
+## 2026/05/20 - mobile/pre-onboarding-11
+
+Refactor and expand the mobile onboarding flow with persistent draft recovery, new registration screens, improved validation helpers, and a more complete pre-onboarding user experience.
+
+### Core validation and utility improvements
+
+* Added `DateTime.age` extension to centralize age calculation logic from birth dates.
+* Added `String.isValidEmail` extension for reusable email validation across the onboarding flow.
+* Updated `BasicTextFormField` to expose `textCapitalization` directly through the component API.
+* Standardized several imports to use absolute project paths for consistency and maintainability.
+
+### Register draft persistence redesign
+
+Refactored the onboarding draft persistence layer to simplify the recovery model and make draft handling deterministic.
+
+#### Repository layer
+
+* Simplified `RegisterDraftRepository.getByCPF()` to return `RegisterDraftSnapshot` directly instead of `RegisterDraftLoadResult`.
+* Removed the `RegisterDraftLoadResult` sealed hierarchy entirely.
+* Added automatic draft recreation behavior when:
+
+  * the draft does not exist
+  * the draft has expired
+* Added `_createASnapshotForCPF()` helper to centralize empty snapshot creation.
+* Added `_isOld()` helper to isolate TTL expiration logic.
+* Adjusted repository behavior to always return a valid snapshot when possible instead of exposing "not found" states to upper layers.
+
+#### Store layer
+
+* Simplified `RegisterDraftStore.getByCPF()` return type.
+* Changed missing or invalid cache entries to return:
+
+  * `Failure(AppErrorCode.storageNotFound)`
+    instead of synthetic success states.
+* Added cleanup of corrupted JSON cache entries before returning failures.
+* Removed obsolete exports related to `RegisterDraftLoadResult`.
+
+#### Domain model
+
+* Added `RegisterDraftSnapshot.empty(String cpf)` factory constructor.
+* Centralized initialization of empty onboarding state snapshots.
+
+### Register use case refactor
+
+Refactored onboarding state initialization and CPF recovery behavior.
+
+* Removed the old `initialize()` flow.
+* Introduced `startEmptyRegisterState()` as the explicit onboarding bootstrap entrypoint.
+* Changed CPF submission flow to:
+
+  * recover cached onboarding state automatically
+  * recreate snapshots transparently when necessary
+  * rebuild `RegisterDraftState` directly from persisted snapshots
+* Removed legacy commented initialization logic.
+
+### Registration UI expansion
+
+Implemented and refined major portions of the onboarding user interface.
+
+#### Register CPF page
+
+* Updated onboarding copy:
+
+  * `Qual o seu CPF?` → `Informe o CPF`
+  * improved CPF hint message
+* Improved user guidance for numeric CPF input.
+
+#### Register Name page
+
+Implemented the complete name step UI.
+
+* Added:
+
+  * `TextHeader`
+  * `BasicTextFormField`
+  * snackbar error handling
+  * bottom navigation controls
+* Added full name validation requiring at least two words.
+* Added onboarding state restoration from cached draft.
+* Added forward/back navigation handling.
+* Added loading state integration with async commands.
+
+#### Register Birthdate page
+
+Implemented the complete birth date onboarding step.
+
+* Added date picker interaction.
+* Added minimum age validation (18+).
+* Added onboarding state restoration from cached draft.
+* Added disabled state handling for invalid dates.
+* Added snackbar-based error feedback.
+* Added navigation controls and async submit handling.
+* Added formatted date presentation using `intl`.
+
+One important focus of this commit was centralizing and formalizing birth date validation through the new `DateTime.age` extension, allowing the onboarding flow to consistently enforce minimum age requirements.
+
+#### Register Email page
+
+Implemented the complete email onboarding step.
+
+* Added:
+
+  * email input field
+  * email validation flow
+  * async token request handling
+  * snackbar-based error feedback
+  * navigation controls
+* Integrated reusable `String.isValidEmail` validation helper.
+* Added onboarding state restoration from persisted draft state.
+* Added autofill support for email input.
+
+#### Other onboarding pages
+
+Standardized onboarding titles across:
+
+* password page
+* phone page
+* token page
+* birthdate page
+* email page
+* name page
+
+Updated:
+
+* `Criar conta`
+  to:
+* `Registro de Conta`
+
+for a more consistent onboarding identity.
+
+### Test suite updates
+
+Updated repository, store, and use case tests to reflect the new onboarding persistence model.
+
+#### Repository tests
+
+* Reworked tests to validate:
+
+  * automatic draft recreation
+  * expired draft replacement
+  * empty snapshot generation
+  * storage failure propagation
+* Added tracking of persisted snapshots in fake store implementations.
+
+#### Store tests
+
+* Updated expectations to use failure-based not-found semantics.
+* Added validation for corrupted cache cleanup behavior.
+
+#### Use case tests
+
+* Replaced old initialization tests with:
+
+  * `startEmptyRegisterState()` coverage
+* Removed obsolete reset/reinitialize scenarios.
+* Simplified fake repository behavior around snapshot recovery.
+* Updated all onboarding setup helpers to use the new onboarding bootstrap flow.
+
+### Tooling
+
+* Updated Postman environment local API IP:
+
+  * `192.168.0.16`
+  * → `192.168.0.14`
+
+
 ## 2026/05/20 — mobile/pre-onboarding-10
 
 This commit advances the mobile onboarding foundation by introducing the first functional CPF registration flow, refining registration state initialization, improving domain-specific error handling, and consolidating reusable bottom action components across the UI.
