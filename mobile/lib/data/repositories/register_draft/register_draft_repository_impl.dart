@@ -1,6 +1,6 @@
 import '/core/result/result.dart';
 import '/domain/common/auth/models/register_draft_snapshot.dart';
-import '../../services/cache/last_login/register_draft/register_draft_store.dart';
+import '../../services/cache/register_draft/register_draft_store.dart';
 import 'register_draft_repository.dart';
 
 class RegisterDraftRepositoryImpl implements RegisterDraftRepository {

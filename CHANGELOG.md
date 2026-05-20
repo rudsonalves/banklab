@@ -1,5 +1,179 @@
 # Changelog
 
+## 2026/05/20 — mobile/pre-onboarding-09
+
+Refactor and expand the mobile onboarding flow structure with dedicated register routes, draft persistence improvements, and the first implementation layer for the multi-step registration experience.
+
+### Routing and onboarding flow restructuring
+
+Refactored the registration route organization to support a fully segmented onboarding flow with explicit route paths.
+
+Files updated:
+
+* `mobile/lib/core/routing/routes.dart`
+* `mobile/lib/core/routing/routes/register_routes.dart`
+
+Changes:
+
+* Reworked `RegisterRoutes` to use explicit `/register/*` paths.
+* Renamed `fullName` route to `name` for consistency.
+* Removed `passwordConfirmation` route from the enum.
+* Added new `failure` route placeholder.
+* Added route definitions for:
+
+  * name
+  * birth date
+  * email
+  * email token
+  * phone
+  * phone token
+  * password
+* Centralized all onboarding pages under `ui/pages/register`.
+* Added token-type-aware route handling using `TokenType.email` and `TokenType.phone`.
+
+This restructuring prepares the onboarding module for:
+
+* deep linking
+* route isolation
+* independent validation stages
+* resumable onboarding sessions
+* future risk-analysis checkpoints during onboarding
+
+### Registration UI module extraction
+
+Moved the onboarding UI structure out of the auth module into its own dedicated registration module.
+
+Files updated:
+
+* `mobile/lib/ui/pages/register/register_cpf_page.dart`
+* `mobile/lib/ui/pages/register/viewmodel/register_viewmodel.dart`
+* `mobile/lib/ui/viewmodels.dart`
+
+Changes:
+
+* Migrated registration pages from:
+
+  * `ui/pages/auth/register/*`
+    to:
+  * `ui/pages/register/*`
+* Updated dependency imports accordingly.
+* Adjusted page padding from `24` to `12` for a denser onboarding layout baseline.
+
+This separation improves architectural clarity between:
+
+* authentication/session flows
+* onboarding/account creation flows
+
+### New onboarding pages scaffold
+
+Added the initial structure for the remaining onboarding screens.
+
+New files:
+
+* `mobile/lib/ui/pages/register/register_birthdate_page.dart`
+* `mobile/lib/ui/pages/register/register_email_page.dart`
+* `mobile/lib/ui/pages/register/register_name_page.dart`
+* `mobile/lib/ui/pages/register/register_password_page.dart`
+* `mobile/lib/ui/pages/register/register_phone_page.dart`
+* `mobile/lib/ui/pages/register/register_token_page.dart`
+
+Changes:
+
+* Added `SafeScaffold`-based page templates.
+* Added keyboard dismissal handling with `GestureDetector`.
+* Added dedicated `TokenType` enum for verification flows.
+* Established isolated stateful page structure for future form logic integration.
+
+These pages currently serve as structural placeholders for:
+
+* form implementation
+* validation
+* verification UX
+* onboarding orchestration
+
+### Register draft persistence refactor
+
+Reorganized the register draft cache layer and improved dependency injection setup.
+
+Files updated:
+
+* `mobile/lib/data/repositories/register_draft/register_draft_repository.dart`
+* `mobile/lib/data/repositories/register_draft/register_draft_repository_impl.dart`
+* `mobile/lib/data/services/services.dart`
+
+Files moved:
+
+* `mobile/lib/data/services/cache/register_draft/register_draft_load_result.dart`
+* `mobile/lib/data/services/cache/register_draft/register_draft_store.dart`
+
+Changes:
+
+* Removed `register_draft` from the `last_login` namespace.
+* Promoted register draft persistence into its own cache domain.
+* Added `RegisterDraftStore` as a lazy singleton.
+* Updated all imports across repositories, services, use cases, and tests.
+
+This better reflects the actual responsibility of the draft cache:
+
+* onboarding state persistence
+* onboarding recovery
+* future interrupted-session restoration
+
+instead of coupling it to login behavior.
+
+### Register use case persistence optimization
+
+Simplified and centralized draft persistence behavior inside `RegisterUsecase`.
+
+File updated:
+
+* `mobile/lib/domain/usecases/register/register_usecase.dart`
+
+Changes:
+
+* Replaced duplicated draft-save blocks with `_saveDirty()`.
+* Added centralized dirty-state persistence logic.
+* Added:
+
+  * state existence validation
+  * dirty-check optimization
+  * clean-state marking after successful persistence
+* Updated all onboarding submit/confirm methods to use the centralized save flow.
+
+Benefits:
+
+* reduced duplicated logic
+* safer persistence lifecycle
+* cleaner onboarding orchestration
+* improved maintainability for future onboarding stages
+
+### Tests and maintenance updates
+
+Updated all affected test imports after cache-layer refactor.
+
+Files updated:
+
+* `mobile/test/data/repositories/register_draft/register_draft_repository_impl_test.dart`
+* `mobile/test/data/services/cache/register_draft/register_draft_store_test.dart`
+* `mobile/test/domain/usecases/register/register_usecase_test.dart`
+
+### Environment update
+
+File updated:
+
+* `tools/postman/Environment.postman_environment.json`
+
+Changes:
+
+* Updated local API base URL from:
+
+  * `192.168.0.14`
+    to:
+  * `192.168.0.16`
+
+This commit establishes the structural foundation for the new onboarding architecture, separating onboarding concerns from authentication flows while preparing the application for resumable multi-step registration, verification stages, and future Zero Trust onboarding evolutions.
+
+
 ## 2026/05/20 — mobile/pre-onboarding-08
 
 Refactor pre-onboarding architecture by splitting authentication responsibilities into dedicated APIs and repositories, reorganizing cache modules, and simplifying dependency injection wiring.

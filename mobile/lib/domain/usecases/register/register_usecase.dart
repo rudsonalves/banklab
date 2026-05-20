@@ -5,9 +5,9 @@ import '/data/repositories/registration/registration_repository.dart';
 import '/data/services/apis/contact_verification/dtos/contact_verification_confirm_request_dto.dart';
 import '/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
 import '/data/services/apis/registration/dtos/register_request_dto.dart';
-import '/data/services/cache/last_login/register_draft/register_draft_load_result.dart';
 import '/domain/common/auth/models/register_draft_snapshot.dart';
 import '/domain/common/auth/models/register_draft_state.dart';
+import '../../../data/services/cache/register_draft/register_draft_load_result.dart';
 
 class RegisterUsecase {
   final RegistrationRepository _registrationRepository;
@@ -80,12 +80,7 @@ class RegisterUsecase {
     }
 
     _state!.updateCPF(cpf);
-    final saveResult = await _registerDraftRepository.save(
-      _state!.toSnapshot(),
-    );
-    if (saveResult.isFailure) return Result.failure(saveResult.error!);
-
-    return const Success(unit);
+    return await _saveDirty();
   }
 
   AsyncResult<Unit> submitName(String name) async {
@@ -99,12 +94,7 @@ class RegisterUsecase {
     }
 
     _state!.updateName(name);
-    final saveResult = await _registerDraftRepository.save(
-      _state!.toSnapshot(),
-    );
-    if (saveResult.isFailure) return Result.failure(saveResult.error!);
-
-    return const Success(unit);
+    return await _saveDirty();
   }
 
   AsyncResult<Unit> submitBirthDate(DateTime birthDate) async {
@@ -118,12 +108,7 @@ class RegisterUsecase {
     }
 
     _state!.updateBirthDate(birthDate);
-    final saveResult = await _registerDraftRepository.save(
-      _state!.toSnapshot(),
-    );
-    if (saveResult.isFailure) return Result.failure(saveResult.error!);
-
-    return const Success(unit);
+    return await _saveDirty();
   }
 
   AsyncResult<Unit> submitAndRequestEmailToken(String email) async {
@@ -149,12 +134,7 @@ class RegisterUsecase {
     _state!.updateEmailVerified(false);
     _state!.updateEmailVerificationId(result.value!.verificationId);
     _emailVerificationToken = null;
-    final saveResult = await _registerDraftRepository.save(
-      _state!.toSnapshot(),
-    );
-    if (saveResult.isFailure) return Result.failure(saveResult.error!);
-
-    return const Success(unit);
+    return await _saveDirty();
   }
 
   AsyncResult<Unit> submitAndRequestPhoneToken(String phone) async {
@@ -180,12 +160,7 @@ class RegisterUsecase {
     _state!.updatePhoneVerified(false);
     _state!.updatePhoneVerificationId(result.value!.verificationId);
     _phoneVerificationToken = null;
-    final saveResult = await _registerDraftRepository.save(
-      _state!.toSnapshot(),
-    );
-    if (saveResult.isFailure) return Result.failure(saveResult.error!);
-
-    return const Success(unit);
+    return await _saveDirty();
   }
 
   AsyncResult<Unit> confirmEmailToken(String token) async {
@@ -218,12 +193,7 @@ class RegisterUsecase {
 
     _emailVerificationToken = result.value!.verificationToken;
     _state!.updateEmailVerified(true);
-    final saveResult = await _registerDraftRepository.save(
-      _state!.toSnapshot(),
-    );
-    if (saveResult.isFailure) return Result.failure(saveResult.error!);
-
-    return const Success(unit);
+    return await _saveDirty();
   }
 
   AsyncResult<Unit> confirmPhoneToken(String token) async {
@@ -256,12 +226,7 @@ class RegisterUsecase {
 
     _phoneVerificationToken = result.value!.verificationToken;
     _state!.updatePhoneVerified(true);
-    final saveResult = await _registerDraftRepository.save(
-      _state!.toSnapshot(),
-    );
-    if (saveResult.isFailure) return Result.failure(saveResult.error!);
-
-    return const Success(unit);
+    return await _saveDirty();
   }
 
   AsyncResult<Unit> submitPassword((String, String) passWd) async {
@@ -285,12 +250,7 @@ class RegisterUsecase {
     }
     _password = password.trim();
 
-    final saveResult = await _registerDraftRepository.save(
-      _state!.toSnapshot(),
-    );
-    if (saveResult.isFailure) return Result.failure(saveResult.error!);
-
-    return const Success(unit);
+    return await _saveDirty();
   }
 
   AsyncResult<Unit> register() async {
@@ -402,5 +362,26 @@ class RegisterUsecase {
     _emailVerificationToken = null;
     _phoneVerificationToken = null;
     _password = null;
+  }
+
+  AsyncResult<Unit> _saveDirty() async {
+    if (_state == null) {
+      return const Failure(
+        AppError(
+          code: AppErrorCode.unexpected,
+          message: 'Usecase not initialized',
+        ),
+      );
+    }
+
+    if (!_state!.isDirty) return const Success(unit);
+
+    final saveResult = await _registerDraftRepository.save(
+      _state!.toSnapshot(),
+    );
+    if (saveResult.isFailure) return Result.failure(saveResult.error!);
+
+    _state!.markClean();
+    return const Success(unit);
   }
 }

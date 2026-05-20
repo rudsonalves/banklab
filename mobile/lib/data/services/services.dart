@@ -10,6 +10,7 @@ import 'apis/registration/registration_api.dart';
 import 'apis/transfer/api_transfer.dart';
 import 'cache/last_login/last_login_cache_service.dart';
 import 'cache/last_login/last_login_cache_service_impl.dart';
+import 'cache/register_draft/register_draft_store.dart';
 
 class Services {
   static void add(AutoInjector injector) {
@@ -22,6 +23,7 @@ class Services {
       ..addSingleton<StatementApi>(StatementApi.new)
       ..addSingleton<ApiTransfer>(ApiTransfer.new)
       ..addSingleton<ApiReceipt>(ApiReceipt.new)
-      ..add<LastLoginCacheService>(LastLoginCacheServiceImpl.new);
+      ..add<LastLoginCacheService>(LastLoginCacheServiceImpl.new)
+      ..addLazySingleton<RegisterDraftStore>(RegisterDraftStore.new);
   }
 }

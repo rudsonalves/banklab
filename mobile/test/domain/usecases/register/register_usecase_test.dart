@@ -8,7 +8,7 @@ import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_ve
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
 import 'package:bankflow/data/services/apis/registration/dtos/cpf_check_response_dto.dart';
 import 'package:bankflow/data/services/apis/registration/dtos/register_request_dto.dart';
-import 'package:bankflow/data/services/cache/last_login/register_draft/register_draft_load_result.dart';
+import 'package:bankflow/data/services/cache/register_draft/register_draft_load_result.dart';
 import 'package:bankflow/domain/common/auth/models/register_draft_snapshot.dart';
 import 'package:bankflow/domain/usecases/register/register_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';

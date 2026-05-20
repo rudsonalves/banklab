@@ -10,16 +10,16 @@ enum AuthRoutes {
 }
 
 enum RegisterRoutes {
-  cpf('/cpf'),
-  fullName('/full-name'),
-  birthDate('/birth-date'),
-  email('/email'),
-  emailToken('/email-token'),
-  phone('/phone'),
-  phoneToken('/phone-token'),
-  password('/password'),
-  passwordConfirmation('/password-confirmation'),
-  success('/success')
+  cpf('/register/cpf'),
+  name('/register/name'),
+  birthDate('/register/birth-date'),
+  email('/register/email'),
+  emailToken('/register/email-token'),
+  phone('/register/phone'),
+  phoneToken('/register/phone-token'),
+  password('/register/password'),
+  success('/register/success'),
+  failure('/register/failure')
   ;
 
   const RegisterRoutes(this.path);
