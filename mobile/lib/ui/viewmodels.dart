@@ -14,7 +14,7 @@ class Viewmodels {
     injector
       ..add<HomeViewmodel>(HomeViewmodel.new)
       ..add<LoginViewModel>(LoginViewModel.new)
-      ..add<RegisterViewmodel>(RegisterViewmodel.new)
+      ..addLazySingleton<RegisterViewmodel>(RegisterViewmodel.new)
       ..add<TransferViewmodel>(TransferViewmodel.new)
       ..add<DetailsViewmodel>(DetailsViewmodel.new)
       ..add<SplashViewmodel>(SplashViewmodel.new)

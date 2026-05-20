@@ -35,7 +35,13 @@ The current auth stack includes:
 
 - [AuthRepository](../lib/data/repositories/auth/auth_repository.dart)
 - [AuthRepositoryImpl](../lib/data/repositories/auth/auth_repository_impl.dart)
-- [AuthApi](../lib/data/services/auth/api/auth_api.dart)
+- [RegistrationRepository](../lib/data/repositories/registration/registration_repository.dart)
+- [ContactVerificationRepository](../lib/data/repositories/contact_verification/contact_verification_repository.dart)
+- [RegisterDraftRepository](../lib/data/repositories/register_draft/register_draft_repository.dart)
+- [AuthApi](../lib/data/services/apis/auth/auth_api.dart)
+- [RegistrationApi](../lib/data/services/apis/registration/registration_api.dart)
+- [ContactVerificationApi](../lib/data/services/apis/contact_verification/contact_verification_api.dart)
+- [RegisterUsecase](../lib/domain/usecases/register/register_usecase.dart)
 - [LoginPage](../lib/ui/pages/auth/login/login_page.dart)
 - [ShortLoginPage](../lib/ui/pages/auth/short_login/short_login_page.dart)
 - [RegisterPage](../lib/ui/pages/auth/register/register_page.dart)
@@ -56,6 +62,9 @@ Implemented auth behavior:
 - repository-level logout clears the persisted auth tokens
 - approval-required login failures are handled as a distinct app error state
 - invalid credentials remain a separate failure path
+- pre-onboarding registration persists draft progress between steps
+- e-mail and phone contact verification are requested and confirmed before final
+  registration submission
 
 Current login feedback uses `AppSnackbar` for transient messages.
 Approval-pending login now shows a specific user-facing message instead of a
@@ -214,7 +223,7 @@ Implemented storage helpers include:
 
 - [LocalSecureStorage](../lib/core/services/secure_storage/local_secure_storage.dart)
 - [FlutterSecureStorageLocalStorage](../lib/core/services/secure_storage/flutter_secure_storage_local_storage.dart)
-- [LastLoginCacheService](../lib/data/services/auth/cache/last_login_cache_service.dart)
+- [LastLoginCacheService](../lib/data/services/cache/last_login/last_login_cache_service.dart)
 
 ## Testing Coverage
 
@@ -236,6 +245,9 @@ The current mobile test suite covers:
 - receipt response DTO parsing
 - transfer repository behavior
 - transfer use case behavior
+- contact verification API behavior
+- registration draft repository behavior
+- registration use case orchestration and validation behavior
 
 The newly added approval-required handling is covered by focused tests in:
 

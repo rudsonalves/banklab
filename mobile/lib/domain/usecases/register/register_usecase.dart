@@ -1,21 +1,25 @@
 import '/core/result/result.dart';
-import '/data/repositories/auth/auth_repository.dart';
+import '/data/repositories/contact_verification/contact_verification_repository.dart';
 import '/data/repositories/register_draft/register_draft_repository.dart';
-import '/data/services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
-import '/data/services/auth/api/dtos/contact_verification_request_dto.dart';
-import '/data/services/auth/api/dtos/register_request_dto.dart';
-import '/data/services/auth/cache/register_draft/register_draft_load_result.dart';
+import '/data/repositories/registration/registration_repository.dart';
+import '/data/services/apis/contact_verification/dtos/contact_verification_confirm_request_dto.dart';
+import '/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
+import '/data/services/apis/registration/dtos/register_request_dto.dart';
+import '/data/services/cache/last_login/register_draft/register_draft_load_result.dart';
 import '/domain/common/auth/models/register_draft_snapshot.dart';
 import '/domain/common/auth/models/register_draft_state.dart';
 
 class RegisterUsecase {
-  final AuthRepository _authRepository;
+  final RegistrationRepository _registrationRepository;
+  final ContactVerificationRepository _contactVerificationRepository;
   final RegisterDraftRepository _registerDraftRepository;
 
   RegisterUsecase({
-    required AuthRepository authRepository,
+    required RegistrationRepository registrationRepository,
+    required ContactVerificationRepository contactVerificationRepository,
     required RegisterDraftRepository registerDraftRepository,
-  }) : _authRepository = authRepository,
+  }) : _registrationRepository = registrationRepository,
+       _contactVerificationRepository = contactVerificationRepository,
        _registerDraftRepository = registerDraftRepository;
 
   // State Management
@@ -63,7 +67,7 @@ class RegisterUsecase {
       );
     }
 
-    final result = await _authRepository.cpfCheck(cpf);
+    final result = await _registrationRepository.cpfCheck(cpf);
     if (result.isFailure) return Result.failure(result.error!);
     final cpfCheck = result.value!;
     if (!cpfCheck.avaliable) {
@@ -132,12 +136,13 @@ class RegisterUsecase {
       );
     }
 
-    final result = await _authRepository.requestContactVerification(
-      ContactVerificationRequestDto(
-        channel: 'email',
-        target: email,
-      ),
-    );
+    final result = await _contactVerificationRepository
+        .requestContactVerification(
+          ContactVerificationRequestDto(
+            channel: 'email',
+            target: email,
+          ),
+        );
     if (result.isFailure) return Result.failure(result.error!);
 
     _state!.updateEmail(email);
@@ -162,12 +167,13 @@ class RegisterUsecase {
       );
     }
 
-    final result = await _authRepository.requestContactVerification(
-      ContactVerificationRequestDto(
-        channel: 'phone',
-        target: phone,
-      ),
-    );
+    final result = await _contactVerificationRepository
+        .requestContactVerification(
+          ContactVerificationRequestDto(
+            channel: 'phone',
+            target: phone,
+          ),
+        );
     if (result.isFailure) return Result.failure(result.error!);
 
     _state!.updatePhone(phone);
@@ -201,12 +207,13 @@ class RegisterUsecase {
       );
     }
 
-    final result = await _authRepository.confirmContactVerification(
-      ContactVerificationConfirmRequestDto(
-        verificationId: _state!.emailVerificationId!,
-        token: token,
-      ),
-    );
+    final result = await _contactVerificationRepository
+        .confirmContactVerification(
+          ContactVerificationConfirmRequestDto(
+            verificationId: _state!.emailVerificationId!,
+            token: token,
+          ),
+        );
     if (result.isFailure) return Result.failure(result.error!);
 
     _emailVerificationToken = result.value!.verificationToken;
@@ -238,12 +245,13 @@ class RegisterUsecase {
       );
     }
 
-    final result = await _authRepository.confirmContactVerification(
-      ContactVerificationConfirmRequestDto(
-        verificationId: _state!.phoneVerificationId!,
-        token: token,
-      ),
-    );
+    final result = await _contactVerificationRepository
+        .confirmContactVerification(
+          ContactVerificationConfirmRequestDto(
+            verificationId: _state!.phoneVerificationId!,
+            token: token,
+          ),
+        );
     if (result.isFailure) return Result.failure(result.error!);
 
     _phoneVerificationToken = result.value!.verificationToken;
@@ -354,7 +362,7 @@ class RegisterUsecase {
       phoneVerificationToken: _phoneVerificationToken!,
     );
 
-    final result = await _authRepository.register(request);
+    final result = await _registrationRepository.register(request);
     if (result.isFailure) return Result.failure(result.error!);
 
     await _deleteDraft();

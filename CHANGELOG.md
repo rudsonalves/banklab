@@ -1,5 +1,201 @@
 # Changelog
 
+## 2026/05/20 — mobile/pre-onboarding-08
+
+Refactor pre-onboarding architecture by splitting authentication responsibilities into dedicated APIs and repositories, reorganizing cache modules, and simplifying dependency injection wiring.
+
+This commit restructures the mobile authentication and onboarding flow into clearer bounded contexts, separating login/session responsibilities from registration and contact verification concerns. The result is a cleaner dependency graph, improved modularity, and a more maintainable onboarding foundation for future Zero Trust and identity validation flows.
+
+### Main architectural changes
+
+1. Split `AuthApi` responsibilities into dedicated modules:
+
+   * `AuthApi`
+   * `RegistrationApi`
+   * `ContactVerificationApi`
+
+2. Split repository responsibilities previously concentrated in `AuthRepository`:
+
+   * `RegistrationRepository`
+   * `ContactVerificationRepository`
+
+3. Reorganized cache structure:
+
+   * moved `auth/cache/*` to `cache/last_login/*`
+   * decoupled cache concerns from authentication domain semantics
+
+4. Simplified dependency injection:
+
+   * replaced verbose factory closures with constructor tear-offs
+   * adopted cleaner `AutoInjector` registrations
+   * introduced lazy singletons where appropriate
+
+5. Refactored onboarding use case dependencies:
+
+   * `RegisterUsecase` now depends explicitly on:
+
+     * `RegistrationRepository`
+     * `ContactVerificationRepository`
+     * `RegisterDraftRepository`
+
+### Repository layer refactor
+
+#### `mobile/lib/data/repositories/auth/*`
+
+* Removed onboarding responsibilities from `AuthRepository`
+* Kept authentication/session-related operations only:
+
+  * login
+  * logout
+  * profile
+  * session state
+  * last login identity
+
+#### `mobile/lib/data/repositories/registration/*`
+
+* Added dedicated repository for:
+
+  * CPF validation
+  * registration submission
+
+#### `mobile/lib/data/repositories/contact_verification/*`
+
+* Added dedicated repository for:
+
+  * requesting verification tokens
+  * confirming verification tokens
+
+#### `mobile/lib/data/repositories/register_draft/*`
+
+* Updated imports to new cache module structure
+
+### API layer refactor
+
+#### `mobile/lib/data/services/apis/auth/*`
+
+* Reduced `AuthApi` scope to:
+
+  * login
+  * profile retrieval
+
+#### `mobile/lib/data/services/apis/registration/*`
+
+* Added isolated registration API implementation
+* Added CPF validation endpoint integration
+
+#### `mobile/lib/data/services/apis/contact_verification/*`
+
+* Added isolated contact verification API implementation
+* Added request/confirm verification flows
+
+### Cache module reorganization
+
+#### Renamed:
+
+* `data/services/auth/cache/*`
+  → `data/services/cache/last_login/*`
+
+This change removes the incorrect conceptual coupling between:
+
+* authentication/session management
+* local onboarding persistence/cache
+
+The new structure better reflects the actual responsibility of the module.
+
+### Dependency injection cleanup
+
+#### `mobile/lib/data/services/services.dart`
+
+#### `mobile/lib/data/repositories.dart`
+
+#### `mobile/lib/domain/usecases/usecases.dart`
+
+* Simplified injector registrations using constructor tear-offs
+* Reduced boilerplate factory wiring
+* Added lazy singleton registrations for:
+
+  * `RegisterUsecase`
+  * `RegistrationRepository`
+  * `ContactVerificationRepository`
+  * `RegistrationApi`
+  * `ContactVerificationApi`
+
+### Register flow improvements
+
+#### `mobile/lib/domain/usecases/register/register_usecase.dart`
+
+Refactored onboarding flow to use explicit specialized repositories:
+
+* CPF validation now uses `RegistrationRepository`
+* contact token request/confirmation now uses `ContactVerificationRepository`
+* final registration submission now uses `RegistrationRepository`
+
+This significantly improves:
+
+* separation of concerns
+* testability
+* onboarding flow clarity
+* future extensibility for MFA/ZTA-related onboarding validations
+
+### DTO and package reorganization
+
+Moved DTOs into explicit feature-oriented namespaces:
+
+* `apis/auth/dtos/*`
+* `apis/registration/dtos/*`
+* `apis/contact_verification/dtos/*`
+
+This removes the previous overloaded `auth/api/dtos` structure and aligns DTO ownership with their actual business capability.
+
+### UI and routing updates
+
+Updated imports and dependencies across:
+
+* login
+* short login
+* splash
+* register flow
+* route extra codec
+
+to reflect the new modular package organization.
+
+### Register draft behavior updates
+
+#### `mobile/test/domain/common/auth/models/register_draft_test.dart`
+
+Adjusted serialization expectations:
+
+* `current_step` is no longer serialized when unnecessary
+* draft restoration behavior now accepts persisted snapshots more flexibly
+
+### Test suite refactor
+
+Added dedicated test coverage for:
+
+* `ContactVerificationRepositoryImpl`
+* `ContactVerificationApi`
+
+Refactored:
+
+* onboarding use case tests
+* repository tests
+* DTO tests
+* register draft tests
+
+Removed outdated tests that validated onboarding responsibilities inside `AuthRepository`.
+
+### Overall result
+
+This refactor significantly improves the architectural consistency of the mobile onboarding flow by:
+
+* reducing responsibility concentration
+* aligning APIs/repositories with business capabilities
+* clarifying dependency boundaries
+* simplifying dependency injection
+* improving test isolation
+* preparing the codebase for future onboarding evolution and Zero Trust-related identity validation flows.
+
+
 ## 2026/05/20 - mobile/pre-onboarding-07
 
 Refactored the registration onboarding flow around a dedicated `RegisterUsecase`, introducing secure draft persistence with TTL-aware repository orchestration and preparing the application for the upcoming multi-page onboarding experience.

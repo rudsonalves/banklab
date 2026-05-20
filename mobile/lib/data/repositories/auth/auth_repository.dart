@@ -1,14 +1,8 @@
 import '/core/result/result.dart';
-import '/data/services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
-import '/data/services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
-import '/data/services/auth/api/dtos/contact_verification_request_dto.dart';
-import '/data/services/auth/api/dtos/contact_verification_request_response_dto.dart';
-import '/data/services/auth/api/dtos/login_request_dto.dart';
-import '/data/services/auth/api/dtos/register_request_dto.dart';
-import '/data/services/auth/cache/models/last_login_identity.dart';
+import '/data/services/apis/auth/dtos/login_request_dto.dart';
+import '/data/services/cache/last_login/models/last_login_identity.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
-import '../../services/auth/api/dtos/cpf_check_response_dto.dart';
 
 abstract class AuthRepository {
   /// Returns the current authentication state for the app session.
@@ -31,24 +25,6 @@ abstract class AuthRepository {
   ///
   /// If no user is logged in, it completes successfully without side effects.
   AsyncResult<Unit> logout();
-
-  /// Registers a new user account.
-  ///
-  /// Returns a failure when called while there is an active logged-in session.
-  AsyncResult<Unit> register(RegisterRequestDto dto);
-
-  /// Requests a contact verification code for email or phone.
-  AsyncResult<ContactVerificationRequestResponseDto> requestContactVerification(
-    ContactVerificationRequestDto dto,
-  );
-
-  /// Confirms a contact verification token and returns the verified token.
-  AsyncResult<ContactVerificationConfirmResponseDto> confirmContactVerification(
-    ContactVerificationConfirmRequestDto dto,
-  );
-
-  /// Checks if a CPF is already associated with an existing account.
-  AsyncResult<CpfCheckResponseDto> cpfCheck(String cpf);
 
   /// Returns the authenticated user's profile.
   ///

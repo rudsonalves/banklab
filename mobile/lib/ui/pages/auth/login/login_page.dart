@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '/core/result/result.dart';
 import '/core/routing/routes.dart';
-import '/data/services/auth/api/dtos/login_request_dto.dart';
+import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/messages/app_snackbar.dart';

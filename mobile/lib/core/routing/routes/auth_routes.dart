@@ -2,11 +2,11 @@ import 'package:go_router/go_router.dart';
 
 import '/core/config/dependencies.dart';
 import '/core/routing/routes.dart';
-import '/data/services/auth/cache/models/last_login_identity.dart';
 import '/ui/pages/auth/login/login_page.dart';
 import '/ui/pages/auth/login/viewmodel/login_viewmodel.dart';
 import '/ui/pages/auth/short_login/short_login_page.dart';
 import '/ui/pages/auth/short_login/viewmodel/short_login_viewmodel.dart';
+import '../../../data/services/cache/last_login/models/last_login_identity.dart';
 import '../animations_page/app_custom_transaction.dart';
 
 List<RouteBase> authRoutes() => [

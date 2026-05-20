@@ -1,18 +1,15 @@
 import 'package:bankflow/core/result/result.dart';
-import 'package:bankflow/data/repositories/auth/auth_repository.dart';
+import 'package:bankflow/data/repositories/contact_verification/contact_verification_repository.dart';
 import 'package:bankflow/data/repositories/register_draft/register_draft_repository.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_response_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/cpf_check_response_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/login_request_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/register_request_dto.dart';
-import 'package:bankflow/data/services/auth/cache/models/last_login_identity.dart';
-import 'package:bankflow/data/services/auth/cache/register_draft/register_draft_load_result.dart';
-import 'package:bankflow/domain/common/auth/models/auth_user.dart';
+import 'package:bankflow/data/repositories/registration/registration_repository.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_request_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
+import 'package:bankflow/data/services/apis/registration/dtos/cpf_check_response_dto.dart';
+import 'package:bankflow/data/services/apis/registration/dtos/register_request_dto.dart';
+import 'package:bankflow/data/services/cache/last_login/register_draft/register_draft_load_result.dart';
 import 'package:bankflow/domain/common/auth/models/register_draft_snapshot.dart';
-import 'package:bankflow/domain/common/auth/models/user_profile.dart';
 import 'package:bankflow/domain/usecases/register/register_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -50,7 +47,7 @@ void main() {
     });
 
     test('submitCPF rejects unavailable cpf without saving draft', () async {
-      final authRepository = _FakeAuthRepository(
+      final registrationRepository = _FakeRegistrationRepository(
         cpfCheckResult: Success(
           CpfCheckResponseDto(
             cpf: '12345678909',
@@ -61,7 +58,7 @@ void main() {
       );
       final draftRepository = _FakeRegisterDraftRepository();
       final usecase = _usecase(
-        authRepository: authRepository,
+        registrationRepository: registrationRepository,
         draftRepository: draftRepository,
       );
       await usecase.initialize(null);
@@ -74,10 +71,11 @@ void main() {
     });
 
     test('request email token saves email and verification id', () async {
-      final authRepository = _FakeAuthRepository();
+      final contactVerificationRepository =
+          _FakeContactVerificationRepository();
       final draftRepository = _FakeRegisterDraftRepository();
       final usecase = _usecase(
-        authRepository: authRepository,
+        contactVerificationRepository: contactVerificationRepository,
         draftRepository: draftRepository,
       );
       await usecase.initialize(null);
@@ -100,10 +98,13 @@ void main() {
     test(
       'requesting a new email token invalidates previous confirmed token',
       () async {
-        final authRepository = _FakeAuthRepository();
+        final registrationRepository = _FakeRegistrationRepository();
+        final contactVerificationRepository =
+            _FakeContactVerificationRepository();
         final draftRepository = _FakeRegisterDraftRepository();
         final usecase = _usecase(
-          authRepository: authRepository,
+          registrationRepository: registrationRepository,
+          contactVerificationRepository: contactVerificationRepository,
           draftRepository: draftRepository,
         );
         await _prepareValidRegistration(usecase);
@@ -118,15 +119,16 @@ void main() {
         expect(usecase.state?.isEmailVerified, isFalse);
         expect(registerResult, isA<Failure<Unit>>());
         expect(registerResult.error?.message, 'Email verification is required');
-        expect(authRepository.registerRequests, isEmpty);
+        expect(registrationRepository.registerRequests, isEmpty);
       },
     );
 
     test('confirm tokens stores verification tokens only in memory', () async {
-      final authRepository = _FakeAuthRepository();
+      final contactVerificationRepository =
+          _FakeContactVerificationRepository();
       final draftRepository = _FakeRegisterDraftRepository();
       final usecase = _usecase(
-        authRepository: authRepository,
+        contactVerificationRepository: contactVerificationRepository,
         draftRepository: draftRepository,
       );
       await usecase.initialize(null);
@@ -153,10 +155,13 @@ void main() {
     test(
       'register sends complete request, deletes draft, and clears memory',
       () async {
-        final authRepository = _FakeAuthRepository();
+        final registrationRepository = _FakeRegistrationRepository();
+        final contactVerificationRepository =
+            _FakeContactVerificationRepository();
         final draftRepository = _FakeRegisterDraftRepository();
         final usecase = _usecase(
-          authRepository: authRepository,
+          registrationRepository: registrationRepository,
+          contactVerificationRepository: contactVerificationRepository,
           draftRepository: draftRepository,
         );
         await _prepareValidRegistration(usecase);
@@ -164,8 +169,8 @@ void main() {
         final result = await usecase.register();
 
         expect(result, isA<Success<Unit>>());
-        expect(authRepository.registerRequests, hasLength(1));
-        final request = authRepository.registerRequests.single;
+        expect(registrationRepository.registerRequests, hasLength(1));
+        final request = registrationRepository.registerRequests.single;
         expect(request.cpf, '12345678909');
         expect(request.name, 'Maria Silva');
         expect(request.email, 'maria@example.com');
@@ -185,14 +190,17 @@ void main() {
     test(
       'register succeeds and clears memory even when draft delete fails',
       () async {
-        final authRepository = _FakeAuthRepository();
+        final registrationRepository = _FakeRegistrationRepository();
+        final contactVerificationRepository =
+            _FakeContactVerificationRepository();
         final draftRepository = _FakeRegisterDraftRepository(
           deleteResult: const Failure<Unit>(
             AppError(code: AppErrorCode.unexpected, message: 'delete failed'),
           ),
         );
         final usecase = _usecase(
-          authRepository: authRepository,
+          registrationRepository: registrationRepository,
+          contactVerificationRepository: contactVerificationRepository,
           draftRepository: draftRepository,
         );
         await _prepareValidRegistration(usecase);
@@ -200,7 +208,7 @@ void main() {
         final result = await usecase.register();
 
         expect(result, isA<Success<Unit>>());
-        expect(authRepository.registerRequests, hasLength(1));
+        expect(registrationRepository.registerRequests, hasLength(1));
         expect(usecase.state, isNull);
       },
     );
@@ -226,11 +234,15 @@ void main() {
 }
 
 RegisterUsecase _usecase({
-  _FakeAuthRepository? authRepository,
+  _FakeRegistrationRepository? registrationRepository,
+  _FakeContactVerificationRepository? contactVerificationRepository,
   _FakeRegisterDraftRepository? draftRepository,
 }) {
   return RegisterUsecase(
-    authRepository: authRepository ?? _FakeAuthRepository(),
+    registrationRepository:
+        registrationRepository ?? _FakeRegistrationRepository(),
+    contactVerificationRepository:
+        contactVerificationRepository ?? _FakeContactVerificationRepository(),
     registerDraftRepository: draftRepository ?? _FakeRegisterDraftRepository(),
   );
 }
@@ -309,25 +321,15 @@ class _FakeRegisterDraftRepository implements RegisterDraftRepository {
   }
 }
 
-class _FakeAuthRepository implements AuthRepository {
+class _FakeRegistrationRepository implements RegistrationRepository {
   Result<CpfCheckResponseDto> cpfCheckResult;
-  Result<ContactVerificationRequestResponseDto> emailRequestResult;
-  Result<ContactVerificationRequestResponseDto> phoneRequestResult;
-  Result<ContactVerificationConfirmResponseDto> emailConfirmResult;
-  Result<ContactVerificationConfirmResponseDto> phoneConfirmResult;
   Result<Unit> registerResult;
 
   final List<String> checkedCpfs = [];
-  final List<ContactVerificationRequestDto> verificationRequests = [];
-  final List<ContactVerificationConfirmRequestDto> confirmationRequests = [];
   final List<RegisterRequestDto> registerRequests = [];
 
-  _FakeAuthRepository({
+  _FakeRegistrationRepository({
     Result<CpfCheckResponseDto>? cpfCheckResult,
-    Result<ContactVerificationRequestResponseDto>? emailRequestResult,
-    Result<ContactVerificationRequestResponseDto>? phoneRequestResult,
-    Result<ContactVerificationConfirmResponseDto>? emailConfirmResult,
-    Result<ContactVerificationConfirmResponseDto>? phoneConfirmResult,
     Result<Unit>? registerResult,
   }) : cpfCheckResult =
            cpfCheckResult ??
@@ -338,7 +340,37 @@ class _FakeAuthRepository implements AuthRepository {
                avaliable: true,
              ),
            ),
-       emailRequestResult =
+       registerResult = registerResult ?? const Success<Unit>(unit);
+
+  @override
+  AsyncResult<CpfCheckResponseDto> cpfCheck(String cpf) async {
+    checkedCpfs.add(cpf);
+    return cpfCheckResult;
+  }
+
+  @override
+  AsyncResult<Unit> register(RegisterRequestDto dto) async {
+    registerRequests.add(dto);
+    return registerResult;
+  }
+}
+
+class _FakeContactVerificationRepository
+    implements ContactVerificationRepository {
+  Result<ContactVerificationRequestResponseDto> emailRequestResult;
+  Result<ContactVerificationRequestResponseDto> phoneRequestResult;
+  Result<ContactVerificationConfirmResponseDto> emailConfirmResult;
+  Result<ContactVerificationConfirmResponseDto> phoneConfirmResult;
+
+  final List<ContactVerificationRequestDto> verificationRequests = [];
+  final List<ContactVerificationConfirmRequestDto> confirmationRequests = [];
+
+  _FakeContactVerificationRepository({
+    Result<ContactVerificationRequestResponseDto>? emailRequestResult,
+    Result<ContactVerificationRequestResponseDto>? phoneRequestResult,
+    Result<ContactVerificationConfirmResponseDto>? emailConfirmResult,
+    Result<ContactVerificationConfirmResponseDto>? phoneConfirmResult,
+  }) : emailRequestResult =
            emailRequestResult ??
            Success(
              ContactVerificationRequestResponseDto(
@@ -379,23 +411,7 @@ class _FakeAuthRepository implements AuthRepository {
                target: '(27) 99999-9999',
                verifiedAt: DateTime.utc(2026, 5, 19, 12),
              ),
-           ),
-       registerResult = registerResult ?? const Success<Unit>(unit);
-
-  @override
-  AuthUser get currentUser => NotLoggedUser();
-
-  @override
-  bool get isLoggedIn => false;
-
-  @override
-  UserProfile? get userProfile => null;
-
-  @override
-  AsyncResult<CpfCheckResponseDto> cpfCheck(String cpf) async {
-    checkedCpfs.add(cpf);
-    return cpfCheckResult;
-  }
+           );
 
   @override
   AsyncResult<ContactVerificationRequestResponseDto> requestContactVerification(
@@ -415,31 +431,5 @@ class _FakeAuthRepository implements AuthRepository {
       return emailConfirmResult;
     }
     return phoneConfirmResult;
-  }
-
-  @override
-  AsyncResult<Unit> register(RegisterRequestDto dto) async {
-    registerRequests.add(dto);
-    return registerResult;
-  }
-
-  @override
-  AsyncResult<LoggedUser> login(LoginRequestDto dto) {
-    throw UnimplementedError();
-  }
-
-  @override
-  AsyncResult<Unit> logout() {
-    throw UnimplementedError();
-  }
-
-  @override
-  AsyncResult<UserProfile> profile() {
-    throw UnimplementedError();
-  }
-
-  @override
-  AsyncResult<LastLoginIdentity> getLastLoginIdentity() {
-    throw UnimplementedError();
   }
 }

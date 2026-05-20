@@ -1,4 +1,4 @@
-import 'package:bankflow/data/services/auth/api/dtos/register_request_dto.dart';
+import 'package:bankflow/data/services/apis/registration/dtos/register_request_dto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

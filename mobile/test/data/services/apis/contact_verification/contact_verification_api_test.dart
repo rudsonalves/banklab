@@ -1,15 +1,15 @@
 import 'package:bankflow/core/resources/app_env.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
-import 'package:bankflow/data/services/auth/api/auth_api.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/contact_verification_api.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_request_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('AuthApi.requestContactVerification', () {
+  group('ContactVerificationApi.requestContactVerification', () {
     test(
       'calls POST /auth/contact-verifications with X-App-Token and request body',
       () async {
@@ -21,7 +21,7 @@ void main() {
             ),
           ),
         );
-        final api = AuthApi(client);
+        final api = ContactVerificationApi(client);
 
         final result = await api.requestContactVerification(
           ContactVerificationRequestDto(
@@ -45,7 +45,7 @@ void main() {
     );
 
     test('parses request verification success envelope', () async {
-      final api = AuthApi(
+      final api = ContactVerificationApi(
         _FakeRestClient(
           postResult: Result.success(
             RestClientResponse(
@@ -73,7 +73,7 @@ void main() {
     });
 
     test('maps backend error envelope to AppError failure', () async {
-      final api = AuthApi(
+      final api = ContactVerificationApi(
         _FakeRestClient(
           postResult: const Result.success(
             RestClientResponse(
@@ -103,7 +103,7 @@ void main() {
     });
   });
 
-  group('AuthApi.confirmContactVerification', () {
+  group('ContactVerificationApi.confirmContactVerification', () {
     test(
       'calls POST /auth/contact-verifications/confirm with X-App-Token and request body',
       () async {
@@ -115,7 +115,7 @@ void main() {
             ),
           ),
         );
-        final api = AuthApi(client);
+        final api = ContactVerificationApi(client);
 
         final result = await api.confirmContactVerification(
           ContactVerificationConfirmRequestDto(
@@ -142,7 +142,7 @@ void main() {
     );
 
     test('parses confirm verification success envelope', () async {
-      final api = AuthApi(
+      final api = ContactVerificationApi(
         _FakeRestClient(
           postResult: Result.success(
             RestClientResponse(
@@ -169,7 +169,7 @@ void main() {
     });
 
     test('maps backend error envelope to AppError failure', () async {
-      final api = AuthApi(
+      final api = ContactVerificationApi(
         _FakeRestClient(
           postResult: const Result.success(
             RestClientResponse(

@@ -1,6 +1,6 @@
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/secure_storage/local_secure_storage.dart';
-import 'package:bankflow/data/services/auth/cache/register_draft/register_draft_store.dart';
+import 'package:bankflow/data/services/cache/last_login/register_draft/register_draft_store.dart';
 import 'package:bankflow/domain/common/auth/models/register_draft.dart';
 import 'package:flutter_test/flutter_test.dart';
 

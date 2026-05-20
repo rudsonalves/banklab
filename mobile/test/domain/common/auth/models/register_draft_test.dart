@@ -25,7 +25,7 @@ void main() {
       expect(map['birth_date'], '1990-01-15');
       expect(map['email'], 'maria@example.com');
       expect(map['phone'], '+5527999999999');
-      expect(map['current_step'], 'phoneToken');
+      expect(map.containsKey('current_step'), isFalse);
       expect(map['email_verification_id'], 'email-verification-id');
       expect(map['phone_verification_id'], 'phone-verification-id');
       expect(map['is_email_verified'], isTrue);
@@ -80,7 +80,7 @@ void main() {
           'created_at': '2026-05-19T10:00:00.000Z',
           'updated_at': '2026-05-19T11:00:00.000Z',
         }),
-        isNull,
+        isNotNull,
       );
       expect(
         RegisterDraftSnapshot.fromMapOrNull({
@@ -111,7 +111,6 @@ void main() {
         containsAll([
           RegisterDraftField.cpf,
           RegisterDraftField.name,
-          RegisterDraftField.currentStep,
         ]),
       );
     });

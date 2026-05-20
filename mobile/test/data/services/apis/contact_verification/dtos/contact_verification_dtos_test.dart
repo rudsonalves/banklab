@@ -1,7 +1,7 @@
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_request_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_dto.dart';
-import 'package:bankflow/data/services/auth/api/dtos/contact_verification_request_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_request_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
