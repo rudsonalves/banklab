@@ -8,13 +8,13 @@ import '/data/services/auth/api/dtos/contact_verification_confirm_request_dto.da
 import '/data/services/auth/api/dtos/contact_verification_confirm_response_dto.dart';
 import '/data/services/auth/api/dtos/contact_verification_request_dto.dart';
 import '/data/services/auth/api/dtos/contact_verification_request_response_dto.dart';
+import '/data/services/auth/api/dtos/cpf_check_response_dto.dart';
 import '/data/services/auth/api/dtos/login_request_dto.dart';
 import '/data/services/auth/api/dtos/register_request_dto.dart';
 import '/data/services/auth/cache/last_login_cache_service.dart';
 import '/data/services/auth/cache/models/last_login_identity.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
-import '../../services/auth/api/dtos/cpf_check_response_dto.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApi _api;
@@ -138,6 +138,7 @@ class AuthRepositoryImpl implements AuthRepository {
     return Success(unit);
   }
 
+  @override
   AsyncResult<CpfCheckResponseDto> cpfCheck(String cpf) async {
     final result = await _api.cpfCheck(cpf);
     if (result.isFailure) return Result.failure(result.error!);

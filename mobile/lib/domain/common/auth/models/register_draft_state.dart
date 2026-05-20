@@ -1,6 +1,5 @@
 import '/core/extensions/string.dart';
 import '../enums/register_draft_field.dart';
-import '../enums/register_draft_step.dart';
 import 'register_draft_snapshot.dart';
 
 class RegisterDraftState {
@@ -9,7 +8,6 @@ class RegisterDraftState {
   DateTime? _birthDate;
   String? _email;
   String? _phone;
-  RegisterDraftStep _currentStep = RegisterDraftStep.cpf;
   String? _emailVerificationId;
   String? _phoneVerificationId;
   bool _isEmailVerified = false;
@@ -32,7 +30,6 @@ class RegisterDraftState {
   DateTime? get birthDate => _birthDate;
   String? get email => _email;
   String? get phone => _phone;
-  RegisterDraftStep get currentStep => _currentStep;
   String? get emailVerificationId => _emailVerificationId;
   String? get phoneVerificationId => _phoneVerificationId;
   bool get isEmailVerified => _isEmailVerified;
@@ -87,15 +84,6 @@ class RegisterDraftState {
     );
   }
 
-  void updateCurrentStep(RegisterDraftStep value) {
-    _set(
-      RegisterDraftField.currentStep,
-      _currentStep,
-      value,
-      (next) => _currentStep = next,
-    );
-  }
-
   void updateEmailVerificationId(String? value) {
     _set(
       RegisterDraftField.emailVerificationId,
@@ -139,7 +127,6 @@ class RegisterDraftState {
       birthDate: _birthDate,
       email: _email,
       phone: _phone,
-      currentStep: _currentStep,
       emailVerificationId: _emailVerificationId,
       phoneVerificationId: _phoneVerificationId,
       isEmailVerified: _isEmailVerified,
@@ -149,13 +136,18 @@ class RegisterDraftState {
     );
   }
 
+  static RegisterDraftState fromSnapshot(RegisterDraftSnapshot snapshot) {
+    final state = RegisterDraftState();
+    state.hydrate(snapshot);
+    return state;
+  }
+
   void hydrate(RegisterDraftSnapshot snapshot) {
     _cpf = snapshot.cpf.onlyNumbers;
     _name = snapshot.name;
     _birthDate = snapshot.birthDate;
     _email = snapshot.email;
     _phone = snapshot.phone;
-    _currentStep = snapshot.currentStep;
     _emailVerificationId = snapshot.emailVerificationId;
     _phoneVerificationId = snapshot.phoneVerificationId;
     _isEmailVerified = snapshot.isEmailVerified;

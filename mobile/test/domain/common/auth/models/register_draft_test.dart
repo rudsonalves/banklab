@@ -10,7 +10,6 @@ void main() {
         birthDate: DateTime(1990, 1, 15),
         email: 'maria@example.com',
         phone: '+5527999999999',
-        currentStep: RegisterDraftStep.phoneToken,
         emailVerificationId: 'email-verification-id',
         phoneVerificationId: 'phone-verification-id',
         isEmailVerified: true,
@@ -63,7 +62,6 @@ void main() {
       expect(snapshot.birthDate, DateTime(1990, 1, 15));
       expect(snapshot.email, 'maria@example.com');
       expect(snapshot.phone, '+5527999999999');
-      expect(snapshot.currentStep, RegisterDraftStep.emailToken);
       expect(snapshot.emailVerificationId, 'email-id');
       expect(snapshot.phoneVerificationId, 'phone-id');
       expect(snapshot.isEmailVerified, isTrue);
@@ -104,11 +102,9 @@ void main() {
 
       state.updateCPF('123.456.789-09');
       state.updateName(' Maria Silva ');
-      state.updateCurrentStep(RegisterDraftStep.fullName);
 
       expect(state.cpf, '12345678909');
       expect(state.name, 'Maria Silva');
-      expect(state.currentStep, RegisterDraftStep.fullName);
       expect(state.isDirty, isTrue);
       expect(
         state.dirtyFields,
@@ -151,7 +147,6 @@ void main() {
         birthDate: DateTime(1990, 1, 15),
         email: 'maria@example.com',
         phone: '+5527999999999',
-        currentStep: RegisterDraftStep.phone,
         emailVerificationId: 'email-id',
         phoneVerificationId: 'phone-id',
         isEmailVerified: true,
@@ -168,7 +163,6 @@ void main() {
       expect(state.birthDate, DateTime(1990, 1, 15));
       expect(state.email, 'maria@example.com');
       expect(state.phone, '+5527999999999');
-      expect(state.currentStep, RegisterDraftStep.phone);
       expect(state.emailVerificationId, 'email-id');
       expect(state.phoneVerificationId, 'phone-id');
       expect(state.isEmailVerified, isTrue);
@@ -186,7 +180,6 @@ void main() {
       state.updateBirthDate(DateTime(1990, 1, 15));
       state.updateEmail('maria@example.com');
       state.updatePhone('+5527999999999');
-      state.updateCurrentStep(RegisterDraftStep.phoneToken);
       state.updateEmailVerificationId('email-id');
       state.updatePhoneVerificationId('phone-id');
       state.updateEmailVerified(true);
@@ -198,7 +191,6 @@ void main() {
       expect(snapshot.birthDate, DateTime(1990, 1, 15));
       expect(snapshot.email, 'maria@example.com');
       expect(snapshot.phone, '+5527999999999');
-      expect(snapshot.currentStep, RegisterDraftStep.phoneToken);
       expect(snapshot.emailVerificationId, 'email-id');
       expect(snapshot.phoneVerificationId, 'phone-id');
       expect(snapshot.isEmailVerified, isTrue);

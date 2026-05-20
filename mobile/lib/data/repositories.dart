@@ -5,6 +5,8 @@ import '/data/repositories/account/account_repository.dart';
 import '/data/repositories/account/account_repository_impl.dart';
 import '/data/repositories/auth/auth_repository.dart';
 import '/data/repositories/auth/auth_repository_impl.dart';
+import '/data/repositories/register_draft/register_draft_repository.dart';
+import '/data/repositories/register_draft/register_draft_repository_impl.dart';
 import 'repositories/transaction/transaction_repository.dart';
 import 'repositories/transaction/transaction_repository_impl.dart';
 import 'services/apis/account/balance_api.dart';
@@ -14,6 +16,7 @@ import 'services/apis/receipt/api_receipt.dart';
 import 'services/apis/transfer/api_transfer.dart';
 import 'services/auth/api/auth_api.dart';
 import 'services/auth/cache/last_login_cache_service.dart';
+import 'services/auth/cache/register_draft/register_draft_store.dart';
 
 class Repositories {
   static void add(AutoInjector injector) {
@@ -36,6 +39,11 @@ class Repositories {
         () => TransactionRepositoryImpl(
           apiTransfer: injector.get<ApiTransfer>(),
           apiReceipt: injector.get<ApiReceipt>(),
+        ),
+      )
+      ..addSingleton<RegisterDraftRepository>(
+        () => RegisterDraftRepositoryImpl(
+          injector.get<RegisterDraftStore>(),
         ),
       );
   }

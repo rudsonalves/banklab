@@ -68,7 +68,7 @@ simples, sem incluir senha ou tokens confirmados.
 
 - Nenhuma.
 
-## Task 2/12: Criar serviço de persistência segura do rascunho
+## Task 2/12: Criar store de persistência segura do rascunho
 
 ### Objetivo
 
@@ -77,7 +77,7 @@ derivada do CPF.
 
 ### Escopo
 
-- Criar serviço/repository local para rascunho de cadastro.
+- Criar store local para rascunho de cadastro.
 - Usar secure storage já disponível no app ou abstração equivalente.
 - Receber um snapshot persistível, não o `RegisterViewmodel`.
 - Gerar chave no formato:
@@ -94,12 +94,17 @@ onboarding_draft:{sha256(cpf_normalizado)}
 - Remover rascunho por CPF.
 - Tratar ausência de rascunho sem erro.
 - Tratar JSON corrompido removendo ou ignorando o rascunho.
+- Retornar um resultado selado para o carregamento:
+  - `RegisterDraftFound`;
+  - `RegisterDraftNotFound`.
+- Não aplicar TTL nesta camada.
 
 ### Critérios de aceite
 
 - Rascunho é salvo em secure storage.
 - CPF puro não é usado como chave.
 - Store não conhece regras de UI nem depende do `RegisterViewmodel`.
+- Store não conhece regra de TTL.
 - Recuperação por CPF encontra o rascunho correto.
 - Remoção apaga o rascunho correto.
 - Testes cobrem save, get, delete, ausência e JSON inválido.
@@ -108,26 +113,41 @@ onboarding_draft:{sha256(cpf_normalizado)}
 
 - Task 1.
 
-## Task 3/12: Implementar expiração de 24 horas do rascunho
+## Task 3/12: Criar repository do rascunho com expiração de 24 horas
 
 ### Objetivo
 
-Garantir que rascunhos antigos sejam descartados automaticamente.
+Criar a camada de repository que encapsula regra de TTL e expiração do rascunho,
+mantendo o store restrito a secure storage, hash e JSON.
 
 ### Escopo
 
-- Aplicar TTL de 24 horas ao rascunho local.
+- Criar contrato `RegisterDraftRepository` ou nome equivalente.
+- Criar implementação `RegisterDraftRepositoryImpl` ou nome equivalente.
+- O repository deve depender do `RegisterDraftStore`.
+- Expor operações:
+  - carregar por CPF;
+  - salvar snapshot;
+  - remover por CPF.
+- Aplicar TTL de 24 horas ao carregar rascunho.
 - Ao carregar rascunho, considerar `updatedAt` como referência principal.
-- Se `updatedAt` estiver ausente, usar `createdAt`.
-- Se o rascunho estiver expirado, removê-lo e retornar ausência de rascunho.
-- Atualizar `updatedAt` a cada persistência bem-sucedida.
+- Se o rascunho estiver expirado, chamar o store para removê-lo e retornar
+  `RegisterDraftNotFound`.
+- Se o rascunho estiver dentro do TTL, retornar `RegisterDraftFound`.
+- Ao salvar, receber snapshot persistível e delegar ao store.
+- O repository deve ser a dependência usada pelo `RegisterViewmodel` nas tasks
+  seguintes, não o store diretamente.
+- Permitir injetar `DateTime Function()` nos testes para controlar o relógio.
 
 ### Critérios de aceite
 
 - Rascunho com menos de 24 horas é recuperado.
 - Rascunho com mais de 24 horas é removido e não é usado.
-- Persistência atualiza `updatedAt`.
-- Testes cobrem rascunho válido, expirado e datas ausentes.
+- Store permanece sem regra de TTL.
+- Repository retorna `RegisterDraftFound` para rascunho válido.
+- Repository retorna `RegisterDraftNotFound` para rascunho ausente ou expirado.
+- Repository remove rascunho expirado.
+- Testes cobrem rascunho válido, expirado, ausente e falha do store.
 
 ### Depende de
 

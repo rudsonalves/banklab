@@ -34,7 +34,6 @@ void main() {
       final found = lookupResult.value as RegisterDraftFound;
       expect(found.snapshot.cpf, '12345678909');
       expect(found.snapshot.name, 'Maria Silva');
-      expect(found.snapshot.currentStep, RegisterDraftStep.email);
       expect(storage.values.keys.single, store.keyForCPF('12345678909'));
     });
 
@@ -94,7 +93,6 @@ RegisterDraftSnapshot _snapshot() {
     birthDate: DateTime(1990, 1, 15),
     email: 'maria@example.com',
     phone: '+5527999999999',
-    currentStep: RegisterDraftStep.email,
     emailVerificationId: 'email-id',
     phoneVerificationId: null,
     isEmailVerified: false,

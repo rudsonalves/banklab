@@ -1,5 +1,134 @@
 # Changelog
 
+## 2026/05/20 - mobile/pre-onboarding-07
+
+Refactored the registration onboarding flow around a dedicated `RegisterUsecase`, introducing secure draft persistence with TTL-aware repository orchestration and preparing the application for the upcoming multi-page onboarding experience.
+
+### Main Changes
+
+1. Registration onboarding architecture redesign
+
+   * Introduced `RegisterUsecase` as the central orchestration layer for the onboarding flow.
+   * Moved registration business logic away from `RegisterViewmodel`.
+   * Added explicit flow methods for:
+
+     * CPF validation;
+     * name submission;
+     * birth date submission;
+     * e-mail verification request/confirmation;
+     * phone verification request/confirmation;
+     * password submission;
+     * final registration execution;
+     * onboarding reset.
+   * Added in-memory handling for verification tokens and password to avoid persistence of sensitive transient data.
+   * Added initialization flow capable of restoring onboarding drafts from storage.
+
+2. Secure onboarding draft persistence redesign
+
+   * Reworked the onboarding persistence architecture separating:
+
+     * storage responsibilities;
+     * expiration rules;
+     * orchestration concerns.
+   * Added `RegisterDraftRepository`.
+   * Added `RegisterDraftRepositoryImpl`.
+   * Kept `RegisterDraftStore` focused exclusively on:
+
+     * secure storage;
+     * hashing;
+     * JSON serialization/deserialization.
+   * Moved TTL responsibility entirely to the repository layer.
+   * Added 24-hour expiration logic with automatic cleanup of expired drafts.
+   * Added injectable clock support (`DateTime Function()`) to improve deterministic testing.
+
+3. Draft load result formalization
+
+   * Standardized onboarding draft loading behavior through sealed-style results:
+
+     * `RegisterDraftFound`;
+     * `RegisterDraftNotFound`.
+   * Simplified draft recovery semantics across the application.
+   * Improved separation between storage absence and infrastructure failures.
+
+4. Register draft model simplification
+
+   * Removed `RegisterDraftStep` from persistence and state models.
+   * Removed `currentStep` serialization/deserialization logic.
+   * Simplified `RegisterDraftSnapshot`.
+   * Simplified `RegisterDraftState`.
+   * Added `RegisterDraftState.fromSnapshot`.
+   * Reduced coupling between persisted onboarding state and UI navigation structure.
+
+5. CPF validation integration
+
+   * Added `cpfCheck` to `AuthRepository`.
+   * Added implementation support in `AuthRepositoryImpl`.
+   * Integrated CPF availability validation into onboarding initialization flow.
+   * Prevented draft persistence for already registered CPFs.
+
+6. Dependency injection and application wiring
+
+   * Registered `RegisterDraftRepository` in dependency injection.
+   * Registered `RegisterUsecase` in the usecase injector.
+   * Connected `RegisterViewmodel` to the new usecase layer.
+   * Added command-based execution wrappers to the viewmodel.
+
+7. Routing and onboarding preparation
+
+   * Renamed onboarding entry page:
+
+     * `register_page.dart` → `register_cpf_page.dart`
+   * Updated routing configuration to use the new onboarding entry structure.
+   * Prepared the route organization for future multi-page onboarding screens.
+
+8. Documentation and backlog updates
+
+   * Updated onboarding backlog tasks to reflect the architectural redesign.
+   * Clarified separation between:
+
+     * persistence store;
+     * repository orchestration;
+     * TTL management.
+   * Refined acceptance criteria and responsibilities for onboarding draft persistence.
+
+9. Testing improvements
+
+   * Added complete test coverage for `RegisterDraftRepositoryImpl`.
+   * Added extensive `RegisterUsecase` tests covering:
+
+     * onboarding initialization;
+     * CPF validation;
+     * verification flows;
+     * registration execution;
+     * reset behavior;
+     * persistence cleanup;
+     * failure propagation.
+   * Updated existing onboarding draft tests after removal of `RegisterDraftStep`.
+   * Removed obsolete onboarding UI flow tests tied to the previous architecture.
+
+### Technical Highlights
+
+* The onboarding persistence layer now follows a cleaner responsibility split:
+
+  * Store → secure persistence only;
+  * Repository → TTL and orchestration;
+  * Usecase → business flow coordination.
+* Sensitive onboarding runtime data such as verification tokens and passwords are intentionally kept only in memory.
+* The registration flow is now significantly more testable due to:
+
+  * explicit orchestration boundaries;
+  * injectable time provider;
+  * repository abstraction;
+  * isolated state management.
+* The onboarding architecture is now structurally prepared for:
+
+  * multi-page navigation;
+  * onboarding recovery;
+  * future Zero Trust validations;
+  * device binding flows;
+  * advanced onboarding checkpoints.
+
+
 ## 2026/05/19 — mobile/pre-onboarding-06
 
 Refactor and restructure the mobile onboarding flow into a new pre-onboarding architecture focused on incremental navigation, CPF validation, local persistence, and future-proof step orchestration.
