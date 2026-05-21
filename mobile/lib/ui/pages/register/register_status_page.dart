@@ -4,16 +4,13 @@ import 'package:go_router/go_router.dart';
 import '/core/routing/routes.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
-import '/ui/components/buttons/double_bottom_buttons.dart';
 
-class TransferStatusPage extends StatelessWidget {
+class RegisterStatusPage extends StatelessWidget {
   final bool isSuccess;
-  final String? transactionReference;
 
-  const TransferStatusPage({
+  const RegisterStatusPage({
     super.key,
     required this.isSuccess,
-    this.transactionReference,
   });
 
   @override
@@ -23,7 +20,7 @@ class TransferStatusPage extends StatelessWidget {
 
     return SafeScaffold(
       appBar: AppBar(
-        title: const Text('Status da transferência'),
+        title: const Text('Status do registro'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -44,15 +41,15 @@ class TransferStatusPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              isSuccess ? 'Transferência realizada' : 'Transferência falhou',
+              isSuccess ? 'Registro concluido' : 'Falha no registro',
               textAlign: TextAlign.center,
               style: textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
             Text(
               isSuccess
-                  ? 'Sua transferência foi realizada com sucesso.'
-                  : 'Não foi possível concluir a transferência. Tente novamente.',
+                  ? 'Sua conta foi criada com sucesso.'
+                  : 'Nao foi possivel concluir o registro. Tente novamente.',
               textAlign: TextAlign.center,
               style: textTheme.bodyLarge,
             ),
@@ -60,32 +57,24 @@ class TransferStatusPage extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: isSuccess
-          ? DoubleBottomButton(
-              leftButtonLabel: 'Voltar',
-              rightButtonLabel: 'Comprovante',
-              leftOnPressed: () => _navBack(context),
-              rightOnPressed: () => _showReceipt(context),
-              isRightEnabled: transactionReference != null,
-              rightButtonIcon: const Icon(Icons.receipt_long_rounded),
+          ? BigButton(
+              label: 'Entrar',
+              onPressed: () => _goToLogin(context),
+              rightIcon: const Icon(Icons.login_rounded),
             )
           : BigButton(
-              label: 'Voltar',
-              onPressed: () => _navBack(context),
-              enabled: true,
+              label: 'Tentar novamente',
+              onPressed: () => _retryPassword(context),
+              rightIcon: const Icon(Icons.refresh_rounded),
             ),
     );
   }
 
-  void _navBack(BuildContext context) {
-    context.goNamed(BaseRoutes.home.name);
+  void _goToLogin(BuildContext context) {
+    context.goNamed(AuthRoutes.login.name);
   }
 
-  void _showReceipt(BuildContext context) {
-    final reference = transactionReference;
-    if (reference == null) return;
-    context.pushNamed(
-      SharedRoutes.details.name,
-      extra: reference,
-    );
+  void _retryPassword(BuildContext context) {
+    context.pop();
   }
 }

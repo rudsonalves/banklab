@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-class BasicTextFormField extends TextFormField {
-  BasicTextFormField({
+class BasicInputText extends TextFormField {
+  BasicInputText({
     super.key,
     required TextEditingController super.controller,
+    super.focusNode,
     String? labelText,
     String? hintText,
     TextInputType super.keyboardType = TextInputType.text,

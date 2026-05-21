@@ -233,7 +233,7 @@ Future<void> _prepareValidRegistration(RegisterUsecase usecase) async {
   await usecase.confirmEmailToken('111111');
   await usecase.submitAndRequestPhoneToken('(27) 99999-9999');
   await usecase.confirmPhoneToken('222222');
-  await usecase.submitPassword(('secret123', 'secret123'));
+  await usecase.submitPassword(PasswordModel('secret123', 'secret123'));
 }
 
 RegisterDraftSnapshot _snapshot() {

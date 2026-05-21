@@ -4,10 +4,13 @@ import '/data/repositories/register_draft/register_draft_repository.dart';
 import '/data/repositories/registration/registration_repository.dart';
 import '/data/services/apis/contact_verification/dtos/contact_verification_confirm_request_dto.dart';
 import '/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
+import '/data/services/apis/contact_verification/enums/contact_verification_channel.dart';
 import '/data/services/apis/registration/dtos/register_request_dto.dart';
 import '/domain/common/auth/models/register_draft_snapshot.dart';
 import '/domain/common/auth/models/register_draft_state.dart';
-import '../../../data/services/apis/contact_verification/enums/contact_verification_channel.dart';
+import '/domain/usecases/register/models/password_model.dart';
+
+export 'models/password_model.dart';
 
 class RegisterUsecase {
   final RegistrationRepository _registrationRepository;
@@ -216,7 +219,7 @@ class RegisterUsecase {
     return await _saveDirty();
   }
 
-  AsyncResult<Unit> submitPassword((String, String) passWd) async {
+  AsyncResult<Unit> submitPassword(PasswordModel password) async {
     if (_state == null) {
       return const Failure(
         AppError(
@@ -226,8 +229,8 @@ class RegisterUsecase {
       );
     }
 
-    final (password, confirmPassword) = passWd;
-    if (password.trim().isEmpty || password.trim() != confirmPassword) {
+    // final (password, confirmPassword) = passWd;
+    if (!password.isValid) {
       return const Failure(
         AppError(
           code: AppErrorCode.invalidData,
@@ -235,8 +238,8 @@ class RegisterUsecase {
         ),
       );
     }
-    _password = password.trim();
 
+    _password = password.value;
     return await _saveDirty();
   }
 

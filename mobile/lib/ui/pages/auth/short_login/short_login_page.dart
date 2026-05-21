@@ -8,7 +8,7 @@ import '/data/services/cache/last_login/models/last_login_identity.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/messages/app_snackbar.dart';
-import '/ui/components/text_form_field/basic_text_form_field.dart';
+import '../../../components/input_text/basic_input_text.dart';
 import 'viewmodel/short_login_viewmodel.dart';
 
 const _accountApprovalRequiredMessage =
@@ -110,29 +110,28 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
                         ValueListenableBuilder<bool>(
                           valueListenable: _obscurePassword,
-                          builder: (context, value, child) =>
-                              BasicTextFormField(
-                                controller: _passwordController,
-                                obscureText: value,
-                                enabled: !isRunning,
-                                autofillHints: const [AutofillHints.password],
-                                textInputAction: TextInputAction.done,
-                                labelText: 'Senha',
-                                hintText: '********',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  onPressed: isRunning
-                                      ? null
-                                      : _obscurePasswordListener,
-                                  icon: Icon(
-                                    value
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                  ),
-                                ),
-                                validator: _passwordValidator,
-                                onFieldSubmitted: (_) => _submit(),
+                          builder: (context, value, child) => BasicInputText(
+                            controller: _passwordController,
+                            obscureText: value,
+                            enabled: !isRunning,
+                            autofillHints: const [AutofillHints.password],
+                            textInputAction: TextInputAction.done,
+                            labelText: 'Senha',
+                            hintText: '********',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              onPressed: isRunning
+                                  ? null
+                                  : _obscurePasswordListener,
+                              icon: Icon(
+                                value
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
                               ),
+                            ),
+                            validator: _passwordValidator,
+                            onFieldSubmitted: (_) => _submit(),
+                          ),
                         ),
 
                         const SizedBox(height: 6),

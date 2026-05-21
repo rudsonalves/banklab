@@ -2,6 +2,120 @@
 
 ## 2026/05/21 — mobile/pre-onboarding-14
 
+This commit advances the mobile onboarding and authentication experience by introducing a complete password registration flow, registration status feedback pages, and a broader UI component reorganization focused on reusable input abstractions.
+
+### Registration Flow Enhancements
+
+1. Added dedicated registration status routes and screens
+
+   * Introduced success and failure routes in `register_routes.dart`
+   * Added `RegisterStatusPage` to present onboarding completion feedback
+   * Added navigation paths from the password submission flow to success/failure states
+   * Included contextual actions:
+
+     * success → navigate to login
+     * failure → retry registration flow
+
+2. Implemented the complete password registration page
+
+   * Replaced the placeholder implementation in `register_password_page.dart`
+   * Added:
+
+     * password field
+     * confirmation field
+     * visibility toggle controls
+     * focus management
+     * validation feedback
+     * reactive enable/disable logic
+   * Added live password criteria validation:
+
+     * minimum length
+     * uppercase characters
+     * lowercase characters
+     * numeric characters
+     * password confirmation matching
+   * Integrated submit + register execution flow with proper error handling and navigation transitions
+
+3. Added reusable password model abstraction
+
+   * Introduced `PasswordModel`
+   * Centralized password normalization and validation
+   * Replaced tuple-based `(String, String)` transport with a semantic domain model
+   * Improved readability and future extensibility of the onboarding flow
+
+4. Updated register use case and viewmodel contracts
+
+   * `RegisterUsecase.submitPassword` now receives `PasswordModel`
+   * `RegisterViewmodel.submitPassword` updated accordingly
+   * Added re-export support for password-related models directly from the usecase module
+   * Updated tests to reflect the new API contract
+
+### UI Component Refactor and Reorganization
+
+1. Reorganized input components into dedicated namespaces
+
+   * Moved:
+
+     * `basic_text_form_field.dart` → `input_text/basic_input_text.dart`
+     * `verification_code_field.dart` → `input_text/otp_input.dart`
+     * `money_input_formatter.dart` → `input_formatters/money_input_formatter.dart`
+   * Improved naming consistency and architectural clarity for reusable UI primitives
+
+2. Renamed and generalized reusable input widgets
+
+   * `BasicTextFormField` → `BasicInputText`
+   * `VerificationCodeField` → `OtpInput`
+   * Added `focusNode` support to the base text component
+
+3. Migrated all onboarding/authentication pages to the new input components
+
+   * Login page
+   * Short login page
+   * Register CPF page
+   * Register email page
+   * Register name page
+   * Register phone page
+   * Register token page
+   * Transfer recipient page
+   * Transfer payment page
+
+### UX and Visual Improvements
+
+1. Added password criteria helper widget
+
+   * Introduced `CriterialItemRow`
+   * Displays dynamic validation state using visual indicators
+
+2. Improved transfer status screen readability
+
+   * Cached `colorScheme` and `textTheme`
+   * Reduced repeated theme access
+   * Improved readability and maintainability of the widget tree
+
+3. Minor route formatting cleanup
+
+   * Reformatted transfer failure route builder for consistency
+
+### Architectural Direction
+
+This commit reinforces an important architectural transition in the mobile onboarding flow:
+
+* replacing primitive transport structures with semantic models
+* consolidating reusable input infrastructure
+* isolating onboarding states into explicit routes
+* improving UI composition around focused reusable widgets
+
+The resulting structure makes the registration pipeline more maintainable, more expressive, and significantly better prepared for future onboarding extensions such as:
+
+* transactional passwords
+* device registration
+* MFA/TOTP
+* Zero Trust contextual validation
+* biometric/liveness verification flows
+
+
+## 2026/05/21 — mobile/pre-onboarding-14
+
 This commit advances the mobile onboarding flow by introducing phone registration and token confirmation screens, while significantly improving validation, formatting, and verification code input behavior across the registration experience.
 
 ### Main Improvements

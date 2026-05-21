@@ -8,7 +8,7 @@ import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
-import '/ui/components/text_form_field/verification_code_field.dart';
+import '../../components/input_text/otp_input.dart';
 import 'viewmodel/register_viewmodel.dart';
 
 class RegisterTokenPage extends StatefulWidget {
@@ -57,7 +57,7 @@ class _RegisterTokenPageState extends State<RegisterTokenPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextHeader(_headerText),
-              VerificationCodeField(
+              OtpInput(
                 onChanged: _tokenChanged,
                 // onCompleted: _tokenCompleted,
               ),

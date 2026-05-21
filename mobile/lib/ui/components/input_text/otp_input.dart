@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '/core/extensions/string.dart';
 
-class VerificationCodeField extends StatefulWidget {
+class OtpInput extends StatefulWidget {
   final int lenth;
   final String? initialValue;
   final ValueChanged<String>? onChanged;
@@ -13,7 +13,7 @@ class VerificationCodeField extends StatefulWidget {
   final double fieldHeight;
   final bool autoFocus;
 
-  const VerificationCodeField({
+  const OtpInput({
     super.key,
     this.lenth = 6,
     this.initialValue,
@@ -26,10 +26,10 @@ class VerificationCodeField extends StatefulWidget {
   });
 
   @override
-  State<VerificationCodeField> createState() => _VerificationCodeFieldState();
+  State<OtpInput> createState() => _OtpInputState();
 }
 
-class _VerificationCodeFieldState extends State<VerificationCodeField> {
+class _OtpInputState extends State<OtpInput> {
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
 

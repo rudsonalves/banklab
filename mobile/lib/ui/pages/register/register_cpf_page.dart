@@ -9,7 +9,7 @@ import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/input_formatters/cpf_input_formatter.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
-import '/ui/components/text_form_field/basic_text_form_field.dart';
+import '../../components/input_text/basic_input_text.dart';
 import 'viewmodel/register_viewmodel.dart';
 
 class RegisterCpfPage extends StatefulWidget {
@@ -60,7 +60,7 @@ class _RegisterCpfPageState extends State<RegisterCpfPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextHeader('Informe o CPF'),
-              BasicTextFormField(
+              BasicInputText(
                 controller: _cpfController,
                 hintText: 'Digite apenas os números do seu CPF',
                 keyboardType: TextInputType.number,

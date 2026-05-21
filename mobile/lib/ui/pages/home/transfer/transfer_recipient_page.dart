@@ -10,7 +10,7 @@ import '/ui/components/buttons/big_button.dart';
 import '/ui/components/cards/recipient_card.dart';
 import '/ui/components/input_formatters/cpf_input_formatter.dart';
 import '/ui/components/text/text_header.dart';
-import '/ui/components/text_form_field/basic_text_form_field.dart';
+import '../../../components/input_text/basic_input_text.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 import 'widgets/dropdown_recipient.dart';
 
@@ -61,7 +61,7 @@ class _TransferRecipientPageState extends State<TransferRecipientPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextHeader('CPF'),
-                  BasicTextFormField(
+                  BasicInputText(
                     controller: _documentController,
                     hintText: '000.000.000-00',
                     inputFormatters: [CpfInputFormatter()],
@@ -78,7 +78,7 @@ class _TransferRecipientPageState extends State<TransferRecipientPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: BasicTextFormField(
+                        child: BasicInputText(
                           controller: _branchController,
                           hintText: '0001',
                           keyboardType: TextInputType.number,
@@ -87,7 +87,7 @@ class _TransferRecipientPageState extends State<TransferRecipientPage> {
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: BasicTextFormField(
+                        child: BasicInputText(
                           controller: _accountController,
                           hintText: '0000000-0',
                           keyboardType: TextInputType.number,

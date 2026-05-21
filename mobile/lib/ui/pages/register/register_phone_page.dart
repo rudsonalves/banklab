@@ -8,8 +8,8 @@ import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
-import '/ui/components/text_form_field/basic_text_form_field.dart';
 import '../../components/input_formatters/phone_input_formatter.dart';
+import '../../components/input_text/basic_input_text.dart';
 import 'viewmodel/register_viewmodel.dart';
 
 class RegisterPhonePage extends StatefulWidget {
@@ -60,7 +60,7 @@ class _RegisterPhonePageState extends State<RegisterPhonePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextHeader('Informe o telefone'),
-              BasicTextFormField(
+              BasicInputText(
                 controller: _phoneController,
                 hintText: 'Digite seu telefone',
                 keyboardType: TextInputType.number,

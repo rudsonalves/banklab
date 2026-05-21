@@ -30,7 +30,7 @@ class RegisterViewmodel extends ChangeNotifier {
   late final Command1<Unit, String> submitAndRequestPhoneToken;
   late final Command1<Unit, String> confirmEmailToken;
   late final Command1<Unit, String> confirmPhoneToken;
-  late final Command1<Unit, (String, String)> submitPassword;
+  late final Command1<Unit, PasswordModel> submitPassword;
   late final Command0<Unit> register;
   late final Command0<Unit> reset;
 

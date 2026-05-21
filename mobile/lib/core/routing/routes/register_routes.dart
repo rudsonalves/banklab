@@ -9,6 +9,7 @@ import '/ui/pages/register/register_email_page.dart';
 import '/ui/pages/register/register_name_page.dart';
 import '/ui/pages/register/register_password_page.dart';
 import '/ui/pages/register/register_phone_page.dart';
+import '/ui/pages/register/register_status_page.dart';
 import '/ui/pages/register/register_token_page.dart';
 import '/ui/pages/register/viewmodel/register_viewmodel.dart';
 
@@ -76,6 +77,22 @@ List<RouteBase> registerRoutes() => [
     name: RegisterRoutes.password.name,
     builder: (context, state) => RegisterPasswordPage(
       viewmodel: injector.get<RegisterViewmodel>(),
+    ),
+  ),
+
+  GoRoute(
+    path: RegisterRoutes.success.path,
+    name: RegisterRoutes.success.name,
+    builder: (context, state) => const RegisterStatusPage(
+      isSuccess: true,
+    ),
+  ),
+
+  GoRoute(
+    path: RegisterRoutes.failure.path,
+    name: RegisterRoutes.failure.name,
+    builder: (context, state) => const RegisterStatusPage(
+      isSuccess: false,
     ),
   ),
 ];

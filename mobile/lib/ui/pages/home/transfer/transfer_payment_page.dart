@@ -10,8 +10,8 @@ import '/ui/components/cards/balance_card.dart';
 import '/ui/components/cards/recipient_card.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
-import '/ui/components/text_form_field/basic_text_form_field.dart';
-import '/ui/components/text_form_field/money_input_formatter.dart';
+import '../../../components/input_formatters/money_input_formatter.dart';
+import '../../../components/input_text/basic_input_text.dart';
 import 'models/transfer_confirmation_data.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 
@@ -72,7 +72,7 @@ class _TransferPaymentPageState extends State<TransferPaymentPage> {
 
               SizedBox(height: 12),
               TextHeader('Valor'),
-              BasicTextFormField(
+              BasicInputText(
                 controller: _amountController,
                 hintText: 'R\$ 0,00',
                 inputFormatters: [MoneyInputFormatter()],
@@ -82,7 +82,7 @@ class _TransferPaymentPageState extends State<TransferPaymentPage> {
 
               SizedBox(height: 12),
               TextHeader('Descrição'),
-              BasicTextFormField(
+              BasicInputText(
                 controller: _descriptionController,
                 hintText: 'Digite a descrição',
                 keyboardType: TextInputType.text,
