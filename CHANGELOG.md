@@ -1,5 +1,107 @@
 # Changelog
 
+## 2026/05/21 — mobile/pre-onboarding-14
+
+This commit advances the mobile onboarding flow by introducing phone registration and token confirmation screens, while significantly improving validation, formatting, and verification code input behavior across the registration experience.
+
+### Main Improvements
+
+1. Added Brazilian phone validation support
+
+   * Introduced `String.isValidPhone` extension for validating Brazilian landline and mobile numbers.
+   * Added DDD validation rules.
+   * Differentiated validation logic between mobile (`9XXXXXXXX`) and landline (`2-5XXXXXXX`) formats.
+   * Centralized phone validation behavior inside the core string extensions layer.
+
+2. Implemented `PhoneInputFormatter`
+
+   * Added automatic phone formatting while typing.
+   * Supports:
+
+     * `(XX) XXXXX-XXXX`
+     * `(XX) XXXX-XXXX`
+   * Automatically strips non-numeric characters before formatting.
+   * Keeps formatting logic isolated in reusable input formatter infrastructure.
+
+3. Refactored `VerificationCodeField`
+
+   * Improved keyboard navigation and editing experience.
+   * Added focus-aware selection behavior.
+   * Implemented proper backspace navigation between cells.
+   * Fixed incorrect first-empty-cell focus condition.
+   * Added clipboard paste support centralized through `_onTap`.
+   * Simplified layout structure and removed unnecessary `Padding` wrappers.
+   * Improved visual appearance:
+
+     * outlined borders
+     * rounded corners
+     * bolder typography
+     * space distribution between fields
+   * Added internal helpers:
+
+     * `_focusAndSelectCellContent`
+     * `_selectCellContent`
+
+### Registration Flow Enhancements
+
+4. Implemented `RegisterPhonePage`
+
+   * Added complete phone onboarding screen.
+   * Integrated:
+
+     * `BasicTextFormField`
+     * `PhoneInputFormatter`
+     * validation state management
+     * async submission flow
+     * navigation to phone token confirmation
+   * Added bottom action bar with:
+
+     * back action
+     * continue action
+     * loading/disabled state integration
+   * Added snackbar error feedback support.
+   * Added initialization logic for persisted onboarding state.
+
+5. Implemented token confirmation UX in `RegisterTokenPage`
+
+   * Added verification code UI using `VerificationCodeField`.
+   * Added support for:
+
+     * email token confirmation
+     * phone token confirmation
+   * Added dynamic header messages per verification channel.
+   * Added async command integration for token confirmation.
+   * Added validation and loading state management.
+   * Added snackbar-based error handling.
+   * Added continue/back navigation actions.
+
+### UI Consistency Improvements
+
+6. Standardized onboarding page spacing
+
+   * Added `spacing: 12` to onboarding forms:
+
+     * `register_birthdate_page`
+     * `register_cpf_page`
+     * `register_email_page`
+     * `register_name_page`
+   * Removed redundant `SizedBox` spacing where applicable.
+   * Improved visual consistency across onboarding steps.
+
+### Architectural Notes
+
+This commit also reinforces some important architectural directions already present in the project:
+
+* reusable input formatting components
+* validation encapsulated in extensions
+* UI state isolated with `ValueNotifier`
+* async command orchestration through `Command`
+* reusable onboarding navigation patterns
+* clearer separation between formatting, validation, and UI concerns
+
+The onboarding flow now has a substantially more complete pre-verification experience, especially around phone registration and token confirmation, while also improving the overall interaction quality of the verification code input system.
+
+
 ## 2026/05/21 — mobile/pre-onboarding-13
 
 Refactor the contact verification flow to use strongly typed verification channels and introduce a reusable verification code input component for onboarding flows.

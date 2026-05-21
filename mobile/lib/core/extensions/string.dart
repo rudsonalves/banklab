@@ -56,6 +56,32 @@ extension StringExtension on String {
     ).hasMatch(email);
   }
 
+  /// Validates if the string is a valid phone number (Brazilian format).
+  bool get isValidPhone {
+    final cleaned = onlyNumbers;
+
+    // DDD + number
+    if (!RegExp(r'^\d{10,11}$').hasMatch(cleaned)) {
+      return false;
+    }
+
+    final ddd = cleaned.substring(0, 2);
+    final number = cleaned.substring(2);
+
+    // Invalid DDD
+    if (ddd.startsWith('0')) {
+      return false;
+    }
+
+    // Mobile: 9 digits starting with 9
+    if (number.length == 9) {
+      return RegExp(r'^9\d{8}$').hasMatch(number);
+    }
+
+    // Landline: 8 digits starting with 2-5
+    return RegExp(r'^[2-5]\d{7}$').hasMatch(number);
+  }
+
   /// Convert amount string to Money object, assuming the string is in a
   /// valid currency format (e.g., "R$ 1.234,56").
   /// This method will remove currency symbols and formatting, and convert the

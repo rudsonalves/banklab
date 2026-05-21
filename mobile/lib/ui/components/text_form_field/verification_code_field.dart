@@ -46,8 +46,18 @@ class _VerificationCodeFieldState extends State<VerificationCodeField> {
 
     _focusNodes = List.generate(
       widget.lenth,
-      (index) => FocusNode(),
+      (index) => FocusNode(
+        onKeyEvent: (_, event) => _handleKeyEvent(index, event),
+      ),
     );
+
+    for (int i = 0; i < widget.lenth; i++) {
+      _focusNodes[i].addListener(() {
+        if (_focusNodes[i].hasFocus) {
+          _selectCellContent(i);
+        }
+      });
+    }
 
     _fillInitialValue();
 
@@ -72,53 +82,46 @@ class _VerificationCodeFieldState extends State<VerificationCodeField> {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(
         widget.lenth,
-        (index) => Padding(
-          padding: EdgeInsets.only(
-            right: index == widget.lenth - 1 ? 0 : widget.spacing,
-          ),
-          child: Focus(
-            onKeyEvent: (_, event) => _handleKeyEvent(index, event),
-            child: SizedBox(
-              width: widget.fieldWidth,
-              height: widget.fieldHeight,
-              child: TextField(
-                controller: _controllers[index],
-                focusNode: _focusNodes[index],
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.oneTimeCode],
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                ),
-                decoration: const InputDecoration(
-                  counterText: '',
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(1),
-                ],
-                maxLines: 1,
-                onChanged: (text) => _handleChanged(index, text),
-                onTap: () async {
-                  final data = await Clipboard.getData(Clipboard.kTextPlain);
-
-                  final text = data?.text;
-
-                  if (text == null || text.length <= 1) return;
-
-                  await _handlePaste(text);
-                },
+        (index) => SizedBox(
+          width: widget.fieldWidth,
+          height: widget.fieldHeight,
+          child: TextField(
+            controller: _controllers[index],
+            focusNode: _focusNodes[index],
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            style: const TextStyle(fontWeight: FontWeight.w700),
+            decoration: const InputDecoration(
+              counterText: '',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
               ),
             ),
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(1),
+            ],
+            maxLength: 1,
+            maxLines: 1,
+            onChanged: (text) => _handleChanged(index, text),
+            onTap: _onTap,
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _onTap() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    if (text == null || text.length <= 1) return;
+
+    await _handlePaste(text);
   }
 
   void _fillInitialValue() {
@@ -138,7 +141,7 @@ class _VerificationCodeFieldState extends State<VerificationCodeField> {
       (controller) => controller.text.isEmpty,
     );
 
-    if (firstEmptyIndex != -1) return;
+    if (firstEmptyIndex == -1) return;
 
     _focusNodes[firstEmptyIndex].requestFocus();
   }
@@ -156,6 +159,10 @@ class _VerificationCodeFieldState extends State<VerificationCodeField> {
 
   void _handleChanged(int index, String text) {
     if (text.isEmpty) {
+      if (index > 0) {
+        _focusNodes[index - 1].requestFocus();
+      }
+
       _notifyChanges();
       return;
     }
@@ -183,17 +190,36 @@ class _VerificationCodeFieldState extends State<VerificationCodeField> {
 
     if (controller.text.isNotEmpty) {
       controller.clear();
+      if (index > 0) {
+        _focusNodes[index - 1].requestFocus();
+      }
       _notifyChanges();
       return KeyEventResult.handled;
     }
 
     if (index > 0) {
-      _focusNodes[index - 1].requestFocus();
-      _controllers[index - 1].clear();
-      _notifyChanges();
+      _focusAndSelectCellContent(index - 1);
     }
 
     return KeyEventResult.handled;
+  }
+
+  void _focusAndSelectCellContent(int index) {
+    _focusNodes[index].requestFocus();
+    _selectCellContent(index);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      _selectCellContent(index);
+    });
+  }
+
+  void _selectCellContent(int index) {
+    _controllers[index].selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _controllers[index].text.length,
+    );
   }
 
   Future<void> _handlePaste(String text) async {

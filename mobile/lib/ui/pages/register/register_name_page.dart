@@ -54,6 +54,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
           child: Column(
+            spacing: 12,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextHeader('Informe o nome completo'),
