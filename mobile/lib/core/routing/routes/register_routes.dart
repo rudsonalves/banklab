@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '/core/config/dependencies.dart';
 import '/core/routing/routes.dart';
+import '/data/services/apis/contact_verification/enums/contact_verification_channel.dart';
 import '/ui/pages/register/register_birthdate_page.dart';
 import '/ui/pages/register/register_cpf_page.dart';
 import '/ui/pages/register/register_email_page.dart';
@@ -49,7 +50,7 @@ List<RouteBase> registerRoutes() => [
     name: RegisterRoutes.emailToken.name,
     builder: (context, state) => RegisterTokenPage(
       viewmodel: injector.get<RegisterViewmodel>(),
-      tokenType: TokenType.email,
+      channel: ContactVerificationChannel.email,
     ),
   ),
 
@@ -66,7 +67,7 @@ List<RouteBase> registerRoutes() => [
     name: RegisterRoutes.phoneToken.name,
     builder: (context, state) => RegisterTokenPage(
       viewmodel: injector.get<RegisterViewmodel>(),
-      tokenType: TokenType.phone,
+      channel: ContactVerificationChannel.phone,
     ),
   ),
 

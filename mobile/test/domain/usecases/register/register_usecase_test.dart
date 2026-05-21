@@ -6,6 +6,7 @@ import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_ve
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_response_dto.dart';
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/enums/contact_verification_channel.dart';
 import 'package:bankflow/data/services/apis/registration/dtos/cpf_check_response_dto.dart';
 import 'package:bankflow/data/services/apis/registration/dtos/register_request_dto.dart';
 import 'package:bankflow/domain/common/auth/models/register_draft_snapshot.dart';
@@ -347,7 +348,7 @@ class _FakeContactVerificationRepository
            Success(
              ContactVerificationRequestResponseDto(
                verificationId: 'email-verification-id',
-               channel: 'email',
+               channel: ContactVerificationChannel.email,
                target: 'maria@example.com',
                //  token: '111111',
                expiresAt: DateTime.utc(2026, 5, 19, 12, 5),
@@ -358,7 +359,7 @@ class _FakeContactVerificationRepository
            Success(
              ContactVerificationRequestResponseDto(
                verificationId: 'phone-verification-id',
-               channel: 'phone',
+               channel: ContactVerificationChannel.phone,
                target: '(27) 99999-9999',
                //  token: '222222',
                expiresAt: DateTime.utc(2026, 5, 19, 12, 5),
@@ -369,7 +370,7 @@ class _FakeContactVerificationRepository
            Success(
              ContactVerificationConfirmResponseDto(
                verificationToken: 'email-verification-token',
-               channel: 'email',
+               channel: ContactVerificationChannel.email,
                target: 'maria@example.com',
                verifiedAt: DateTime.utc(2026, 5, 19, 12),
              ),
@@ -379,7 +380,7 @@ class _FakeContactVerificationRepository
            Success(
              ContactVerificationConfirmResponseDto(
                verificationToken: 'phone-verification-token',
-               channel: 'phone',
+               channel: ContactVerificationChannel.phone,
                target: '(27) 99999-9999',
                verifiedAt: DateTime.utc(2026, 5, 19, 12),
              ),
@@ -390,7 +391,9 @@ class _FakeContactVerificationRepository
     ContactVerificationRequestDto dto,
   ) async {
     verificationRequests.add(dto);
-    if (dto.channel == 'email') return emailRequestResult;
+    if (dto.channel == ContactVerificationChannel.email) {
+      return emailRequestResult;
+    }
     return phoneRequestResult;
   }
 

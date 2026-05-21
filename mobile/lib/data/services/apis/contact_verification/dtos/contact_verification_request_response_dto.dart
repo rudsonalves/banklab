@@ -1,6 +1,8 @@
+import '../enums/contact_verification_channel.dart';
+
 class ContactVerificationRequestResponseDto {
   final String verificationId;
-  final String channel;
+  final ContactVerificationChannel channel;
   final String target;
   final DateTime expiresAt;
 
@@ -16,7 +18,7 @@ class ContactVerificationRequestResponseDto {
   ) {
     return ContactVerificationRequestResponseDto(
       verificationId: map['verification_id'] as String,
-      channel: map['channel'] as String,
+      channel: ContactVerificationChannel.fromString(map['channel'] as String),
       target: map['target'] as String,
       expiresAt: DateTime.parse(map['expires_at'] as String),
     );

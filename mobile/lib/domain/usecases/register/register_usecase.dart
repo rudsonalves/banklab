@@ -7,6 +7,7 @@ import '/data/services/apis/contact_verification/dtos/contact_verification_reque
 import '/data/services/apis/registration/dtos/register_request_dto.dart';
 import '/domain/common/auth/models/register_draft_snapshot.dart';
 import '/domain/common/auth/models/register_draft_state.dart';
+import '../../../data/services/apis/contact_verification/enums/contact_verification_channel.dart';
 
 class RegisterUsecase {
   final RegistrationRepository _registrationRepository;
@@ -110,7 +111,7 @@ class RegisterUsecase {
     final result = await _contactVerificationRepository
         .requestContactVerification(
           ContactVerificationRequestDto(
-            channel: 'email',
+            channel: ContactVerificationChannel.email,
             target: email,
           ),
         );
@@ -136,7 +137,7 @@ class RegisterUsecase {
     final result = await _contactVerificationRepository
         .requestContactVerification(
           ContactVerificationRequestDto(
-            channel: 'phone',
+            channel: ContactVerificationChannel.phone,
             target: phone,
           ),
         );

@@ -6,6 +6,7 @@ import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_ve
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_response_dto.dart';
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/enums/contact_verification_channel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -25,7 +26,7 @@ void main() {
 
         final result = await api.requestContactVerification(
           ContactVerificationRequestDto(
-            channel: 'email',
+            channel: ContactVerificationChannel.email,
             target: 'user@example.com',
           ),
         );
@@ -58,7 +59,7 @@ void main() {
 
       final result = await api.requestContactVerification(
         ContactVerificationRequestDto(
-          channel: 'phone',
+          channel: ContactVerificationChannel.phone,
           target: '+5511999999999',
         ),
       );
@@ -66,7 +67,7 @@ void main() {
       expect(result, isA<Success<ContactVerificationRequestResponseDto>>());
       final dto = result.value!;
       expect(dto.verificationId, 'a5d4f5f1-a1b0-4f58-9f74-123456789abc');
-      expect(dto.channel, 'email');
+      expect(dto.channel, ContactVerificationChannel.email);
       expect(dto.target, 'user@example.com');
       // expect(dto.token, '123456');
       expect(dto.expiresAt, DateTime.parse('2026-05-18T12:10:00Z'));
@@ -92,7 +93,7 @@ void main() {
 
       final result = await api.requestContactVerification(
         ContactVerificationRequestDto(
-          channel: 'email',
+          channel: ContactVerificationChannel.email,
           target: 'invalid-email',
         ),
       );
@@ -163,7 +164,7 @@ void main() {
       expect(result, isA<Success<ContactVerificationConfirmResponseDto>>());
       final dto = result.value!;
       expect(dto.verificationToken, 'token-confirmado');
-      expect(dto.channel, 'email');
+      expect(dto.channel, ContactVerificationChannel.email);
       expect(dto.target, 'user@example.com');
       expect(dto.verifiedAt, DateTime.parse('2026-05-18T12:03:00Z'));
     });

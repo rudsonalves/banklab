@@ -2,13 +2,14 @@ import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_ve
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_response_dto.dart';
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/enums/contact_verification_channel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ContactVerificationRequestDto', () {
     test('serializes request body with channel and target', () {
       final dto = ContactVerificationRequestDto(
-        channel: 'email',
+        channel: ContactVerificationChannel.email,
         target: 'user@example.com',
       );
 
@@ -24,7 +25,7 @@ void main() {
         'target': '+5511999999999',
       });
 
-      expect(dto.channel, 'phone');
+      expect(dto.channel, ContactVerificationChannel.phone);
       expect(dto.target, '+5511999999999');
     });
   });
@@ -39,7 +40,7 @@ void main() {
       });
 
       expect(dto.verificationId, 'a5d4f5f1-a1b0-4f58-9f74-123456789abc');
-      expect(dto.channel, 'email');
+      expect(dto.channel, ContactVerificationChannel.email);
       expect(dto.target, 'user@example.com');
       // expect(dto.token, '123456');
       expect(dto.expiresAt, DateTime.parse('2026-05-18T12:10:00Z'));
@@ -80,7 +81,7 @@ void main() {
       });
 
       expect(dto.verificationToken, 'token-confirmado');
-      expect(dto.channel, 'phone');
+      expect(dto.channel, ContactVerificationChannel.phone);
       expect(dto.target, '+5511999999999');
       expect(dto.verifiedAt, DateTime.parse('2026-05-18T12:03:00Z'));
     });

@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/core/routing/routes.dart';
+import '/data/services/apis/contact_verification/enums/contact_verification_channel.dart';
 import '/ui/components/base/safe_scaffold.dart';
-import '../../../core/routing/routes.dart';
 import 'viewmodel/register_viewmodel.dart';
-
-enum TokenType {
-  email,
-  phone,
-}
 
 class RegisterTokenPage extends StatefulWidget {
   final RegisterViewmodel viewmodel;
-  final TokenType tokenType;
+  final ContactVerificationChannel channel;
 
   const RegisterTokenPage({
     super.key,
     required this.viewmodel,
-    required this.tokenType,
+    required this.channel,
   });
 
   @override
@@ -26,7 +22,7 @@ class RegisterTokenPage extends StatefulWidget {
 
 class _RegisterTokenPageState extends State<RegisterTokenPage> {
   RegisterViewmodel get _viewmodel => widget.viewmodel;
-  TokenType get _tokenType => widget.tokenType;
+  ContactVerificationChannel get _tokenType => widget.channel;
 
   @override
   void initState() {
@@ -56,10 +52,10 @@ class _RegisterTokenPageState extends State<RegisterTokenPage> {
 
   void _navToNext() {
     switch (_tokenType) {
-      case TokenType.email:
+      case ContactVerificationChannel.email:
         context.pushNamed(RegisterRoutes.phone.name);
         break;
-      case TokenType.phone:
+      case ContactVerificationChannel.phone:
         context.pushNamed(RegisterRoutes.password.name);
         break;
     }

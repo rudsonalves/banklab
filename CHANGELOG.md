@@ -1,5 +1,118 @@
 # Changelog
 
+## 2026/05/21 — mobile/pre-onboarding-13
+
+Refactor the contact verification flow to use strongly typed verification channels and introduce a reusable verification code input component for onboarding flows.
+
+### Main Improvements
+
+* Replaced raw string-based contact verification channels with the new `ContactVerificationChannel` enum across routing, DTOs, use cases, pages, repositories, APIs, and tests.
+* Added a reusable `VerificationCodeField` widget focused on OTP/token entry UX improvements.
+* Consolidated onboarding token handling around a single domain representation for verification channels.
+* Improved typing consistency and reduced risks related to invalid string values during onboarding flows.
+
+### Contact Verification Refactor
+
+1. Added `ContactVerificationChannel` enum
+
+   * Introduced:
+
+     * `email`
+     * `phone`
+   * Added `fromString()` parser with validation and explicit error handling.
+   * Centralized channel conversion logic.
+
+2. Updated DTOs to use typed channels
+
+   * Refactored:
+
+     * `ContactVerificationRequestDto`
+     * `ContactVerificationRequestResponseDto`
+     * `ContactVerificationConfirmResponseDto`
+   * Replaced `String channel` with `ContactVerificationChannel channel`.
+   * Updated serialization/deserialization logic:
+
+     * `.name` for outbound payloads
+     * `fromString()` for inbound payloads
+
+3. Updated onboarding use cases
+
+   * Refactored `RegisterUsecase` to remove hardcoded channel strings.
+   * Email and phone verification requests now use enum values directly.
+
+4. Updated route and UI integration
+
+   * Refactored `register_routes.dart`
+   * Replaced legacy `TokenType` usage with `ContactVerificationChannel`.
+   * Simplified `RegisterTokenPage` token flow handling.
+
+5. Removed duplicated token channel abstraction
+
+   * Eliminated the local `TokenType` enum from `RegisterTokenPage`.
+   * Unified the onboarding verification flow around the API/domain enum.
+
+### Verification Code Field Component
+
+1. Added `VerificationCodeField`
+
+   * Created reusable OTP/token input widget with:
+
+     * one digit per field
+     * automatic focus progression
+     * backspace navigation behavior
+     * clipboard paste support
+     * autofill integration (`oneTimeCode`)
+     * configurable dimensions and spacing
+     * initial value support
+     * completion callback support
+
+2. Implemented improved keyboard handling
+
+   * Backspace clears current field.
+   * When empty, backspace navigates to the previous field.
+   * Automatically advances focus after digit insertion.
+
+3. Added paste handling
+
+   * Detects clipboard numeric content.
+   * Automatically distributes pasted digits across fields.
+   * Correctly updates focus and completion state.
+
+### Test Updates
+
+1. Refactored repository tests
+
+   * Updated `contact_verification_repository_impl_test.dart`
+   * Replaced string assertions with enum assertions.
+
+2. Refactored API tests
+
+   * Updated `contact_verification_api_test.dart`
+   * Adjusted request/response expectations for typed channels.
+
+3. Refactored DTO tests
+
+   * Updated serialization/deserialization validations.
+   * Ensured enum parsing consistency.
+
+4. Refactored use case tests
+
+   * Updated fake repositories and verification flow assertions.
+   * Removed string comparisons in verification channel checks.
+
+### Architectural Impact
+
+This refactor improves onboarding consistency by removing stringly-typed channel handling from the registration flow. The verification system now has stronger compile-time guarantees, clearer intent across layers, and reduced risk of invalid state propagation during email and phone verification operations.
+
+The new verification input component also establishes a reusable foundation for future onboarding and security flows, including:
+
+* transactional password confirmation
+* MFA/TOTP verification
+* device registration confirmation
+* password recovery tokens
+* Zero Trust challenge flows
+
+
 ## 2026/05/21 - mobile/pre-onboarding-12
 
 Refined the pre-onboarding contact verification flow across API, mobile, tests, and documentation, with emphasis on separating temporary development/debug behavior from the stable verification contract.

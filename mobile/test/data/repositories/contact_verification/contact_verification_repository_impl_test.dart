@@ -8,6 +8,7 @@ import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_ve
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_confirm_response_dto.dart';
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_dto.dart';
 import 'package:bankflow/data/services/apis/contact_verification/dtos/contact_verification_request_response_dto.dart';
+import 'package:bankflow/data/services/apis/contact_verification/enums/contact_verification_channel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -17,7 +18,7 @@ void main() {
         requestResult: Success(
           ContactVerificationRequestResponseDto(
             verificationId: 'verification-id-1',
-            channel: 'email',
+            channel: ContactVerificationChannel.email,
             target: 'customer@example.com',
             // token: '123456',
             expiresAt: DateTime.parse('2026-05-18T12:10:00Z'),
@@ -26,7 +27,7 @@ void main() {
         confirmResult: Success(
           ContactVerificationConfirmResponseDto(
             verificationToken: 'verified-token',
-            channel: 'email',
+            channel: ContactVerificationChannel.email,
             target: 'customer@example.com',
             verifiedAt: DateTime.parse('2026-05-18T12:03:00Z'),
           ),
@@ -37,14 +38,14 @@ void main() {
 
       final result = await repository.requestContactVerification(
         ContactVerificationRequestDto(
-          channel: 'email',
+          channel: ContactVerificationChannel.email,
           target: 'customer@example.com',
         ),
       );
 
       expect(result, isA<Success<ContactVerificationRequestResponseDto>>());
       expect(result.value?.verificationId, 'verification-id-1');
-      expect(result.value?.channel, 'email');
+      expect(result.value?.channel, ContactVerificationChannel.email);
       expect(result.value?.target, 'customer@example.com');
       expect(api.requestCalls, 1);
     });
@@ -60,7 +61,7 @@ void main() {
         confirmResult: Success(
           ContactVerificationConfirmResponseDto(
             verificationToken: 'verified-token',
-            channel: 'email',
+            channel: ContactVerificationChannel.email,
             target: 'customer@example.com',
             verifiedAt: DateTime.parse('2026-05-18T12:03:00Z'),
           ),
@@ -71,7 +72,7 @@ void main() {
 
       final result = await repository.requestContactVerification(
         ContactVerificationRequestDto(
-          channel: 'email',
+          channel: ContactVerificationChannel.email,
           target: 'invalid',
         ),
       );
@@ -89,7 +90,7 @@ void main() {
         requestResult: Success(
           ContactVerificationRequestResponseDto(
             verificationId: 'verification-id-1',
-            channel: 'phone',
+            channel: ContactVerificationChannel.phone,
             target: '+5511999999999',
             // token: '123456',
             expiresAt: DateTime.parse('2026-05-18T12:10:00Z'),
@@ -98,7 +99,7 @@ void main() {
         confirmResult: Success(
           ContactVerificationConfirmResponseDto(
             verificationToken: 'verified-token',
-            channel: 'phone',
+            channel: ContactVerificationChannel.phone,
             target: '+5511999999999',
             verifiedAt: DateTime.parse('2026-05-18T12:03:00Z'),
           ),
@@ -116,7 +117,7 @@ void main() {
 
       expect(result, isA<Success<ContactVerificationConfirmResponseDto>>());
       expect(result.value?.verificationToken, 'verified-token');
-      expect(result.value?.channel, 'phone');
+      expect(result.value?.channel, ContactVerificationChannel.phone);
       expect(result.value?.target, '+5511999999999');
       expect(api.confirmCalls, 1);
     });
@@ -126,7 +127,7 @@ void main() {
         requestResult: Success(
           ContactVerificationRequestResponseDto(
             verificationId: 'verification-id-1',
-            channel: 'phone',
+            channel: ContactVerificationChannel.phone,
             target: '+5511999999999',
             // token: '123456',
             expiresAt: DateTime.parse('2026-05-18T12:10:00Z'),
