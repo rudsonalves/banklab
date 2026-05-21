@@ -35,14 +35,13 @@ void main() {
         'verification_id': 'a5d4f5f1-a1b0-4f58-9f74-123456789abc',
         'channel': 'email',
         'target': 'user@example.com',
-        'token': '123456',
         'expires_at': '2026-05-18T12:10:00Z',
       });
 
       expect(dto.verificationId, 'a5d4f5f1-a1b0-4f58-9f74-123456789abc');
       expect(dto.channel, 'email');
       expect(dto.target, 'user@example.com');
-      expect(dto.token, '123456');
+      // expect(dto.token, '123456');
       expect(dto.expiresAt, DateTime.parse('2026-05-18T12:10:00Z'));
     });
   });

@@ -134,8 +134,8 @@ func TestRequestContactVerificationUseCase_Execute_Success(t *testing.T) {
 	if userRepo.existsByEmailValue != "user@example.com" {
 		t.Fatalf("expected ExistsByEmail value user@example.com, got %q", userRepo.existsByEmailValue)
 	}
-	if len(output.Token) != 6 {
-		t.Fatalf("expected token length 6, got %q", output.Token)
+	if output.DebugToken == nil || len(*output.DebugToken) != 6 {
+		t.Fatalf("expected debug token length 6, got %v", output.DebugToken)
 	}
 	if !output.ExpiresAt.Equal(now.Add(contactVerificationTTL)) {
 		t.Fatalf("expected expires_at %v, got %v", now.Add(contactVerificationTTL), output.ExpiresAt)

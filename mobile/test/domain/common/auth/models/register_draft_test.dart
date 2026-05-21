@@ -100,8 +100,8 @@ void main() {
 
       expect(state.isDirty, isFalse);
 
-      state.updateCPF('123.456.789-09');
-      state.updateName(' Maria Silva ');
+      state.cpf = '123.456.789-09';
+      state.name = ' Maria Silva ';
 
       expect(state.cpf, '12345678909');
       expect(state.name, 'Maria Silva');
@@ -118,9 +118,9 @@ void main() {
     test('does not mark dirty when value does not change', () {
       final state = RegisterDraftState(now: DateTime.utc(2026, 5, 19, 10));
 
-      state.updateCPF('12345678909');
+      state.cpf = '12345678909';
       state.markClean();
-      state.updateCPF('123.456.789-09');
+      state.cpf = '123.456.789-09';
 
       expect(state.isDirty, isFalse);
       expect(state.dirtyFields, isEmpty);
@@ -129,7 +129,7 @@ void main() {
     test('clears dirty tracking after markClean', () {
       final state = RegisterDraftState(now: DateTime.utc(2026, 5, 19, 10));
 
-      state.updateEmail('maria@example.com');
+      state.email = 'maria@example.com';
       expect(state.isDirty, isTrue);
 
       state.markClean();
@@ -154,7 +154,7 @@ void main() {
         updatedAt: DateTime.utc(2026, 5, 19, 11),
       );
 
-      state.updateCPF('00000000000');
+      state.cpf = '00000000000';
       state.hydrate(snapshot);
 
       expect(state.cpf, '12345678909');
@@ -174,14 +174,14 @@ void main() {
     test('creates persistable snapshot from current state', () {
       final state = RegisterDraftState(now: DateTime.utc(2026, 5, 19, 10));
 
-      state.updateCPF('123.456.789-09');
-      state.updateName('Maria Silva');
-      state.updateBirthDate(DateTime(1990, 1, 15));
-      state.updateEmail('maria@example.com');
-      state.updatePhone('+5527999999999');
-      state.updateEmailVerificationId('email-id');
-      state.updatePhoneVerificationId('phone-id');
-      state.updateEmailVerified(true);
+      state.cpf = '123.456.789-09';
+      state.name = 'Maria Silva';
+      state.birthDate = DateTime(1990, 1, 15);
+      state.email = 'maria@example.com';
+      state.phone = '+5527999999999';
+      state.emailVerificationId = 'email-id';
+      state.phoneVerificationId = 'phone-id';
+      state.isEmailVerified = true;
 
       final snapshot = state.toSnapshot();
 
@@ -205,7 +205,7 @@ void main() {
       final state = RegisterDraftState(now: DateTime.utc(2026, 5, 19, 10));
       final persistedAt = DateTime.utc(2026, 5, 19, 12);
 
-      state.updatePhone('+5527999999999');
+      state.phone = '+5527999999999';
       state.markPersisted(persistedAt);
 
       expect(state.updatedAt, persistedAt);

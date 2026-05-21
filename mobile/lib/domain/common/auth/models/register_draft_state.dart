@@ -17,10 +17,12 @@ class RegisterDraftState {
 
   final Set<RegisterDraftField> _dirtyFields = {};
 
+  /// Creates a new draft state initialized with the provided [now] timestamp.
   RegisterDraftState({
     DateTime? now,
   }) : this._withNow((now ?? DateTime.now()).toUtc());
 
+  /// Internal constructor used to initialize creation and update timestamps.
   RegisterDraftState._withNow(DateTime now)
     : _createdAt = now,
       _updatedAt = now;
@@ -36,10 +38,14 @@ class RegisterDraftState {
   bool get isPhoneVerified => _isPhoneVerified;
   DateTime get createdAt => _createdAt;
   DateTime get updatedAt => _updatedAt;
+
+  /// Read-only view of fields changed since the last clean mark.
   Set<RegisterDraftField> get dirtyFields => Set.unmodifiable(_dirtyFields);
+
+  /// Whether at least one field has changed since the last clean mark.
   bool get isDirty => _dirtyFields.isNotEmpty;
 
-  void updateCPF(String value) {
+  set cpf(String value) {
     _set(
       RegisterDraftField.cpf,
       _cpf,
@@ -48,7 +54,7 @@ class RegisterDraftState {
     );
   }
 
-  void updateName(String? value) {
+  set name(String? value) {
     _set(
       RegisterDraftField.name,
       _name,
@@ -57,7 +63,7 @@ class RegisterDraftState {
     );
   }
 
-  void updateBirthDate(DateTime? value) {
+  set birthDate(DateTime? value) {
     _set(
       RegisterDraftField.birthDate,
       _birthDate,
@@ -66,7 +72,7 @@ class RegisterDraftState {
     );
   }
 
-  void updateEmail(String? value) {
+  set email(String? value) {
     _set(
       RegisterDraftField.email,
       _email,
@@ -75,7 +81,7 @@ class RegisterDraftState {
     );
   }
 
-  void updatePhone(String? value) {
+  set phone(String? value) {
     _set(
       RegisterDraftField.phone,
       _phone,
@@ -84,7 +90,7 @@ class RegisterDraftState {
     );
   }
 
-  void updateEmailVerificationId(String? value) {
+  set emailVerificationId(String? value) {
     _set(
       RegisterDraftField.emailVerificationId,
       _emailVerificationId,
@@ -93,7 +99,7 @@ class RegisterDraftState {
     );
   }
 
-  void updatePhoneVerificationId(String? value) {
+  set phoneVerificationId(String? value) {
     _set(
       RegisterDraftField.phoneVerificationId,
       _phoneVerificationId,
@@ -102,7 +108,7 @@ class RegisterDraftState {
     );
   }
 
-  void updateEmailVerified(bool value) {
+  set isEmailVerified(bool value) {
     _set(
       RegisterDraftField.isEmailVerified,
       _isEmailVerified,
@@ -111,7 +117,7 @@ class RegisterDraftState {
     );
   }
 
-  void updatePhoneVerified(bool value) {
+  set isPhoneVerified(bool value) {
     _set(
       RegisterDraftField.isPhoneVerified,
       _isPhoneVerified,
@@ -120,6 +126,7 @@ class RegisterDraftState {
     );
   }
 
+  /// Converts the current mutable state into an immutable snapshot.
   RegisterDraftSnapshot toSnapshot() {
     return RegisterDraftSnapshot(
       cpf: _cpf,
@@ -136,12 +143,14 @@ class RegisterDraftState {
     );
   }
 
+  /// Recreates a mutable state from an existing [snapshot].
   static RegisterDraftState fromSnapshot(RegisterDraftSnapshot snapshot) {
     final state = RegisterDraftState();
     state.hydrate(snapshot);
     return state;
   }
 
+  /// Replaces the current in-memory values with data from [snapshot].
   void hydrate(RegisterDraftSnapshot snapshot) {
     _cpf = snapshot.cpf.onlyNumbers;
     _name = snapshot.name;
@@ -157,20 +166,24 @@ class RegisterDraftState {
     markClean();
   }
 
+  /// Clears dirty tracking for all fields.
   void markClean() {
     _dirtyFields.clear();
   }
 
+  /// Marks this draft as persisted at [persistedAt] and clears dirty fields.
   void markPersisted(DateTime persistedAt) {
     _updatedAt = persistedAt.toUtc();
     markClean();
   }
 
+  /// Marks [field] as dirty and refreshes the update timestamp.
   void _markDirty(RegisterDraftField field) {
     _dirtyFields.add(field);
     _updatedAt = DateTime.now().toUtc();
   }
 
+  /// Applies [next] to [field] only when it differs from [current].
   void _set<T>(
     RegisterDraftField field,
     T current,

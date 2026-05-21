@@ -79,7 +79,7 @@ class RegisterUsecase {
       );
     }
 
-    _state!.updateName(name);
+    _state!.name = name;
     return await _saveDirty();
   }
 
@@ -93,7 +93,7 @@ class RegisterUsecase {
       );
     }
 
-    _state!.updateBirthDate(birthDate);
+    _state!.birthDate = birthDate;
     return await _saveDirty();
   }
 
@@ -116,9 +116,9 @@ class RegisterUsecase {
         );
     if (result.isFailure) return Result.failure(result.error!);
 
-    _state!.updateEmail(email);
-    _state!.updateEmailVerified(false);
-    _state!.updateEmailVerificationId(result.value!.verificationId);
+    _state!.email = email;
+    _state!.isEmailVerified = false;
+    _state!.emailVerificationId = result.value!.verificationId;
     _emailVerificationToken = null;
     return await _saveDirty();
   }
@@ -142,9 +142,9 @@ class RegisterUsecase {
         );
     if (result.isFailure) return Result.failure(result.error!);
 
-    _state!.updatePhone(phone);
-    _state!.updatePhoneVerified(false);
-    _state!.updatePhoneVerificationId(result.value!.verificationId);
+    _state!.phone = phone;
+    _state!.isPhoneVerified = false;
+    _state!.phoneVerificationId = result.value!.verificationId;
     _phoneVerificationToken = null;
     return await _saveDirty();
   }
@@ -178,7 +178,7 @@ class RegisterUsecase {
     if (result.isFailure) return Result.failure(result.error!);
 
     _emailVerificationToken = result.value!.verificationToken;
-    _state!.updateEmailVerified(true);
+    _state!.isEmailVerified = true;
     return await _saveDirty();
   }
 
@@ -211,7 +211,7 @@ class RegisterUsecase {
     if (result.isFailure) return Result.failure(result.error!);
 
     _phoneVerificationToken = result.value!.verificationToken;
-    _state!.updatePhoneVerified(true);
+    _state!.isPhoneVerified = true;
     return await _saveDirty();
   }
 

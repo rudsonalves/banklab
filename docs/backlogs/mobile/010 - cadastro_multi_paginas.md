@@ -104,8 +104,9 @@ Comportamento:
 - Permitir solicitar código por e-mail.
 - Chamar `POST /auth/contact-verifications` com `channel = email`.
 - Enviar `X-App-Token`.
-- Em ambiente de desenvolvimento, o token retornado pela API continua sendo
-  impresso no log de depuração pelo `AuthApi`.
+- Enquanto não houver envio real por e-mail/SMS, o `debug_token` retornado pela
+  API continua sendo lido separadamente do DTO principal e impresso no log de
+  depuração pelo `AuthApi`.
 - Persistir `email` e `email_verification_id` no rascunho local.
 
 ### Página 5: Token de confirmação do e-mail
@@ -135,8 +136,9 @@ Comportamento:
   `+5527999999999`.
 - Chamar `POST /auth/contact-verifications` com `channel = phone`.
 - Enviar `X-App-Token`.
-- Em ambiente de desenvolvimento, o token retornado pela API continua sendo
-  impresso no log de depuração pelo `AuthApi`.
+- Enquanto não houver envio real por e-mail/SMS, o `debug_token` retornado pela
+  API continua sendo lido separadamente do DTO principal e impresso no log de
+  depuração pelo `AuthApi`.
 - Persistir `phone` e `phone_verification_id` no rascunho local.
 
 ### Página 7: Token de confirmação do telefone
@@ -363,8 +365,8 @@ Possíveis ajustes de API já aplicados:
 - `POST /auth/cpf-check`, `POST /auth/contact-verifications`,
   `POST /auth/contact-verifications/confirm` e `POST /auth/register` enviam
   `X-App-Token`.
-- O app continua imprimindo o token retornado no log de depuração em ambiente de
-  desenvolvimento.
+- O app continua imprimindo o `debug_token` retornado no log de depuração
+  enquanto não houver serviço de notificação por e-mail/SMS.
 - Testes cobrem o caminho feliz completo e falhas de validação por etapa.
 
 ## Decisões fechadas

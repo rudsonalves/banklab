@@ -178,14 +178,15 @@ func TestHandler_Register_Success(t *testing.T) {
 
 func TestHandler_RequestContactVerification_Success(t *testing.T) {
 	verificationID := uuid.New()
+	debugToken := "123456"
 	expiresAt := time.Date(2026, 5, 18, 12, 10, 0, 0, time.UTC)
 	requestUC := &requestContactVerificationUseCaseMock{
 		output: &application.RequestContactVerificationOutput{
 			VerificationID: verificationID,
 			Channel:        "email",
 			Target:         "user@example.com",
-			Token:          "123456",
 			ExpiresAt:      expiresAt,
+			DebugToken:     &debugToken,
 		},
 	}
 	handler := New(nil, nil, nil, nil, requestUC, nil)
@@ -212,7 +213,7 @@ func TestHandler_RequestContactVerification_Success(t *testing.T) {
 			VerificationID string `json:"verification_id"`
 			Channel        string `json:"channel"`
 			Target         string `json:"target"`
-			Token          string `json:"token"`
+			DebugToken     string `json:"debug_token"`
 		} `json:"data"`
 		Error any `json:"error"`
 	}
@@ -222,8 +223,8 @@ func TestHandler_RequestContactVerification_Success(t *testing.T) {
 	if got.Data.VerificationID != verificationID.String() {
 		t.Fatalf("expected verification ID %q, got %q", verificationID.String(), got.Data.VerificationID)
 	}
-	if got.Data.Token != "123456" {
-		t.Fatalf("expected token %q, got %q", "123456", got.Data.Token)
+	if got.Data.DebugToken != "123456" {
+		t.Fatalf("expected debug_token %q, got %q", "123456", got.Data.DebugToken)
 	}
 	if got.Error != nil {
 		t.Fatalf("expected nil error, got %#v", got.Error)

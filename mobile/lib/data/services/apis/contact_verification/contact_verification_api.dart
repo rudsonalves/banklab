@@ -87,8 +87,11 @@ class ContactVerificationApi {
 
       const appMode = String.fromEnvironment('APP_MODE', defaultValue: 'dev');
       if (appMode.toLowerCase() == 'dev') {
+        final token =
+            (resp.data as Map<String, dynamic>)['data']['debug_token']
+                as String?;
         _log.info(
-          'Contact verification token (${envelope.data!.channel}): ${envelope.data!.token}',
+          'Contact verification token (${envelope.data!.channel}): $token',
           label: 'requestContactVerification',
         );
       }

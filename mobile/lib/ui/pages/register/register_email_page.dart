@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/core/extensions/string.dart';
 import '/core/result/errors/app_error.dart';
 import '/core/routing/routes.dart';
 import '/ui/components/base/safe_scaffold.dart';
@@ -8,7 +9,6 @@ import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
 import '/ui/components/text_form_field/basic_text_form_field.dart';
-import '../../../core/extensions/string.dart';
 import 'viewmodel/register_viewmodel.dart';
 
 class RegisterEmailPage extends StatefulWidget {

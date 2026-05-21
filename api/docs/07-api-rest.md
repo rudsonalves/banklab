@@ -237,12 +237,18 @@ Success response (201):
     "verification_id": "8d9ad65f-f837-4f6f-bd20-63f2c7cefab6",
     "channel": "email",
     "target": "user@example.com",
-    "token": "123456",
+    "debug_token": "123456",
     "expires_at": "2026-05-18T12:10:00Z"
   },
   "error": null
 }
 ```
+
+`debug_token` is returned by the current implementation because the project does
+not yet have an e-mail/SMS notification provider to deliver verification codes.
+Clients may use it for local/manual testing and debug logs, but application flow
+must not treat it as part of the stable verification contract. The stable data
+for the request step is `verification_id`, `channel`, `target`, and `expires_at`.
 
 Possible errors:
 - 400 INVALID_DATA: invalid channel or empty target

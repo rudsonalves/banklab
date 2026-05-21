@@ -534,16 +534,21 @@ Resposta em ambiente local/dev:
     "verification_id": "verification-id",
     "channel": "email",
     "target": "user@example.com",
-    "token": "123456",
+    "debug_token": "123456",
     "expires_at": "2026-05-15T18:00:00Z"
   },
   "error": null
 }
 ```
 
+`debug_token` registra o comportamento operacional atual: como ainda não existe
+serviço de notificação por e-mail/SMS, a API devolve o código para permitir
+testes manuais e logs de depuração. Esse campo não deve ser tratado como parte
+do contrato estável do fluxo de verificação pelo cliente.
+
 Observação:
 
-- Em ambiente futuro com provedor externo, `token` não deve ser retornado na resposta.
+- Em ambiente futuro com provedor externo, `debug_token` não deve ser retornado na resposta.
 - O backend deve enviar o token por email/SMS usando serviço externo.
 
 #### POST /auth/contact-verifications/confirm

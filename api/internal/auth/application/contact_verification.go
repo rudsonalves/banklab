@@ -40,8 +40,9 @@ type RequestContactVerificationOutput struct {
 	VerificationID uuid.UUID `json:"verification_id"`
 	Channel        string    `json:"channel"`
 	Target         string    `json:"target"`
-	Token          string    `json:"token"`
 	ExpiresAt      time.Time `json:"expires_at"`
+
+	DebugToken *string `json:"debug_token,omitempty"`
 }
 
 func (uc *RequestContactVerificationUseCase) Execute(
@@ -99,7 +100,7 @@ func (uc *RequestContactVerificationUseCase) Execute(
 		VerificationID: verification.ID,
 		Channel:        string(verification.Channel),
 		Target:         verification.Target,
-		Token:          verification.Token,
+		DebugToken:     &verification.Token,
 		ExpiresAt:      verification.ExpiresAt,
 	}, nil
 }

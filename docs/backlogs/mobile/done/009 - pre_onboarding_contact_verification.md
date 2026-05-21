@@ -94,12 +94,16 @@ Resposta esperada:
     "verification_id": "uuid",
     "channel": "email",
     "target": "user@example.com",
-    "token": "123456",
+    "debug_token": "123456",
     "expires_at": "2026-05-18T12:10:00Z"
   },
   "error": null
 }
 ```
+
+`debug_token` existe apenas porque o backend ainda não possui envio real por
+e-mail/SMS. O app pode lê-lo na borda de API para log de depuração, mas o DTO do
+fluxo de cadastro não deve depender desse campo.
 
 ### Confirmar verificação
 
@@ -159,8 +163,9 @@ orquestrar o estado das etapas.
 - O `RegisterViewmodel` continuará gerenciando o fluxo de registro.
 - O telefone será nacional brasileiro, no formato visual `(27) 99999-9999`.
 - A data de nascimento deve ser coletada com date picker.
-- Enquanto não houver envio real de e-mail/SMS, o token retornado pela API deve
-  ser impresso no terminal/log de depuração da aplicação.
+- Enquanto não houver envio real de e-mail/SMS, o `debug_token` retornado pela
+  API deve ser lido separadamente do DTO principal e impresso no terminal/log de
+  depuração da aplicação.
 - A mensagem de `CONTACT_NOT_VERIFIED` deve ser específica por canal, usando os
   detalhes `email_verified` e `phone_verified` quando disponíveis.
 - A tela de cadastro deve ser redesenhada para o novo fluxo.
@@ -178,8 +183,9 @@ Representar os novos contratos de request/response da API no mobile.
 - Criar DTO para confirmar verificação.
 - Criar DTO para resposta de confirmação.
 - Preservar parse por envelope `data`/`error`.
-- Representar `verification_id`, `token`, `verification_token`, `channel`,
-  `target`, `expires_at` e `verified_at`.
+- Representar `verification_id`, `verification_token`, `channel`, `target`,
+  `expires_at` e `verified_at`. O `debug_token`, quando presente, é dado de
+  depuração da borda de API e não deve compor o DTO principal do fluxo.
 
 ### Critérios de aceite
 

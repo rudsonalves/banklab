@@ -240,7 +240,7 @@ func requestAndConfirmContactVerification(t *testing.T, baseURL, channel, target
 	var requestBody struct {
 		Data struct {
 			VerificationID string `json:"verification_id"`
-			Token          string `json:"token"`
+			DebugToken     string `json:"debug_token"`
 		} `json:"data"`
 		Error *apiError `json:"error"`
 	}
@@ -248,10 +248,13 @@ func requestAndConfirmContactVerification(t *testing.T, baseURL, channel, target
 	if requestBody.Error != nil {
 		t.Fatalf("expected contact verification error to be nil, got %+v", requestBody.Error)
 	}
+	if requestBody.Data.DebugToken == "" {
+		t.Fatal("expected debug token to be returned")
+	}
 
 	confirmResp := performJSONRequest(t, baseURL+"/auth/contact-verifications/confirm", http.MethodPost, map[string]any{
 		"verification_id": requestBody.Data.VerificationID,
-		"token":           requestBody.Data.Token,
+		"token":           requestBody.Data.DebugToken,
 	}, "")
 	if confirmResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected contact verification confirm status %d, got %d", http.StatusOK, confirmResp.StatusCode)

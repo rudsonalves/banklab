@@ -1,5 +1,128 @@
 # Changelog
 
+## 2026/05/21 - mobile/pre-onboarding-12
+
+Refined the pre-onboarding contact verification flow across API, mobile, tests, and documentation, with emphasis on separating temporary development/debug behavior from the stable verification contract.
+
+### API and verification contract adjustments
+
+1. Updated contact verification response semantics
+
+   * Replaced `token` with `debug_token` in the contact verification request response.
+   * Changed the API contract to explicitly treat the verification token as a temporary debug-only artifact while no e-mail/SMS provider exists.
+   * Kept the stable contract centered on:
+
+     * `verification_id`
+     * `channel`
+     * `target`
+     * `expires_at`
+
+2. Improved backend response modeling
+
+   * Replaced:
+
+     * `Token string`
+   * With:
+
+     * `DebugToken *string`
+   * Added `omitempty` semantics to avoid coupling clients to temporary debug data.
+
+3. Updated integration and handler tests
+
+   * Adjusted request/confirmation integration flow to consume `debug_token`.
+   * Added explicit assertions validating the presence of `debug_token` during local/dev execution.
+   * Updated API handler tests and use case tests to reflect the new contract semantics.
+
+4. Clarified operational documentation
+
+   * Updated REST API documentation and onboarding backlog documents to explain:
+
+     * why `debug_token` currently exists
+     * why clients must not depend on it
+     * future removal expectations once notification providers are integrated
+
+### Mobile onboarding and DTO refactoring
+
+1. Removed verification token from the main DTO model
+
+   * Simplified `ContactVerificationRequestResponseDto`.
+   * Removed `token` from the registration flow DTO structure.
+   * Preserved the verification flow contract independently from temporary debug data.
+
+2. Moved debug token handling to the API boundary
+
+   * `ContactVerificationApi` now reads `debug_token` directly from the raw response envelope only in development mode.
+   * Prevented propagation of debug-only fields into domain/application layers.
+   * Kept debug logging available for local testing while preserving clean architecture boundaries.
+
+3. Refactored `RegisterDraftState`
+
+   * Replaced imperative `updateX()` methods with property setters:
+
+     * `cpf =`
+     * `name =`
+     * `birthDate =`
+     * `email =`
+     * `phone =`
+     * verification-related setters
+   * Improved readability and reduced noise in `RegisterUsecase`.
+
+4. Expanded model documentation
+
+   * Added inline documentation to:
+
+     * dirty tracking behavior
+     * persistence lifecycle
+     * snapshot hydration
+     * timestamp semantics
+     * mutation internals
+
+5. Updated register use case orchestration
+
+   * Migrated all draft mutations to setter-based syntax.
+   * Preserved dirty-state persistence behavior and verification orchestration flow.
+
+### Mobile tests and cleanup
+
+1. Updated repository and DTO tests
+
+   * Removed token expectations from DTO parsing tests.
+   * Adjusted repository/use case fixtures to align with the new contract.
+
+2. Updated draft state tests
+
+   * Migrated all state mutation tests to the setter-based API.
+   * Preserved validation for:
+
+     * normalization
+     * dirty tracking
+     * persistence timestamps
+     * snapshot hydration
+
+3. Import normalization and cleanup
+
+   * Standardized extension imports in register pages.
+   * Removed outdated relative imports.
+
+### Infrastructure and development workflow
+
+1. Improved Docker/Colima startup behavior
+
+   * Removed implicit `colima start` execution from `docker-up`.
+   * Moved Colima initialization to `docker-check`.
+   * Reduced unnecessary VM startup attempts during regular Docker commands.
+   * Improved separation between:
+
+     * environment validation
+     * container lifecycle operations
+
+2. Updated local Postman environment
+
+   * Adjusted local `base_url` IP for current development environment.
+
+This commit reinforces an important architectural distinction in the onboarding flow: temporary operational/debug behavior must remain isolated from stable application contracts and domain models.
+
+
 ## 2026/05/20 - mobile/pre-onboarding-11
 
 Refactor and expand the mobile onboarding flow with persistent draft recovery, new registration screens, improved validation helpers, and a more complete pre-onboarding user experience.

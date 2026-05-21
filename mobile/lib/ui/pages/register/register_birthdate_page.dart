@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '/core/extensions/datetime_extension.dart';
 import '/core/routing/routes.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
-import '../../../core/extensions/datetime_extension.dart';
 import 'viewmodel/register_viewmodel.dart';
 
 class RegisterBirthdatePage extends StatefulWidget {
