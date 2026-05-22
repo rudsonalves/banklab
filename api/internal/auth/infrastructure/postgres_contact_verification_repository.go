@@ -37,7 +37,8 @@ func (r *PostgresContactVerificationRepository) executor(ctx context.Context) db
 	return r.db
 }
 
-// CreateContactVerification persists a new contact verification attempt.
+// CreateContactVerification persists a contact verification attempt. A new
+// request for the same channel and target replaces the previous attempt.
 func (r *PostgresContactVerificationRepository) CreateContactVerification(
 	ctx context.Context,
 	verification *domain.ContactVerification,
@@ -52,6 +53,14 @@ func (r *PostgresContactVerificationRepository) CreateContactVerification(
 			created_at
 		)
 		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (target, channel)
+		DO UPDATE SET
+			id = EXCLUDED.id,
+			token = EXCLUDED.token,
+			verification_token = NULL,
+			verified_at = NULL,
+			expires_at = EXCLUDED.expires_at,
+			created_at = EXCLUDED.created_at
 	`
 
 	_, err := r.executor(ctx).Exec(

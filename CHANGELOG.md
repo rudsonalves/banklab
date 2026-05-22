@@ -1,5 +1,118 @@
 # Changelog
 
+## 2026/05/22 — mobile/pre-onboarding-16
+
+Refined the pre-onboarding registration flow by strengthening contact verification consistency on the API side and improving password validation and UX behavior on the Flutter client.
+
+### API
+
+1. Improved contact verification uniqueness handling
+
+   * Replaced the non-unique `idx_contact_verifications_target_channel` index with the unique index `contact_verifications_unique_target_channel`.
+   * Enforced a single active verification attempt per `(target, channel)` pair.
+   * Updated integration test schema setup to reflect the new database constraint.
+
+2. Added contact verification replacement semantics
+
+   * Updated `PostgresContactVerificationRepository.CreateContactVerification` to support `ON CONFLICT (target, channel)`.
+   * Existing verification attempts are now replaced atomically when a new request is created for the same target/channel.
+   * Reset verification state on replacement:
+
+     * `verification_token`
+     * `verified_at`
+     * expiration metadata
+     * creation timestamp
+   * Preserved deterministic behavior during repeated onboarding attempts.
+
+3. Added automated cleanup migration for contact verifications
+
+   * Created migration `000009_contact_verifications_cleanup.up.sql`.
+   * Added deduplication cleanup before applying the unique index.
+   * Added partial indexes for:
+
+     * unverified expired records
+     * verified records
+   * Introduced `contact_verification_cleanup_runs` control table.
+   * Added PostgreSQL cleanup functions:
+
+     * `cleanup_contact_verifications`
+     * `cleanup_contact_verifications_if_due`
+   * Added trigger-based periodic cleanup execution.
+   * Used advisory locks to prevent concurrent cleanup execution.
+   * Established retention policies:
+
+     * expired unverified records older than 24h
+     * verified records older than 7 days
+   * Added matching rollback migration.
+
+### Mobile
+
+1. Refactored password domain model
+
+   * Converted `PasswordModel` constructor to named parameters.
+   * Added centralized password validation rules:
+
+     * minimum length
+     * uppercase requirement
+     * lowercase requirement
+     * numeric requirement
+   * Added semantic getters:
+
+     * `hasNumber`
+     * `hasUppercase`
+     * `hasLowercase`
+     * `hasMinLength`
+     * `isValidPassword`
+     * `hasEquals`
+     * `isValid`
+   * Centralized minimum length through `PasswordModel.minLength`.
+
+2. Introduced `PasswordDraft`
+
+   * Added mutable UI-oriented password draft model.
+   * Encapsulated UI validation state around the domain `PasswordModel`.
+   * Reduced duplicated password validation logic inside the page layer.
+   * Improved separation between UI state and domain validation rules.
+
+3. Simplified password page validation flow
+
+   * Removed duplicated regex and validation logic from `RegisterPasswordPage`.
+   * Replaced manual validation with `PasswordDraft` state accessors.
+   * Centralized enable/disable button logic using `PasswordDraft.isValid`.
+   * Updated password criteria label to use the centralized minimum length constant.
+   * Removed direct submit on keyboard action to avoid premature submissions.
+
+4. Improved registration diagnostics
+
+   * Added structured registration request logging inside `RegistrationApi`.
+   * Improved onboarding request traceability during integration/debug sessions.
+
+5. Updated registration tests
+
+   * Adjusted registration use case tests to reflect the new password policy.
+   * Replaced weak password fixtures with compliant values (`Secret123`).
+
+### Dependencies and tooling
+
+1. Updated Flutter dependencies
+
+   * Refreshed multiple package versions including:
+
+     * `flutter_secure_storage`
+     * `go_router`
+     * `google_fonts`
+     * `objective_c`
+     * `meta`
+     * `vm_service`
+     * others from transitive dependency resolution.
+
+2. Updated Postman environment
+
+   * Adjusted local API base URL for the current development environment.
+
+This commit consolidates an important pre-onboarding foundation by improving deterministic verification handling on the backend while moving password validation rules into a cleaner and more reusable domain-oriented structure on the Flutter client.
+
+
 ## 2026/05/21 — mobile/pre-onboarding-14
 
 This commit advances the mobile onboarding and authentication experience by introducing a complete password registration flow, registration status feedback pages, and a broader UI component reorganization focused on reusable input abstractions.

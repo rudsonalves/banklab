@@ -92,6 +92,11 @@ class RegistrationApi {
       ),
     );
 
+    _log.info(
+      'Register request sent with data: ${dto.toMap()}',
+      label: 'register',
+    );
+
     if (response.isFailure) return Result.failure(response.error!);
 
     try {

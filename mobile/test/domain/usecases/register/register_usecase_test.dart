@@ -174,7 +174,7 @@ void main() {
         expect(request.name, 'Maria Silva');
         expect(request.email, 'maria@example.com');
         expect(request.phone, '(27) 99999-9999');
-        expect(request.password, 'secret123');
+        expect(request.password, 'Secret123');
         expect(request.emailVerificationToken, 'email-verification-token');
         expect(request.phoneVerificationToken, 'phone-verification-token');
         expect(draftRepository.deletedCpfs, ['12345678909']);
@@ -233,7 +233,9 @@ Future<void> _prepareValidRegistration(RegisterUsecase usecase) async {
   await usecase.confirmEmailToken('111111');
   await usecase.submitAndRequestPhoneToken('(27) 99999-9999');
   await usecase.confirmPhoneToken('222222');
-  await usecase.submitPassword(PasswordModel('secret123', 'secret123'));
+  await usecase.submitPassword(
+    PasswordModel(value: 'Secret123', confirm: 'Secret123'),
+  );
 }
 
 RegisterDraftSnapshot _snapshot() {

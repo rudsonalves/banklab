@@ -438,7 +438,7 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			CONSTRAINT chk_contact_verifications_channel CHECK (channel IN ('email', 'phone'))
 		)`,
-		`CREATE INDEX IF NOT EXISTS idx_contact_verifications_target_channel
+		`CREATE UNIQUE INDEX IF NOT EXISTS contact_verifications_unique_target_channel
 			ON contact_verifications(target, channel)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS contact_verifications_unique_verification_token
 			ON contact_verifications(verification_token)
