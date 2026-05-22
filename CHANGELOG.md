@@ -1,5 +1,87 @@
 # Changelog
 
+## 2026/05/22 - milestone/basic-banking-core
+
+This commit establishes an important architectural milestone for the BankLab project.
+
+At this stage, the project consolidates a functional and coherent foundation for a basic banking platform, including transactional consistency, authentication flows, onboarding evolution, ledger operations, mobile integration, and progressive registration flows. Although the next natural step would be the implementation of KYC and stronger contextual verification mechanisms, the current state already fulfills the original objective of building a robust experimentation base for Zero Trust Architecture studies in mobile and backend environments.
+
+This milestone also becomes strategically relevant because it creates a reusable foundation for future parallel projects that may evolve independently from the onboarding and regulatory layers.
+
+### Documentation and Historical Consolidation
+
+* Added a comprehensive technical evolution report:
+
+  * `docs/relatorios/2026-05-18 - 05-22.md`
+
+    * Consolidates the implementation history between:
+
+      * `2026/05/18 - api/pre-onboarding-01`
+      * `2026/05/22 - api/pg_cron-01`
+    * Documents the transition from a simple CPF-centric registration model into a progressive onboarding architecture.
+    * Summarizes:
+
+      * identity normalization;
+      * contact verification flows;
+      * onboarding hardening;
+      * mobile registration restructuring;
+      * draft persistence architecture;
+      * pg_cron lifecycle maintenance;
+      * modularization efforts;
+      * testing evolution;
+      * architectural preparation for future ZTA/KYC flows.
+    * Establishes a historical and architectural reference point for the current maturity of the project.
+
+### Documentation Structure Reorganization
+
+* Reorganized technical reports into a dedicated reports directory:
+
+  * moved:
+
+    * `docs/relatorio-api-implementada-2026-05-12.md`
+  * to:
+
+    * `docs/relatorios/relatorio-api-implementada-2026-05-12.md`
+
+* Reorganized mobile implementation reports:
+
+  * moved:
+
+    * `docs/relatorio-mobile-implementado-2026-05-12.md`
+  * to:
+
+    * `docs/relatorios/relatorio-mobile-implementado-2026-05-12.md`
+
+### Architectural Significance
+
+This commit represents the closing of the project's first major operational cycle.
+
+The system now contains:
+
+* transactional banking core;
+* account and ledger operations;
+* JWT authentication model;
+* onboarding orchestration;
+* progressive mobile registration;
+* contact verification lifecycle;
+* secure onboarding persistence;
+* modular layered architecture;
+* PostgreSQL transactional consistency strategies;
+* documentation sufficiently mature to support future contributors and derived projects.
+
+From this point forward, the project can evolve in multiple directions independently:
+
+* KYC and regulatory onboarding;
+* contextual Zero Trust evaluation;
+* MFA and device binding;
+* liveness verification;
+* web clients;
+* production-grade operational hardening;
+* derived banking and fintech experiments.
+
+This branch is intended to preserve the current state as a stable architectural milestone before the project transitions into deeper security and contextual trust experimentation.
+
+
 ## 2026/05/22 — api/pg_cron-01
 
 Introduce PostgreSQL 17 with `pg_cron` support and migrate contact verification cleanup from trigger-based execution to scheduled database jobs.
