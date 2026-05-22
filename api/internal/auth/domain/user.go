@@ -22,14 +22,17 @@ const (
 )
 
 type User struct {
-	ID           uuid.UUID
-	Email        string
-	PasswordHash string
-	Role         Role
-	CustomerID   *uuid.UUID
-	Status       UserStatus
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID              uuid.UUID
+	Email           string
+	Phone           string
+	PasswordHash    string
+	Role            Role
+	CustomerID      *uuid.UUID
+	Status          UserStatus
+	EmailVerifiedAt *time.Time
+	PhoneVerifiedAt *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 func (r Role) IsValid() bool {

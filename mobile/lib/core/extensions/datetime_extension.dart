@@ -12,6 +12,17 @@ extension DateTimeExtensions on DateTime {
   String get formatDayLabel => DateFormat('dd/MM/yyyy').format(this);
 
   String get formatHour => DateFormat('HH:mm').format(this);
+
+  String get dateOnly => toIso8601String().split('T').first;
+
+  int get age {
+    final now = DateTime.now();
+    int age = now.year - year;
+    if (now.month < month || (now.month == month && now.day < day)) {
+      age--;
+    }
+    return age;
+  }
 }
 
 final class DateParser {
@@ -27,5 +38,12 @@ final class DateParser {
     if (str == null || str.isEmpty) return DateTime.now();
 
     return DateTime.tryParse(str) ?? DateTime.now();
+  }
+
+  static DateTime? parseDateOnly(String? value) {
+    final str = value?.trim();
+    if (str == null || str.isEmpty) return null;
+
+    return DateTime.tryParse(str);
   }
 }

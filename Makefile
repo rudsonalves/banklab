@@ -27,10 +27,6 @@ help: ## List available commands
 # Docker
 # =========================
 docker-up: ## Start Docker containers in detached mode
-	@if command -v colima > /dev/null 2>&1; then \
-		echo "Colima detected. Ensuring daemon is running..."; \
-		colima start; \
-	fi
 	docker compose up -d --no-recreate
 
 docker-down: ## Stop and remove Docker containers
@@ -43,6 +39,10 @@ docker-clean: ## Remove containers and volumes
 	docker compose down -v
 
 docker-check: ## Check if Docker is running
+	@if command -v colima > /dev/null 2>&1; then \
+		echo "Colima detected. Ensuring daemon is running..."; \
+		colima start; \
+	fi
 	@docker info > /dev/null 2>&1 || (echo "Docker is not running" && exit 1)
 
 # =========================

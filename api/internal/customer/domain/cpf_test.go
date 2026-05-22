@@ -1,6 +1,10 @@
 package domain
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/google/uuid"
+)
 
 func TestValidateCPF(t *testing.T) {
 	tests := []struct {
@@ -85,50 +89,69 @@ func TestValidateCPF(t *testing.T) {
 	}
 }
 
-func TestNewCustomer_InvalidCPF(t *testing.T) {
+func TestNewCPFDocument(t *testing.T) {
+	customerID := uuid.New()
+
+	document, err := NewCPFDocument(customerID, "123.456.789-09", true)
+	if err != nil {
+		t.Fatalf("NewCPFDocument() error = %v", err)
+	}
+
+	if document.CustomerID != customerID {
+		t.Errorf("CustomerID = %v, want %v", document.CustomerID, customerID)
+	}
+	if document.Type != DocumentTypeCPF {
+		t.Errorf("Type = %q, want %q", document.Type, DocumentTypeCPF)
+	}
+	if document.Value != "12345678909" {
+		t.Errorf("Value = %q, want %q", document.Value, "12345678909")
+	}
+	if document.Country != DefaultCountry {
+		t.Errorf("Country = %q, want %q", document.Country, DefaultCountry)
+	}
+	if !document.IsPrimary {
+		t.Error("IsPrimary = false, want true")
+	}
+	if document.Issuer != nil {
+		t.Errorf("Issuer = %v, want nil", document.Issuer)
+	}
+	if document.IssuerState != nil {
+		t.Errorf("IssuerState = %v, want nil", document.IssuerState)
+	}
+}
+
+func TestNewCPFDocument_InvalidInput(t *testing.T) {
 	tests := []struct {
-		name         string
-		customerName string
-		cpf          string
-		expectedErr  error
+		name       string
+		customerID uuid.UUID
+		cpf        string
+		wantErr    error
 	}{
 		{
-			name:         "empty name",
-			customerName: "",
-			cpf:          "12345678909",
-			expectedErr:  ErrNameRequired,
+			name:       "customer id vazio",
+			customerID: uuid.Nil,
+			cpf:        "12345678909",
+			wantErr:    ErrInvalidData,
 		},
 		{
-			name:         "empty CPF",
-			customerName: "John Doe",
-			cpf:          "",
-			expectedErr:  ErrCPFRequired,
+			name:       "cpf vazio",
+			customerID: uuid.New(),
+			cpf:        "",
+			wantErr:    ErrCPFRequired,
 		},
 		{
-			name:         "invalid CPF format",
-			customerName: "John Doe",
-			cpf:          "12345678901",
-			expectedErr:  ErrCPFInvalid,
-		},
-		{
-			name:         "valid formatted CPF",
-			customerName: "John Doe",
-			cpf:          "123.456.789-09",
-			expectedErr:  nil,
+			name:       "cpf inválido",
+			customerID: uuid.New(),
+			cpf:        "12345678901",
+			wantErr:    ErrCPFInvalid,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			customer, err := NewCustomer(tt.customerName, tt.cpf)
-			if err != tt.expectedErr {
-				t.Errorf("NewCustomer() error = %v, want %v", err, tt.expectedErr)
-			}
-			if err == nil && customer == nil {
-				t.Error("NewCustomer() returned nil customer with nil error")
-			}
-			if err == nil && customer.CPF != "12345678909" {
-				t.Errorf("NewCustomer() CPF = %q, want %q", customer.CPF, "12345678909")
+			_, err := NewCPFDocument(tt.customerID, tt.cpf, true)
+			if err != tt.wantErr {
+				t.Errorf("NewCPFDocument() error = %v, want %v", err, tt.wantErr)
 			}
 		})
 	}

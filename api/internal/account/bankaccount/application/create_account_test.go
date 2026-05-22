@@ -55,8 +55,8 @@ func (m *customerRepositoryMock) Create(ctx context.Context, c *customerdomain.C
 	return nil
 }
 
-func (m *customerRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*customerdomain.Customer, string, error) {
-	return nil, "", nil
+func (m *customerRepositoryMock) GetByID(ctx context.Context, id uuid.UUID) (*customerdomain.CustomerProfile, error) {
+	return nil, nil
 }
 
 type userRepositoryMock struct {
@@ -83,6 +83,10 @@ func (m *userRepositoryMock) FindByID(ctx context.Context, id uuid.UUID) (*authd
 }
 
 func (m *userRepositoryMock) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return false, nil
+}
+
+func (m *userRepositoryMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
 	return false, nil
 }
 

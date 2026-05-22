@@ -5,10 +5,10 @@ import 'package:bankflow/core/services/client_http/client/rest_client_request.da
 import 'package:bankflow/core/services/client_http/client/rest_client_response.dart';
 import 'package:bankflow/core/services/secure_storage/local_secure_storage.dart';
 import 'package:bankflow/data/repositories/auth/auth_repository_impl.dart';
-import 'package:bankflow/data/services/auth/api/auth_api.dart';
-import 'package:bankflow/data/services/auth/api/dtos/login_request_dto.dart';
-import 'package:bankflow/data/services/auth/cache/last_login_cache_service.dart';
-import 'package:bankflow/data/services/auth/cache/models/last_login_identity.dart';
+import 'package:bankflow/data/services/apis/auth/auth_api.dart';
+import 'package:bankflow/data/services/apis/auth/dtos/login_request_dto.dart';
+import 'package:bankflow/data/services/cache/last_login/last_login_cache_service.dart';
+import 'package:bankflow/data/services/cache/last_login/models/last_login_identity.dart';
 import 'package:bankflow/domain/common/auth/models/auth_user.dart';
 import 'package:bankflow/domain/common/auth/models/user_profile.dart';
 import 'package:bankflow/domain/common/user/enums/user_role.dart';

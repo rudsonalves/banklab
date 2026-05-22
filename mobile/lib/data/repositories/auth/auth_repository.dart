@@ -1,9 +1,8 @@
 import '/core/result/result.dart';
+import '/data/services/apis/auth/dtos/login_request_dto.dart';
+import '/data/services/cache/last_login/models/last_login_identity.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
-import '../../services/auth/api/dtos/login_request_dto.dart';
-import '../../services/auth/api/dtos/register_request_dto.dart';
-import '../../services/auth/cache/models/last_login_identity.dart';
 
 abstract class AuthRepository {
   /// Returns the current authentication state for the app session.
@@ -26,11 +25,6 @@ abstract class AuthRepository {
   ///
   /// If no user is logged in, it completes successfully without side effects.
   AsyncResult<Unit> logout();
-
-  /// Registers a new user account.
-  ///
-  /// Returns a failure when called while there is an active logged-in session.
-  AsyncResult<Unit> register(RegisterRequestDto dto);
 
   /// Returns the authenticated user's profile.
   ///

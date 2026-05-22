@@ -1,10 +1,28 @@
 enum AuthRoutes {
   login('/login'),
   shortLogin('/short-login'),
-  register('/register')
+  // register('/register')
   ;
 
   const AuthRoutes(this.path);
+
+  final String path;
+}
+
+enum RegisterRoutes {
+  cpf('/register/cpf'),
+  name('/register/name'),
+  birthDate('/register/birth-date'),
+  email('/register/email'),
+  emailToken('/register/email-token'),
+  phone('/register/phone'),
+  phoneToken('/register/phone-token'),
+  password('/register/password'),
+  success('/register/success'),
+  failure('/register/failure')
+  ;
+
+  const RegisterRoutes(this.path);
 
   final String path;
 }

@@ -1,5 +1,3021 @@
 # Changelog
 
+## 2026/05/22 — mobile/pre-onboarding-16
+
+Refined the pre-onboarding registration flow by strengthening contact verification consistency on the API side and improving password validation and UX behavior on the Flutter client.
+
+### API
+
+1. Improved contact verification uniqueness handling
+
+   * Replaced the non-unique `idx_contact_verifications_target_channel` index with the unique index `contact_verifications_unique_target_channel`.
+   * Enforced a single active verification attempt per `(target, channel)` pair.
+   * Updated integration test schema setup to reflect the new database constraint.
+
+2. Added contact verification replacement semantics
+
+   * Updated `PostgresContactVerificationRepository.CreateContactVerification` to support `ON CONFLICT (target, channel)`.
+   * Existing verification attempts are now replaced atomically when a new request is created for the same target/channel.
+   * Reset verification state on replacement:
+
+     * `verification_token`
+     * `verified_at`
+     * expiration metadata
+     * creation timestamp
+   * Preserved deterministic behavior during repeated onboarding attempts.
+
+3. Added automated cleanup migration for contact verifications
+
+   * Created migration `000009_contact_verifications_cleanup.up.sql`.
+   * Added deduplication cleanup before applying the unique index.
+   * Added partial indexes for:
+
+     * unverified expired records
+     * verified records
+   * Introduced `contact_verification_cleanup_runs` control table.
+   * Added PostgreSQL cleanup functions:
+
+     * `cleanup_contact_verifications`
+     * `cleanup_contact_verifications_if_due`
+   * Added trigger-based periodic cleanup execution.
+   * Used advisory locks to prevent concurrent cleanup execution.
+   * Established retention policies:
+
+     * expired unverified records older than 24h
+     * verified records older than 7 days
+   * Added matching rollback migration.
+
+### Mobile
+
+1. Refactored password domain model
+
+   * Converted `PasswordModel` constructor to named parameters.
+   * Added centralized password validation rules:
+
+     * minimum length
+     * uppercase requirement
+     * lowercase requirement
+     * numeric requirement
+   * Added semantic getters:
+
+     * `hasNumber`
+     * `hasUppercase`
+     * `hasLowercase`
+     * `hasMinLength`
+     * `isValidPassword`
+     * `hasEquals`
+     * `isValid`
+   * Centralized minimum length through `PasswordModel.minLength`.
+
+2. Introduced `PasswordDraft`
+
+   * Added mutable UI-oriented password draft model.
+   * Encapsulated UI validation state around the domain `PasswordModel`.
+   * Reduced duplicated password validation logic inside the page layer.
+   * Improved separation between UI state and domain validation rules.
+
+3. Simplified password page validation flow
+
+   * Removed duplicated regex and validation logic from `RegisterPasswordPage`.
+   * Replaced manual validation with `PasswordDraft` state accessors.
+   * Centralized enable/disable button logic using `PasswordDraft.isValid`.
+   * Updated password criteria label to use the centralized minimum length constant.
+   * Removed direct submit on keyboard action to avoid premature submissions.
+
+4. Improved registration diagnostics
+
+   * Added structured registration request logging inside `RegistrationApi`.
+   * Improved onboarding request traceability during integration/debug sessions.
+
+5. Updated registration tests
+
+   * Adjusted registration use case tests to reflect the new password policy.
+   * Replaced weak password fixtures with compliant values (`Secret123`).
+
+### Dependencies and tooling
+
+1. Updated Flutter dependencies
+
+   * Refreshed multiple package versions including:
+
+     * `flutter_secure_storage`
+     * `go_router`
+     * `google_fonts`
+     * `objective_c`
+     * `meta`
+     * `vm_service`
+     * others from transitive dependency resolution.
+
+2. Updated Postman environment
+
+   * Adjusted local API base URL for the current development environment.
+
+This commit consolidates an important pre-onboarding foundation by improving deterministic verification handling on the backend while moving password validation rules into a cleaner and more reusable domain-oriented structure on the Flutter client.
+
+
+## 2026/05/21 — mobile/pre-onboarding-14
+
+This commit advances the mobile onboarding and authentication experience by introducing a complete password registration flow, registration status feedback pages, and a broader UI component reorganization focused on reusable input abstractions.
+
+### Registration Flow Enhancements
+
+1. Added dedicated registration status routes and screens
+
+   * Introduced success and failure routes in `register_routes.dart`
+   * Added `RegisterStatusPage` to present onboarding completion feedback
+   * Added navigation paths from the password submission flow to success/failure states
+   * Included contextual actions:
+
+     * success → navigate to login
+     * failure → retry registration flow
+
+2. Implemented the complete password registration page
+
+   * Replaced the placeholder implementation in `register_password_page.dart`
+   * Added:
+
+     * password field
+     * confirmation field
+     * visibility toggle controls
+     * focus management
+     * validation feedback
+     * reactive enable/disable logic
+   * Added live password criteria validation:
+
+     * minimum length
+     * uppercase characters
+     * lowercase characters
+     * numeric characters
+     * password confirmation matching
+   * Integrated submit + register execution flow with proper error handling and navigation transitions
+
+3. Added reusable password model abstraction
+
+   * Introduced `PasswordModel`
+   * Centralized password normalization and validation
+   * Replaced tuple-based `(String, String)` transport with a semantic domain model
+   * Improved readability and future extensibility of the onboarding flow
+
+4. Updated register use case and viewmodel contracts
+
+   * `RegisterUsecase.submitPassword` now receives `PasswordModel`
+   * `RegisterViewmodel.submitPassword` updated accordingly
+   * Added re-export support for password-related models directly from the usecase module
+   * Updated tests to reflect the new API contract
+
+### UI Component Refactor and Reorganization
+
+1. Reorganized input components into dedicated namespaces
+
+   * Moved:
+
+     * `basic_text_form_field.dart` → `input_text/basic_input_text.dart`
+     * `verification_code_field.dart` → `input_text/otp_input.dart`
+     * `money_input_formatter.dart` → `input_formatters/money_input_formatter.dart`
+   * Improved naming consistency and architectural clarity for reusable UI primitives
+
+2. Renamed and generalized reusable input widgets
+
+   * `BasicTextFormField` → `BasicInputText`
+   * `VerificationCodeField` → `OtpInput`
+   * Added `focusNode` support to the base text component
+
+3. Migrated all onboarding/authentication pages to the new input components
+
+   * Login page
+   * Short login page
+   * Register CPF page
+   * Register email page
+   * Register name page
+   * Register phone page
+   * Register token page
+   * Transfer recipient page
+   * Transfer payment page
+
+### UX and Visual Improvements
+
+1. Added password criteria helper widget
+
+   * Introduced `CriterialItemRow`
+   * Displays dynamic validation state using visual indicators
+
+2. Improved transfer status screen readability
+
+   * Cached `colorScheme` and `textTheme`
+   * Reduced repeated theme access
+   * Improved readability and maintainability of the widget tree
+
+3. Minor route formatting cleanup
+
+   * Reformatted transfer failure route builder for consistency
+
+### Architectural Direction
+
+This commit reinforces an important architectural transition in the mobile onboarding flow:
+
+* replacing primitive transport structures with semantic models
+* consolidating reusable input infrastructure
+* isolating onboarding states into explicit routes
+* improving UI composition around focused reusable widgets
+
+The resulting structure makes the registration pipeline more maintainable, more expressive, and significantly better prepared for future onboarding extensions such as:
+
+* transactional passwords
+* device registration
+* MFA/TOTP
+* Zero Trust contextual validation
+* biometric/liveness verification flows
+
+
+## 2026/05/21 — mobile/pre-onboarding-14
+
+This commit advances the mobile onboarding flow by introducing phone registration and token confirmation screens, while significantly improving validation, formatting, and verification code input behavior across the registration experience.
+
+### Main Improvements
+
+1. Added Brazilian phone validation support
+
+   * Introduced `String.isValidPhone` extension for validating Brazilian landline and mobile numbers.
+   * Added DDD validation rules.
+   * Differentiated validation logic between mobile (`9XXXXXXXX`) and landline (`2-5XXXXXXX`) formats.
+   * Centralized phone validation behavior inside the core string extensions layer.
+
+2. Implemented `PhoneInputFormatter`
+
+   * Added automatic phone formatting while typing.
+   * Supports:
+
+     * `(XX) XXXXX-XXXX`
+     * `(XX) XXXX-XXXX`
+   * Automatically strips non-numeric characters before formatting.
+   * Keeps formatting logic isolated in reusable input formatter infrastructure.
+
+3. Refactored `VerificationCodeField`
+
+   * Improved keyboard navigation and editing experience.
+   * Added focus-aware selection behavior.
+   * Implemented proper backspace navigation between cells.
+   * Fixed incorrect first-empty-cell focus condition.
+   * Added clipboard paste support centralized through `_onTap`.
+   * Simplified layout structure and removed unnecessary `Padding` wrappers.
+   * Improved visual appearance:
+
+     * outlined borders
+     * rounded corners
+     * bolder typography
+     * space distribution between fields
+   * Added internal helpers:
+
+     * `_focusAndSelectCellContent`
+     * `_selectCellContent`
+
+### Registration Flow Enhancements
+
+4. Implemented `RegisterPhonePage`
+
+   * Added complete phone onboarding screen.
+   * Integrated:
+
+     * `BasicTextFormField`
+     * `PhoneInputFormatter`
+     * validation state management
+     * async submission flow
+     * navigation to phone token confirmation
+   * Added bottom action bar with:
+
+     * back action
+     * continue action
+     * loading/disabled state integration
+   * Added snackbar error feedback support.
+   * Added initialization logic for persisted onboarding state.
+
+5. Implemented token confirmation UX in `RegisterTokenPage`
+
+   * Added verification code UI using `VerificationCodeField`.
+   * Added support for:
+
+     * email token confirmation
+     * phone token confirmation
+   * Added dynamic header messages per verification channel.
+   * Added async command integration for token confirmation.
+   * Added validation and loading state management.
+   * Added snackbar-based error handling.
+   * Added continue/back navigation actions.
+
+### UI Consistency Improvements
+
+6. Standardized onboarding page spacing
+
+   * Added `spacing: 12` to onboarding forms:
+
+     * `register_birthdate_page`
+     * `register_cpf_page`
+     * `register_email_page`
+     * `register_name_page`
+   * Removed redundant `SizedBox` spacing where applicable.
+   * Improved visual consistency across onboarding steps.
+
+### Architectural Notes
+
+This commit also reinforces some important architectural directions already present in the project:
+
+* reusable input formatting components
+* validation encapsulated in extensions
+* UI state isolated with `ValueNotifier`
+* async command orchestration through `Command`
+* reusable onboarding navigation patterns
+* clearer separation between formatting, validation, and UI concerns
+
+The onboarding flow now has a substantially more complete pre-verification experience, especially around phone registration and token confirmation, while also improving the overall interaction quality of the verification code input system.
+
+
+## 2026/05/21 — mobile/pre-onboarding-13
+
+Refactor the contact verification flow to use strongly typed verification channels and introduce a reusable verification code input component for onboarding flows.
+
+### Main Improvements
+
+* Replaced raw string-based contact verification channels with the new `ContactVerificationChannel` enum across routing, DTOs, use cases, pages, repositories, APIs, and tests.
+* Added a reusable `VerificationCodeField` widget focused on OTP/token entry UX improvements.
+* Consolidated onboarding token handling around a single domain representation for verification channels.
+* Improved typing consistency and reduced risks related to invalid string values during onboarding flows.
+
+### Contact Verification Refactor
+
+1. Added `ContactVerificationChannel` enum
+
+   * Introduced:
+
+     * `email`
+     * `phone`
+   * Added `fromString()` parser with validation and explicit error handling.
+   * Centralized channel conversion logic.
+
+2. Updated DTOs to use typed channels
+
+   * Refactored:
+
+     * `ContactVerificationRequestDto`
+     * `ContactVerificationRequestResponseDto`
+     * `ContactVerificationConfirmResponseDto`
+   * Replaced `String channel` with `ContactVerificationChannel channel`.
+   * Updated serialization/deserialization logic:
+
+     * `.name` for outbound payloads
+     * `fromString()` for inbound payloads
+
+3. Updated onboarding use cases
+
+   * Refactored `RegisterUsecase` to remove hardcoded channel strings.
+   * Email and phone verification requests now use enum values directly.
+
+4. Updated route and UI integration
+
+   * Refactored `register_routes.dart`
+   * Replaced legacy `TokenType` usage with `ContactVerificationChannel`.
+   * Simplified `RegisterTokenPage` token flow handling.
+
+5. Removed duplicated token channel abstraction
+
+   * Eliminated the local `TokenType` enum from `RegisterTokenPage`.
+   * Unified the onboarding verification flow around the API/domain enum.
+
+### Verification Code Field Component
+
+1. Added `VerificationCodeField`
+
+   * Created reusable OTP/token input widget with:
+
+     * one digit per field
+     * automatic focus progression
+     * backspace navigation behavior
+     * clipboard paste support
+     * autofill integration (`oneTimeCode`)
+     * configurable dimensions and spacing
+     * initial value support
+     * completion callback support
+
+2. Implemented improved keyboard handling
+
+   * Backspace clears current field.
+   * When empty, backspace navigates to the previous field.
+   * Automatically advances focus after digit insertion.
+
+3. Added paste handling
+
+   * Detects clipboard numeric content.
+   * Automatically distributes pasted digits across fields.
+   * Correctly updates focus and completion state.
+
+### Test Updates
+
+1. Refactored repository tests
+
+   * Updated `contact_verification_repository_impl_test.dart`
+   * Replaced string assertions with enum assertions.
+
+2. Refactored API tests
+
+   * Updated `contact_verification_api_test.dart`
+   * Adjusted request/response expectations for typed channels.
+
+3. Refactored DTO tests
+
+   * Updated serialization/deserialization validations.
+   * Ensured enum parsing consistency.
+
+4. Refactored use case tests
+
+   * Updated fake repositories and verification flow assertions.
+   * Removed string comparisons in verification channel checks.
+
+### Architectural Impact
+
+This refactor improves onboarding consistency by removing stringly-typed channel handling from the registration flow. The verification system now has stronger compile-time guarantees, clearer intent across layers, and reduced risk of invalid state propagation during email and phone verification operations.
+
+The new verification input component also establishes a reusable foundation for future onboarding and security flows, including:
+
+* transactional password confirmation
+* MFA/TOTP verification
+* device registration confirmation
+* password recovery tokens
+* Zero Trust challenge flows
+
+
+## 2026/05/21 - mobile/pre-onboarding-12
+
+Refined the pre-onboarding contact verification flow across API, mobile, tests, and documentation, with emphasis on separating temporary development/debug behavior from the stable verification contract.
+
+### API and verification contract adjustments
+
+1. Updated contact verification response semantics
+
+   * Replaced `token` with `debug_token` in the contact verification request response.
+   * Changed the API contract to explicitly treat the verification token as a temporary debug-only artifact while no e-mail/SMS provider exists.
+   * Kept the stable contract centered on:
+
+     * `verification_id`
+     * `channel`
+     * `target`
+     * `expires_at`
+
+2. Improved backend response modeling
+
+   * Replaced:
+
+     * `Token string`
+   * With:
+
+     * `DebugToken *string`
+   * Added `omitempty` semantics to avoid coupling clients to temporary debug data.
+
+3. Updated integration and handler tests
+
+   * Adjusted request/confirmation integration flow to consume `debug_token`.
+   * Added explicit assertions validating the presence of `debug_token` during local/dev execution.
+   * Updated API handler tests and use case tests to reflect the new contract semantics.
+
+4. Clarified operational documentation
+
+   * Updated REST API documentation and onboarding backlog documents to explain:
+
+     * why `debug_token` currently exists
+     * why clients must not depend on it
+     * future removal expectations once notification providers are integrated
+
+### Mobile onboarding and DTO refactoring
+
+1. Removed verification token from the main DTO model
+
+   * Simplified `ContactVerificationRequestResponseDto`.
+   * Removed `token` from the registration flow DTO structure.
+   * Preserved the verification flow contract independently from temporary debug data.
+
+2. Moved debug token handling to the API boundary
+
+   * `ContactVerificationApi` now reads `debug_token` directly from the raw response envelope only in development mode.
+   * Prevented propagation of debug-only fields into domain/application layers.
+   * Kept debug logging available for local testing while preserving clean architecture boundaries.
+
+3. Refactored `RegisterDraftState`
+
+   * Replaced imperative `updateX()` methods with property setters:
+
+     * `cpf =`
+     * `name =`
+     * `birthDate =`
+     * `email =`
+     * `phone =`
+     * verification-related setters
+   * Improved readability and reduced noise in `RegisterUsecase`.
+
+4. Expanded model documentation
+
+   * Added inline documentation to:
+
+     * dirty tracking behavior
+     * persistence lifecycle
+     * snapshot hydration
+     * timestamp semantics
+     * mutation internals
+
+5. Updated register use case orchestration
+
+   * Migrated all draft mutations to setter-based syntax.
+   * Preserved dirty-state persistence behavior and verification orchestration flow.
+
+### Mobile tests and cleanup
+
+1. Updated repository and DTO tests
+
+   * Removed token expectations from DTO parsing tests.
+   * Adjusted repository/use case fixtures to align with the new contract.
+
+2. Updated draft state tests
+
+   * Migrated all state mutation tests to the setter-based API.
+   * Preserved validation for:
+
+     * normalization
+     * dirty tracking
+     * persistence timestamps
+     * snapshot hydration
+
+3. Import normalization and cleanup
+
+   * Standardized extension imports in register pages.
+   * Removed outdated relative imports.
+
+### Infrastructure and development workflow
+
+1. Improved Docker/Colima startup behavior
+
+   * Removed implicit `colima start` execution from `docker-up`.
+   * Moved Colima initialization to `docker-check`.
+   * Reduced unnecessary VM startup attempts during regular Docker commands.
+   * Improved separation between:
+
+     * environment validation
+     * container lifecycle operations
+
+2. Updated local Postman environment
+
+   * Adjusted local `base_url` IP for current development environment.
+
+This commit reinforces an important architectural distinction in the onboarding flow: temporary operational/debug behavior must remain isolated from stable application contracts and domain models.
+
+
+## 2026/05/20 - mobile/pre-onboarding-11
+
+Refactor and expand the mobile onboarding flow with persistent draft recovery, new registration screens, improved validation helpers, and a more complete pre-onboarding user experience.
+
+### Core validation and utility improvements
+
+* Added `DateTime.age` extension to centralize age calculation logic from birth dates.
+* Added `String.isValidEmail` extension for reusable email validation across the onboarding flow.
+* Updated `BasicTextFormField` to expose `textCapitalization` directly through the component API.
+* Standardized several imports to use absolute project paths for consistency and maintainability.
+
+### Register draft persistence redesign
+
+Refactored the onboarding draft persistence layer to simplify the recovery model and make draft handling deterministic.
+
+#### Repository layer
+
+* Simplified `RegisterDraftRepository.getByCPF()` to return `RegisterDraftSnapshot` directly instead of `RegisterDraftLoadResult`.
+* Removed the `RegisterDraftLoadResult` sealed hierarchy entirely.
+* Added automatic draft recreation behavior when:
+
+  * the draft does not exist
+  * the draft has expired
+* Added `_createASnapshotForCPF()` helper to centralize empty snapshot creation.
+* Added `_isOld()` helper to isolate TTL expiration logic.
+* Adjusted repository behavior to always return a valid snapshot when possible instead of exposing "not found" states to upper layers.
+
+#### Store layer
+
+* Simplified `RegisterDraftStore.getByCPF()` return type.
+* Changed missing or invalid cache entries to return:
+
+  * `Failure(AppErrorCode.storageNotFound)`
+    instead of synthetic success states.
+* Added cleanup of corrupted JSON cache entries before returning failures.
+* Removed obsolete exports related to `RegisterDraftLoadResult`.
+
+#### Domain model
+
+* Added `RegisterDraftSnapshot.empty(String cpf)` factory constructor.
+* Centralized initialization of empty onboarding state snapshots.
+
+### Register use case refactor
+
+Refactored onboarding state initialization and CPF recovery behavior.
+
+* Removed the old `initialize()` flow.
+* Introduced `startEmptyRegisterState()` as the explicit onboarding bootstrap entrypoint.
+* Changed CPF submission flow to:
+
+  * recover cached onboarding state automatically
+  * recreate snapshots transparently when necessary
+  * rebuild `RegisterDraftState` directly from persisted snapshots
+* Removed legacy commented initialization logic.
+
+### Registration UI expansion
+
+Implemented and refined major portions of the onboarding user interface.
+
+#### Register CPF page
+
+* Updated onboarding copy:
+
+  * `Qual o seu CPF?` → `Informe o CPF`
+  * improved CPF hint message
+* Improved user guidance for numeric CPF input.
+
+#### Register Name page
+
+Implemented the complete name step UI.
+
+* Added:
+
+  * `TextHeader`
+  * `BasicTextFormField`
+  * snackbar error handling
+  * bottom navigation controls
+* Added full name validation requiring at least two words.
+* Added onboarding state restoration from cached draft.
+* Added forward/back navigation handling.
+* Added loading state integration with async commands.
+
+#### Register Birthdate page
+
+Implemented the complete birth date onboarding step.
+
+* Added date picker interaction.
+* Added minimum age validation (18+).
+* Added onboarding state restoration from cached draft.
+* Added disabled state handling for invalid dates.
+* Added snackbar-based error feedback.
+* Added navigation controls and async submit handling.
+* Added formatted date presentation using `intl`.
+
+One important focus of this commit was centralizing and formalizing birth date validation through the new `DateTime.age` extension, allowing the onboarding flow to consistently enforce minimum age requirements.
+
+#### Register Email page
+
+Implemented the complete email onboarding step.
+
+* Added:
+
+  * email input field
+  * email validation flow
+  * async token request handling
+  * snackbar-based error feedback
+  * navigation controls
+* Integrated reusable `String.isValidEmail` validation helper.
+* Added onboarding state restoration from persisted draft state.
+* Added autofill support for email input.
+
+#### Other onboarding pages
+
+Standardized onboarding titles across:
+
+* password page
+* phone page
+* token page
+* birthdate page
+* email page
+* name page
+
+Updated:
+
+* `Criar conta`
+  to:
+* `Registro de Conta`
+
+for a more consistent onboarding identity.
+
+### Test suite updates
+
+Updated repository, store, and use case tests to reflect the new onboarding persistence model.
+
+#### Repository tests
+
+* Reworked tests to validate:
+
+  * automatic draft recreation
+  * expired draft replacement
+  * empty snapshot generation
+  * storage failure propagation
+* Added tracking of persisted snapshots in fake store implementations.
+
+#### Store tests
+
+* Updated expectations to use failure-based not-found semantics.
+* Added validation for corrupted cache cleanup behavior.
+
+#### Use case tests
+
+* Replaced old initialization tests with:
+
+  * `startEmptyRegisterState()` coverage
+* Removed obsolete reset/reinitialize scenarios.
+* Simplified fake repository behavior around snapshot recovery.
+* Updated all onboarding setup helpers to use the new onboarding bootstrap flow.
+
+### Tooling
+
+* Updated Postman environment local API IP:
+
+  * `192.168.0.16`
+  * → `192.168.0.14`
+
+
+## 2026/05/20 — mobile/pre-onboarding-10
+
+This commit advances the mobile onboarding foundation by introducing the first functional CPF registration flow, refining registration state initialization, improving domain-specific error handling, and consolidating reusable bottom action components across the UI.
+
+### Registration and CPF onboarding flow
+
+* Implemented the first interactive CPF registration screen flow.
+* Added CPF validation and formatting support directly in the UI layer.
+* Added CPF availability verification before continuing registration.
+* Added navigation integration between registration steps using GoRouter.
+* Introduced snackbar-based feedback for onboarding validation failures.
+* Added automatic focus dismissal after valid CPF input.
+* Added login shortcut from the onboarding screen.
+
+#### `mobile/lib/ui/pages/register/register_cpf_page.dart`
+
+* Reworked the page from a placeholder screen into a functional onboarding step.
+* Added:
+
+  * `TextEditingController`
+  * CPF validation state
+  * formatted CPF input
+  * navigation handlers
+  * asynchronous CPF availability verification
+  * onboarding action buttons
+  * snackbar-based error presentation
+* Added integration with:
+
+  * `CpfInputFormatter`
+  * `String.onlyNumbers`
+  * `String.isValidCpf`
+  * `DoubleBottomButton`
+  * `AppSnackbar`
+
+### Registration state lifecycle refactor
+
+A major focus of this commit was simplifying the onboarding initialization flow by separating empty registration startup from future draft restoration logic.
+
+#### `mobile/lib/domain/usecases/register/register_usecase.dart`
+
+* Introduced `startEmptyRegisterState()`.
+* Removed the dependency on asynchronous initialization for empty registration flows.
+* Temporarily isolated the draft restoration logic through commented preservation for future recovery work.
+* Improved CPF validation behavior:
+
+  * replaced generic `invalidData`
+  * introduced specific `cpfAlreadyRegistered` handling
+
+#### `mobile/lib/ui/pages/register/viewmodel/register_viewmodel.dart`
+
+* Removed `initialize` command abstraction.
+* Added direct `startEmptyRegisterState()` forwarding to the use case.
+
+### Domain-specific onboarding errors
+
+#### `mobile/lib/core/result/errors/app_error_code.dart`
+
+* Added:
+
+  * `cpfAlreadyRegistered`
+
+This improves semantic error handling and prepares the onboarding pipeline for more granular validation flows.
+
+### DTO consistency and API alignment
+
+#### `mobile/lib/data/services/apis/registration/dtos/cpf_check_response_dto.dart`
+
+* Fixed typo:
+
+  * `avaliable` → `available`
+* Updated JSON parsing accordingly.
+* Improved naming consistency between backend payloads and frontend DTOs.
+
+### Registration navigation groundwork
+
+Several onboarding pages received route navigation preparation methods for the future multi-step registration flow.
+
+#### Updated pages
+
+* `register_name_page.dart`
+* `register_birthdate_page.dart`
+* `register_email_page.dart`
+* `register_token_page.dart`
+
+Changes include:
+
+* GoRouter integration
+* next-step navigation methods
+* cleanup of duplicated `super.initState()` calls
+
+### Reusable bottom action component
+
+#### `mobile/lib/ui/components/buttons/double_bottom_buttons.dart`
+
+* Added reusable dual-action bottom button component.
+* Encapsulates:
+
+  * primary action button
+  * secondary text button
+  * enable/disable logic
+  * optional icon support
+
+### Transfer status page cleanup
+
+#### `mobile/lib/ui/pages/home/transfer/transfer_status_page.dart`
+
+* Replaced duplicated bottom action layout with `DoubleBottomButton`.
+* Reduced UI duplication and improved consistency with onboarding screens.
+
+### General cleanup
+
+#### Registration pages
+
+* Removed duplicated `super.initState()` calls from:
+
+  * `register_birthdate_page.dart`
+  * `register_email_page.dart`
+  * `register_name_page.dart`
+  * `register_password_page.dart`
+  * `register_phone_page.dart`
+  * `register_token_page.dart`
+
+### Test coverage
+
+#### `mobile/test/data/services/apis/registration/dtos/cpf_check_response_dto_test.dart`
+
+* Added DTO parsing coverage for:
+
+  * `available`
+
+#### `mobile/test/domain/usecases/register/register_usecase_test.dart`
+
+* Updated tests to reflect DTO field rename:
+
+  * `avaliable` → `available`
+
+This commit establishes the first concrete onboarding interaction flow in the mobile application while also improving domain error semantics, reducing UI duplication, and preparing the registration pipeline for future persistence and recovery capabilities.
+
+
+## 2026/05/20 — mobile/pre-onboarding-09
+
+Refactor and expand the mobile onboarding flow structure with dedicated register routes, draft persistence improvements, and the first implementation layer for the multi-step registration experience.
+
+### Routing and onboarding flow restructuring
+
+Refactored the registration route organization to support a fully segmented onboarding flow with explicit route paths.
+
+Files updated:
+
+* `mobile/lib/core/routing/routes.dart`
+* `mobile/lib/core/routing/routes/register_routes.dart`
+
+Changes:
+
+* Reworked `RegisterRoutes` to use explicit `/register/*` paths.
+* Renamed `fullName` route to `name` for consistency.
+* Removed `passwordConfirmation` route from the enum.
+* Added new `failure` route placeholder.
+* Added route definitions for:
+
+  * name
+  * birth date
+  * email
+  * email token
+  * phone
+  * phone token
+  * password
+* Centralized all onboarding pages under `ui/pages/register`.
+* Added token-type-aware route handling using `TokenType.email` and `TokenType.phone`.
+
+This restructuring prepares the onboarding module for:
+
+* deep linking
+* route isolation
+* independent validation stages
+* resumable onboarding sessions
+* future risk-analysis checkpoints during onboarding
+
+### Registration UI module extraction
+
+Moved the onboarding UI structure out of the auth module into its own dedicated registration module.
+
+Files updated:
+
+* `mobile/lib/ui/pages/register/register_cpf_page.dart`
+* `mobile/lib/ui/pages/register/viewmodel/register_viewmodel.dart`
+* `mobile/lib/ui/viewmodels.dart`
+
+Changes:
+
+* Migrated registration pages from:
+
+  * `ui/pages/auth/register/*`
+    to:
+  * `ui/pages/register/*`
+* Updated dependency imports accordingly.
+* Adjusted page padding from `24` to `12` for a denser onboarding layout baseline.
+
+This separation improves architectural clarity between:
+
+* authentication/session flows
+* onboarding/account creation flows
+
+### New onboarding pages scaffold
+
+Added the initial structure for the remaining onboarding screens.
+
+New files:
+
+* `mobile/lib/ui/pages/register/register_birthdate_page.dart`
+* `mobile/lib/ui/pages/register/register_email_page.dart`
+* `mobile/lib/ui/pages/register/register_name_page.dart`
+* `mobile/lib/ui/pages/register/register_password_page.dart`
+* `mobile/lib/ui/pages/register/register_phone_page.dart`
+* `mobile/lib/ui/pages/register/register_token_page.dart`
+
+Changes:
+
+* Added `SafeScaffold`-based page templates.
+* Added keyboard dismissal handling with `GestureDetector`.
+* Added dedicated `TokenType` enum for verification flows.
+* Established isolated stateful page structure for future form logic integration.
+
+These pages currently serve as structural placeholders for:
+
+* form implementation
+* validation
+* verification UX
+* onboarding orchestration
+
+### Register draft persistence refactor
+
+Reorganized the register draft cache layer and improved dependency injection setup.
+
+Files updated:
+
+* `mobile/lib/data/repositories/register_draft/register_draft_repository.dart`
+* `mobile/lib/data/repositories/register_draft/register_draft_repository_impl.dart`
+* `mobile/lib/data/services/services.dart`
+
+Files moved:
+
+* `mobile/lib/data/services/cache/register_draft/register_draft_load_result.dart`
+* `mobile/lib/data/services/cache/register_draft/register_draft_store.dart`
+
+Changes:
+
+* Removed `register_draft` from the `last_login` namespace.
+* Promoted register draft persistence into its own cache domain.
+* Added `RegisterDraftStore` as a lazy singleton.
+* Updated all imports across repositories, services, use cases, and tests.
+
+This better reflects the actual responsibility of the draft cache:
+
+* onboarding state persistence
+* onboarding recovery
+* future interrupted-session restoration
+
+instead of coupling it to login behavior.
+
+### Register use case persistence optimization
+
+Simplified and centralized draft persistence behavior inside `RegisterUsecase`.
+
+File updated:
+
+* `mobile/lib/domain/usecases/register/register_usecase.dart`
+
+Changes:
+
+* Replaced duplicated draft-save blocks with `_saveDirty()`.
+* Added centralized dirty-state persistence logic.
+* Added:
+
+  * state existence validation
+  * dirty-check optimization
+  * clean-state marking after successful persistence
+* Updated all onboarding submit/confirm methods to use the centralized save flow.
+
+Benefits:
+
+* reduced duplicated logic
+* safer persistence lifecycle
+* cleaner onboarding orchestration
+* improved maintainability for future onboarding stages
+
+### Tests and maintenance updates
+
+Updated all affected test imports after cache-layer refactor.
+
+Files updated:
+
+* `mobile/test/data/repositories/register_draft/register_draft_repository_impl_test.dart`
+* `mobile/test/data/services/cache/register_draft/register_draft_store_test.dart`
+* `mobile/test/domain/usecases/register/register_usecase_test.dart`
+
+### Environment update
+
+File updated:
+
+* `tools/postman/Environment.postman_environment.json`
+
+Changes:
+
+* Updated local API base URL from:
+
+  * `192.168.0.14`
+    to:
+  * `192.168.0.16`
+
+This commit establishes the structural foundation for the new onboarding architecture, separating onboarding concerns from authentication flows while preparing the application for resumable multi-step registration, verification stages, and future Zero Trust onboarding evolutions.
+
+
+## 2026/05/20 — mobile/pre-onboarding-08
+
+Refactor pre-onboarding architecture by splitting authentication responsibilities into dedicated APIs and repositories, reorganizing cache modules, and simplifying dependency injection wiring.
+
+This commit restructures the mobile authentication and onboarding flow into clearer bounded contexts, separating login/session responsibilities from registration and contact verification concerns. The result is a cleaner dependency graph, improved modularity, and a more maintainable onboarding foundation for future Zero Trust and identity validation flows.
+
+### Main architectural changes
+
+1. Split `AuthApi` responsibilities into dedicated modules:
+
+   * `AuthApi`
+   * `RegistrationApi`
+   * `ContactVerificationApi`
+
+2. Split repository responsibilities previously concentrated in `AuthRepository`:
+
+   * `RegistrationRepository`
+   * `ContactVerificationRepository`
+
+3. Reorganized cache structure:
+
+   * moved `auth/cache/*` to `cache/last_login/*`
+   * decoupled cache concerns from authentication domain semantics
+
+4. Simplified dependency injection:
+
+   * replaced verbose factory closures with constructor tear-offs
+   * adopted cleaner `AutoInjector` registrations
+   * introduced lazy singletons where appropriate
+
+5. Refactored onboarding use case dependencies:
+
+   * `RegisterUsecase` now depends explicitly on:
+
+     * `RegistrationRepository`
+     * `ContactVerificationRepository`
+     * `RegisterDraftRepository`
+
+### Repository layer refactor
+
+#### `mobile/lib/data/repositories/auth/*`
+
+* Removed onboarding responsibilities from `AuthRepository`
+* Kept authentication/session-related operations only:
+
+  * login
+  * logout
+  * profile
+  * session state
+  * last login identity
+
+#### `mobile/lib/data/repositories/registration/*`
+
+* Added dedicated repository for:
+
+  * CPF validation
+  * registration submission
+
+#### `mobile/lib/data/repositories/contact_verification/*`
+
+* Added dedicated repository for:
+
+  * requesting verification tokens
+  * confirming verification tokens
+
+#### `mobile/lib/data/repositories/register_draft/*`
+
+* Updated imports to new cache module structure
+
+### API layer refactor
+
+#### `mobile/lib/data/services/apis/auth/*`
+
+* Reduced `AuthApi` scope to:
+
+  * login
+  * profile retrieval
+
+#### `mobile/lib/data/services/apis/registration/*`
+
+* Added isolated registration API implementation
+* Added CPF validation endpoint integration
+
+#### `mobile/lib/data/services/apis/contact_verification/*`
+
+* Added isolated contact verification API implementation
+* Added request/confirm verification flows
+
+### Cache module reorganization
+
+#### Renamed:
+
+* `data/services/auth/cache/*`
+  → `data/services/cache/last_login/*`
+
+This change removes the incorrect conceptual coupling between:
+
+* authentication/session management
+* local onboarding persistence/cache
+
+The new structure better reflects the actual responsibility of the module.
+
+### Dependency injection cleanup
+
+#### `mobile/lib/data/services/services.dart`
+
+#### `mobile/lib/data/repositories.dart`
+
+#### `mobile/lib/domain/usecases/usecases.dart`
+
+* Simplified injector registrations using constructor tear-offs
+* Reduced boilerplate factory wiring
+* Added lazy singleton registrations for:
+
+  * `RegisterUsecase`
+  * `RegistrationRepository`
+  * `ContactVerificationRepository`
+  * `RegistrationApi`
+  * `ContactVerificationApi`
+
+### Register flow improvements
+
+#### `mobile/lib/domain/usecases/register/register_usecase.dart`
+
+Refactored onboarding flow to use explicit specialized repositories:
+
+* CPF validation now uses `RegistrationRepository`
+* contact token request/confirmation now uses `ContactVerificationRepository`
+* final registration submission now uses `RegistrationRepository`
+
+This significantly improves:
+
+* separation of concerns
+* testability
+* onboarding flow clarity
+* future extensibility for MFA/ZTA-related onboarding validations
+
+### DTO and package reorganization
+
+Moved DTOs into explicit feature-oriented namespaces:
+
+* `apis/auth/dtos/*`
+* `apis/registration/dtos/*`
+* `apis/contact_verification/dtos/*`
+
+This removes the previous overloaded `auth/api/dtos` structure and aligns DTO ownership with their actual business capability.
+
+### UI and routing updates
+
+Updated imports and dependencies across:
+
+* login
+* short login
+* splash
+* register flow
+* route extra codec
+
+to reflect the new modular package organization.
+
+### Register draft behavior updates
+
+#### `mobile/test/domain/common/auth/models/register_draft_test.dart`
+
+Adjusted serialization expectations:
+
+* `current_step` is no longer serialized when unnecessary
+* draft restoration behavior now accepts persisted snapshots more flexibly
+
+### Test suite refactor
+
+Added dedicated test coverage for:
+
+* `ContactVerificationRepositoryImpl`
+* `ContactVerificationApi`
+
+Refactored:
+
+* onboarding use case tests
+* repository tests
+* DTO tests
+* register draft tests
+
+Removed outdated tests that validated onboarding responsibilities inside `AuthRepository`.
+
+### Overall result
+
+This refactor significantly improves the architectural consistency of the mobile onboarding flow by:
+
+* reducing responsibility concentration
+* aligning APIs/repositories with business capabilities
+* clarifying dependency boundaries
+* simplifying dependency injection
+* improving test isolation
+* preparing the codebase for future onboarding evolution and Zero Trust-related identity validation flows.
+
+
+## 2026/05/20 - mobile/pre-onboarding-07
+
+Refactored the registration onboarding flow around a dedicated `RegisterUsecase`, introducing secure draft persistence with TTL-aware repository orchestration and preparing the application for the upcoming multi-page onboarding experience.
+
+### Main Changes
+
+1. Registration onboarding architecture redesign
+
+   * Introduced `RegisterUsecase` as the central orchestration layer for the onboarding flow.
+   * Moved registration business logic away from `RegisterViewmodel`.
+   * Added explicit flow methods for:
+
+     * CPF validation;
+     * name submission;
+     * birth date submission;
+     * e-mail verification request/confirmation;
+     * phone verification request/confirmation;
+     * password submission;
+     * final registration execution;
+     * onboarding reset.
+   * Added in-memory handling for verification tokens and password to avoid persistence of sensitive transient data.
+   * Added initialization flow capable of restoring onboarding drafts from storage.
+
+2. Secure onboarding draft persistence redesign
+
+   * Reworked the onboarding persistence architecture separating:
+
+     * storage responsibilities;
+     * expiration rules;
+     * orchestration concerns.
+   * Added `RegisterDraftRepository`.
+   * Added `RegisterDraftRepositoryImpl`.
+   * Kept `RegisterDraftStore` focused exclusively on:
+
+     * secure storage;
+     * hashing;
+     * JSON serialization/deserialization.
+   * Moved TTL responsibility entirely to the repository layer.
+   * Added 24-hour expiration logic with automatic cleanup of expired drafts.
+   * Added injectable clock support (`DateTime Function()`) to improve deterministic testing.
+
+3. Draft load result formalization
+
+   * Standardized onboarding draft loading behavior through sealed-style results:
+
+     * `RegisterDraftFound`;
+     * `RegisterDraftNotFound`.
+   * Simplified draft recovery semantics across the application.
+   * Improved separation between storage absence and infrastructure failures.
+
+4. Register draft model simplification
+
+   * Removed `RegisterDraftStep` from persistence and state models.
+   * Removed `currentStep` serialization/deserialization logic.
+   * Simplified `RegisterDraftSnapshot`.
+   * Simplified `RegisterDraftState`.
+   * Added `RegisterDraftState.fromSnapshot`.
+   * Reduced coupling between persisted onboarding state and UI navigation structure.
+
+5. CPF validation integration
+
+   * Added `cpfCheck` to `AuthRepository`.
+   * Added implementation support in `AuthRepositoryImpl`.
+   * Integrated CPF availability validation into onboarding initialization flow.
+   * Prevented draft persistence for already registered CPFs.
+
+6. Dependency injection and application wiring
+
+   * Registered `RegisterDraftRepository` in dependency injection.
+   * Registered `RegisterUsecase` in the usecase injector.
+   * Connected `RegisterViewmodel` to the new usecase layer.
+   * Added command-based execution wrappers to the viewmodel.
+
+7. Routing and onboarding preparation
+
+   * Renamed onboarding entry page:
+
+     * `register_page.dart` → `register_cpf_page.dart`
+   * Updated routing configuration to use the new onboarding entry structure.
+   * Prepared the route organization for future multi-page onboarding screens.
+
+8. Documentation and backlog updates
+
+   * Updated onboarding backlog tasks to reflect the architectural redesign.
+   * Clarified separation between:
+
+     * persistence store;
+     * repository orchestration;
+     * TTL management.
+   * Refined acceptance criteria and responsibilities for onboarding draft persistence.
+
+9. Testing improvements
+
+   * Added complete test coverage for `RegisterDraftRepositoryImpl`.
+   * Added extensive `RegisterUsecase` tests covering:
+
+     * onboarding initialization;
+     * CPF validation;
+     * verification flows;
+     * registration execution;
+     * reset behavior;
+     * persistence cleanup;
+     * failure propagation.
+   * Updated existing onboarding draft tests after removal of `RegisterDraftStep`.
+   * Removed obsolete onboarding UI flow tests tied to the previous architecture.
+
+### Technical Highlights
+
+* The onboarding persistence layer now follows a cleaner responsibility split:
+
+  * Store → secure persistence only;
+  * Repository → TTL and orchestration;
+  * Usecase → business flow coordination.
+* Sensitive onboarding runtime data such as verification tokens and passwords are intentionally kept only in memory.
+* The registration flow is now significantly more testable due to:
+
+  * explicit orchestration boundaries;
+  * injectable time provider;
+  * repository abstraction;
+  * isolated state management.
+* The onboarding architecture is now structurally prepared for:
+
+  * multi-page navigation;
+  * onboarding recovery;
+  * future Zero Trust validations;
+  * device binding flows;
+  * advanced onboarding checkpoints.
+
+
+## 2026/05/19 — mobile/pre-onboarding-06
+
+Refactor and restructure the mobile onboarding flow into a new pre-onboarding architecture focused on incremental navigation, CPF validation, local persistence, and future-proof step orchestration.
+
+### Main Changes
+
+1. Introduced the new pre-onboarding routing structure
+
+   * Added `RegisterRoutes` with dedicated routes for:
+
+     * CPF
+     * full name
+     * birth date
+     * email
+     * email token
+     * phone
+     * phone token
+     * password
+     * password confirmation
+     * success
+   * Added `register_routes.dart`
+   * Removed onboarding registration route from `AuthRoutes`
+   * Updated login navigation to redirect to the new CPF-first onboarding entry point
+   * Registered onboarding routes in the global router
+
+2. Started the onboarding flow decomposition
+
+   * Renamed `RegisterPage` to `RegisterCpfPage`
+   * Replaced the monolithic onboarding implementation with an isolated initial page
+   * Removed the previous multi-step widget orchestration from the UI layer
+   * Prepared the project for fully decoupled onboarding screens and state transitions
+
+3. Added CPF pre-validation support
+
+   * Added `cpfCheck()` to `AuthRepositoryImpl`
+   * Implemented `/auth/cpf-check` integration inside `AuthApi`
+   * Added `CpfCheckResponseDto`
+   * Added standardized HTTP and envelope parsing flow for CPF validation
+   * Centralized API error handling and parsing behavior for CPF checks
+
+4. Implemented onboarding draft persistence infrastructure
+
+   * Added `RegisterDraftStore`
+   * Added secure local onboarding persistence using `LocalSecureStorage`
+   * Added SHA-256 CPF hashing to generate non-plain-text storage keys
+   * Added automatic cleanup for corrupted onboarding snapshots
+   * Added lookup abstraction with `RegisterDraftLookup`
+
+5. Added onboarding domain models
+
+   * Added:
+
+     * `RegisterDraftField`
+     * `RegisterDraftStep`
+     * `RegisterDraftSnapshot`
+     * `RegisterDraftState`
+   * Implemented:
+
+     * dirty field tracking
+     * snapshot hydration
+     * persistable state serialization
+     * onboarding step persistence
+     * verification metadata persistence
+     * timestamp tracking
+   * Explicitly excluded sensitive transient runtime data from persistence:
+
+     * passwords
+     * verification tokens
+     * session tokens
+
+6. Improved core utility extensions
+
+   * Added:
+
+     * `DateTime.dateOnly`
+     * `DateParser.parseDateOnly`
+     * `String.trimToNull()`
+   * Simplified normalization and persistence serialization flows
+
+7. Simplified the registration viewmodel
+
+   * Removed the old monolithic registration orchestration
+   * Removed:
+
+     * internal step machine
+     * verification orchestration
+     * inline onboarding validations
+     * direct register execution flow
+   * Reduced the viewmodel to a lightweight injectable dependency base for future incremental onboarding modules
+
+8. Added comprehensive onboarding draft tests
+
+   * Added tests for:
+
+     * CPF hash generation
+     * secure storage persistence
+     * snapshot serialization
+     * invalid payload cleanup
+     * dirty field tracking
+     * hydration behavior
+     * persisted timestamp updates
+   * Added fake secure storage implementation for isolated testing
+
+9. Removed obsolete onboarding tests
+
+   * Deleted legacy `register_viewmodel_test.dart`
+   * Removed tests tied to the previous monolithic onboarding implementation
+
+10. Updated dependencies
+
+* Added direct dependency:
+
+  * `crypto: ^3.0.7`
+
+11. Updated backlog organization
+
+* Moved completed onboarding backlog documents to:
+
+  * `docs/backlogs/mobile/done/`
+* Archived:
+
+  * `009 - pre_onboarding_contact_verification.md`
+  * `009 - pre_onboarding_contact_verification_tasks.md`
+
+12. Updated Postman environment
+
+* Adjusted local `base_url` IP address for current development environment
+
+This commit establishes the foundation for a modular onboarding architecture with persistent draft recovery, CPF-first flow validation, and isolated onboarding stages, reducing coupling between UI, orchestration, and verification logic while preparing the system for more advanced onboarding and Zero Trust validation flows.
+
+
+## 2026/05/19 — mobile/pre-onboarding-05
+
+This commit introduces the first structural foundation for the new multi-page onboarding flow, centered around CPF pre-validation, onboarding hardening, and local draft persistence planning.
+
+The backend onboarding flow was expanded to support CPF availability checks before user registration, while the mobile backlog and onboarding architecture were redesigned around resumable multi-step registration.
+
+### API — Introduce CPF pre-check onboarding endpoint
+
+Implemented a new onboarding endpoint:
+
+* `POST /auth/cpf-check`
+
+Main goals:
+
+* validate CPF format before registration;
+* normalize CPF input;
+* verify CPF availability before collecting the remaining onboarding data;
+* block duplicated registrations early in the flow.
+
+The endpoint now integrates directly into the AppToken-protected onboarding surface.
+
+Main changes:
+
+* Added `CheckCPFUseCase`
+* Added `CustomerDocumentRepository.ExistsCPF`
+* Added PostgreSQL CPF existence query
+* Added HTTP handler `CheckCPF`
+* Added route registration in `main.go`
+* Added onboarding route protection tests
+* Added error mapping for:
+
+  * `ErrCPFRequired`
+  * `ErrCPFInvalid`
+* Exported `NormalizeCPF` from domain layer
+* Added complete use case and handler test coverage
+
+The onboarding entry flow is now:
+
+1. CPF check
+2. Contact verification
+3. Register
+4. Login
+
+This establishes a cleaner onboarding boundary and avoids unnecessary verification flows for already registered users.
+
+### API — Strengthen contact verification uniqueness rules
+
+`RequestContactVerificationUseCase` was expanded to validate uniqueness before issuing verification challenges.
+
+New behavior:
+
+* email normalization now lowercases input before lookup;
+* phone input is trimmed before lookup;
+* duplicated email now returns `ErrEmailAlreadyExists`;
+* duplicated phone now returns `ErrPhoneAlreadyExists`.
+
+This prevents generating verification challenges for identities already associated with existing users.
+
+Additional improvements:
+
+* added normalization helper for verification targets;
+* extended mocks and tests for uniqueness validation;
+* improved verification test coverage for:
+
+  * normalized email handling;
+  * duplicated email;
+  * duplicated phone;
+  * invalid input;
+  * repository invocation guarantees.
+
+### API — Documentation expansion for onboarding surface
+
+The REST and authentication documentation were heavily expanded to reflect the new onboarding sequence.
+
+Main documentation additions:
+
+* full `POST /auth/cpf-check` contract;
+* onboarding flow update;
+* onboarding AppToken clarification;
+* CPF normalization behavior;
+* new error scenarios;
+* onboarding Postman flow update;
+* onboarding security explanations;
+* verification uniqueness rules;
+* updated onboarding sequence references across architecture documents.
+
+Files updated include:
+
+* `07-api-rest.md`
+* `08-auth_implementation.md`
+* onboarding overview chapters
+* onboarding flow references and error sections
+
+The onboarding documentation now better reflects the intended progressive registration model.
+
+### Mobile backlog — Multi-page onboarding architecture definition
+
+The mobile onboarding backlog was substantially expanded and formalized.
+
+Key architectural decisions documented:
+
+* onboarding starts with CPF validation;
+* onboarding becomes multi-page instead of a monolithic form;
+* CPF availability must be checked before progressing;
+* onboarding state becomes resumable;
+* onboarding drafts are persisted in secure storage;
+* onboarding uses CPF-hash-based storage keys;
+* onboarding drafts expire after 24 hours;
+* passwords and verification tokens are never persisted;
+* dirty tracking is introduced for onboarding snapshots;
+* onboarding remains specific to user registration for now;
+* no generic onboarding engine will be created yet.
+
+A complete execution breakdown was added through a new task file containing 12 implementation stages.
+
+Topics covered:
+
+* draft state modeling;
+* secure storage persistence;
+* TTL management;
+* `RegisterViewmodel` orchestration redesign;
+* multi-route onboarding navigation;
+* CPF API integration;
+* e-mail verification pages;
+* phone verification pages;
+* password flow;
+* onboarding recovery;
+* onboarding cleanup;
+* migration away from the monolithic `RegisterPage`.
+
+### Architectural impact
+
+This commit significantly improves onboarding separation and prepares the project for:
+
+* resumable onboarding;
+* future KYC expansion;
+* progressive onboarding UX;
+* device-aware onboarding flows;
+* Zero Trust evidence collection during onboarding;
+* safer onboarding retries and recovery.
+
+It also reinforces the onboarding boundary protected by `X-App-Token`, keeping the public surface explicit and controlled.
+
+## 2026/05/18 - mobile/pre-onboarding-04
+
+This commit advances the pre-onboarding foundation by restructuring authentication route registration in the API, strengthening middleware coverage through focused router tests, and defining the complete multi-page mobile onboarding strategy for the future registration flow.
+
+### API
+
+1. Refactored authentication route registration in `api/cmd/api/main.go`
+
+   * Extracted auth route configuration into a dedicated `newAuthRouter` function.
+   * Reduced bootstrap noise inside `main()`.
+   * Improved separation between runtime wiring and route composition.
+   * Centralized onboarding and authentication endpoint registration.
+   * Prepared the auth router for future onboarding expansion and isolated testing.
+
+2. Preserved onboarding security boundaries
+
+   * Maintained `X-App-Token` protection for:
+
+     * `POST /auth/contact-verifications`
+     * `POST /auth/contact-verifications/confirm`
+     * `POST /auth/register`
+     * `POST /auth/login`
+   * Preserved JWT protection for authenticated endpoints such as `/auth/me`.
+   * Reinforced the current multi-stage authentication model already documented in the API architecture and auth documentation. 
+
+### API Tests
+
+3. Added onboarding middleware coverage tests in `api/cmd/api/routes_test.go`
+
+   * Introduced focused tests validating AppToken enforcement in onboarding endpoints.
+   * Added coverage for:
+
+     * missing app token
+     * invalid app token
+     * valid app token pass-through behavior
+   * Added reusable `assertInvalidAppToken` helper.
+   * Validated:
+
+     * HTTP 401 responses
+     * standardized error envelope structure
+     * `INVALID_APP_TOKEN` error code consistency
+   * Reinforced contract stability for the onboarding security boundary.
+
+4. Improved router-level validation strategy
+
+   * Tests now validate middleware composition directly from router registration.
+   * Reduced coupling between middleware expectations and handler implementation details.
+   * Increased confidence in future onboarding route expansion.
+
+### Mobile
+
+5. Added onboarding backlog specification in `docs/backlogs/mobile/010 - cadastro_multi_paginas.md`
+
+   * Defined the complete migration from a monolithic `RegisterPage` into a multi-step onboarding journey.
+   * Formalized a 10-step registration flow:
+
+     1. CPF
+     2. Full name
+     3. Birth date
+     4. Email
+     5. Email confirmation
+     6. Phone
+     7. Phone confirmation
+     8. Password
+     9. Password confirmation
+     10. Account creation
+
+6. Defined onboarding persistence strategy
+
+   * Added secure local onboarding draft persistence.
+   * Introduced CPF-derived storage keys using SHA-256 hashing.
+   * Explicitly prohibited persistence of:
+
+     * passwords
+     * password confirmation
+     * verification tokens
+     * session tokens
+   * Added onboarding recovery and resume strategy based on CPF lookup.
+   * Defined draft expiration and verification invalidation behavior.
+
+7. Defined mobile onboarding architecture decisions
+
+   * Preserved `RegisterViewmodel` as the registration orchestrator.
+   * Allowed `RegisterViewmodel` to remain a `lazySingleton`.
+   * Defined shared state behavior across onboarding pages.
+   * Established explicit separation between:
+
+     * onboarding flow
+     * verification flow
+     * account creation
+     * authentication/login flow
+
+8. Defined onboarding/API integration contract
+
+   * Specified use of:
+
+     * `POST /auth/contact-verifications`
+     * `POST /auth/contact-verifications/confirm`
+     * `POST /auth/register`
+   * Explicitly documented AppToken usage during onboarding requests.
+   * Preserved development-mode debug token logging behavior in `AuthApi`.
+
+9. Added onboarding acceptance criteria and scope boundaries
+
+   * Documented:
+
+     * persistence rules
+     * validation expectations
+     * navigation behavior
+     * onboarding recovery rules
+     * success flow requirements
+   * Clearly separated:
+
+     * current scope
+     * future scope
+     * non-goals
+     * pending architectural decisions
+
+### Mobile Tests
+
+10. Updated route builder signatures in `mobile/test/ui/pages/auth/register/register_page_flow_test.dart`
+
+* Adjusted `GoRoute` builders to use explicit `(context, state)` parameters.
+* Improved consistency with current `go_router` conventions.
+* Reduced ambiguity in future route evolution.
+
+This commit establishes the architectural and testing foundation for the upcoming pre-onboarding implementation while reinforcing the security model around onboarding endpoints and preparing the mobile application for a stateful, resumable, multi-step registration experience.
+
+
+## 2026/05/18 — mobile/pre-onboarding-03
+
+This commit introduces the first complete pre-onboarding and contact verification flow for the mobile application, evolving the authentication experience from a simple registration form into a staged onboarding process with explicit e-mail and phone verification steps.
+
+The implementation also improves authentication feedback behavior by making login errors context-aware, especially for partially verified accounts.
+
+### Authentication Feedback Improvements
+
+#### `mobile/lib/ui/pages/auth/login/login_page.dart`
+
+* Added structured login feedback resolution through `_resolveLoginErrorMessage`.
+* Introduced differentiated feedback for:
+
+  * pending account approval
+  * missing e-mail verification
+  * missing phone verification
+  * both contact channels pending verification
+* Added support for reading `error.details` to interpret backend verification state.
+* Centralized login failure message resolution instead of directly exposing raw backend messages.
+* Improved UX consistency for authentication failures.
+
+#### `mobile/lib/ui/pages/auth/short_login/short_login_page.dart`
+
+* Mirrored the same verification-aware login feedback logic implemented in the full login flow.
+* Preserved remembered identity context while presenting verification-related authentication errors.
+* Improved short-login usability for partially onboarded users.
+
+### Multi-Step Registration Flow
+
+#### `mobile/lib/ui/pages/auth/register/register_page.dart`
+
+* Reworked the registration screen into a multi-step onboarding flow:
+
+  * Personal data
+  * Contact data
+  * E-mail verification
+  * Phone verification
+  * Final review
+* Added visual onboarding step indicators.
+* Introduced step-aware navigation and validation.
+* Added support for:
+
+  * birth date selection
+  * Brazilian phone formatting
+  * phone normalization for API communication
+  * review/confirmation step before submission
+* Added command orchestration for:
+
+  * requesting e-mail verification codes
+  * confirming e-mail verification codes
+  * requesting phone verification codes
+  * confirming phone verification codes
+* Added reusable snackbar feedback using `AppSnackbar`.
+* Added state persistence between steps.
+* Added conditional primary action behavior based on onboarding stage.
+* Introduced command aggregation through `Listenable.merge`.
+* Added UI locking while asynchronous operations are running.
+* Added dynamic CTA labels according to current onboarding step.
+* Added verification-aware enable/disable behavior for onboarding progression.
+* Added custom `_BrazilPhoneInputFormatter`.
+* Added birth date validation and date picker integration.
+* Added review screen summarizing collected onboarding data before final registration.
+
+### Registration ViewModel Refactor
+
+#### `mobile/lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart`
+
+* Refactored the viewmodel into a full `ChangeNotifier` state machine.
+* Introduced `RegisterStep` enum for explicit onboarding progression.
+* Added internal onboarding state management:
+
+  * personal data
+  * contact data
+  * verification identifiers
+  * verification tokens
+  * step errors
+* Added onboarding progression methods:
+
+  * `nextStep`
+  * `previousStep`
+  * `goToStep`
+* Added validation-aware onboarding transitions.
+* Added explicit onboarding state guards.
+* Added e-mail verification orchestration.
+* Added phone verification orchestration.
+* Added final registration orchestration dependent on verification tokens.
+* Added command-based async flow integration:
+
+  * `Command0`
+  * `Command1`
+* Added validation helpers for:
+
+  * e-mail
+  * phone
+  * CPF
+  * onboarding state
+* Added step-specific error propagation and recovery behavior.
+* Added support for preserving entered data across onboarding navigation.
+* Added registration payload enrichment with:
+
+  * `birthDate`
+  * `phone`
+  * `emailVerificationToken`
+  * `phoneVerificationToken`
+
+### Authentication Feedback Tests
+
+#### `mobile/test/ui/pages/auth/login_feedback_behavior_test.dart`
+
+* Added tests covering:
+
+  * generic contact-not-verified login feedback
+  * e-mail-only pending verification feedback
+  * phone-only pending verification feedback
+  * short-login verification feedback behavior
+* Added verification-state-aware error fixtures using `error.details`.
+
+### Registration Flow Widget Tests
+
+#### `mobile/test/ui/pages/auth/register/register_page_flow_test.dart`
+
+* Added end-to-end widget test covering the entire onboarding process.
+* Validated:
+
+  * multi-step navigation
+  * date picker integration
+  * phone formatting
+  * e-mail verification flow
+  * phone verification flow
+  * review step
+  * final registration submission
+* Added verification token assertions in final payload validation.
+* Added navigation validation after successful registration.
+
+### Registration ViewModel Tests
+
+#### `mobile/test/ui/pages/auth/register/viewmodel/register_viewmodel_test.dart`
+
+* Added unit tests validating:
+
+  * initial onboarding state
+  * invalid step progression blocking
+  * onboarding data persistence
+  * e-mail verification transitions
+  * phone verification transitions
+  * verification token requirements
+  * final registration payload generation
+* Added coverage for onboarding state machine behavior.
+
+### Architectural Notes
+
+This commit significantly advances the onboarding architecture toward a more realistic fintech onboarding model aligned with the project's Zero Trust and evidence-based authentication direction.
+
+The new flow establishes the foundation for:
+
+* progressive onboarding
+* contextual trust evaluation
+* stronger identity validation
+* future device registration flows
+* transactional security expansion
+* adaptive authentication mechanisms
+
+It also moves the mobile application closer to the backend authentication strategy already documented in the API architecture and authentication specifications.  
+
+
+## 2026/05/18 — mobile/pre-onboarding-02
+
+This commit introduces the first structural layer of the pre-onboarding flow for the mobile application, focusing on contact verification before account registration and improving the error propagation model between API and Flutter client.
+
+The implementation establishes the initial foundation for a more robust onboarding process, where e-mail and phone validation become explicit prerequisites before authentication and account activation flows.
+
+### Backlog and Project Organization
+
+1. Reorganized onboarding backlog numbering
+
+   * Renamed:
+
+     * `docs/backlogs/api/006 - onboarding.md`
+     * → `docs/backlogs/api/001 - onboarding.md`
+   * Normalized onboarding backlog priority within the API planning structure.
+   * Reinforced onboarding as one of the primary architectural flows of the platform.
+
+### Contact Verification Flow Foundation
+
+1. Added contact verification support to the authentication repository
+
+   * Introduced:
+
+     * `requestContactVerification(...)`
+     * `confirmContactVerification(...)`
+   * Added DTO integration for:
+
+     * verification request
+     * verification confirmation
+     * verification tokens
+     * verification responses
+
+2. Extended repository implementation
+
+   * Added delegation to `AuthApi` for verification operations.
+   * Preserved authentication session isolation:
+
+     * verification operations do not create sessions
+     * verification operations do not persist login state
+     * verification operations do not modify cached profile state
+
+3. Added support for verification tokens during registration
+
+   * `RegisterRequestDto` now includes:
+
+     * `phone`
+     * `birthDate`
+     * `emailVerificationToken`
+     * `phoneVerificationToken`
+   * Added CPF normalization before serialization.
+   * Added birth date serialization using ISO date-only format.
+   * Added parsing validation for `birth_date`.
+
+### HTTP Error Mapping Evolution
+
+1. Introduced new application error code
+
+   * Added:
+
+     * `AppErrorCode.contactNotVerified`
+
+2. Extended Dio error mapper
+
+   * Added backend mapping for:
+
+     * `CONTACT_NOT_VERIFIED`
+   * Implemented contextual user feedback based on verification state:
+
+     * both channels pending
+     * only e-mail pending
+     * only phone pending
+
+3. Improved backend error details propagation
+
+   * Added support for:
+
+     * `error.details`
+   * Preserved generic compatibility for legacy error payloads.
+   * Improved HTTP error fallback handling.
+
+4. Extended API envelope parsing
+
+   * `ApiError` now supports structured `details`.
+   * Added safe parsing for dynamic map payloads.
+
+### Register Flow Transition
+
+1. Adjusted register page behavior
+
+   * Removed direct registration execution from the page.
+   * Temporarily redirected flow toward pre-verification guidance.
+   * Added onboarding feedback snackbar:
+
+     * “Confirme seu e-mail e telefone antes de concluir o cadastro.”
+
+2. Prepared the UI for the upcoming staged onboarding flow
+
+   * The register page now behaves as an entry point for future:
+
+     * e-mail confirmation
+     * SMS confirmation
+     * pre-auth onboarding orchestration
+
+### Test Coverage Expansion
+
+1. Added exhaustive tests for contact verification error mapping
+
+   * Covered scenarios:
+
+     * both channels pending
+     * e-mail only pending
+     * phone only pending
+     * missing details fallback
+     * generic 403 isolation
+
+2. Added repository tests for verification flows
+
+   * Verified:
+
+     * API delegation
+     * session isolation
+     * failure propagation
+     * success propagation
+
+3. Added DTO serialization and parsing tests
+
+   * Verified:
+
+     * CPF normalization
+     * token persistence
+     * birth date formatting
+     * payload compatibility
+
+4. Added API envelope compatibility tests
+
+   * Covered:
+
+     * envelopes with details
+     * envelopes without details
+     * backward compatibility behavior
+
+This commit establishes the first concrete layer of a staged onboarding architecture in the mobile application, moving the project away from immediate account creation and toward a verification-first model aligned with stronger identity validation and future Zero Trust onboarding flows.
+
+
+## 2026/05/18 — mobile/pre-onboarding-01
+
+This commit introduces the first mobile foundation for the new pre-onboarding flow with contact verification support. The work aligns the Flutter client with the updated authentication contract from the API, where users must verify both e-mail and phone before completing registration.
+
+A major focus of this commit was the backlog reorganization and the creation of a dedicated mobile onboarding specification covering the new multi-step registration journey.
+
+### Documentation and backlog restructuring
+
+1. Reorganized onboarding backlog numbering and lifecycle
+
+   * Renamed API onboarding backlog identifiers to maintain sequence consistency.
+   * Moved completed pre-onboarding backlog items into the `done/` directory.
+   * Preserved historical references and backlog traceability.
+
+2. Added the mobile pre-onboarding specification
+
+   * Created:
+
+     * `docs/backlogs/mobile/009 - pre_onboarding_contact_verification.md`
+     * `docs/backlogs/mobile/009 - pre_onboarding_contact_verification_tasks.md`
+   * Documented:
+
+     * new API contracts;
+     * contact verification flow;
+     * UI and ViewModel responsibilities;
+     * login behavior for `CONTACT_NOT_VERIFIED`;
+     * DTO and repository expectations;
+     * acceptance criteria for all implementation phases.
+   * Defined the complete multi-step registration journey:
+
+     * e-mail verification;
+     * phone verification;
+     * birth date collection;
+     * final registration with verification tokens.
+   * Added a structured task breakdown with dependency mapping for incremental implementation.
+
+### Mobile auth API integration
+
+3. Added contact verification support to `AuthApi`
+
+   * Implemented:
+
+     * `requestContactVerification()`
+     * `confirmContactVerification()`
+   * Added integration with:
+
+     * `POST /auth/contact-verifications`
+     * `POST /auth/contact-verifications/confirm`
+   * Added `X-App-Token` propagation for onboarding endpoints.
+   * Added HTTP status validation and envelope parsing.
+   * Preserved the existing `Result<AppError>` flow.
+   * Added structured logging for:
+
+     * request failures;
+     * API envelope failures;
+     * parsing failures.
+   * Added development-mode debug logging for returned verification tokens.
+
+### Contact verification DTOs
+
+4. Added request and response DTOs for contact verification
+
+   * Created:
+
+     * `ContactVerificationRequestDto`
+     * `ContactVerificationRequestResponseDto`
+     * `ContactVerificationConfirmRequestDto`
+     * `ContactVerificationConfirmResponseDto`
+   * Added:
+
+     * request serialization;
+     * response parsing;
+     * verification token mapping;
+     * ISO datetime parsing for expiration and verification timestamps.
+
+### Automated tests
+
+5. Added DTO unit tests
+
+   * Added serialization and parsing coverage for all new DTOs.
+   * Validated:
+
+     * request payload generation;
+     * verification response parsing;
+     * datetime conversion behavior.
+
+6. Added `AuthApi` integration-oriented tests
+
+   * Added coverage for:
+
+     * request verification endpoint;
+     * confirmation endpoint;
+     * API error envelope mapping;
+     * `X-App-Token` propagation;
+     * request body generation.
+   * Added fake REST client infrastructure for isolated testing.
+
+### Architectural alignment
+
+7. Advanced the mobile onboarding architecture toward the new API contract
+
+   * Established the initial infrastructure required for:
+
+     * multi-step onboarding;
+     * pre-registration verification;
+     * channel-specific verification handling;
+     * future onboarding orchestration in `RegisterViewmodel`.
+   * Prepared the mobile layer for upcoming support of:
+
+     * `CONTACT_NOT_VERIFIED`;
+     * `error.details`;
+     * redesigned registration UI;
+     * onboarding state management.
+
+This commit represents the first operational mobile step toward the new onboarding model and establishes the API integration base required for the future multi-stage registration experience.
+
+
+## 2026/05/18 — api/pre-onboarding-06
+
+This commit advances the pre-onboarding and authentication flow by introducing contact verification enforcement during login, removing the remaining direct CPF dependency from the `customers` table, and consolidating document handling through `customer_documents`.
+
+### Authentication and Contact Verification
+
+Implemented mandatory contact verification validation before session creation during login.
+
+#### `api/internal/auth/application/login_user.go`
+
+* Added `validateContactVerification` to enforce verified email and phone before authentication completes.
+* Introduced early interruption of the login flow when contact verification requirements are not satisfied.
+* Ensured validation happens before account provisioning checks and token generation.
+
+#### `api/internal/auth/domain/errors.go`
+
+* Added `ErrContactNotVerified`.
+* Introduced `ContactNotVerifiedError` carrying structured verification state:
+
+  * `EmailVerified`
+  * `PhoneVerified`
+* Implemented `Unwrap()` support for compatibility with `errors.Is` and `errors.As`.
+
+#### `api/internal/auth/application/errors_registry.go`
+
+* Added structured registration for `CONTACT_NOT_VERIFIED`.
+* Introduced dynamic error detail mapping for verification state exposure.
+
+#### `api/internal/shared/errors/*`
+
+* Extended `AppError` with `Details`.
+* Added `RegisterDomainErrorWithDetails`.
+* Updated mapper logic to dynamically populate structured error payloads.
+* Added new error code:
+
+  * `CONTACT_NOT_VERIFIED`
+
+#### `api/internal/shared/http/response.go`
+
+* Extended HTTP error responses to include:
+
+  * `error.details`
+
+### Login Flow Tests
+
+Expanded login coverage to validate all verification scenarios.
+
+#### `api/internal/auth/application/login_user_test.go`
+
+* Updated all successful authentication scenarios to include:
+
+  * `EmailVerifiedAt`
+  * `PhoneVerifiedAt`
+* Added tests for:
+
+  * email not verified
+  * phone not verified
+* Verified that failed verification:
+
+  * blocks token generation
+  * blocks session persistence
+  * skips provisioning validation
+
+#### `api/internal/auth/delivery/handler_test.go`
+
+* Added HTTP integration coverage for:
+
+  * `CONTACT_NOT_VERIFIED`
+* Validated:
+
+  * HTTP 403 status
+  * structured error response
+  * verification detail payload
+
+### Customer CPF Decoupling
+
+One of the main goals of this commit was removing the remaining runtime dependency on the legacy `customers.cpf` column and consolidating CPF access through `customer_documents`.
+
+#### `api/internal/account/bankaccount/infrastructure/repository.go`
+
+* Replaced direct `customers.cpf` usage with joins against `customer_documents`.
+* Updated transfer recipient lookup queries to:
+
+  * resolve CPF from `customer_documents`
+  * enforce:
+
+    * `type = 'cpf'`
+    * `country = 'BR'`
+    * `is_primary = true`
+
+#### `api/internal/account/bankaccount/infrastructure/repository_test.go`
+
+* Added guards ensuring:
+
+  * no legacy `customers.cpf` references remain
+  * queries use `customer_documents`
+  * document filtering uses `cd.value`
+
+### Database Migration
+
+Introduced migration removing the direct CPF column from `customers`.
+
+#### `api/migrations/000008_remove_customers_direct_cpf.up.sql`
+
+* Removed:
+
+  * `customers.cpf`
+  * CPF format constraint
+  * CPF unique constraint
+
+#### `api/migrations/000008_remove_customers_direct_cpf.down.sql`
+
+* Recreated:
+
+  * `customers.cpf`
+  * CPF constraints
+* Added restoration logic using `customer_documents`.
+
+### Integration and Repository Test Schema Updates
+
+Adjusted integration schemas and seed helpers to align with the new document model.
+
+#### Updated test schemas
+
+* `deposit_integration_test.go`
+* `auth_authorization_integration_test.go`
+* `postgres_user_repository_test.go`
+
+Changes include:
+
+* removal of direct CPF column usage
+* creation of `customer_documents`
+* primary document uniqueness index
+* document seeding helpers
+* explicit CPF document insertion
+
+### User Seed and Verification Improvements
+
+#### `api/internal/auth/delivery/auth_authorization_integration_test.go`
+
+* Updated seeded users to include:
+
+  * phone number
+  * `email_verified_at`
+  * `phone_verified_at`
+* Ensured integration login flows reflect real verification requirements.
+
+### Architectural Impact
+
+This commit significantly advances the onboarding and identity model by:
+
+* separating customer identity documents from the customer aggregate itself
+* enabling multi-document support in future onboarding flows
+* removing direct CPF coupling from transfer operations
+* introducing structured authentication failure responses
+* enforcing verified communication channels before authenticated access
+* improving API consistency around domain-driven error propagation
+
+The changes also prepare the platform for future onboarding expansion involving:
+
+* multiple document types
+* internationalization of identity records
+* staged onboarding and verification workflows
+* richer Zero Trust and pre-authentication validation strategies.
+
+
+## 2026/05/18 — api/pre-onboarding-05
+
+This commit advances the pre-onboarding and authentication flow by consolidating customer document ownership into `customer_documents`, introducing mandatory contact verification before login, and extending the shared error infrastructure to support structured error details.
+
+### Customer document normalization and CPF decoupling
+
+The persistence layer was refactored to remove direct CPF dependencies from the `customers` table and fully adopt the `customer_documents` model for identity resolution.
+
+#### Account repository updates
+
+* Refactored transfer recipient queries to load CPF values through `customer_documents`
+* Removed direct references to `customers.cpf`
+* Added filtering rules for:
+
+  * `type = 'cpf'`
+  * `country = 'BR'`
+  * `is_primary = true`
+* Preserved active account filtering semantics
+
+Files:
+
+* `api/internal/account/bankaccount/infrastructure/repository.go`
+
+#### Repository test hardening
+
+Added assertions to guarantee:
+
+* no legacy CPF column usage
+* mandatory `customer_documents` joins
+* correct filtering through `cd.value`
+
+Files:
+
+* `api/internal/account/bankaccount/infrastructure/repository_test.go`
+
+### Integration test schema migration alignment
+
+Updated multiple integration schemas and seed helpers to reflect the new normalized document structure.
+
+#### Deposit integration schema
+
+* Removed direct CPF column from `customers`
+* Added full `customer_documents` table
+* Added:
+
+  * uniqueness constraints
+  * primary document partial index
+  * timestamps
+* Refactored customer seeding helpers to insert CPF documents separately
+
+Files:
+
+* `api/internal/account/transaction/delivery/deposit_integration_test.go`
+
+#### Auth integration schema
+
+* Removed CPF coupling from customer schema
+* Added explicit CPF document seeding
+* Updated seeded users to include:
+
+  * `phone`
+  * `email_verified_at`
+  * `phone_verified_at`
+
+Files:
+
+* `api/internal/auth/delivery/auth_authorization_integration_test.go`
+
+#### Auth repository schema cleanup
+
+Removed obsolete CPF column assumptions from auth repository tests.
+
+Files:
+
+* `api/internal/auth/infrastructure/postgres_user_repository_test.go`
+
+### Login contact verification enforcement
+
+Introduced a mandatory verification gate before login token issuance.
+
+#### New login validation flow
+
+Added:
+
+* `validateContactVerification(user)`
+
+The login process now blocks authentication when:
+
+* email is not verified
+* phone is not verified
+
+Validation occurs before:
+
+* account provisioning checks
+* token generation
+* session persistence
+
+Files:
+
+* `api/internal/auth/application/login_user.go`
+
+### Structured domain error for contact verification
+
+Introduced a dedicated domain error type capable of exposing verification state metadata.
+
+#### New domain error model
+
+Added:
+
+* `ErrContactNotVerified`
+* `ContactNotVerifiedError`
+* structured verification state:
+
+  * `EmailVerified`
+  * `PhoneVerified`
+
+Implemented:
+
+* `Error()`
+* `Unwrap()`
+* constructor helper
+
+Files:
+
+* `api/internal/auth/domain/errors.go`
+
+### Shared error infrastructure improvements
+
+Extended the shared error system to support dynamic structured payloads.
+
+#### Shared error model updates
+
+Added:
+
+* `AppError.Details`
+
+Implemented:
+
+* `RegisterDomainErrorWithDetails(...)`
+* dynamic detail extraction callbacks in mapper registry
+
+Files:
+
+* `api/internal/shared/errors/error.go`
+* `api/internal/shared/errors/mapper.go`
+
+#### HTTP error serialization
+
+Extended HTTP responses to serialize:
+
+* `error.details`
+
+Files:
+
+* `api/internal/shared/http/response.go`
+
+#### New shared error code
+
+Added:
+
+* `CONTACT_NOT_VERIFIED`
+
+Files:
+
+* `api/internal/shared/errors/codes.go`
+
+### Auth error registry enhancements
+
+Registered structured mapping for contact verification failures.
+
+Behavior:
+
+* returns HTTP `403 Forbidden`
+* includes:
+
+  * `email_verified`
+  * `phone_verified`
+
+Files:
+
+* `api/internal/auth/application/errors_registry.go`
+
+### Login use case test coverage expansion
+
+Refactored existing tests to seed verified users explicitly and added dedicated verification failure scenarios.
+
+#### Added test coverage for
+
+* email not verified
+* phone not verified
+* early interruption of login flow
+* prevention of:
+
+  * token generation
+  * session creation
+  * provisioning checks
+
+Files:
+
+* `api/internal/auth/application/login_user_test.go`
+
+### HTTP handler verification error coverage
+
+Added explicit response validation for:
+
+* `CONTACT_NOT_VERIFIED`
+* structured `details` payload
+
+Files:
+
+* `api/internal/auth/delivery/handler_test.go`
+
+### Database migration for CPF removal
+
+Added migration `000008_remove_customers_direct_cpf`.
+
+#### Up migration
+
+* removes:
+
+  * `customers.cpf`
+  * CPF constraints
+  * CPF unique index
+
+#### Down migration
+
+* recreates `customers.cpf`
+* restores CPF values from `customer_documents`
+* recreates:
+
+  * format validation constraint
+  * uniqueness constraint
+
+Files:
+
+* `api/migrations/000008_remove_customers_direct_cpf.up.sql`
+* `api/migrations/000008_remove_customers_direct_cpf.down.sql`
+
+### Architectural impact
+
+This commit significantly advances the separation between:
+
+* customer identity
+* customer documents
+* authentication lifecycle
+
+It also introduces the first structured authentication gating mechanism tied to onboarding state progression, creating a cleaner foundation for:
+
+* multi-document support
+* country-specific identification strategies
+* progressive onboarding
+* pre-account verification workflows
+* future Zero Trust and KYC enforcement layers
+
+The new shared error infrastructure also establishes a reusable mechanism for exposing structured domain context in API responses without leaking internal implementation details.
+
+
+## 2026/05/18 — api/pre-onboarding-04
+
+This commit evolves the onboarding and registration flow with a new pre-onboarding contact verification stage, introducing verified e-mail and phone validation before user creation. The implementation expands the authentication domain, persistence model, HTTP contracts, and integration coverage to support a more realistic onboarding pipeline aligned with future security and Zero Trust directions.
+
+### Main Changes
+
+1. Registration flow now requires verified e-mail and phone tokens
+
+   * Extended `RegisterUserUseCase` to receive a `ContactVerificationRepository`
+   * Added support for:
+
+     * `phone`
+     * `email_verification_token`
+     * `phone_verification_token`
+   * Added validation logic for:
+
+     * verified e-mail token ownership
+     * verified phone token ownership
+     * channel consistency
+     * verified state existence
+   * Added phone uniqueness validation through `ExistsByPhone`
+   * Persisted:
+
+     * `phone`
+     * `email_verified_at`
+     * `phone_verified_at`
+   * Improved registration transaction flow to validate contact verification state before user creation
+
+2. Contact verification infrastructure expanded
+
+   * Added:
+
+     * `FindContactVerificationByVerificationToken`
+   * Implemented PostgreSQL lookup by verification token
+   * Added integration between:
+
+     * verification confirmation
+     * registration flow
+   * Improved repository documentation and internal scanning helpers
+
+3. User domain and persistence model expanded
+
+   * `User` entity now supports:
+
+     * `Phone`
+     * `EmailVerifiedAt`
+     * `PhoneVerifiedAt`
+   * PostgreSQL repository updated to:
+
+     * insert optional phone and verification timestamps
+     * load nullable verification fields
+     * support phone existence checks
+   * Added helper utilities for nullable string/time persistence
+
+4. Database schema updated for pre-onboarding verification support
+
+   * Added columns to `users`:
+
+     * `phone`
+     * `email_verified_at`
+     * `phone_verified_at`
+   * Added new `contact_verifications` table
+   * Added:
+
+     * verification token uniqueness index
+     * target/channel index
+   * Updated integration and repository test schemas accordingly
+
+5. HTTP authentication contract updated
+
+   * `/auth/register` now requires:
+
+     * phone
+     * e-mail verification token
+     * phone verification token
+   * Registration request validation expanded
+   * Added explicit handler documentation for:
+
+     * contact verification request
+     * contact verification confirmation
+
+6. Integration tests now execute the full pre-onboarding flow
+
+   * Added helper:
+
+     * `requestAndConfirmContactVerification`
+   * Integration flow now performs:
+
+     * verification request
+     * verification confirmation
+     * token retrieval
+     * final registration using verified tokens
+   * Registration integration tests now simulate realistic onboarding behavior
+
+7. Test suite updated across authentication and account modules
+
+   * Added mock support for:
+
+     * `ExistsByPhone`
+     * verification token lookups
+   * Added registration tests for:
+
+     * duplicate phone
+     * missing verification tokens
+     * verified timestamp persistence
+     * invalid phone scenarios
+   * Updated all registration-related tests to use the new onboarding contract
+
+8. Error handling expanded
+
+   * Added:
+
+     * `ErrPhoneAlreadyExists`
+   * Registered HTTP conflict mapping for duplicate phone scenarios
+
+### Architectural Impact
+
+This commit introduces an important transition in the onboarding model:
+
+* onboarding becomes stateful before account creation
+* contact ownership is now validated independently from user persistence
+* user registration becomes dependent on previously validated evidence
+* authentication flow starts evolving toward evidence-based onboarding
+
+The implementation also strengthens separation between:
+
+* verification lifecycle
+* onboarding orchestration
+* persistence concerns
+* HTTP delivery contracts
+
+This lays the groundwork for future onboarding stages such as:
+
+* device registration
+* transactional password setup
+* liveness verification
+* contextual risk analysis
+* Zero Trust evidence aggregation
+
+Relevant architecture and authentication references remain aligned with the current project documentation.  
+
+
+## 2026/05/18 - api/pre-onboarding-03
+
+Implemented the first pre-onboarding contact verification flow, introducing a dedicated verification lifecycle for email and phone channels before user registration completion.
+
+### Added contact verification domain model and repository contracts
+
+* Introduced the `ContactVerification` entity with:
+
+  * verification channel normalization
+  * expiration handling
+  * verification token support
+  * validation rules for email and phone channels
+* Added `ContactVerificationRepository` interface to the auth domain layer.
+* Expanded auth domain errors with:
+
+  * `ErrContactVerificationNotFound`
+  * `ErrInvalidVerificationToken`
+  * `ErrContactVerificationExpired`
+
+### Implemented contact verification use cases
+
+Added two new application use cases:
+
+1. `RequestContactVerificationUseCase`
+2. `ConfirmContactVerificationUseCase`
+
+Main behaviors implemented:
+
+* generation of secure numeric verification tokens
+* verification expiration control with TTL
+* verification token issuance after successful confirmation
+* validation of verification channel and target
+* verification state validation before confirmation
+
+The implementation also introduced:
+
+* cryptographically secure numeric token generation
+* UTC-based deterministic time handling
+* normalized channel processing (`email` and `phone`)
+
+### Added PostgreSQL contact verification repository
+
+Implemented `PostgresContactVerificationRepository` with support for:
+
+* verification creation
+* lookup by verification ID
+* verification confirmation persistence
+* transaction-aware executor support
+* nullable verification metadata mapping
+* PostgreSQL constraint error translation to domain errors
+
+### Added database migration for contact verifications
+
+Created migration `000007_contact_verifications` with:
+
+* `contact_verifications` table
+* channel constraint validation
+* target/channel lookup index
+* unique verification token index
+* expiration and verification metadata fields
+
+### Integrated pre-onboarding verification into API bootstrap
+
+Updated `cmd/api/main.go` to:
+
+* instantiate the new repository
+* wire the new use cases
+* inject verification flows into the auth handler
+* expose new onboarding endpoints
+
+New endpoints added:
+
+* `POST /auth/contact-verifications`
+* `POST /auth/contact-verifications/confirm`
+
+Both endpoints are protected with the existing `AppToken` middleware, preserving the onboarding boundary architecture already established in the authentication model. 
+
+### Extended auth delivery layer
+
+Updated the auth handler to support:
+
+* request payload parsing
+* verification confirmation parsing
+* UUID validation
+* response serialization
+* centralized error mapping
+* structured error logging
+
+Added dedicated request DTOs for:
+
+* contact verification request
+* contact verification confirmation
+
+### Expanded automated test coverage
+
+Added comprehensive unit coverage for:
+
+* successful verification request flow
+* invalid verification input
+* successful verification confirmation
+* invalid verification token handling
+
+Expanded HTTP handler tests for:
+
+* request endpoint success path
+* confirmation endpoint success path
+* response payload validation
+* request parsing validation
+
+Updated existing integration wiring tests to support the expanded auth handler constructor.
+
+### Architectural impact
+
+This commit establishes the first reusable onboarding verification primitive inside the authentication module.
+
+The implementation keeps the architecture aligned with the current layered modular monolith approach:
+
+* delivery → application → domain
+* infrastructure → domain
+
+while preserving explicit runtime composition through `cmd/api/main.go`. 
+
+This also creates the foundation for future onboarding flows such as:
+
+* email ownership validation
+* phone validation
+* transactional onboarding checkpoints
+* device registration
+* Zero Trust onboarding signals
+* multi-step identity verification workflows
+
+The solution was intentionally implemented as an isolated verification lifecycle instead of coupling verification state directly into the user entity, allowing future reuse across independent onboarding and security flows.
+
+
+## 2026/05/18 — api/pre-onboarding-02
+
+This commit advances the pre-onboarding cadastral redesign by introducing the first structural migrations for contact verification, customer documents, and customer addresses, while also formalizing the migration strategy and implementation backlog for the new onboarding model.
+
+### Database migrations
+
+1. Added `000004_pre_onboarding_cadastral` migration
+
+   * Extended `users` with:
+
+     * `phone`
+     * `email_verified_at`
+     * `phone_verified_at`
+   * Added `birth_date` to `customers`
+   * Introduced the new `customer_documents` table
+   * Introduced the new `customer_addresses` table
+   * Added unique document constraint:
+
+     * `(type, value, country)`
+   * Added partial unique indexes enforcing:
+
+     * a single primary document per customer
+     * a single primary address per customer
+   * Standardized country handling using:
+
+     * `CHAR(2) DEFAULT 'BR'`
+   * Added rollback support for all new structures
+
+2. Added `000005_migrate_customer_cpf_documents` migration
+
+   * Migrated existing `customers.cpf` data into `customer_documents`
+   * Preserved customer creation timestamps during migration
+   * Marked migrated CPF entries as primary documents
+   * Added defensive `NOT EXISTS` filtering for safer local retries
+   * Added rollback migration removing migrated CPF document entries
+
+### Pre-onboarding architecture and migration strategy
+
+3. Expanded the pre-onboarding backlog documentation
+
+   * Added an explicit migration order strategy to avoid:
+
+     * intermediate schema breakage
+     * data loss during CPF extraction
+   * Clarified that `customers.cpf` removal must happen only after:
+
+     * schema preparation
+     * data migration
+     * repository/query migration
+     * test adaptation
+   * Documented the transition from direct CPF ownership in `Customer`
+     to document-based identity modeling
+
+4. Added impact analysis checklist for the current codebase
+
+   * Identified affected layers and repositories:
+
+     * customer domain
+     * auth registration flow
+     * account lookup queries
+     * transfer recipient queries
+     * integration tests
+     * Postman collection
+     * technical documentation
+   * Documented required query migrations from:
+
+     * `customers.cpf`
+       to:
+     * `customer_documents`
+
+### Backlog decomposition and implementation planning
+
+5. Added `000 - pre-onboarding_tasks.md`
+
+   * Created a detailed 12-task execution plan for the onboarding redesign
+   * Structured the migration into isolated phases covering:
+
+     * schema preparation
+     * CPF migration
+     * customer document modeling
+     * contact verification flows
+     * auth updates
+     * login verification requirements
+     * repository migration
+     * final CPF column removal
+     * documentation/test updates
+   * Added:
+
+     * acceptance criteria
+     * dependency chains
+     * suggested execution order
+   * Explicitly separated:
+
+     * domain responsibilities
+     * persistence migration
+     * onboarding/session evolution
+     * verification workflows
+
+### Architectural direction reinforced
+
+6. Reinforced the transition toward a more extensible identity model
+
+   * Customer identity is no longer tied exclusively to CPF
+   * The system now evolves toward:
+
+     * multi-document support
+     * country-aware document modeling
+     * onboarding verification checkpoints
+     * future KYC extensibility
+   * Prepared the foundation for:
+
+     * email verification
+     * phone verification
+     * onboarding-scoped sessions
+     * future Zero Trust onboarding flows
+
+This commit establishes the structural base for the new onboarding architecture while preserving migration safety and preparing the codebase for the gradual removal of direct CPF coupling from the `Customer` model.
+
+
 ## 2026/05/18 - api/pre-onboarding-01
 
 Introduced the initial pre-onboarding cadastral foundation for the Bank API, focusing on evolving the customer identity model from a CPF-centric structure to a flexible document-based architecture. This commit establishes the database preparation, migration strategy, and execution roadmap required to support future onboarding checkpoints, contact verification, and expanded customer identity flows.

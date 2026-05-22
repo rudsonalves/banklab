@@ -48,6 +48,10 @@ func (m *refreshUserRepositoryMock) ExistsByEmail(ctx context.Context, email str
 	return false, nil
 }
 
+func (m *refreshUserRepositoryMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	return false, nil
+}
+
 type refreshTokenServiceMock struct {
 	parseCalls           int
 	parseToken           string

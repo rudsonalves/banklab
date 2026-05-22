@@ -18,9 +18,18 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	// ExistsByEmail checks if a user with the given email already exists.
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	// ExistsByPhone checks if a user with the given phone already exists.
+	ExistsByPhone(ctx context.Context, phone string) (bool, error)
 	// FindByIDForUpdate returns the full User entity locked for update (FOR UPDATE).
 	// Must be called within a transaction.
 	FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*User, error)
+}
+
+type ContactVerificationRepository interface {
+	CreateContactVerification(ctx context.Context, verification *ContactVerification) error
+	FindContactVerificationByID(ctx context.Context, id uuid.UUID) (*ContactVerification, error)
+	FindContactVerificationByVerificationToken(ctx context.Context, verificationToken string) (*ContactVerification, error)
+	ConfirmContactVerification(ctx context.Context, id uuid.UUID, verificationToken string, verifiedAt time.Time) error
 }
 
 type PasswordHasher interface {

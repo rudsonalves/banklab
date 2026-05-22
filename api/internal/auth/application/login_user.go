@@ -94,6 +94,10 @@ func (uc *LoginUserUseCase) Execute(
 		return nil, domain.ErrInvalidCredentials
 	}
 
+	if err := validateContactVerification(user); err != nil {
+		return nil, err
+	}
+
 	if err := uc.validateLoginEligibility(ctx, user); err != nil {
 		return nil, err
 	}
@@ -161,4 +165,14 @@ func (uc *LoginUserUseCase) validateLoginEligibility(ctx context.Context, user *
 	}
 
 	return nil
+}
+
+func validateContactVerification(user *domain.User) error {
+	emailVerified := user.EmailVerifiedAt != nil
+	phoneVerified := user.PhoneVerifiedAt != nil
+	if emailVerified && phoneVerified {
+		return nil
+	}
+
+	return domain.NewContactNotVerifiedError(emailVerified, phoneVerified)
 }

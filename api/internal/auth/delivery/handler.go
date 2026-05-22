@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
@@ -29,18 +30,32 @@ type refreshAccessTokenUseCase interface {
 	Execute(ctx context.Context, input application.RefreshAccessTokenInput) (*application.RefreshAccessTokenOutput, error)
 }
 
+type requestContactVerificationUseCase interface {
+	Execute(ctx context.Context, input application.RequestContactVerificationInput) (*application.RequestContactVerificationOutput, error)
+}
+
+type confirmContactVerificationUseCase interface {
+	Execute(ctx context.Context, input application.ConfirmContactVerificationInput) (*application.ConfirmContactVerificationOutput, error)
+}
+
 type Handler struct {
-	registerUser       registerUserUseCase
-	loginUser          loginUserUseCase
-	getCurrentUser     getCurrentUserUseCase
-	refreshAccessToken refreshAccessTokenUseCase
+	registerUser               registerUserUseCase
+	loginUser                  loginUserUseCase
+	getCurrentUser             getCurrentUserUseCase
+	refreshAccessToken         refreshAccessTokenUseCase
+	requestContactVerification requestContactVerificationUseCase
+	confirmContactVerification confirmContactVerificationUseCase
 }
 
 type registerUserRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
-	CPF      string `json:"cpf"`
+	Email                  string `json:"email"`
+	Phone                  string `json:"phone"`
+	Password               string `json:"password"`
+	Name                   string `json:"name"`
+	BirthDate              string `json:"birth_date"`
+	CPF                    string `json:"cpf"`
+	EmailVerificationToken string `json:"email_verification_token"`
+	PhoneVerificationToken string `json:"phone_verification_token"`
 }
 
 type loginUserRequest struct {
@@ -50,6 +65,16 @@ type loginUserRequest struct {
 
 type refreshAccessTokenRequest struct {
 	RefreshToken string `json:"refresh_token"`
+}
+
+type requestContactVerificationRequest struct {
+	Channel string `json:"channel"`
+	Target  string `json:"target"`
+}
+
+type confirmContactVerificationRequest struct {
+	VerificationID string `json:"verification_id"`
+	Token          string `json:"token"`
 }
 
 type userData struct {
@@ -75,26 +100,29 @@ type refreshAccessTokenData struct {
 
 // New creates a new instance of the Handler with the provided use cases.
 // It requires use cases for registering a user, logging in a user, getting the
-// current user, and refreshing an access token.
+// current user, refreshing an access token, requesting contact verification,
+// and confirming contact verification.
 func New(
 	registerUser registerUserUseCase,
 	loginUser loginUserUseCase,
 	getCurrentUser getCurrentUserUseCase,
 	refreshAccessToken refreshAccessTokenUseCase,
+	requestContactVerification requestContactVerificationUseCase,
+	confirmContactVerification confirmContactVerificationUseCase,
 ) *Handler {
 	return &Handler{
-		registerUser:       registerUser,
-		loginUser:          loginUser,
-		getCurrentUser:     getCurrentUser,
-		refreshAccessToken: refreshAccessToken,
+		registerUser:               registerUser,
+		loginUser:                  loginUser,
+		getCurrentUser:             getCurrentUser,
+		refreshAccessToken:         refreshAccessToken,
+		requestContactVerification: requestContactVerification,
+		confirmContactVerification: confirmContactVerification,
 	}
 }
 
-// Handler is responsible for handling HTTP requests related to authentication,
-// including user registration, login, retrieving the current authenticated user's
-// information, and refreshing access tokens. It uses the provided use cases to
-// perform the necessary operations and returns appropriate HTTP responses based
-// on the outcome of each operation.
+// Register handles HTTP requests for user registration.
+// It validates the request, parses the birth date, and executes the register use case.
+// Returns appropriate HTTP responses with user data on success or errors on failure.
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if h.registerUser == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -112,11 +140,21 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	birthDate, err := time.Parse("2006-01-02", strings.TrimSpace(req.BirthDate))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
 	output, err := h.registerUser.Execute(r.Context(), application.RegisterUserInput{
-		Email:    strings.TrimSpace(req.Email),
-		Password: strings.TrimSpace(req.Password),
-		Name:     strings.TrimSpace(req.Name),
-		CPF:      strings.TrimSpace(req.CPF),
+		Email:                  strings.TrimSpace(req.Email),
+		Phone:                  strings.TrimSpace(req.Phone),
+		Password:               strings.TrimSpace(req.Password),
+		Name:                   strings.TrimSpace(req.Name),
+		BirthDate:              birthDate,
+		CPF:                    strings.TrimSpace(req.CPF),
+		EmailVerificationToken: strings.TrimSpace(req.EmailVerificationToken),
+		PhoneVerificationToken: strings.TrimSpace(req.PhoneVerificationToken),
 	})
 	if err != nil {
 		log.Printf("event=register_user error=%v", err)
@@ -137,19 +175,87 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// isValidRegisterRequest validates the registration request by checking if the
-// email, password, name, and CPF fields are not empty. It trims any leading or
-// trailing whitespace from the input values before performing the validation. If
-// any of the required fields are empty after trimming, it returns false, indicating
-// that the request is invalid. Otherwise, it returns true, indicating that the
-// request is valid and can be processed further.
+// RequestContactVerification handles the HTTP request for creating a contact
+// verification attempt for the provided channel and target.
+func (h *Handler) RequestContactVerification(w http.ResponseWriter, r *http.Request) {
+	if h.requestContactVerification == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	var req requestContactVerificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	output, err := h.requestContactVerification.Execute(r.Context(), application.RequestContactVerificationInput{
+		Channel: req.Channel,
+		Target:  req.Target,
+	})
+	if err != nil {
+		log.Printf("event=request_contact_verification error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusCreated, output)
+}
+
+// ConfirmContactVerification handles the HTTP request for confirming a contact
+// verification attempt using its identifier and token.
+func (h *Handler) ConfirmContactVerification(w http.ResponseWriter, r *http.Request) {
+	if h.confirmContactVerification == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	var req confirmContactVerificationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	verificationID, err := uuid.Parse(strings.TrimSpace(req.VerificationID))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
+		return
+	}
+
+	output, err := h.confirmContactVerification.Execute(r.Context(), application.ConfirmContactVerificationInput{
+		VerificationID: verificationID,
+		Token:          req.Token,
+	})
+	if err != nil {
+		log.Printf("event=confirm_contact_verification error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, output)
+}
+
+// isValidRegisterRequest validates the registration request by checking if all
+// required fields (email, phone, password, name, birth date, CPF, and contact
+// verification tokens) are provided and not empty after whitespace trimming.
 func isValidRegisterRequest(req registerUserRequest) bool {
 	email := strings.TrimSpace(req.Email)
+	phone := strings.TrimSpace(req.Phone)
 	password := strings.TrimSpace(req.Password)
 	name := strings.TrimSpace(req.Name)
+	birthDate := strings.TrimSpace(req.BirthDate)
 	cpf := strings.TrimSpace(req.CPF)
+	emailVerificationToken := strings.TrimSpace(req.EmailVerificationToken)
+	phoneVerificationToken := strings.TrimSpace(req.PhoneVerificationToken)
 
-	if email == "" || password == "" || name == "" || cpf == "" {
+	if email == "" ||
+		phone == "" ||
+		password == "" ||
+		name == "" ||
+		birthDate == "" ||
+		cpf == "" ||
+		emailVerificationToken == "" ||
+		phoneVerificationToken == "" {
 		return false
 	}
 

@@ -42,6 +42,7 @@ func WriteError(w http.ResponseWriter, appErr sharederrors.AppError) {
 		Error: &ErrorBody{
 			Code:    appErr.Code,
 			Message: appErr.Message,
+			Details: appErr.Details,
 		},
 	})
 }

@@ -3,11 +3,10 @@ import '/core/result/result.dart';
 import '/core/services/logging/console_log.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
 import '/data/repositories/auth/auth_repository.dart';
-import '/data/services/auth/api/auth_api.dart';
-import '/data/services/auth/api/dtos/login_request_dto.dart';
-import '/data/services/auth/api/dtos/register_request_dto.dart';
-import '/data/services/auth/cache/last_login_cache_service.dart';
-import '/data/services/auth/cache/models/last_login_identity.dart';
+import '/data/services/apis/auth/auth_api.dart';
+import '/data/services/apis/auth/dtos/login_request_dto.dart';
+import '/data/services/cache/last_login/last_login_cache_service.dart';
+import '/data/services/cache/last_login/models/last_login_identity.dart';
 import '/domain/common/auth/models/auth_user.dart';
 import '/domain/common/auth/models/user_profile.dart';
 
@@ -114,22 +113,5 @@ class AuthRepositoryImpl implements AuthRepository {
     _userProfile = result.value!;
 
     return Success(_userProfile!);
-  }
-
-  @override
-  AsyncResult<Unit> register(RegisterRequestDto dto) async {
-    if (isLoggedIn) {
-      return Failure(
-        AppError(
-          code: AppErrorCode.unexpected,
-          message: 'User is already logged in.',
-        ),
-      );
-    }
-
-    final result = await _api.register(dto);
-    if (result.isFailure) return Result.failure(result.error!);
-
-    return Success(unit);
   }
 }

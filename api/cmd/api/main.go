@@ -49,6 +49,7 @@ func main() {
 
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
 	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
+	contactVerificationRepo := authInfrastructure.NewPostgresContactVerificationRepository(db)
 	transactor := authInfrastructure.NewPostgresTransactor(db)
 
 	// ======================
@@ -72,13 +73,23 @@ func main() {
 	statementUC := statementApplication.NewGetStatement(statementRepo)
 	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
 
-	registerUserUC := authApplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	registerUserUC := authApplication.NewRegisterUserUseCase(
+		userRepo,
+		customerRepo,
+		customerRepo,
+		contactVerificationRepo,
+		hasher,
+		transactor,
+	)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
+	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
+	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
 	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
+	checkCPFUC := customerApplication.NewCheckCPFUseCase(customerRepo)
 
 	// ======================
 	// Handlers
@@ -86,9 +97,16 @@ func main() {
 	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC, lookupInternalTransferRecipientsUC)
 	statementHandler := statementDelivery.New(statementUC)
 	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC, transferReceiptUC)
-	authHandler := authDelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
+	authHandler := authDelivery.New(
+		registerUserUC,
+		loginUserUC,
+		getCurrentUserUC,
+		refreshAccessTokenUC,
+		requestContactVerificationUC,
+		confirmContactVerificationUC,
+	)
 	adminHandler := adminDelivery.New(approveUserUC)
-	customerHandler := customerDelivery.New(nil, getCustomerMeUC)
+	customerHandler := customerDelivery.New(nil, getCustomerMeUC, checkCPFUC)
 
 	// ======================
 	// Middlewares
@@ -103,15 +121,7 @@ func main() {
 	// ======================
 
 	// --- Auth Router ---
-	authRouter := http.NewServeMux()
-
-	// Onboarding (AppToken)
-	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))
-	authRouter.Handle("POST /auth/login", appTokenMiddleware(http.HandlerFunc(authHandler.Login)))
-
-	// Session refresh is authenticated by the refresh token payload itself.
-	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
-	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
+	authRouter := newAuthRouter(authHandler, customerHandler, appTokenMiddleware, withAuth)
 
 	// --- API Router ---
 	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler)
@@ -129,6 +139,28 @@ func main() {
 	if err := http.ListenAndServe(":8080", mainRouter); err != nil {
 		log.Fatal("failed to start server:", err)
 	}
+}
+
+func newAuthRouter(
+	authHandler *authDelivery.Handler,
+	customerHandler *customerDelivery.Handler,
+	appTokenMiddleware func(http.Handler) http.Handler,
+	withAuth func(http.Handler) http.Handler,
+) *http.ServeMux {
+	authRouter := http.NewServeMux()
+
+	// Onboarding (AppToken)
+	authRouter.Handle("POST /auth/cpf-check", appTokenMiddleware(http.HandlerFunc(customerHandler.CheckCPF)))
+	authRouter.Handle("POST /auth/contact-verifications", appTokenMiddleware(http.HandlerFunc(authHandler.RequestContactVerification)))
+	authRouter.Handle("POST /auth/contact-verifications/confirm", appTokenMiddleware(http.HandlerFunc(authHandler.ConfirmContactVerification)))
+	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))
+	authRouter.Handle("POST /auth/login", appTokenMiddleware(http.HandlerFunc(authHandler.Login)))
+
+	// Session refresh is authenticated by the refresh token payload itself.
+	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
+	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
+
+	return authRouter
 }
 
 func newAPIRouter(

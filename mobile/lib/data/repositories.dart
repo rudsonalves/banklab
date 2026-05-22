@@ -1,42 +1,32 @@
 import 'package:auto_injector/auto_injector.dart';
 
-import '/core/services/secure_storage/local_secure_storage.dart';
 import '/data/repositories/account/account_repository.dart';
 import '/data/repositories/account/account_repository_impl.dart';
 import '/data/repositories/auth/auth_repository.dart';
 import '/data/repositories/auth/auth_repository_impl.dart';
+import '/data/repositories/register_draft/register_draft_repository.dart';
+import '/data/repositories/register_draft/register_draft_repository_impl.dart';
+import 'repositories/contact_verification/contact_verification_repository.dart';
+import 'repositories/contact_verification/contact_verification_repository_impl.dart';
+import 'repositories/registration/registration_repository.dart';
+import 'repositories/registration/registration_repository_impl.dart';
 import 'repositories/transaction/transaction_repository.dart';
 import 'repositories/transaction/transaction_repository_impl.dart';
-import 'services/apis/account/balance_api.dart';
-import 'services/apis/account/list_accounts_api.dart';
-import 'services/apis/account/statement_api.dart';
-import 'services/apis/receipt/api_receipt.dart';
-import 'services/apis/transfer/api_transfer.dart';
-import 'services/auth/api/auth_api.dart';
-import 'services/auth/cache/last_login_cache_service.dart';
 
 class Repositories {
   static void add(AutoInjector injector) {
     injector
-      ..addSingleton<AuthRepository>(
-        () => AuthRepositoryImpl(
-          api: injector.get<AuthApi>(),
-          storage: injector.get<LocalSecureStorage>(),
-          lastLoginCacheService: injector.get<LastLoginCacheService>(),
-        ),
+      ..addSingleton<AuthRepository>(AuthRepositoryImpl.new)
+      ..addSingleton<AccountRepository>(AccountRepositoryImpl.new)
+      ..addSingleton<TransactionRepository>(TransactionRepositoryImpl.new)
+      ..addLazySingleton<RegisterDraftRepository>(
+        RegisterDraftRepositoryImpl.new,
       )
-      ..addSingleton<AccountRepository>(
-        () => AccountRepositoryImpl(
-          balanceApi: injector.get<BalanceApi>(),
-          listAccountsApi: injector.get<ListAccountsApi>(),
-          statementApi: injector.get<StatementApi>(),
-        ),
+      ..addLazySingleton<ContactVerificationRepository>(
+        ContactVerificationRepositoryImpl.new,
       )
-      ..addSingleton<TransactionRepository>(
-        () => TransactionRepositoryImpl(
-          apiTransfer: injector.get<ApiTransfer>(),
-          apiReceipt: injector.get<ApiReceipt>(),
-        ),
+      ..addLazySingleton<RegistrationRepository>(
+        RegistrationRepositoryImpl.new,
       );
   }
 }

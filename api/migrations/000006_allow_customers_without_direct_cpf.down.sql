@@ -1,0 +1,2 @@
+ALTER TABLE customers
+    ALTER COLUMN cpf SET NOT NULL;

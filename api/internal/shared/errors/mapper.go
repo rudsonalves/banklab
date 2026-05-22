@@ -8,8 +8,9 @@ import (
 var ErrInvalidRequest = errors.New("invalid request")
 
 type entry struct {
-	match  func(error) bool
-	appErr AppError
+	match     func(error) bool
+	appErr    AppError
+	detailsFn func(error) any
 }
 
 var registry []entry
@@ -53,7 +54,11 @@ func MapError(err error) AppError {
 
 	for _, e := range registry {
 		if e.match(err) {
-			return e.appErr
+			appErr := e.appErr
+			if e.detailsFn != nil {
+				appErr.Details = e.detailsFn(err)
+			}
+			return appErr
 		}
 	}
 

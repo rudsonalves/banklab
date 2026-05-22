@@ -33,6 +33,9 @@ O grupo de autenticação é responsável por estabelecer e renovar a identidade
 Os endpoints atuais são:
 
 ```text
+POST /auth/cpf-check
+POST /auth/contact-verifications
+POST /auth/contact-verifications/confirm
 POST /auth/register
 POST /auth/login
 POST /auth/refresh
@@ -42,6 +45,10 @@ GET  /auth/me
 ### `POST /auth/register`
 
 Esse endpoint registra um novo usuário e cria o customer associado.
+
+O fluxo exige validação prévia de CPF (`/auth/cpf-check`) e tokens de
+verificação de e-mail e telefone previamente confirmados pelos endpoints de
+contact verification.
 
 Ele marca a entrada inicial do usuário no sistema. O registro já cria a base de identidade e associação com a entidade de cliente, mas isso não significa automaticamente que o usuário já esteja apto a executar todos os fluxos disponíveis. O processo de aprovação ainda pode ser necessário para liberar determinadas operações.
 
@@ -53,6 +60,10 @@ Para usuários `customer`, o login só é concluído depois que o onboarding foi
 aprovado e pelo menos uma conta foi provisionada por
 `POST /admin/users/{id}/approve`. Quando essa etapa ainda não ocorreu, a API
 retorna `ACCOUNT_APPROVAL_REQUIRED` e não emite tokens.
+
+Mesmo com credenciais válidas, o login também pode retornar
+`CONTACT_NOT_VERIFIED` quando e-mail e/ou telefone ainda não estiverem
+verificados.
 
 O login retorna dados importantes para o restante da aplicação, como:
 

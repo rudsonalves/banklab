@@ -1,6 +1,6 @@
 import '/core/result/command.dart';
 import '/data/repositories/auth/auth_repository.dart';
-import '/data/services/auth/cache/models/last_login_identity.dart';
+import '../../../../data/services/cache/last_login/models/last_login_identity.dart';
 
 class SplashViewmodel {
   final AuthRepository _authRepository;

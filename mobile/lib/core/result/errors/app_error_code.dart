@@ -3,6 +3,7 @@ enum AppErrorCode {
   // HTTP
   httpError,
   accountApprovalRequired,
+  contactNotVerified,
   timeout,
   networkError,
   parsingError,
@@ -20,4 +21,7 @@ enum AppErrorCode {
 
   // Validation
   invalidData,
+
+  // Registration-specific
+  cpfAlreadyRegistered,
 }

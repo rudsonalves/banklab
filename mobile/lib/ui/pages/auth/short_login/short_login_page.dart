@@ -3,16 +3,22 @@ import 'package:go_router/go_router.dart';
 
 import '/core/result/result.dart';
 import '/core/routing/routes.dart';
-import '/data/services/auth/api/dtos/login_request_dto.dart';
-import '/data/services/auth/cache/models/last_login_identity.dart';
+import '/data/services/apis/auth/dtos/login_request_dto.dart';
+import '/data/services/cache/last_login/models/last_login_identity.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/messages/app_snackbar.dart';
-import '/ui/components/text_form_field/basic_text_form_field.dart';
+import '../../../components/input_text/basic_input_text.dart';
 import 'viewmodel/short_login_viewmodel.dart';
 
 const _accountApprovalRequiredMessage =
     'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar sua conta.';
+const _contactNotVerifiedGenericMessage =
+    'Confirme seu e-mail e telefone antes de entrar.';
+const _contactNotVerifiedEmailOnlyMessage =
+    'Confirme seu e-mail antes de entrar.';
+const _contactNotVerifiedPhoneOnlyMessage =
+    'Confirme seu telefone antes de entrar.';
 
 class ShortLoginPage extends StatefulWidget {
   final ShortLoginViewModel viewModel;
@@ -104,29 +110,28 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
                         ValueListenableBuilder<bool>(
                           valueListenable: _obscurePassword,
-                          builder: (context, value, child) =>
-                              BasicTextFormField(
-                                controller: _passwordController,
-                                obscureText: value,
-                                enabled: !isRunning,
-                                autofillHints: const [AutofillHints.password],
-                                textInputAction: TextInputAction.done,
-                                labelText: 'Senha',
-                                hintText: '********',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  onPressed: isRunning
-                                      ? null
-                                      : _obscurePasswordListener,
-                                  icon: Icon(
-                                    value
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                  ),
-                                ),
-                                validator: _passwordValidator,
-                                onFieldSubmitted: (_) => _submit(),
+                          builder: (context, value, child) => BasicInputText(
+                            controller: _passwordController,
+                            obscureText: value,
+                            enabled: !isRunning,
+                            autofillHints: const [AutofillHints.password],
+                            textInputAction: TextInputAction.done,
+                            labelText: 'Senha',
+                            hintText: '********',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              onPressed: isRunning
+                                  ? null
+                                  : _obscurePasswordListener,
+                              icon: Icon(
+                                value
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
                               ),
+                            ),
+                            validator: _passwordValidator,
+                            onFieldSubmitted: (_) => _submit(),
+                          ),
                         ),
 
                         const SizedBox(height: 6),
@@ -193,9 +198,7 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
     if (loginCommand.isFailure) {
       final error = loginCommand.error;
-      final message = error?.code == AppErrorCode.accountApprovalRequired
-          ? _accountApprovalRequiredMessage
-          : error?.message ?? 'Falha ao autenticar.';
+      final message = _resolveLoginErrorMessage(error);
 
       AppSnackbar.show(
         context,
@@ -218,6 +221,38 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
     if (!mounted) return;
     context.goNamed(BaseRoutes.home.name);
+  }
+
+  String _resolveLoginErrorMessage(AppError? error) {
+    if (error == null) return 'Falha ao autenticar.';
+
+    if (error.code == AppErrorCode.accountApprovalRequired) {
+      return _accountApprovalRequiredMessage;
+    }
+
+    if (error.code == AppErrorCode.contactNotVerified) {
+      final details = error.details;
+      if (details is Map<String, dynamic>) {
+        final emailVerified = details['email_verified'];
+        final phoneVerified = details['phone_verified'];
+
+        if (emailVerified == false && phoneVerified == true) {
+          return _contactNotVerifiedEmailOnlyMessage;
+        }
+
+        if (emailVerified == true && phoneVerified == false) {
+          return _contactNotVerifiedPhoneOnlyMessage;
+        }
+
+        return _contactNotVerifiedGenericMessage;
+      }
+
+      return error.message.isNotEmpty
+          ? error.message
+          : _contactNotVerifiedGenericMessage;
+    }
+
+    return error.message.isNotEmpty ? error.message : 'Falha ao autenticar.';
   }
 
   Future<void> _submit() async {

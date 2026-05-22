@@ -1,6 +1,7 @@
 package application
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
@@ -19,6 +20,13 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		domain.ErrPhoneAlreadyExists,
+		sharederrors.ErrCodeUserAlreadyExists,
+		"User already exists",
+		http.StatusConflict,
+	)
+
+	sharederrors.RegisterDomainError(
 		domain.ErrForbidden,
 		sharederrors.ErrCodeForbidden,
 		"Access denied",
@@ -30,6 +38,23 @@ func RegisterErrors() {
 		sharederrors.ErrCodeInvalidCredentials,
 		"Invalid credentials",
 		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainErrorWithDetails(
+		domain.ErrContactNotVerified,
+		sharederrors.ErrCodeContactNotVerified,
+		"Contact not verified",
+		http.StatusForbidden,
+		func(err error) any {
+			var e *domain.ContactNotVerifiedError
+			if errors.As(err, &e) {
+				return map[string]bool{
+					"email_verified": e.EmailVerified,
+					"phone_verified": e.PhoneVerified,
+				}
+			}
+			return nil
+		},
 	)
 
 	sharederrors.RegisterDomainError(
@@ -93,5 +118,26 @@ func RegisterErrors() {
 		sharederrors.ErrCodeUserAlreadyActive,
 		"User is already active",
 		http.StatusConflict,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrContactVerificationNotFound,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrInvalidVerificationToken,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrContactVerificationExpired,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
 	)
 }

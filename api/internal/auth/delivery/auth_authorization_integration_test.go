@@ -42,13 +42,20 @@ func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 
 	t.Run("register then login then me", func(t *testing.T) {
 		email := fmt.Sprintf("register-%s@example.com", uuid.NewString())
+		phone := fmt.Sprintf("+5511%09d", time.Now().UnixNano()%1000000000)
 		password := "P@ssword123"
+		emailVerificationToken := requestAndConfirmContactVerification(t, server.URL, "email", email)
+		phoneVerificationToken := requestAndConfirmContactVerification(t, server.URL, "phone", phone)
 
 		registerResp := performJSONRequest(t, server.URL+"/auth/register", http.MethodPost, map[string]any{
-			"email":    email,
-			"password": password,
-			"name":     "Integration User",
-			"cpf":      fmt.Sprintf("%011d", time.Now().UnixNano()%100000000000),
+			"email":                    email,
+			"phone":                    phone,
+			"password":                 password,
+			"name":                     "Integration User",
+			"birth_date":               "1990-01-15",
+			"cpf":                      fmt.Sprintf("%011d", time.Now().UnixNano()%100000000000),
+			"email_verification_token": emailVerificationToken,
+			"phone_verification_token": phoneVerificationToken,
 		}, "")
 		if registerResp.StatusCode != http.StatusCreated {
 			t.Fatalf("expected register status %d, got %d", http.StatusCreated, registerResp.StatusCode)
@@ -219,6 +226,57 @@ type envelope struct {
 	Error *apiError       `json:"error"`
 }
 
+func requestAndConfirmContactVerification(t *testing.T, baseURL, channel, target string) string {
+	t.Helper()
+
+	requestResp := performJSONRequest(t, baseURL+"/auth/contact-verifications", http.MethodPost, map[string]any{
+		"channel": channel,
+		"target":  target,
+	}, "")
+	if requestResp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected contact verification status %d, got %d", http.StatusCreated, requestResp.StatusCode)
+	}
+
+	var requestBody struct {
+		Data struct {
+			VerificationID string `json:"verification_id"`
+			DebugToken     string `json:"debug_token"`
+		} `json:"data"`
+		Error *apiError `json:"error"`
+	}
+	decodeResponseBody(t, requestResp, &requestBody)
+	if requestBody.Error != nil {
+		t.Fatalf("expected contact verification error to be nil, got %+v", requestBody.Error)
+	}
+	if requestBody.Data.DebugToken == "" {
+		t.Fatal("expected debug token to be returned")
+	}
+
+	confirmResp := performJSONRequest(t, baseURL+"/auth/contact-verifications/confirm", http.MethodPost, map[string]any{
+		"verification_id": requestBody.Data.VerificationID,
+		"token":           requestBody.Data.DebugToken,
+	}, "")
+	if confirmResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected contact verification confirm status %d, got %d", http.StatusOK, confirmResp.StatusCode)
+	}
+
+	var confirmBody struct {
+		Data struct {
+			VerificationToken string `json:"verification_token"`
+		} `json:"data"`
+		Error *apiError `json:"error"`
+	}
+	decodeResponseBody(t, confirmResp, &confirmBody)
+	if confirmBody.Error != nil {
+		t.Fatalf("expected contact verification confirm error to be nil, got %+v", confirmBody.Error)
+	}
+	if confirmBody.Data.VerificationToken == "" {
+		t.Fatal("expected verification token to be returned")
+	}
+
+	return confirmBody.Data.VerificationToken
+}
+
 func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, func()) {
 	t.Helper()
 
@@ -230,7 +288,15 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	tokenService := authinfrastructure.NewJWTTokenService("integration-secret", 20*time.Minute)
 
 	accountRepo := accountinfrastructure.New(pool)
-	registerUserUC := authapplication.NewRegisterUserUseCase(userRepo, customerRepo, hasher, transactor)
+	contactVerificationRepo := authinfrastructure.NewPostgresContactVerificationRepository(pool)
+	registerUserUC := authapplication.NewRegisterUserUseCase(
+		userRepo,
+		customerRepo,
+		customerRepo,
+		contactVerificationRepo,
+		hasher,
+		transactor,
+	)
 	loginUserUC := authapplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authapplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authapplication.NewGetCurrentUserUseCase(userRepo)
@@ -238,7 +304,16 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	approveUserUC := adminapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 	listAccountsUC := accountapplication.NewListAccounts(accountRepo)
 	transactionRepo := transactioninfrastructure.New(pool)
-	authHandler := authdelivery.New(registerUserUC, loginUserUC, getCurrentUserUC, refreshAccessTokenUC)
+	requestContactVerificationUC := authapplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
+	confirmContactVerificationUC := authapplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
+	authHandler := authdelivery.New(
+		registerUserUC,
+		loginUserUC,
+		getCurrentUserUC,
+		refreshAccessTokenUC,
+		requestContactVerificationUC,
+		confirmContactVerificationUC,
+	)
 	adminHandler := admindelivery.New(approveUserUC)
 	authMiddleware := authdelivery.NewJWTMiddleware(tokenService)
 
@@ -293,16 +368,26 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		`CREATE TABLE IF NOT EXISTS customers (
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
-			cpf VARCHAR(11) NOT NULL UNIQUE,
-			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-			CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$')
+			birth_date DATE,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
-		// Repair constraint if a previous test run created it with a broken regex.
-		`DO $$ BEGIN
-			ALTER TABLE customers DROP CONSTRAINT IF EXISTS chk_cpf_format;
-			ALTER TABLE customers ADD CONSTRAINT chk_cpf_format CHECK (cpf ~ '^\d{11}$');
-		EXCEPTION WHEN duplicate_object THEN NULL;
-		END $$`,
+		`ALTER TABLE customers ADD COLUMN IF NOT EXISTS birth_date DATE`,
+		`CREATE TABLE IF NOT EXISTS customer_documents (
+			id UUID PRIMARY KEY,
+			customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+			type VARCHAR(30) NOT NULL,
+			value VARCHAR(80) NOT NULL,
+			issuer VARCHAR(80),
+			issuer_state VARCHAR(30),
+			country CHAR(2) NOT NULL DEFAULT 'BR',
+			is_primary BOOLEAN NOT NULL DEFAULT false,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			CONSTRAINT customer_documents_unique_document UNIQUE (type, value, country)
+		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS customer_documents_one_primary_per_customer
+			ON customer_documents(customer_id)
+			WHERE is_primary = true`,
 		`CREATE TABLE IF NOT EXISTS accounts (
 			id UUID PRIMARY KEY,
 			customer_id UUID NOT NULL REFERENCES customers(id),
@@ -329,13 +414,35 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		`CREATE TABLE IF NOT EXISTS users (
 			id UUID PRIMARY KEY,
 			email VARCHAR(120) NOT NULL UNIQUE,
+			phone VARCHAR(20) UNIQUE,
 			password_hash TEXT NOT NULL,
 			role VARCHAR(20) NOT NULL,
 			customer_id UUID UNIQUE,
+			email_verified_at TIMESTAMP WITH TIME ZONE,
+			phone_verified_at TIMESTAMP WITH TIME ZONE,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			CONSTRAINT fk_users_customer_id FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 		)`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20) UNIQUE`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP WITH TIME ZONE`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP WITH TIME ZONE`,
+		`CREATE TABLE IF NOT EXISTS contact_verifications (
+			id UUID PRIMARY KEY,
+			channel VARCHAR(20) NOT NULL,
+			target VARCHAR(160) NOT NULL,
+			token VARCHAR(20) NOT NULL,
+			verification_token VARCHAR(100),
+			verified_at TIMESTAMP WITH TIME ZONE,
+			expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			CONSTRAINT chk_contact_verifications_channel CHECK (channel IN ('email', 'phone'))
+		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS contact_verifications_unique_target_channel
+			ON contact_verifications(target, channel)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS contact_verifications_unique_verification_token
+			ON contact_verifications(verification_token)
+			WHERE verification_token IS NOT NULL`,
 		`CREATE TABLE IF NOT EXISTS user_sessions (
 			id UUID PRIMARY KEY,
 			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -460,10 +567,26 @@ func seedCustomer(t *testing.T, ctx context.Context, pool *pgxpool.Pool) uuid.UU
 	cpf := fmt.Sprintf("%011d", unique%100000000000)
 
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO customers (id, name, cpf, created_at)
-		VALUES ($1, $2, $3, $4)
-	`, id, "Integration Customer", cpf, time.Now().UTC()); err != nil {
+		INSERT INTO customers (id, name, created_at)
+		VALUES ($1, $2, $3)
+	`, id, "Integration Customer", time.Now().UTC()); err != nil {
 		t.Fatalf("failed to seed customer: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO customer_documents (
+			id,
+			customer_id,
+			type,
+			value,
+			country,
+			is_primary,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, 'cpf', $3, 'BR', true, $4, $4)
+	`, uuid.New(), id, cpf, time.Now().UTC()); err != nil {
+		t.Fatalf("failed to seed customer cpf document: %v", err)
 	}
 
 	t.Cleanup(func() {
@@ -518,10 +641,22 @@ func seedUser(
 	}
 
 	now := time.Now().UTC()
+	phone := fmt.Sprintf("+5511%s", id[:8])
 	if _, err := pool.Exec(ctx, `
-		INSERT INTO users (id, email, password_hash, role, customer_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, id, email, hash, string(role), nullableCustomerID, now, now); err != nil {
+		INSERT INTO users (
+			id,
+			email,
+			phone,
+			password_hash,
+			role,
+			customer_id,
+			email_verified_at,
+			phone_verified_at,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`, id, email, phone, hash, string(role), nullableCustomerID, now, now, now, now); err != nil {
 		t.Fatalf("failed to seed user: %v", err)
 	}
 

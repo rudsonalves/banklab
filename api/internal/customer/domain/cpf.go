@@ -16,7 +16,7 @@ var cpfRegex = regexp.MustCompile(`^\d{11}$`)
 // 3. Have correct check digits (first and second verification digits)
 func ValidateCPF(cpf string) bool {
 	// Remove common formatting characters
-	normalized := normalizeCPF(cpf)
+	normalized := NormalizeCPF(cpf)
 
 	// Check format: must be exactly 11 digits
 	if !cpfRegex.MatchString(normalized) {
@@ -43,8 +43,8 @@ func ValidateCPF(cpf string) bool {
 	return true
 }
 
-// normalizeCPF removes common formatting characters from a CPF string.
-func normalizeCPF(cpf string) string {
+// NormalizeCPF removes common formatting characters from a CPF string.
+func NormalizeCPF(cpf string) string {
 	// Remove spaces, dots, hyphens, and slashes
 	normalized := strings.NewReplacer(
 		" ", "",
@@ -53,6 +53,10 @@ func normalizeCPF(cpf string) string {
 		"/", "",
 	).Replace(cpf)
 	return strings.TrimSpace(normalized)
+}
+
+func normalizeCPF(cpf string) string {
+	return NormalizeCPF(cpf)
 }
 
 // isAllSameDigits returns true if all digits in the CPF are the same.

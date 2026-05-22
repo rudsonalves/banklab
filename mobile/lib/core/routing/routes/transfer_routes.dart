@@ -49,6 +49,8 @@ List<RouteBase> transferRoutes() => [
   GoRoute(
     path: TransferRoutes.statusFailure.path,
     name: TransferRoutes.statusFailure.name,
-    builder: (context, state) => TransferStatusPage(isSuccess: false),
+    builder: (context, state) => TransferStatusPage(
+      isSuccess: false,
+    ),
   ),
 ];

@@ -219,6 +219,16 @@ Account example:
 - Repository:
   [mobile/lib/data/repositories/account/account_repository_impl.dart](../../mobile/lib/data/repositories/account/account_repository_impl.dart)
 
+Registration/pre-onboarding example:
+
+- APIs:
+  [mobile/lib/data/services/apis/registration/registration_api.dart](../../mobile/lib/data/services/apis/registration/registration_api.dart),
+  [mobile/lib/data/services/apis/contact_verification/contact_verification_api.dart](../../mobile/lib/data/services/apis/contact_verification/contact_verification_api.dart)
+- Repositories:
+  [mobile/lib/data/repositories/registration/registration_repository_impl.dart](../../mobile/lib/data/repositories/registration/registration_repository_impl.dart),
+  [mobile/lib/data/repositories/contact_verification/contact_verification_repository_impl.dart](../../mobile/lib/data/repositories/contact_verification/contact_verification_repository_impl.dart),
+  [mobile/lib/data/repositories/register_draft/register_draft_repository_impl.dart](../../mobile/lib/data/repositories/register_draft/register_draft_repository_impl.dart)
+
 Data may depend on `core` and `domain`, but must not depend on `ui`.
 
 ### Domain Layer
@@ -276,6 +286,10 @@ View model examples:
 - [mobile/lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart](../../mobile/lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart)
 - [mobile/lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart](../../mobile/lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart)
 - [mobile/lib/ui/pages/home/viewmodel/home_viewmodel.dart](../../mobile/lib/ui/pages/home/viewmodel/home_viewmodel.dart)
+
+Use case example:
+
+- [mobile/lib/domain/usecases/register/register_usecase.dart](../../mobile/lib/domain/usecases/register/register_usecase.dart)
 
 UI rules:
 
@@ -343,7 +357,7 @@ Routing is handled by GoRouter:
 - Route groups:
   [mobile/lib/core/routing/routes/auth_routes.dart](../../mobile/lib/core/routing/routes/auth_routes.dart),
   [mobile/lib/core/routing/routes/home_routes.dart](../../mobile/lib/core/routing/routes/home_routes.dart),
-  [mobile/lib/core/routing/routes/tranfer_routes.dart](../../mobile/lib/core/routing/routes/tranfer_routes.dart)
+  [mobile/lib/core/routing/routes/transfer_routes.dart](../../mobile/lib/core/routing/routes/transfer_routes.dart)
 
 Current initial location:
 
@@ -389,14 +403,14 @@ If `BASE_URL` is missing or invalid, app startup fails fast with a `StateError`.
 
 ## Known Constraints And Future Improvements
 
-- Profile concerns are currently mixed into `AuthApi` and can be split into a
-  dedicated profile API service
-- Use cases exist as the preferred place for complex view model orchestration,
-  but no production use case implementation has been added yet
+- Profile concerns are currently mixed into `AuthApi` (`login` and
+  `getProfile`) and can be split into a dedicated profile API service
+- The registration flow already uses a production use case
+  (`RegisterUsecase`); simpler flows may still inject repositories directly
 
 ## Suggested Evolution Path
 
-- Add concrete use cases when view models start coordinating multiple
+- Keep adding concrete use cases when view models start coordinating multiple
   repositories
 - Add feature module boundaries for accounts and transactions
 - Add navigation guards for authenticated routes

@@ -45,6 +45,10 @@ func (m *currentUserRepositoryMock) ExistsByEmail(ctx context.Context, email str
 	return false, nil
 }
 
+func (m *currentUserRepositoryMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	return false, nil
+}
+
 func TestGetCurrentUserUseCase_Execute_Success(t *testing.T) {
 	customerID := uuid.New()
 	testUserID := uuid.MustParse("00000000-0000-0000-0000-000000000001")

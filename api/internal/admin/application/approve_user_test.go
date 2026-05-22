@@ -42,6 +42,10 @@ func (m *approveUserRepoMock) ExistsByEmail(ctx context.Context, email string) (
 	return false, nil
 }
 
+func (m *approveUserRepoMock) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	return false, nil
+}
+
 type approveTransactorMock struct{}
 
 func (m *approveTransactorMock) RunInTx(ctx context.Context, fn func(context.Context) error) error {
@@ -67,8 +71,8 @@ func (m *approveCustomerRepoMock) Exists(ctx context.Context, id uuid.UUID) (boo
 	return m.existsValue, m.existsErr
 }
 
-func (m *approveCustomerRepoMock) GetByID(ctx context.Context, id uuid.UUID) (*customerdomain.Customer, string, error) {
-	return nil, "", nil
+func (m *approveCustomerRepoMock) GetByID(ctx context.Context, id uuid.UUID) (*customerdomain.CustomerProfile, error) {
+	return nil, nil
 }
 
 func (m *approveAccountRepoMock) Create(ctx context.Context, account *accountdomain.Account) error {

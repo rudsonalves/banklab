@@ -22,6 +22,7 @@ dependencies:
   money2: ^6.3.0
   share_plus: ^11.0.0
   path_provider: ^2.1.5
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

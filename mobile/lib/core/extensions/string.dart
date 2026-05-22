@@ -7,6 +7,11 @@ extension StringExtension on String {
   /// Removes all non-numeric characters from the string.
   String get onlyNumbers => replaceAll(RegExp(r'[^\d]'), '');
 
+  String? trimToNull() {
+    final trimmed = trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
   /// Validates if the string is a valid CPF (Brazilian individual
   /// taxpayer registry identification).
   bool get isValidCpf {
@@ -41,6 +46,40 @@ extension StringExtension on String {
     );
 
     return cleaned.endsWith(firstCheckDigit + secondCheckDigit);
+  }
+
+  /// Validates if the string is a valid email address.
+  bool get isValidEmail {
+    final email = trim();
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+    ).hasMatch(email);
+  }
+
+  /// Validates if the string is a valid phone number (Brazilian format).
+  bool get isValidPhone {
+    final cleaned = onlyNumbers;
+
+    // DDD + number
+    if (!RegExp(r'^\d{10,11}$').hasMatch(cleaned)) {
+      return false;
+    }
+
+    final ddd = cleaned.substring(0, 2);
+    final number = cleaned.substring(2);
+
+    // Invalid DDD
+    if (ddd.startsWith('0')) {
+      return false;
+    }
+
+    // Mobile: 9 digits starting with 9
+    if (number.length == 9) {
+      return RegExp(r'^9\d{8}$').hasMatch(number);
+    }
+
+    // Landline: 8 digits starting with 2-5
+    return RegExp(r'^[2-5]\d{7}$').hasMatch(number);
   }
 
   /// Convert amount string to Money object, assuming the string is in a
