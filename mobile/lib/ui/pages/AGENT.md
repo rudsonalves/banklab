@@ -28,8 +28,15 @@ Current page layout:
 
 - `auth/login/login_page.dart`
 - `auth/login/viewmodel/login_viewmodel.dart`
-- `auth/register/register_page.dart`
-- `auth/register/viewmodel/register_viewmodel.dart`
+- `register/register_cpf_page.dart`
+- `register/register_name_page.dart`
+- `register/register_birthdate_page.dart`
+- `register/register_email_page.dart`
+- `register/register_token_page.dart`
+- `register/register_phone_page.dart`
+- `register/register_password_page.dart`
+- `register/register_status_page.dart`
+- `register/viewmodel/register_viewmodel.dart`
 - `home/home_page.dart`
 - `home/viewmodel/home_viewmodel.dart`
 - `home/widgets/...`
@@ -164,7 +171,8 @@ Use `Command0` and `Command1` for async actions triggered by UI.
 Current patterns:
 
 - `LoginViewModel.login` wraps `AuthRepository.login`
-- `RegisterViewmodel.register` wraps `AuthRepository.register`
+- `RegisterViewmodel` coordinates the multi-step register use case and its
+  final `register` command wraps `RegisterUsecase.register`
 - `HomeViewmodel.initialize` wraps account loading behavior
 - More complex view models should wrap use case methods instead of coordinating
   multiple repositories directly.

@@ -16,7 +16,7 @@ This is an engineering-oriented app focused on integration quality, predictable 
 ## Main flows
 
 - authentication with JWT, including approval-pending login states before access is granted
-- account creation and account lifecycle interactions
+- multi-step account creation onboarding and account lifecycle interactions
 - deposit and withdraw operations
 - transfer between accounts
 - transaction history visualization

@@ -243,6 +243,10 @@ Notes:
 
 * register flow requires confirmed verification tokens for both e-mail and phone
 * these tokens are consumed by `POST /auth/register`
+* `(target, channel)` is unique; requesting a new code for the same contact replaces the previous attempt
+* expired unverified records are removed after 24 hours
+* verified records are retained for 7 days and then removed
+* cleanup is performed daily by `pg_cron` through `cleanup_contact_verifications()`
 
 ---
 

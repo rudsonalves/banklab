@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
 DELETE FROM contact_verifications cv
 USING (
     SELECT
@@ -14,6 +16,8 @@ WHERE cv.id = ranked.id
 CREATE UNIQUE INDEX IF NOT EXISTS contact_verifications_unique_target_channel
 ON contact_verifications (target, channel);
 
+DROP INDEX IF EXISTS idx_contact_verifications_target_channel;
+
 CREATE INDEX IF NOT EXISTS idx_contact_verifications_unverified_expires_at
 ON contact_verifications (expires_at)
 WHERE verified_at IS NULL;
@@ -21,11 +25,6 @@ WHERE verified_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_contact_verifications_verified_at
 ON contact_verifications (verified_at)
 WHERE verified_at IS NOT NULL;
-
-CREATE TABLE IF NOT EXISTS contact_verification_cleanup_runs (
-    name TEXT PRIMARY KEY,
-    last_run_at TIMESTAMP WITH TIME ZONE NOT NULL
-);
 
 CREATE OR REPLACE FUNCTION cleanup_contact_verifications()
 RETURNS integer AS $$
@@ -41,43 +40,24 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION cleanup_contact_verifications_if_due()
-RETURNS trigger AS $$
+DO $$
 DECLARE
-    last_run_at TIMESTAMP WITH TIME ZONE;
+    scheduled_job record;
 BEGIN
-    IF NOT pg_try_advisory_xact_lock(hashtext('contact_verifications_cleanup')) THEN
-        RETURN NULL;
-    END IF;
-
-    SELECT c.last_run_at
-    INTO last_run_at
-    FROM contact_verification_cleanup_runs c
-    WHERE c.name = 'contact_verifications';
-
-    IF last_run_at IS NOT NULL AND last_run_at > NOW() - INTERVAL '1 day' THEN
-        RETURN NULL;
-    END IF;
-
-    PERFORM cleanup_contact_verifications();
-
-    INSERT INTO contact_verification_cleanup_runs (name, last_run_at)
-    VALUES ('contact_verifications', NOW())
-    ON CONFLICT (name)
-    DO UPDATE SET last_run_at = EXCLUDED.last_run_at;
-
-    RETURN NULL;
+    FOR scheduled_job IN
+        SELECT jobid
+        FROM cron.job
+        WHERE jobname = 'cleanup-contact-verifications'
+    LOOP
+        PERFORM cron.unschedule(scheduled_job.jobid);
+    END LOOP;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-CREATE TRIGGER trg_cleanup_contact_verifications
-AFTER INSERT ON contact_verifications
-FOR EACH STATEMENT
-EXECUTE FUNCTION cleanup_contact_verifications_if_due();
+SELECT cron.schedule(
+    'cleanup-contact-verifications',
+    '0 3 * * *',
+    $$SELECT cleanup_contact_verifications();$$
+);
 
 SELECT cleanup_contact_verifications();
-
-INSERT INTO contact_verification_cleanup_runs (name, last_run_at)
-VALUES ('contact_verifications', NOW())
-ON CONFLICT (name)
-DO UPDATE SET last_run_at = EXCLUDED.last_run_at;

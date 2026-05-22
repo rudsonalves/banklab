@@ -33,6 +33,10 @@ The setup assumes:
 
 The database is treated as the **source of truth**, and must always be initialized before running the API.
 
+The local database runs on a custom PostgreSQL 17 image with `pg_cron` enabled.
+`pg_cron` is loaded through `shared_preload_libraries` and is configured to run
+inside the `bank` database using the `America/Sao_Paulo` timezone.
+
 ## 2. Prerequisites
 
 ### 2.1 Environment variables
@@ -113,6 +117,7 @@ This flow will:
 5. start the API server
 
 There is no extra Make target needed to create the container; `make docker-up` already runs `docker compose up -d --no-recreate`.
+On a clean environment Docker builds the local PostgreSQL image from `infra/docker/postgres/Dockerfile`, which installs the `postgresql-17-cron` package required by `pg_cron`.
 
 If you prefer the explicit sequence, the bootstrap is equivalent to:
 

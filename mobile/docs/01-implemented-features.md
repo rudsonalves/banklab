@@ -44,11 +44,18 @@ The current auth stack includes:
 - [RegisterUsecase](../lib/domain/usecases/register/register_usecase.dart)
 - [LoginPage](../lib/ui/pages/auth/login/login_page.dart)
 - [ShortLoginPage](../lib/ui/pages/auth/short_login/short_login_page.dart)
-- [RegisterPage](../lib/ui/pages/auth/register/register_page.dart)
+- [RegisterCpfPage](../lib/ui/pages/register/register_cpf_page.dart)
+- [RegisterNamePage](../lib/ui/pages/register/register_name_page.dart)
+- [RegisterBirthdatePage](../lib/ui/pages/register/register_birthdate_page.dart)
+- [RegisterEmailPage](../lib/ui/pages/register/register_email_page.dart)
+- [RegisterTokenPage](../lib/ui/pages/register/register_token_page.dart)
+- [RegisterPhonePage](../lib/ui/pages/register/register_phone_page.dart)
+- [RegisterPasswordPage](../lib/ui/pages/register/register_password_page.dart)
+- [RegisterStatusPage](../lib/ui/pages/register/register_status_page.dart)
 - [SplashPage](../lib/ui/pages/splash/splash_page.dart)
 - [LoginViewModel](../lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart)
 - [ShortLoginViewModel](../lib/ui/pages/auth/short_login/viewmodel/short_login_viewmodel.dart)
-- [RegisterViewmodel](../lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart)
+- [RegisterViewmodel](../lib/ui/pages/register/viewmodel/register_viewmodel.dart)
 - [SplashViewModel](../lib/ui/pages/splash/viewmodel/splash_viewmodel.dart)
 
 Implemented auth behavior:
@@ -62,13 +69,29 @@ Implemented auth behavior:
 - repository-level logout clears the persisted auth tokens
 - approval-required login failures are handled as a distinct app error state
 - invalid credentials remain a separate failure path
-- pre-onboarding registration persists draft progress between steps
-- e-mail and phone contact verification are requested and confirmed before final
-  registration submission
+- registration now runs as a multi-page onboarding flow under
+  [ui/pages/register](../lib/ui/pages/register)
+- the onboarding persists draft progress between steps through the register
+  draft repository
+- e-mail and phone contact verification are requested and confirmed before the
+  final registration submission
+- the flow ends in a success or failure status page after the final submit
 
 Current login feedback uses `AppSnackbar` for transient messages.
 Approval-pending login now shows a specific user-facing message instead of a
 wrong-password style error.
+
+Registration flow entry points include:
+
+- [RegisterCpfPage](../lib/ui/pages/register/register_cpf_page.dart)
+- [RegisterNamePage](../lib/ui/pages/register/register_name_page.dart)
+- [RegisterBirthdatePage](../lib/ui/pages/register/register_birthdate_page.dart)
+- [RegisterEmailPage](../lib/ui/pages/register/register_email_page.dart)
+- [RegisterTokenPage](../lib/ui/pages/register/register_token_page.dart)
+- [RegisterPhonePage](../lib/ui/pages/register/register_phone_page.dart)
+- [RegisterPasswordPage](../lib/ui/pages/register/register_password_page.dart)
+- [RegisterStatusPage](../lib/ui/pages/register/register_status_page.dart)
+- [RegisterViewmodel](../lib/ui/pages/register/viewmodel/register_viewmodel.dart)
 
 ## Account And Statement Features
 

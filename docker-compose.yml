@@ -1,8 +1,18 @@
 services:
   postgres:
-    image: postgres:16
+    build:
+      context: .
+      dockerfile: infra/docker/postgres/Dockerfile
     container_name: bank-postgres
     restart: always
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=bank
+      - -c
+      - cron.timezone=America/Sao_Paulo
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
