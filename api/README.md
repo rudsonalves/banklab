@@ -7,7 +7,7 @@ This service is part of the banklab monorepo and is designed to be consumed by t
 ## Stack
 
 - Go 1.26.1
-- PostgreSQL 16
+- PostgreSQL 17 with pg_cron
 - pgx/v5
 - net/http
 
@@ -75,6 +75,13 @@ The recommended flow is from repository root.
 ```bash
 make docker-up
 ```
+
+The local PostgreSQL container is built from `infra/docker/postgres/Dockerfile`.
+It installs `pg_cron` and starts PostgreSQL with:
+
+- `shared_preload_libraries=pg_cron`
+- `cron.database_name=bank`
+- `cron.timezone=America/Sao_Paulo`
 
 2. Run migrations:
 

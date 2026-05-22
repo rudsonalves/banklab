@@ -68,7 +68,7 @@ These topics may appear in the future roadmap, but the foundation needs to becom
 ### API
 
 - Go 1.26.1
-- PostgreSQL 16
+- PostgreSQL 17 with `pg_cron`
 - `net/http`
 - `pgx/v5`
 - JWT
@@ -87,6 +87,7 @@ These topics may appear in the future roadmap, but the foundation needs to becom
 
 - Docker
 - Docker Compose
+- custom PostgreSQL image in `infra/docker/postgres`
 - Makefile for development commands
 
 ## Repository Structure
@@ -100,7 +101,7 @@ banklab/
 ├── README.md          # Main documentation in Portuguese
 ├── README_en.md       # Main documentation in English
 ├── api/               # Go backend
-├── docker-compose.yml # Local PostgreSQL configuration
+├── docker-compose.yml # Local PostgreSQL configuration with pg_cron
 ├── docs/              # Roadmap, backlogs, decisions and reports
 ├── infra/             # Infrastructure scripts and configurations
 ├── mobile/            # Flutter BankFlow app
@@ -157,6 +158,8 @@ make run
 ```
 
 This command validates Docker, starts PostgreSQL, waits for the database to become ready, applies migrations, and starts the API.
+
+The local database is built from a custom PostgreSQL 17 image with `pg_cron`. The extension is used for scheduled database maintenance tasks, such as the daily cleanup of temporary contact verification records.
 
 Default API URL:
 

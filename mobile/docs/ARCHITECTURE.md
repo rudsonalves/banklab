@@ -284,7 +284,7 @@ under `pages/<feature>/.../widgets` until reuse is clear.
 View model examples:
 
 - [mobile/lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart](../../mobile/lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart)
-- [mobile/lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart](../../mobile/lib/ui/pages/auth/register/viewmodel/register_viewmodel.dart)
+- [mobile/lib/ui/pages/register/viewmodel/register_viewmodel.dart](../../mobile/lib/ui/pages/register/viewmodel/register_viewmodel.dart)
 - [mobile/lib/ui/pages/home/viewmodel/home_viewmodel.dart](../../mobile/lib/ui/pages/home/viewmodel/home_viewmodel.dart)
 
 Use case example:
@@ -356,12 +356,15 @@ Routing is handled by GoRouter:
   [mobile/lib/core/routing/routes.dart](../../mobile/lib/core/routing/routes.dart)
 - Route groups:
   [mobile/lib/core/routing/routes/auth_routes.dart](../../mobile/lib/core/routing/routes/auth_routes.dart),
+  [mobile/lib/core/routing/routes/register_routes.dart](../../mobile/lib/core/routing/routes/register_routes.dart),
   [mobile/lib/core/routing/routes/home_routes.dart](../../mobile/lib/core/routing/routes/home_routes.dart),
   [mobile/lib/core/routing/routes/transfer_routes.dart](../../mobile/lib/core/routing/routes/transfer_routes.dart)
 
 Current initial location:
 
 - Login route
+- Registration onboarding starts at the CPF route and continues through the
+  register route group
 
 ## State And Error Model
 
@@ -406,7 +409,9 @@ If `BASE_URL` is missing or invalid, app startup fails fast with a `StateError`.
 - Profile concerns are currently mixed into `AuthApi` (`login` and
   `getProfile`) and can be split into a dedicated profile API service
 - The registration flow already uses a production use case
-  (`RegisterUsecase`); simpler flows may still inject repositories directly
+  (`RegisterUsecase`) and now spans the multi-page onboarding flow under
+  `mobile/lib/ui/pages/register`; simpler flows may still inject repositories
+  directly
 
 ## Suggested Evolution Path
 

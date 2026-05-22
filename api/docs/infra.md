@@ -179,8 +179,13 @@ Exemplos:
 
 Ambiente local deve ser simples:
 
-* PostgreSQL via Docker
+* PostgreSQL 17 via Docker
+* imagem local customizada com `pg_cron`
 * aplicação executada localmente
+
+O PostgreSQL local é construído a partir de `infra/docker/postgres/Dockerfile`.
+A extensão `pg_cron` é carregada por `shared_preload_libraries` e configurada
+para executar jobs no banco `bank`, no timezone `America/Sao_Paulo`.
 
 ---
 

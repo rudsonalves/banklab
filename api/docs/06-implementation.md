@@ -479,10 +479,12 @@ Applied migration files include:
 - transactions table + immutability trigger + indexes
 - ledger persistence centered on `transactions`
 - transfer pair integrity indexes (`reference_id`, `reference_id+type` unique per transfer leg)
+- contact verification cleanup using `pg_cron`
 
 Important implementation detail:
 - account operations persist ledger entries exclusively in `transactions`.
 - idempotent transfer replay is reconstructed from ledger rows (`transfer_out` + paired `transfer_in`) using `reference_id`.
+- contact verification requests are unique by `(target, channel)`; requesting a new code for the same contact replaces the previous pending attempt.
 
 ## 9. Consistency and Concurrency Strategy (Implemented)
 
@@ -526,7 +528,7 @@ Delivery tests:
 ### 11.1 Dependencies
 
 - Go 1.26.1 (go.mod)
-- PostgreSQL 16 (docker-compose)
+- PostgreSQL 17 with `pg_cron` (custom Docker image)
 
 ### 11.2 Start database
 

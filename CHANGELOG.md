@@ -1,5 +1,187 @@
 # Changelog
 
+## 2026/05/22 - milestone/basic-banking-core
+
+This commit establishes an important architectural milestone for the BankLab project.
+
+At this stage, the project consolidates a functional and coherent foundation for a basic banking platform, including transactional consistency, authentication flows, onboarding evolution, ledger operations, mobile integration, and progressive registration flows. Although the next natural step would be the implementation of KYC and stronger contextual verification mechanisms, the current state already fulfills the original objective of building a robust experimentation base for Zero Trust Architecture studies in mobile and backend environments.
+
+This milestone also becomes strategically relevant because it creates a reusable foundation for future parallel projects that may evolve independently from the onboarding and regulatory layers.
+
+### Documentation and Historical Consolidation
+
+* Added a comprehensive technical evolution report:
+
+  * `docs/relatorios/2026-05-18 - 05-22.md`
+
+    * Consolidates the implementation history between:
+
+      * `2026/05/18 - api/pre-onboarding-01`
+      * `2026/05/22 - api/pg_cron-01`
+    * Documents the transition from a simple CPF-centric registration model into a progressive onboarding architecture.
+    * Summarizes:
+
+      * identity normalization;
+      * contact verification flows;
+      * onboarding hardening;
+      * mobile registration restructuring;
+      * draft persistence architecture;
+      * pg_cron lifecycle maintenance;
+      * modularization efforts;
+      * testing evolution;
+      * architectural preparation for future ZTA/KYC flows.
+    * Establishes a historical and architectural reference point for the current maturity of the project.
+
+### Documentation Structure Reorganization
+
+* Reorganized technical reports into a dedicated reports directory:
+
+  * moved:
+
+    * `docs/relatorio-api-implementada-2026-05-12.md`
+  * to:
+
+    * `docs/relatorios/relatorio-api-implementada-2026-05-12.md`
+
+* Reorganized mobile implementation reports:
+
+  * moved:
+
+    * `docs/relatorio-mobile-implementado-2026-05-12.md`
+  * to:
+
+    * `docs/relatorios/relatorio-mobile-implementado-2026-05-12.md`
+
+### Architectural Significance
+
+This commit represents the closing of the project's first major operational cycle.
+
+The system now contains:
+
+* transactional banking core;
+* account and ledger operations;
+* JWT authentication model;
+* onboarding orchestration;
+* progressive mobile registration;
+* contact verification lifecycle;
+* secure onboarding persistence;
+* modular layered architecture;
+* PostgreSQL transactional consistency strategies;
+* documentation sufficiently mature to support future contributors and derived projects.
+
+From this point forward, the project can evolve in multiple directions independently:
+
+* KYC and regulatory onboarding;
+* contextual Zero Trust evaluation;
+* MFA and device binding;
+* liveness verification;
+* web clients;
+* production-grade operational hardening;
+* derived banking and fintech experiments.
+
+This branch is intended to preserve the current state as a stable architectural milestone before the project transitions into deeper security and contextual trust experimentation.
+
+
+## 2026/05/22 — api/pg_cron-01
+
+Introduce PostgreSQL 17 with `pg_cron` support and migrate contact verification cleanup from trigger-based execution to scheduled database jobs.
+
+### Infrastructure and PostgreSQL runtime
+
+* Replaced the default PostgreSQL 16 container with a custom PostgreSQL 17 image
+* Added `infra/docker/postgres/Dockerfile`
+
+  * installs `postgresql-17-cron`
+  * keeps the image minimal by removing cached package metadata
+* Updated `docker-compose.yml`
+
+  * switched from direct `postgres:16` image usage to local image build
+  * enabled `shared_preload_libraries=pg_cron`
+  * configured:
+
+    * `cron.database_name=bank`
+    * `cron.timezone=America/Sao_Paulo`
+* Standardized local infrastructure documentation around the new PostgreSQL runtime
+
+### Contact verification cleanup redesign
+
+* Reworked the contact verification cleanup strategy
+* Removed the previous trigger-driven cleanup execution model
+
+  * deleted:
+
+    * `cleanup_contact_verifications_if_due()`
+    * trigger-based cleanup scheduling
+    * `contact_verification_cleanup_runs`
+* Added `pg_cron`-based scheduled cleanup execution
+
+  * creates the extension automatically with:
+
+    * `CREATE EXTENSION IF NOT EXISTS pg_cron`
+  * schedules:
+
+    * `cleanup-contact-verifications`
+    * daily execution at `03:00`
+* Added migration safety logic
+
+  * unschedules existing jobs before recreating them
+  * safely removes jobs during rollback migrations
+* Preserved immediate cleanup execution after migration through:
+
+  * `SELECT cleanup_contact_verifications();`
+
+### Database consistency and verification lifecycle
+
+* Enforced a stronger verification lifecycle model
+* Added uniqueness guarantees for `(target, channel)`
+
+  * replaces previous pending verification attempts automatically
+* Removed the obsolete `(target, channel)` non-unique index
+* Added cleanup retention rules:
+
+  * expired unverified records removed after 24 hours
+  * verified records retained for 7 days
+* Updated cleanup-related indexes and migration behavior accordingly
+
+### Documentation updates
+
+Updated multiple project documents to reflect the new PostgreSQL and scheduling architecture:
+
+* `README.md`
+* `README_en.md`
+* `api/README.md`
+* `api/docs/00-getting_started.md`
+* `api/docs/06-implementation.md`
+* `api/docs/09-database.md`
+* `api/docs/infra.md`
+
+Main documentation additions include:
+
+* PostgreSQL 17 adoption
+* `pg_cron` usage rationale
+* custom Docker image explanation
+* scheduled maintenance behavior
+* onboarding verification lifecycle updates
+* cleanup policy documentation
+
+### Mobile documentation adjustments
+
+Refined mobile onboarding documentation to reflect the current multi-page registration flow:
+
+* updated onboarding references from the old single `RegisterPage`
+* documented the new step-by-step registration structure
+* updated route and architecture references
+* clarified onboarding persistence and verification flow behavior
+
+### Visual assets
+
+* Updated database diagram image:
+
+  * `api/docs/images/database.png`
+
+This commit consolidates scheduled maintenance responsibilities inside PostgreSQL itself, simplifies application-side cleanup orchestration, and establishes a cleaner operational foundation for onboarding verification lifecycle management.
+
+
 ## 2026/05/22 — mobile/pre-onboarding-16
 
 Refined the pre-onboarding registration flow by strengthening contact verification consistency on the API side and improving password validation and UX behavior on the Flutter client.
