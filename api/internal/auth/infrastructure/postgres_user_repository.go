@@ -48,11 +48,11 @@ func (r *PostgresUserRepository) executor(ctx context.Context) dbExecutor {
 }
 
 // Create inserts a new user record into the users table using the values already
-// present in the provided domain.User.
+// present in the provided domain.User. The database generates the ID and the
+// repository writes it back to the entity.
 func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `
 		INSERT INTO users (
-			id,
 			email,
 			phone,
 			password_hash,
@@ -64,13 +64,13 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 			created_at,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id
 	`
 
-	_, err := r.executor(ctx).Exec(
+	err := r.executor(ctx).QueryRow(
 		ctx,
 		query,
-		user.ID,
 		user.Email,
 		nullableStringValue(user.Phone),
 		user.PasswordHash,
@@ -81,7 +81,7 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 		nullableTimeValue(user.PhoneVerifiedAt),
 		user.CreatedAt,
 		user.UpdatedAt,
-	)
+	).Scan(&user.ID)
 	if err != nil {
 		return err
 	}

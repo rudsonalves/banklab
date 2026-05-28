@@ -76,6 +76,9 @@ func (m *approveCustomerRepoMock) GetByID(ctx context.Context, id uuid.UUID) (*c
 }
 
 func (m *approveAccountRepoMock) Create(ctx context.Context, account *accountdomain.Account) error {
+	if m.createErr == nil && account.ID == uuid.Nil {
+		account.ID = uuid.New()
+	}
 	return m.createErr
 }
 

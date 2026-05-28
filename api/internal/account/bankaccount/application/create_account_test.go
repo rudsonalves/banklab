@@ -24,6 +24,9 @@ type accountRepositoryMock struct {
 
 func (m *accountRepositoryMock) Create(ctx context.Context, account *domain.Account) error {
 	m.createCalls++
+	if m.createErr == nil && account.ID == uuid.Nil {
+		account.ID = uuid.New()
+	}
 	return m.createErr
 }
 

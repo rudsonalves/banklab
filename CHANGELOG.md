@@ -1,5 +1,231 @@
 # Changelog
 
+## 2026/05/28 — api/zta-mvp-transactional-password-02
+
+This change introduces database-generated UUIDs as the default strategy for persisted entities whenever possible, and starts the transactional password persistence model for the ZTA MVP.
+
+1. Updated UUID generation strategy
+
+   * Moved primary key generation from domain constructors and application code to PostgreSQL defaults using `gen_random_uuid()`.
+   * Added `CREATE EXTENSION IF NOT EXISTS pgcrypto` to the baseline schema and test schemas.
+   * Updated tables such as `customers`, `accounts`, `users`, `user_sessions`, and `transactions` to use database-generated IDs.
+   * Adjusted repositories to omit `id` from inserts and retrieve generated IDs with `RETURNING id`.
+   * Updated mocks and tests to populate IDs when simulating successful persistence.
+
+2. Refactored domain constructors
+
+   * Removed direct UUID generation from `Customer`, `CustomerDocument`, `Account`, `User`, `ContactVerification`, and `Transaction` constructors.
+   * Simplified `NewUser` by removing the explicit ID argument.
+   * Preserved domain invariants while leaving persistence identity assignment to the repository/database layer.
+
+3. Updated registration flow
+
+   * Adjusted user registration so the customer is persisted before creating the CPF document.
+   * Normalized and validated CPF before customer persistence.
+   * Created the CPF document only after the database has assigned the customer ID.
+
+4. Updated transaction persistence
+
+   * Changed transaction inserts to rely on database-generated IDs.
+   * Preserved idempotency behavior with `ON CONFLICT`.
+   * Mapped `pgx.ErrNoRows` to duplicate transaction handling when an idempotency conflict occurs.
+
+5. Added transactional password migration
+
+   * Added the `transaction_passwords` table.
+   * Added fields for password hash, status, failed attempts, lock control, and timestamps.
+   * Added constraints for valid status, non-negative failed attempts, and blocked-state consistency.
+   * Added indexes for user uniqueness and lock expiration lookup.
+
+6. Added migration planning documentation
+
+   * Added a backlog document describing the staged migration toward database-generated IDs.
+   * Documented the recommended order for moving each entity to the new persistence identity model.
+
+This change intentionally breaks compatibility with the previous development database schema, because the project is still in active development. The practical impact is limited to recreating the current test data, especially the existing test user.
+
+
+## 2026/05/28 — api/zta-mvp-transactional-password-01
+
+Introduce the first architectural foundation for the Zero Trust Architecture (ZTA) MVP by defining transactional password, step-up authorization flow, enforcement boundaries, and related API contracts. This commit also reorganizes the API security backlog structure and includes supporting mobile/iOS adjustments.
+
+### API ZTA MVP documentation and architecture
+
+1. Added the new implementation document:
+
+   * `api/docs/implementations/03-zta-step-up-transaction-password.md`
+
+     * Defined the first ZTA MVP increment for BankLab.
+     * Introduced the transactional password concept as an additional authorization factor.
+     * Defined the short-lived step-up token model with single-use semantics.
+     * Documented the complete authorization flow using:
+
+       * JWT session authentication
+       * transactional password validation
+       * endpoint-scoped step-up token enforcement
+     * Added Mermaid sequence diagrams and a visual flow image.
+     * Defined:
+
+       * endpoint names
+       * logical endpoint keys
+       * JSON payload fields
+       * response envelopes
+       * initial error contracts
+     * Documented:
+
+       * Policy Enforcement Point (PEP)
+       * Policy Engine
+       * Transaction Password Factor
+       * architectural positioning between delivery and application layers
+     * Introduced conceptual data models for:
+
+       * `transaction_passwords`
+       * `step_up_tokens`
+
+2. Added ZTA MVP backlog foundation:
+
+   * `docs/backlogs/api/006 - zta-mvp-foundation.md`
+
+     * Established the architectural direction for the new `internal/security` module.
+     * Defined module responsibilities and future evolution goals.
+     * Documented the initial ZTA enforcement flow and dependency boundaries.
+     * Listed MVP scope exclusions and future security evolution points.
+
+3. Added transactional password backlog:
+
+   * `docs/backlogs/api/006a - transaction-password.md`
+
+     * Defined:
+
+       * transactional password creation flow
+       * PIN rules
+       * temporary blocking behavior
+       * failure counting
+       * conceptual persistence model
+     * Documented all initial business constraints and expected error scenarios.
+
+4. Added transactional password implementation task breakdown:
+
+   * `docs/backlogs/api/006a - transaction-password_tasks.md`
+
+     * Created a complete 8-task implementation roadmap covering:
+
+       * migrations
+       * domain modeling
+       * repository contracts
+       * Postgres persistence
+       * use cases
+       * HTTP delivery
+       * error mapping
+       * automated tests
+     * Added detailed objectives, scope, acceptance criteria, and dependency mapping for each task.
+
+5. Added step-up token backlog:
+
+   * `docs/backlogs/api/006b - step-up-token.md`
+
+     * Defined the hybrid JWT + persisted `jti` model.
+     * Specified:
+
+       * token claims
+       * expiration behavior
+       * atomic consumption requirements
+       * endpoint scoping
+       * issuance flow
+     * Documented conceptual persistence model and related errors.
+
+6. Added internal transfer enforcement backlog:
+
+   * `docs/backlogs/api/006c - internal-transfer-step-up-enforcement.md`
+
+     * Defined protection rules for:
+
+       * `POST /accounts/internal-transfers`
+     * Documented:
+
+       * `X-Step-Up-Token` validation
+       * endpoint-key validation
+       * single-use enforcement
+       * user/token matching
+       * atomic token consumption behavior
+     * Clarified delivery-to-security interaction boundaries.
+
+7. Added ZTA contracts and documentation backlog:
+
+   * `docs/backlogs/api/006d - zta-contracts-and-docs.md`
+
+     * Consolidated:
+
+       * response envelope standards
+       * endpoint naming
+       * JSON fields
+       * step-up response contract
+       * HTTP error mapping
+     * Formalized the initial public error-code contract for ZTA operations.
+
+8. Updated backlog index:
+
+   * `docs/backlogs/README.md`
+
+     * Added references to all ZTA MVP backlogs.
+     * Reorganized API backlog listing around the new security initiative.
+
+9. Reorganized completed onboarding backlog:
+
+   * Moved:
+
+     * `docs/backlogs/api/001 - onboarding.md`
+     * to:
+     * `docs/backlogs/api/done/001 - onboarding.md`
+
+### API documentation assets
+
+10. Added new architectural flow image:
+
+    * `api/docs/images/fluxo_senha-trans.png`
+
+      * Added visual representation of the transactional password and step-up authorization flow.
+
+### Mobile Flutter improvements
+
+11. Refactored birthdate selection state handling:
+
+    * `mobile/lib/ui/pages/register/register_birthdate_page.dart`
+
+      * Replaced mutable `DateTime?` state with:
+
+        * `ValueNotifier<DateTime?>`
+      * Added `ValueListenableBuilder` for granular UI updates.
+      * Simplified reactive rendering for selected date display.
+      * Updated initialization and validation flow to use notifier values consistently.
+      * Preserved age validation behavior for account creation.
+
+### iOS / Flutter build system updates
+
+12. Updated iOS Flutter integration:
+
+    * `mobile/ios/Runner.xcodeproj/project.pbxproj`
+    * `mobile/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme`
+    * `mobile/ios/Podfile.lock`
+
+      * Migrated plugin integration toward Swift Package Manager-based Flutter plugin handling.
+      * Added `FlutterGeneratedPluginSwiftPackage`.
+      * Added Xcode pre-build prepare script for Flutter framework generation.
+      * Removed obsolete CocoaPods embed framework script entries.
+      * Updated iOS dependency metadata accordingly.
+
+### Tooling and local environment updates
+
+13. Updated Postman environment:
+
+    * `tools/postman/Environment.postman_environment.json`
+
+      * Adjusted local `base_url` IP address for current development environment.
+
+This commit establishes the first concrete architectural and contractual foundation for ZTA inside BankLab, introducing a layered security model centered on transactional authorization, short-lived step-up tokens, and explicit policy enforcement before sensitive financial operations.
+
+
+
 ## 2026/05/22 - milestone/basic-banking-core
 
 This commit establishes an important architectural milestone for the BankLab project.

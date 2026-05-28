@@ -27,7 +27,6 @@ func NewCustomer(name string, birthDate time.Time) (*Customer, error) {
 	}
 
 	return &Customer{
-		ID:        uuid.New(),
 		Name:      name,
 		BirthDate: birthDate,
 		CreatedAt: time.Now().UTC(),

@@ -47,24 +47,24 @@ func (r *Repository) executor(ctx context.Context) dbExecutor {
 }
 
 // Create inserts a new customer record into the customers table with the provided
-// customer data. It executes a SQL INSERT query to store the customer information
-// in the database including ID, name, birth date, and creation timestamp. If the
-// operation is successful, it returns nil; otherwise, it returns an error.
+// customer data. The database generates the ID and the repository writes it back
+// to the entity. If the operation is successful, it returns nil; otherwise, it
+// returns an error.
 // The method handles PostgreSQL constraint violations, particularly check constraint
 // violations (code 23514), and maps them to domain errors. For any other database
 // errors, it wraps them with context information for better error reporting.
 func (r *Repository) Create(ctx context.Context, c *domain.Customer) error {
 	query := `
-		INSERT INTO customers (id, name, birth_date, created_at)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO customers (name, birth_date, created_at)
+		VALUES ($1, $2, $3)
+		RETURNING id
 	`
 
-	_, err := r.executor(ctx).Exec(ctx, query,
-		c.ID,
+	err := r.executor(ctx).QueryRow(ctx, query,
 		c.Name,
 		c.BirthDate,
 		c.CreatedAt,
-	)
+	).Scan(&c.ID)
 
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -165,8 +165,9 @@ func (r *Repository) GetByID(
 }
 
 // CreateDocument inserts a new customer document record into the customer_documents table
-// with the provided document data. It executes the SQL query to store the document information
-// in the database. If the operation is successful, it returns nil; otherwise, it returns an error.
+// with the provided document data. The database generates the ID and the repository
+// writes it back to the entity. If the operation is successful, it returns nil;
+// otherwise, it returns an error.
 // The method handles specific PostgreSQL errors such as unique constraint violations
 // (returning domain.ErrCPFAlreadyExists for duplicate documents) and check constraint violations
 // (returning domain.ErrInvalidData for invalid data). Any other database errors are wrapped
@@ -177,7 +178,6 @@ func (r *Repository) CreateDocument(
 ) error {
 	query := `
 		INSERT INTO customer_documents (
-			id,
 			customer_id,
 			type,
 			value,
@@ -188,11 +188,11 @@ func (r *Repository) CreateDocument(
 			created_at,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id
 	`
 
-	_, err := r.executor(ctx).Exec(ctx, query,
-		document.ID,
+	err := r.executor(ctx).QueryRow(ctx, query,
 		document.CustomerID,
 		document.Type,
 		document.Value,
@@ -202,7 +202,7 @@ func (r *Repository) CreateDocument(
 		document.IsPrimary,
 		document.CreatedAt,
 		document.UpdatedAt,
-	)
+	).Scan(&document.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {

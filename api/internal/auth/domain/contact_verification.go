@@ -41,7 +41,6 @@ func NewContactVerification(
 	}
 
 	return &ContactVerification{
-		ID:        uuid.New(),
 		Channel:   channel,
 		Target:    target,
 		Token:     token,

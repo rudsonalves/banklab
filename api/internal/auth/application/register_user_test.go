@@ -26,6 +26,9 @@ type userRepositoryMock struct {
 func (m *userRepositoryMock) Create(ctx context.Context, user *domain.User) error {
 	m.createCalls++
 	m.createdUser = user
+	if user.ID == uuid.Nil {
+		user.ID = uuid.New()
+	}
 	return m.createErr
 }
 
@@ -65,6 +68,9 @@ func (m *registerContactVerificationRepositoryMock) CreateContactVerification(
 	ctx context.Context,
 	verification *domain.ContactVerification,
 ) error {
+	if verification.ID == uuid.Nil {
+		verification.ID = uuid.New()
+	}
 	return nil
 }
 
@@ -124,6 +130,9 @@ type customerRepositoryMock struct {
 func (m *customerRepositoryMock) Create(ctx context.Context, c *customerdomain.Customer) error {
 	m.createCalls++
 	m.createdCustomer = c
+	if c.ID == uuid.Nil {
+		c.ID = uuid.New()
+	}
 	return m.createErr
 }
 
@@ -147,6 +156,9 @@ func (m *customerDocumentRepositoryMock) CreateDocument(
 ) error {
 	m.createCalls++
 	m.createdDocument = document
+	if document.ID == uuid.Nil {
+		document.ID = uuid.New()
+	}
 	return m.createErr
 }
 
@@ -732,7 +744,7 @@ func TestRegisterUserUseCase_Execute_CustomerIDNeverNilForCustomerRole(t *testin
 	// because the constructor is called inside the transaction. Instead we verify
 	// directly that domain.NewUser enforces the invariant.
 	_, err := domain.NewUser(
-		uuid.New(), "user@example.com", "hash",
+		"user@example.com", "hash",
 		domain.RoleCustomer, nil, // nil customerID — invariant violation
 		time.Now().UTC(),
 	)
@@ -742,7 +754,7 @@ func TestRegisterUserUseCase_Execute_CustomerIDNeverNilForCustomerRole(t *testin
 
 	// And that admin role with nil customerID is allowed.
 	u, err := domain.NewUser(
-		uuid.New(), "admin@example.com", "hash",
+		"admin@example.com", "hash",
 		domain.RoleAdmin, nil, // nil customerID — valid for admin
 		time.Now().UTC(),
 	)

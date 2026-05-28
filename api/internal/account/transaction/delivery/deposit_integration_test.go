@@ -249,6 +249,7 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 	t.Helper()
 
 	statements := []string{
+		`CREATE EXTENSION IF NOT EXISTS pgcrypto`,
 		`CREATE TABLE IF NOT EXISTS customers (
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
@@ -281,7 +282,7 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			CONSTRAINT chk_account_status CHECK (status IN ('active', 'inactive', 'blocked'))
 		)`,
 		`CREATE TABLE IF NOT EXISTS transactions (
-			id UUID PRIMARY KEY,
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			account_id UUID NOT NULL REFERENCES accounts(id),
 			type VARCHAR(20) NOT NULL,
 			amount BIGINT NOT NULL,
@@ -311,6 +312,10 @@ func ensureDepositTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 
 	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description TEXT`); err != nil {
 		t.Fatalf("failed to ensure transactions.description column: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ALTER COLUMN id SET DEFAULT gen_random_uuid()`); err != nil {
+		t.Fatalf("failed to ensure transactions.id default: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_idempotency

@@ -133,6 +133,9 @@ func (m *txMock) ListByCustomerID(ctx context.Context, customerID uuid.UUID) ([]
 
 func (m *txMock) CreateTransaction(ctx context.Context, tx *domain.Transaction) error {
 	m.createTransactionCalls++
+	if m.createTransactionErr == nil && tx.ID == uuid.Nil {
+		tx.ID = uuid.New()
+	}
 	m.createdTransactions = append(m.createdTransactions, tx)
 	return m.createTransactionErr
 }

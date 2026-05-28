@@ -44,20 +44,20 @@ func (r *Repository) NextAccountNumber(ctx context.Context) (string, error) {
 func (r *Repository) Create(ctx context.Context, acc *bankaccountdomain.Account) error {
 	query := `
 		INSERT INTO accounts (
-			id, customer_id, number, branch, balance, status, created_at
+			customer_id, number, branch, balance, status, created_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id
 	`
 
-	_, err := r.exec.Exec(ctx, query,
-		acc.ID,
+	err := r.exec.QueryRow(ctx, query,
 		acc.CustomerID,
 		acc.Number,
 		acc.Branch,
 		acc.Balance,
 		acc.Status,
 		acc.CreatedAt,
-	)
+	).Scan(&acc.ID)
 	if err != nil {
 		return fmt.Errorf("create account: %w", err)
 	}

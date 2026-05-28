@@ -3,8 +3,6 @@ package domain
 import (
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 func TestNewCustomer(t *testing.T) {
@@ -20,9 +18,6 @@ func TestNewCustomer(t *testing.T) {
 	}
 	if !customer.BirthDate.Equal(birthDate) {
 		t.Errorf("BirthDate = %v, want %v", customer.BirthDate, birthDate)
-	}
-	if customer.ID == uuid.Nil {
-		t.Error("ID is nil")
 	}
 	if customer.CreatedAt.IsZero() {
 		t.Error("CreatedAt is zero")

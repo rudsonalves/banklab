@@ -31,9 +31,8 @@ type CustomerDocument struct {
 // fails, such as an empty customer ID,
 // an empty CPF value, or an invalid CPF format. If the input is valid, it
 // returns a pointer to the newly created
-// CustomerDocument entity with the appropriate fields populated, including
-// a new UUID for the document ID and
-// timestamps for creation and update.
+// CustomerDocument entity with the appropriate fields populated. The document ID
+// is assigned by the persistence layer.
 func NewCPFDocument(
 	customerID uuid.UUID,
 	cpf string,
@@ -55,7 +54,6 @@ func NewCPFDocument(
 	now := time.Now().UTC()
 
 	return &CustomerDocument{
-		ID:         uuid.New(),
 		CustomerID: customerID,
 		Type:       DocumentTypeCPF,
 		Value:      normalizedCPF,

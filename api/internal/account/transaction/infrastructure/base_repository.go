@@ -147,17 +147,17 @@ func (r *baseRepository) accountExists(ctx context.Context, id uuid.UUID) (bool,
 func (r *baseRepository) CreateTransaction(ctx context.Context, tx *transactiondomain.Transaction) error {
 	query := `
 		INSERT INTO transactions (
-			id, account_id, type, amount, balance_after, reference_id,
+			account_id, type, amount, balance_after, reference_id,
 			related_account_id, idempotency_key, description, created_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (account_id, idempotency_key)
 		WHERE idempotency_key IS NOT NULL
 		DO NOTHING
+		RETURNING id
 	`
 
-	cmd, err := r.exec.Exec(ctx, query,
-		tx.ID,
+	err := r.exec.QueryRow(ctx, query,
 		tx.AccountID,
 		tx.Type,
 		tx.Amount,
@@ -167,13 +167,12 @@ func (r *baseRepository) CreateTransaction(ctx context.Context, tx *transactiond
 		tx.IdempotencyKey,
 		tx.Description,
 		tx.CreatedAt,
-	)
+	).Scan(&tx.ID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) && tx.IdempotencyKey != nil {
+			return transactiondomain.ErrTransferDuplicate
+		}
 		return fmt.Errorf("create account transaction: %w", err)
-	}
-
-	if tx.IdempotencyKey != nil && cmd.RowsAffected() == 0 {
-		return transactiondomain.ErrTransferDuplicate
 	}
 
 	return nil
