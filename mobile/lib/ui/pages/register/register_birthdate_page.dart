@@ -25,7 +25,7 @@ class RegisterBirthdatePage extends StatefulWidget {
 class _RegisterBirthdatePageState extends State<RegisterBirthdatePage> {
   RegisterViewmodel get _viewmodel => widget.viewmodel;
 
-  DateTime? _selectedDate;
+  final _selectedDate = ValueNotifier<DateTime?>(null);
 
   static final DateTime _maxDate = DateTime.now();
   static final DateTime _minDate = DateTime(1900);
@@ -70,25 +70,32 @@ class _RegisterBirthdatePageState extends State<RegisterBirthdatePage> {
                     border: Border.all(color: colorScheme.outline),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _selectedDate != null
-                            ? DateFormat('dd/MM/yyyy').format(_selectedDate!)
-                            : 'Selecione a data',
-                        style: textTheme.bodyLarge?.copyWith(
-                          color: _selectedDate != null
-                              ? colorScheme.onSurface
-                              : colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  child: ValueListenableBuilder<DateTime?>(
+                    valueListenable: _selectedDate,
+                    builder: (context, value, child) {
+                      return Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            value != null
+                                ? DateFormat(
+                                    'dd/MM/yyyy',
+                                  ).format(value)
+                                : 'Selecione a data',
+                            style: textTheme.bodyLarge?.copyWith(
+                              color: value != null
+                                  ? colorScheme.onSurface
+                                  : colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -120,20 +127,21 @@ class _RegisterBirthdatePageState extends State<RegisterBirthdatePage> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime(2000),
+      initialDate: _selectedDate.value ?? DateTime(2000),
       firstDate: _minDate,
       lastDate: _maxDate,
     );
     if (picked != null) {
-      _selectedDate = picked;
+      _selectedDate.value = picked;
       _isDisabled.value = false;
     }
   }
 
   Future<void> _submitBirthDate() async {
-    if (_selectedDate == null) return;
+    final selectedDate = _selectedDate.value;
+    if (selectedDate == null) return;
 
-    if (_selectedDate!.age < 18) {
+    if (selectedDate.age < 18) {
       AppSnackbar.show(
         context,
         message: 'Você deve ser maior de 18 anos para criar uma conta.',
@@ -142,7 +150,7 @@ class _RegisterBirthdatePageState extends State<RegisterBirthdatePage> {
       return;
     }
 
-    await _viewmodel.submitBirthDate.execute(_selectedDate!);
+    await _viewmodel.submitBirthDate.execute(selectedDate);
 
     final result = _viewmodel.submitBirthDate.result!;
     if (result.isFailure) {
@@ -161,8 +169,8 @@ class _RegisterBirthdatePageState extends State<RegisterBirthdatePage> {
   void _initialize() {
     final initialDate = _viewmodel.state?.birthDate;
     if (initialDate != null) {
-      _selectedDate = initialDate;
-      _isDisabled.value = _selectedDate!.age < 18;
+      _selectedDate.value = initialDate;
+      _isDisabled.value = _selectedDate.value!.age < 18;
     }
   }
 }
