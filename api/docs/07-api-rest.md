@@ -17,6 +17,7 @@
     - [3.4 Get Current User](#34-get-current-user)
     - [3.5 Approve User (Admin Only)](#35-approve-user-admin-only)
     - [3.6 Create Customer Account (Admin Only)](#36-create-customer-account-admin-only)
+    - [3.7 Create Transaction Password](#37-create-transaction-password)
   - [4. Account Endpoints](#4-account-endpoints)
     - [4.1 List Accounts](#41-list-accounts)
     - [4.2 Customer Account Creation Removed](#42-customer-account-creation-removed)
@@ -48,6 +49,7 @@
     - [9.12 GET /accounts/{id}/balance](#912-get-accountsidbalance)
     - [9.13 GET /accounts/{id}/statement](#913-get-accountsidstatement)
     - [9.14 GET /customers/me](#914-get-customersme)
+    - [9.15 POST /security/transaction-password](#915-post-securitytransaction-password)
   - [10. Postman Setup](#10-postman-setup)
     - [10.1 Files in Repository](#101-files-in-repository)
     - [10.2 Environment Variables](#102-environment-variables)
@@ -68,7 +70,7 @@ Content type:
 Authentication:
 - `POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, and `POST /auth/login` require header `X-App-Token: <app_token>`
 - `POST /auth/refresh` requires a valid `refresh_token` in the request body
-- `GET /auth/me`, all `/accounts` and `/accounts/*`, and all `/customers/*` require JWT Bearer token
+- `GET /auth/me`, all `/accounts` and `/accounts/*`, all `/customers/*`, and `POST /security/transaction-password` require JWT Bearer token
 - Send JWT in header `Authorization: Bearer <access_token>`
 
 Access control summary:
@@ -550,6 +552,50 @@ Possible errors:
 - 400 INVALID_REQUEST: invalid JSON body or unexpected fields
 - 403 FORBIDDEN: authenticated user does not have admin role
 - 404 CUSTOMER_NOT_FOUND: customer does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 3.7 Create Transaction Password
+
+- Method: POST
+- Path: /security/transaction-password
+- Auth required: JWT
+
+Creates the authenticated user's initial transaction password. This endpoint is
+used only for first credential setup. It does not require a previous transaction
+password or a step-up token.
+
+The transaction password is a numeric PIN with exactly 6 digits. The API stores
+only the hash. The response never returns the PIN or hash.
+
+Request body:
+
+```json
+{
+  "transaction_password": "123456",
+  "transaction_password_confirmation": "123456"
+}
+```
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "status": "active",
+    "created_at": "2026-05-28T10:00:00Z"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
+- 400 INVALID_DATA: PIN is not numeric with 6 digits or confirmation differs
+- 403 FORBIDDEN: authenticated user is not active
+- 409 TRANSACTION_PASSWORD_ALREADY_SET: transaction password already exists
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ## 4. Account Endpoints
@@ -1063,6 +1109,10 @@ Common error codes currently used by handlers:
 - INSUFFICIENT_FUNDS
 - SAME_ACCOUNT_TRANSFER
 - TRANSACTION_NOT_FOUND
+- TRANSACTION_PASSWORD_ALREADY_SET
+- TRANSACTION_PASSWORD_NOT_SET
+- TRANSACTION_PASSWORD_INVALID
+- TRANSACTION_PASSWORD_LOCKED
 - INTERNAL_ERROR
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when onboarding routes protected by AppToken (`POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, `POST /auth/login`) are called without `X-App-Token` or with an invalid app token.
@@ -1079,6 +1129,18 @@ both contact channels are not verified. The payload may include
 `INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or refresh token signature invalid.
 
 `INVALID_USER_STATE` (HTTP 409) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
+
+`TRANSACTION_PASSWORD_ALREADY_SET` (HTTP 409) is returned when the authenticated
+user tries to create a transaction password after one already exists.
+
+`TRANSACTION_PASSWORD_NOT_SET` (HTTP 409) is returned by transaction-password
+dependent flows when the authenticated user has not created the credential yet.
+
+`TRANSACTION_PASSWORD_INVALID` (HTTP 401) is returned when a transaction password
+validation attempt receives an incorrect PIN.
+
+`TRANSACTION_PASSWORD_LOCKED` (HTTP 403) is returned when the transaction
+password is temporarily locked after repeated invalid attempts.
 
 ## 8. Domain Notes for API Consumers
 
@@ -1645,6 +1707,64 @@ Scenario: customer not found
   "error": {
     "code": "CUSTOMER_NOT_FOUND",
     "message": "Customer not found"
+  }
+}
+```
+
+### 9.15 POST /security/transaction-password
+
+Scenario: invalid PIN or confirmation mismatch
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+Scenario: invalid JSON or unknown public request field
+- Status: 400
+- Code: INVALID_REQUEST
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request"
+  }
+}
+```
+
+Scenario: authenticated user is not active
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+Scenario: transaction password already exists
+- Status: 409
+- Code: TRANSACTION_PASSWORD_ALREADY_SET
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "TRANSACTION_PASSWORD_ALREADY_SET",
+    "message": "Transaction password already set"
   }
 }
 ```

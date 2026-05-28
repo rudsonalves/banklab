@@ -13,6 +13,7 @@ import (
 	adminDelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authDelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
+	securityDelivery "github.com/seu-usuario/bank-api/internal/security/delivery"
 	sharedhttpmiddleware "github.com/seu-usuario/bank-api/internal/shared/http/middleware"
 )
 
@@ -93,6 +94,7 @@ func TestAPIRouter_OperationalAccountRoutes(t *testing.T) {
 		customerDelivery.New(nil, nil),
 		statementDelivery.New(nil),
 		transactionDelivery.New(nil, nil, nil, nil),
+		securityDelivery.New(nil),
 	)
 
 	tests := []struct {

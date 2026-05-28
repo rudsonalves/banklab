@@ -24,6 +24,9 @@ import (
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
 	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
+	securityApplication "github.com/seu-usuario/bank-api/internal/security/application"
+	securityDelivery "github.com/seu-usuario/bank-api/internal/security/delivery"
+	securityInfrastructure "github.com/seu-usuario/bank-api/internal/security/infrastructure"
 	sharedhttpmiddleware "github.com/seu-usuario/bank-api/internal/shared/http/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -50,12 +53,14 @@ func main() {
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
 	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
 	contactVerificationRepo := authInfrastructure.NewPostgresContactVerificationRepository(db)
+	transactionPasswordRepo := securityInfrastructure.NewPostgresTransactionPasswordRepository(db)
 	transactor := authInfrastructure.NewPostgresTransactor(db)
 
 	// ======================
 	// Services
 	// ======================
 	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
+	transactionPasswordHasher := securityInfrastructure.NewBcryptTransactionPasswordHasher(bcrypt.DefaultCost)
 	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, 15*time.Minute)
 
 	// ======================
@@ -86,6 +91,7 @@ func main() {
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
 	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
 	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
+	createTransactionPasswordUC := securityApplication.NewCreateTransactionPasswordUseCase(transactionPasswordRepo, userRepo, transactionPasswordHasher)
 	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
@@ -107,6 +113,7 @@ func main() {
 	)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC, checkCPFUC)
+	securityHandler := securityDelivery.New(createTransactionPasswordUC)
 
 	// ======================
 	// Middlewares
@@ -124,7 +131,7 @@ func main() {
 	authRouter := newAuthRouter(authHandler, customerHandler, appTokenMiddleware, withAuth)
 
 	// --- API Router ---
-	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler)
+	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler, securityHandler)
 
 	// ======================
 	// Main Router
@@ -170,6 +177,7 @@ func newAPIRouter(
 	customerHandler *customerDelivery.Handler,
 	statementHandler *statementDelivery.Handler,
 	transactionHandler *transactionDelivery.Handler,
+	securityHandler *securityDelivery.Handler,
 ) *http.ServeMux {
 	apiRouter := http.NewServeMux()
 	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(adminHandler.ApproveUser)))
@@ -183,6 +191,7 @@ func newAPIRouter(
 	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
 	apiRouter.Handle("POST /accounts/internal-transfers", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
 	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
+	apiRouter.Handle("POST /security/transaction-password", withAuth(http.HandlerFunc(securityHandler.CreateTransactionPassword)))
 
 	// Terminal cash operations are intentionally disabled until a real terminal channel exists.
 	// apiRouter.Handle("POST /terminal/accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))

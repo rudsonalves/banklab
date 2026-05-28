@@ -1,5 +1,75 @@
 # Changelog
 
+## 2026/05/28 — api/zta-mvp-transactional-password-03
+
+This commit introduces the first part of the transactional password implementation for the API.
+
+1. `api/cmd/api/main.go`
+
+   * Wired the new security module into the API bootstrap.
+   * Added the transaction password repository, bcrypt hasher, use case, handler, and route registration.
+   * Registered the protected endpoint:
+
+     * `POST /security/transaction-password`
+
+2. `api/internal/security/domain`
+
+   * Added the transactional password domain model.
+   * Defined PIN validation rules for a numeric 6-digit password.
+   * Added status handling for active and blocked passwords.
+   * Added failure tracking, temporary locking, lock normalization, and success reset behavior.
+   * Added domain errors and repository/hasher contracts.
+
+3. `api/internal/security/application`
+
+   * Added `CreateTransactionPasswordUseCase`.
+   * Validates authenticated user context, PIN format, confirmation, active user status, and duplicate password creation.
+   * Hashes the PIN before persistence.
+   * Added security error registration and mappings to API error codes.
+
+4. `api/internal/security/delivery`
+
+   * Added the HTTP handler for creating the initial transaction password.
+   * Enforces authenticated access.
+   * Rejects unknown JSON fields.
+   * Maps domain/application errors to the standard response envelope.
+
+5. `api/internal/security/infrastructure`
+
+   * Added bcrypt-based transaction password hasher.
+   * Added PostgreSQL repository for creating, finding, updating validation state, and changing password hashes.
+   * Added support for contextual transactions through the existing database transaction context.
+
+6. `api/internal/shared/errors`
+
+   * Added transaction password error codes:
+
+     * `TRANSACTION_PASSWORD_ALREADY_SET`
+     * `TRANSACTION_PASSWORD_NOT_SET`
+     * `TRANSACTION_PASSWORD_INVALID`
+     * `TRANSACTION_PASSWORD_LOCKED`
+
+7. `api/internal/bootstrap/errors.go`
+
+   * Registered security-specific errors during application bootstrap.
+
+8. Tests
+
+   * Added domain tests for PIN validation, password creation, lock behavior, failure tracking, and success reset.
+   * Added use case tests covering success, invalid input, inactive user, missing user, duplicate password, hash failure, and repository failure.
+   * Added handler tests for success, unauthorized access, invalid payloads, mapped domain errors, nil use case, and unknown errors.
+   * Added PostgreSQL integration tests for repository persistence, duplicate handling, validation state updates, and hash updates.
+   * Updated route tests to include the new security handler dependency.
+
+9. Documentation
+
+   * Updated REST API documentation with the new transaction password endpoint.
+   * Documented request/response payloads, authentication requirements, and related error scenarios.
+   * Added transaction password error codes to the documented API error catalog.
+
+This establishes the initial transactional password foundation, including domain rules, persistence, HTTP exposure, error mapping, and test coverage, preparing the API for later transaction-password validation and step-up authorization flows.
+
+
 ## 2026/05/28 — api/zta-mvp-transactional-password-02
 
 This change introduces database-generated UUIDs as the default strategy for persisted entities whenever possible, and starts the transactional password persistence model for the ZTA MVP.

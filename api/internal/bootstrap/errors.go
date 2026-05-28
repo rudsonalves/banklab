@@ -5,6 +5,7 @@ import (
 	adminapplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	authapplication "github.com/seu-usuario/bank-api/internal/auth/application"
 	customerapplication "github.com/seu-usuario/bank-api/internal/customer/application"
+	securityapplication "github.com/seu-usuario/bank-api/internal/security/application"
 )
 
 // RegisterErrors registers all application errors in a centralized manner.
@@ -20,4 +21,6 @@ func RegisterErrors() {
 	customerapplication.RegisterErrors()
 	// 3. Auth-specific errors
 	authapplication.RegisterErrors()
+	// 4. Security-specific errors
+	securityapplication.RegisterErrors()
 }
