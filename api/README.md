@@ -64,7 +64,7 @@ GET    /accounts/transfer/{transaction_reference}/receipt
 GET    /accounts/{id}/statement
 ```
 
-All routes except register/login require JWT authentication.
+All routes except register/login require JWT authentication. `POST /accounts/internal-transfers` also requires an `X-Step-Up-Token` issued by `POST /security/step-up/authorize` for `internal_transfer.create`.
 
 `POST /terminal/accounts/{id}/deposit` and
 `POST /terminal/accounts/{id}/withdraw` are intentionally not registered while a

@@ -93,7 +93,7 @@ func TestAPIRouter_OperationalAccountRoutes(t *testing.T) {
 		accountDelivery.New(nil, nil, nil, nil),
 		customerDelivery.New(nil, nil),
 		statementDelivery.New(nil),
-		transactionDelivery.New(nil, nil, nil, nil),
+		transactionDelivery.New(nil, nil, nil, nil, nil),
 		securityDelivery.New(nil),
 	)
 
@@ -150,7 +150,7 @@ func TestAPIRouter_StepUpAuthorizeRouteRequiresAuth(t *testing.T) {
 		accountDelivery.New(nil, nil, nil, nil),
 		customerDelivery.New(nil, nil),
 		statementDelivery.New(nil),
-		transactionDelivery.New(nil, nil, nil, nil),
+		transactionDelivery.New(nil, nil, nil, nil, nil),
 		securityDelivery.New(nil),
 	)
 

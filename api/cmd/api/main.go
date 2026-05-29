@@ -65,6 +65,7 @@ func main() {
 	transactionPasswordHasher := securityInfrastructure.NewBcryptTransactionPasswordHasher(bcrypt.DefaultCost)
 	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, 15*time.Minute)
 	stepUpTokenSigner := securityInfrastructure.NewJWTStepUpTokenSigner(config.JWTSecret)
+	stepUpTokenVerifier := securityInfrastructure.NewJWTStepUpTokenVerifier(config.JWTSecret)
 
 	// ======================
 	// Use Cases
@@ -103,6 +104,7 @@ func main() {
 		stepUpTokenSigner,
 		securityDomain.NewDefaultStepUpEndpointPolicy(),
 	)
+	enforceStepUpUC := securityApplication.NewEnforceStepUpUseCase(stepUpTokenVerifier, stepUpTokenRepo)
 	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
@@ -113,7 +115,7 @@ func main() {
 	// ======================
 	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC, lookupInternalTransferRecipientsUC)
 	statementHandler := statementDelivery.New(statementUC)
-	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC, transferReceiptUC)
+	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC, transferReceiptUC, enforceStepUpUC)
 	authHandler := authDelivery.New(
 		registerUserUC,
 		loginUserUC,

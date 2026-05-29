@@ -12,6 +12,7 @@ type StepUpTokenStatus string
 const (
 	StepUpTokenActive   StepUpTokenStatus = "active"
 	StepUpTokenConsumed StepUpTokenStatus = "consumed"
+	StepUpTokenScope                      = "step_up"
 
 	StepUpTokenDefaultDuration = 2 * time.Minute
 )

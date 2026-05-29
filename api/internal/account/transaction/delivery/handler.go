@@ -12,10 +12,14 @@ import (
 	transactionapp "github.com/seu-usuario/bank-api/internal/account/transaction/application"
 	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
+	securityapp "github.com/seu-usuario/bank-api/internal/security/application"
+	securitydomain "github.com/seu-usuario/bank-api/internal/security/domain"
 	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
 )
+
+const stepUpTokenHeader = "X-Step-Up-Token"
 
 type depositUseCase interface {
 	Execute(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error)
@@ -33,19 +37,31 @@ type transferReceiptUseCase interface {
 	Execute(ctx context.Context, input transactionapp.GetTransferReceiptInput) (*transactionapp.TransferReceiptResult, error)
 }
 
-type Handler struct {
-	deposit  depositUseCase
-	withdraw withdrawUseCase
-	transfer transferUseCase
-	receipt  transferReceiptUseCase
+type enforceStepUpUseCase interface {
+	Execute(ctx context.Context, input securityapp.EnforceStepUpInput) error
 }
 
-func New(deposit depositUseCase, withdraw withdrawUseCase, transfer transferUseCase, receipt transferReceiptUseCase) *Handler {
+type Handler struct {
+	deposit       depositUseCase
+	withdraw      withdrawUseCase
+	transfer      transferUseCase
+	receipt       transferReceiptUseCase
+	enforceStepUp enforceStepUpUseCase
+}
+
+func New(
+	deposit depositUseCase,
+	withdraw withdrawUseCase,
+	transfer transferUseCase,
+	receipt transferReceiptUseCase,
+	enforceStepUp enforceStepUpUseCase,
+) *Handler {
 	return &Handler{
-		deposit:  deposit,
-		withdraw: withdraw,
-		transfer: transfer,
-		receipt:  receipt,
+		deposit:       deposit,
+		withdraw:      withdraw,
+		transfer:      transfer,
+		receipt:       receipt,
+		enforceStepUp: enforceStepUp,
 	}
 }
 
@@ -218,6 +234,22 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	toAccountID, err := uuid.Parse(req.ToAccountID)
 	if err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrInvalidData))
+		return
+	}
+
+	if h.enforceStepUp == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	if err := h.enforceStepUp.Execute(r.Context(), securityapp.EnforceStepUpInput{
+		User:        user,
+		EndpointKey: securitydomain.StepUpEndpointInternalTransferCreate,
+		Token:       r.Header.Get(stepUpTokenHeader),
+		Now:         time.Now().UTC(),
+	}); err != nil {
+		log.Printf("event=enforce_step_up error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
 		return
 	}
 

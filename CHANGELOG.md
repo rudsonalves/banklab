@@ -1,5 +1,263 @@
 # Changelog
 
+## 2026/05/29 - api/zta-mvp-transactional-password-13
+
+Finalized the ZTA MVP contract documentation, consolidating step-up token behavior, protected endpoint requirements, error semantics, and client integration guidance across API, implementation, backlog, and mobile documentation.
+
+### Documentation Updates
+
+#### 1. `api/docs/05-error_and_response.md`
+
+* Expanded the ZTA domain error mapping table.
+* Added `TRANSACTION_PASSWORD_ALREADY_SET` to the documented error catalog.
+* Clarified that clients must depend on `error.code` instead of `error.message`.
+* Distinguished issuance/authorization errors from protected endpoint enforcement errors.
+* Documented the exact meaning of `STEP_UP_ENDPOINT_NOT_ALLOWED`.
+* Clarified all conditions covered by `STEP_UP_TOKEN_INVALID`, including:
+
+  * malformed tokens;
+  * invalid signatures;
+  * missing required claims;
+  * invalid scope;
+  * missing persisted `jti`.
+
+#### 2. `api/docs/07-api-rest.md`
+
+* Added explicit request header requirements for protected internal transfers:
+
+  * `Authorization: Bearer <access_token>`
+  * `X-Step-Up-Token: <step_up_token>`
+* Clarified the distinction between:
+
+  * step-up authorization failures (`STEP_UP_ENDPOINT_NOT_ALLOWED`);
+  * protected endpoint enforcement failures.
+* Refined the definition of `STEP_UP_TOKEN_INVALID` to match implementation behavior.
+
+#### 3. `api/docs/implementations/03-zta-step-up-transaction-password.md`
+
+* Updated the implementation guide with the finalized ZTA error contract.
+* Added guidance that consumers must rely on `error.code`.
+* Documented issuance versus enforcement responsibilities.
+* Clarified all scenarios covered by `STEP_UP_TOKEN_INVALID`.
+* Improved consistency between implementation documentation and runtime behavior.
+
+### Backlog Closure
+
+#### 4. `docs/backlogs/api/006d - zta-contracts-and-docs.md`
+
+* Added final validation notes for the ZTA MVP.
+* Recorded successful validation through `go test ./...`.
+* Confirmed alignment between:
+
+  * error contracts;
+  * JWT signer/verifier;
+  * enforcement layer;
+  * internal transfer handler;
+  * published documentation.
+* Marked the backlog as complete for MVP scope.
+* Explicitly documented items intentionally left outside MVP scope:
+
+  * payload-bound step-up authorization;
+  * broader endpoint coverage;
+  * trusted devices;
+  * local biometrics;
+  * liveness verification;
+  * risk signals;
+  * Postman collection requirements.
+
+#### 5. `docs/backlogs/api/006d - zta-contracts-and-docs_tasks.md`
+
+* Marked Tasks 3 through 6 as completed:
+
+  * Consolidate ZTA error contract.
+  * Update REST documentation.
+  * Update ZTA documentation and references.
+  * Perform final contract validation.
+
+### Mobile Documentation Alignment
+
+#### 6. `mobile/README.md`
+
+* Updated transfer feature documentation to reflect the current security contract.
+* Documented that internal transfers now require:
+
+  * `POST /security/step-up/authorize`
+  * `endpoint_key=internal_transfer.create`
+  * `X-Step-Up-Token` in transfer requests.
+
+#### 7. `mobile/docs/01-implemented-features.md`
+
+* Added API contract notes for transfer operations.
+* Documented:
+
+  * mandatory `X-Step-Up-Token`;
+  * issuance through the step-up authorization endpoint;
+  * single-use token behavior;
+  * retry requirements after `STEP_UP_TOKEN_CONSUMED`;
+  * interaction between idempotency retries and step-up token renewal.
+
+### Conclusion
+
+This commit completes the documentation phase of the ZTA transactional password MVP by establishing a stable and fully documented contract for step-up authorization, protected endpoint enforcement, error handling, transfer requirements, and client integration expectations across both API and mobile layers.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-12
+
+This commit consolidates the ZTA MVP step-up enforcement contract for internal transfers, aligning documentation, error semantics, retry behavior, and automated test coverage.
+
+1. `README.md`
+
+   * Documented that `POST /accounts/internal-transfers` requires `X-Step-Up-Token`.
+   * Clarified that the token must be issued by `POST /security/step-up/authorize` for `internal_transfer.create`.
+
+2. `README_en.md`
+
+   * Added the same internal transfer step-up requirement to the English README.
+   * Kept the authentication summary aligned with the Portuguese README.
+
+3. `api/README.md`
+
+   * Updated the API authentication summary to mention the mandatory `X-Step-Up-Token` for protected internal transfers.
+
+4. `api/docs/07-api-rest.md`
+
+   * Updated the standard error envelope to include optional `error.details`.
+   * Clarified that clients must depend on `error.code`, not `error.message`.
+   * Documented that the step-up token is an `HS256` JWT.
+   * Added internal transfer enforcement rules for `X-Step-Up-Token`.
+   * Documented atomic token consumption before transfer execution.
+   * Clarified retry behavior when reusing consumed step-up tokens.
+   * Added ZTA-related error codes and descriptions.
+   * Added error scenarios for missing, invalid, expired, consumed, and endpoint-mismatched step-up tokens.
+
+5. `api/docs/implementations/03-zta-step-up-transaction-password.md`
+
+   * Documented that the step-up token must be signed with `HS256`.
+   * Added explicit rules for token consumption and retry behavior.
+   * Documented expected automated coverage for verifier, enforcement use case, and integration tests.
+   * Reformatted the error contract table for readability.
+
+6. `api/internal/account/transaction/delivery/handler_test.go`
+
+   * Added coverage ensuring consumed step-up tokens return `STEP_UP_TOKEN_CONSUMED`.
+   * Verified that the transfer use case is not executed when step-up enforcement fails.
+
+7. `api/internal/security/application/enforce_step_up_test.go`
+
+   * Added coverage for retrying enforcement with the same step-up token.
+   * Confirmed that the second use of the same persisted `jti` returns `ErrStepUpTokenConsumed`.
+
+8. `api/internal/security/infrastructure/step_up_enforcement_integration_test.go`
+
+   * Added an integration test covering signer, verifier, PostgreSQL repository, and enforcement use case.
+   * Verified that a persisted step-up `jti` is consumed exactly once.
+   * Confirmed that retrying the same signed token fails with `ErrStepUpTokenConsumed`.
+
+9. `docs/backlogs/api/006d - zta-contracts-and-docs.md`
+
+   * Clarified that the step-up JWT uses `HS256`.
+   * Added the MVP enforcement alignment status.
+   * Documented the protected endpoint, required header, endpoint key, architecture boundary, single-use behavior, and retry/idempotency relationship.
+
+10. `docs/backlogs/api/006d - zta-contracts-and-docs_tasks.md`
+
+* Added the task breakdown for consolidating ZTA contracts and documentation.
+* Defined scope, acceptance criteria, dependencies, and current status for the documentation backlog.
+
+This change closes the main contract gap around ZTA step-up enforcement by making internal transfer protection explicit, tested, and consistently documented across API references, implementation notes, and backlog planning.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-11
+
+Implement step-up enforcement for internal transfers.
+
+This update connects the transactional password step-up authorization flow to the transfer endpoint, ensuring that internal transfers require a valid, endpoint-bound, single-use step-up token before the transfer use case is executed.
+
+1. `api/cmd/api/main.go`
+
+   * Added `JWTStepUpTokenVerifier`.
+   * Created `EnforceStepUpUseCase`.
+   * Injected step-up enforcement into the transaction handler.
+
+2. `api/internal/account/transaction/delivery/handler.go`
+
+   * Added support for `X-Step-Up-Token`.
+   * Added `enforceStepUpUseCase` dependency.
+   * Enforced step-up validation before executing transfers.
+   * Blocked transfer execution when the step-up token is missing, invalid, expired, consumed, or bound to another endpoint.
+
+3. `api/internal/security/application/enforce_step_up.go`
+
+   * Added `EnforceStepUpUseCase`.
+   * Validates authenticated user context.
+   * Verifies signed step-up token claims.
+   * Checks user ownership, endpoint binding, expiration, and persisted token consistency.
+   * Consumes the step-up token by JTI to enforce single-use semantics.
+
+4. `api/internal/security/infrastructure/jwt_step_up_token_verifier.go`
+
+   * Added JWT verifier for step-up tokens.
+   * Validates HS256 signature, required claims, scope, user ID, endpoint key, JTI, issued time, and expiration.
+
+5. `api/internal/security/domain/errors.go`
+
+   * Added transaction password required error.
+   * Added step-up endpoint mismatch error.
+
+6. `api/internal/shared/errors/codes.go`
+
+   * Added stable error codes for transaction password and step-up enforcement failures.
+
+7. `api/internal/security/application/errors_registry.go`
+
+   * Registered HTTP mappings for the new transaction password and step-up errors.
+
+8. Tests
+
+   * Updated handler constructors across route and integration tests.
+   * Added transfer handler tests to ensure failed step-up enforcement prevents transfer execution.
+   * Added use case tests for successful enforcement, missing tokens, invalid users, verifier failures, user mismatch, endpoint mismatch, consumed tokens, expired tokens, and persisted record divergence.
+   * Added JWT verifier tests for valid tokens, invalid secrets, invalid scopes, missing claims, expired tokens, invalid algorithms, and malformed tokens.
+   * Extended error registry tests for the new error mappings.
+
+This change moves internal transfers closer to the ZTA MVP model by requiring explicit, short-lived, endpoint-scoped authorization before executing a sensitive financial operation.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-10
+
+Introduce the initial step-up token verification contract and align the enforcement backlog with the transactional password/ZTA flow.
+
+1. `api/internal/security/domain`
+
+   * Added `ErrStepUpTokenRequired`.
+   * Added `StepUpTokenVerifier` contract.
+   * Added `VerifiedStepUpTokenClaims` with validation and normalization.
+   * Centralized the step-up JWT scope as `StepUpTokenScope`.
+
+2. `api/internal/security/application`
+
+   * Registered `STEP_UP_TOKEN_REQUIRED` as a mapped domain error.
+   * Added test coverage for the new error mapping.
+
+3. `api/internal/security/infrastructure`
+
+   * Updated the JWT step-up token signer to use the shared domain scope constant.
+   * Adjusted signer tests to validate the shared scope definition.
+
+4. `api/internal/shared/errors`
+
+   * Added the shared `STEP_UP_TOKEN_REQUIRED` error code.
+
+5. `docs/backlogs/api`
+
+   * Expanded the internal transfer step-up enforcement backlog.
+   * Added detailed enforcement decisions for JWT validation, persisted `jti` comparison, atomic consumption, retry behavior, and error semantics.
+   * Added a dedicated task breakdown for the enforcement implementation.
+   * Updated the ZTA contract documentation with the step-up JWT claims and error separation.
+
+This prepares the API for implementing step-up enforcement on internal transfers while keeping JWT verification behind a clean domain contract.
+
+
 ## 2026/05/29 — api/zta-mvp-transactional-password-09
 
 Consolidate transactional password and step-up authorization documentation, aligning API contracts, error mappings, implementation notes, and project references with the current Zero Trust MVP flow.

@@ -149,24 +149,38 @@ Example:
 
 ## 6. Domain Error Mapping
 
-| Domain Error                  | HTTP | Code                          |
-| ----------------------------- | ---- | ----------------------------- |
-| customer already exists       | 409  | CUSTOMER_ALREADY_EXISTS       |
-| account not found             | 404  | ACCOUNT_NOT_FOUND             |
-| insufficient funds            | 422  | INSUFFICIENT_FUNDS            |
-| invalid amount                | 400  | INVALID_AMOUNT                |
-| inactive account              | 422  | ACCOUNT_INACTIVE              |
-| duplicate operation           | 409  | DUPLICATE_REQUEST             |
-| step-up endpoint not allowed  | 403  | STEP_UP_ENDPOINT_NOT_ALLOWED  |
-| transaction password required | 403  | TRANSACTION_PASSWORD_REQUIRED |
-| transaction password not set  | 409  | TRANSACTION_PASSWORD_NOT_SET  |
-| transaction password invalid  | 401  | TRANSACTION_PASSWORD_INVALID  |
-| transaction password locked   | 403  | TRANSACTION_PASSWORD_LOCKED   |
-| step-up token required        | 401  | STEP_UP_TOKEN_REQUIRED        |
-| step-up token invalid         | 401  | STEP_UP_TOKEN_INVALID         |
-| step-up token expired         | 401  | STEP_UP_TOKEN_EXPIRED         |
-| step-up token consumed        | 401  | STEP_UP_TOKEN_CONSUMED        |
-| step-up endpoint mismatch     | 403  | STEP_UP_ENDPOINT_MISMATCH     |
+| Domain Error                  | HTTP | Code                             |
+| ----------------------------- | ---- | -------------------------------- |
+| customer already exists       | 409  | CUSTOMER_ALREADY_EXISTS          |
+| account not found             | 404  | ACCOUNT_NOT_FOUND                |
+| insufficient funds            | 422  | INSUFFICIENT_FUNDS               |
+| invalid amount                | 400  | INVALID_AMOUNT                   |
+| inactive account              | 422  | ACCOUNT_INACTIVE                 |
+| duplicate operation           | 409  | DUPLICATE_REQUEST                |
+| transaction password set      | 409  | TRANSACTION_PASSWORD_ALREADY_SET |
+| step-up endpoint not allowed  | 403  | STEP_UP_ENDPOINT_NOT_ALLOWED     |
+| transaction password required | 403  | TRANSACTION_PASSWORD_REQUIRED    |
+| transaction password not set  | 409  | TRANSACTION_PASSWORD_NOT_SET     |
+| transaction password invalid  | 401  | TRANSACTION_PASSWORD_INVALID     |
+| transaction password locked   | 403  | TRANSACTION_PASSWORD_LOCKED      |
+| step-up token required        | 401  | STEP_UP_TOKEN_REQUIRED           |
+| step-up token invalid         | 401  | STEP_UP_TOKEN_INVALID            |
+| step-up token expired         | 401  | STEP_UP_TOKEN_EXPIRED            |
+| step-up token consumed        | 401  | STEP_UP_TOKEN_CONSUMED           |
+| step-up endpoint mismatch     | 403  | STEP_UP_ENDPOINT_MISMATCH        |
+
+ZTA clients must depend on `error.code`, not `error.message`.
+
+`STEP_UP_ENDPOINT_NOT_ALLOWED` belongs to step-up authorization/issuance: the
+client requested a step-up token for an `endpoint_key` outside the backend
+allowlist.
+
+`TRANSACTION_PASSWORD_REQUIRED`, `STEP_UP_TOKEN_REQUIRED`,
+`STEP_UP_TOKEN_INVALID`, `STEP_UP_TOKEN_EXPIRED`, `STEP_UP_TOKEN_CONSUMED`, and
+`STEP_UP_ENDPOINT_MISMATCH` belong to enforcement of protected endpoints.
+
+`STEP_UP_TOKEN_INVALID` covers malformed tokens, invalid signatures, required
+claims missing, `scope` different from `step_up`, and missing persisted `jti`.
 
 ---
 

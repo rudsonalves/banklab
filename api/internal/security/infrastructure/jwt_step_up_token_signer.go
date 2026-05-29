@@ -5,8 +5,6 @@ import (
 	"github.com/seu-usuario/bank-api/internal/security/domain"
 )
 
-const stepUpTokenScope = "step_up"
-
 type JWTStepUpTokenSigner struct {
 	secret []byte
 }
@@ -40,7 +38,7 @@ func (s *JWTStepUpTokenSigner) Sign(token *domain.StepUpToken) (string, error) {
 	payload := stepUpTokenClaims{
 		UserID:      token.UserID.String(),
 		EndpointKey: token.EndpointKey,
-		Scope:       stepUpTokenScope,
+		Scope:       domain.StepUpTokenScope,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        token.JTI,
 			IssuedAt:  jwt.NewNumericDate(token.CreatedAt.UTC()),

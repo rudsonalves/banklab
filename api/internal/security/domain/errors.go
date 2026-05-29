@@ -9,10 +9,14 @@ var (
 	ErrTransactionPasswordInvalid    = errors.New("transaction password is invalid")
 	ErrTransactionPasswordLocked     = errors.New("transaction password is locked due to multiple failed attempts")
 	ErrInvalidTransactionPassword    = errors.New("invalid transaction password")
+	ErrTransactionPasswordRequired   = errors.New("transaction password required")
+
+	ErrStepUpTokenRequired = errors.New("step-up token required")
 
 	ErrInvalidStepUpToken  = errors.New("invalid step-up token")
 	ErrStepUpTokenExpired  = errors.New("step-up token expired")
 	ErrStepUpTokenConsumed = errors.New("step-up token already consumed")
 
 	ErrStepUpEndpointNotAllowed = errors.New("step-up endpoint not allowed")
+	ErrStepUpEndpointMismatch   = errors.New("step-up endpoint mismatch")
 )

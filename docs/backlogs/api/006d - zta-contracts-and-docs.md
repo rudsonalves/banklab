@@ -66,7 +66,27 @@ step_up_token
 expires_in
 ```
 
-## 4. Resposta de autorização de step-up
+## 4. JWT de step-up
+
+O step-up token é um JWT curto, assinado pelo backend com `HS256`, com validade
+de 120 segundos. O backend também persiste o `jti` para permitir consumo único
+no enforcement.
+
+Claims mínimos:
+
+```text
+user_id
+endpoint_key
+scope=step_up
+exp
+iat
+jti
+```
+
+O token não deve conter senha transacional, hash, dados sensíveis ou payload da
+operação.
+
+## 5. Resposta de autorização de step-up
 
 ```json
 {
@@ -78,7 +98,7 @@ expires_in
 }
 ```
 
-## 5. Contrato inicial de erros
+## 6. Contrato inicial de erros
 
 | Código                             | HTTP | Cenário                                                |
 | ---------------------------------- | ---: | ------------------------------------------------------ |
@@ -97,12 +117,61 @@ expires_in
 Os códigos acima são contrato do MVP. As mensagens podem seguir o padrão textual
 da API, desde que o `error.code` permaneça estável.
 
-## 6. Documentos a atualizar
+Separação entre autorização e enforcement:
+
+- `STEP_UP_ENDPOINT_NOT_ALLOWED` pertence à emissão/autorização de step-up:
+  o cliente pediu autorização para um `endpoint_key` fora da whitelist.
+- `TRANSACTION_PASSWORD_REQUIRED`, `STEP_UP_TOKEN_REQUIRED`,
+  `STEP_UP_TOKEN_INVALID`, `STEP_UP_TOKEN_EXPIRED`,
+  `STEP_UP_TOKEN_CONSUMED` e `STEP_UP_ENDPOINT_MISMATCH` pertencem ao
+  enforcement do endpoint sensível.
+- `STEP_UP_TOKEN_INVALID` cobre token malformado, assinatura inválida,
+  `scope` diferente de `step_up`, `jti` inexistente ou claims obrigatórios
+  ausentes.
+
+## 7. Documentos a atualizar
 
 Quando a implementação avançar, revisar:
 
 - `api/docs/05-error_and_response.md`;
 - `api/docs/07-api-rest.md`;
 - `api/docs/implementations/03-zta-step-up-transaction-password.md`;
-- coleção Postman, se o fluxo estiver coberto nela;
 - documentação mobile, se houver impacto direto no consumo.
+
+## 8. Status de alinhamento (MVP enforcement)
+
+Contrato confirmado com a implementação atual:
+
+- Endpoint sensível protegido: `POST /accounts/internal-transfers`.
+- Header obrigatório de enforcement: `X-Step-Up-Token`.
+- Endpoint lógico exigido no token: `internal_transfer.create`.
+- Ponto arquitetural do enforcement:
+  `internal/account/transaction/delivery -> internal/security/application`
+  antes de `internal/account/transaction/application`.
+- O use case de transferência não recebe step-up token, senha transacional nem
+  detalhes de política ZTA.
+- O step-up token autoriza uma chamada ao endpoint lógico e não é vinculado ao
+  payload da transferência no MVP.
+- Step-up token é de uso único com consumo atômico por `jti` antes do use case
+  sensível.
+- Se a transferência falhar depois do enforcement, o step-up token permanece
+  consumido.
+- Retry com o mesmo `X-Step-Up-Token` após consumo retorna
+  `STEP_UP_TOKEN_CONSUMED`.
+- Retry com mesmo `idempotency_key` pode exigir novo step-up token.
+
+Verificação final:
+
+- `go test ./...` passa na API.
+- Não há divergência conhecida entre constantes, registry de erros,
+  signer/verifier JWT, enforcement, handler de transferência interna e
+  documentação revisada.
+- Este backlog pode ser considerado fechado para o escopo do MVP.
+
+Fora do escopo do MVP:
+
+- vincular o step-up token ao payload detalhado da operação;
+- ampliar a policy para outros endpoints sensíveis;
+- implementar dispositivo confiável, biometria local, prova de vida ou sinais
+  de risco;
+- exigir coleção Postman como artefato deste backlog.

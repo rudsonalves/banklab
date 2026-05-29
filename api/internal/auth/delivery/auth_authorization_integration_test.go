@@ -320,7 +320,7 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	depositUC := transactionapplication.NewDeposit(transactionRepo)
 	createAccountUC := accountapplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
 	accountHandler := accountdelivery.New(listAccountsUC, createAccountUC, nil, nil)
-	transactionHandler := transactiondelivery.New(depositUC, nil, nil, nil)
+	transactionHandler := transactiondelivery.New(depositUC, nil, nil, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", authHandler.Register)

@@ -99,14 +99,15 @@ Error:
   "data": null,
   "error": {
     "code": "ERROR_CODE",
-    "message": "human readable message"
+    "message": "human readable message",
+    "details": {}
   }
 }
 ```
 
 Notes:
-- Current implementation returns `error.code` and `error.message`.
-- `error.details` may be populated for selected errors, such as `CONTACT_NOT_VERIFIED`.
+- Clients should depend on `error.code`, not on `error.message`.
+- `error.details` is optional and may be populated for selected errors, such as `CONTACT_NOT_VERIFIED`.
 
 ### 2.1 Error Payload Examples (Standard)
 
@@ -609,10 +610,10 @@ Authorizes a sensitive logical endpoint with the authenticated user's
 transaction password and returns a short-lived step-up token. In the MVP, the
 only accepted endpoint key is `internal_transfer.create`.
 
-The step-up token lasts 120 seconds, is scoped to the requested endpoint key,
-and is tracked by a persisted `jti` so it can be consumed once during
-enforcement. The response never returns the transaction password, password hash,
-or operation payload.
+The step-up token is an `HS256` JWT. It lasts 120 seconds, is scoped to the
+requested endpoint key, and is tracked by a persisted `jti` so it can be
+consumed once during enforcement. The response never returns the transaction
+password, password hash, or operation payload.
 
 Request body:
 
@@ -881,6 +882,13 @@ trusted internal account selection flow.
 This endpoint is step-up protected. The client must send a valid
 `X-Step-Up-Token` issued for the `internal_transfer.create` endpoint key.
 
+Request headers:
+
+```http
+Authorization: Bearer <access_token>
+X-Step-Up-Token: <step_up_token>
+```
+
 Request body:
 
 ```json
@@ -900,8 +908,16 @@ Notes:
   `from_account_id`.
 - The backend validates that `to_account_id` exists and can receive internal
   transfers.
+- `X-Step-Up-Token` is mandatory and must be a valid token issued for
+  `internal_transfer.create`.
+- The step-up token is consumed atomically before the transfer use case is
+  executed.
+- Because the token is single-use, retrying with the same `X-Step-Up-Token`
+  returns `STEP_UP_TOKEN_CONSUMED`.
 - `idempotency_key` is required and must be stable across retries of the same
   transfer attempt.
+- A new step-up token may be required even when retrying with the same
+  `idempotency_key`.
 - `description` is optional. When omitted or blank, no description is stored.
 - Idempotency is scoped to `from_account_id` and `idempotency_key`.
 - Different source accounts may reuse the same `idempotency_key` independently.
@@ -1171,6 +1187,13 @@ Common error codes currently used by handlers:
 - TRANSACTION_PASSWORD_NOT_SET
 - TRANSACTION_PASSWORD_INVALID
 - TRANSACTION_PASSWORD_LOCKED
+- TRANSACTION_PASSWORD_REQUIRED
+- STEP_UP_ENDPOINT_NOT_ALLOWED
+- STEP_UP_TOKEN_REQUIRED
+- STEP_UP_TOKEN_INVALID
+- STEP_UP_TOKEN_EXPIRED
+- STEP_UP_TOKEN_CONSUMED
+- STEP_UP_ENDPOINT_MISMATCH
 - INTERNAL_ERROR
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when onboarding routes protected by AppToken (`POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, `POST /auth/login`) are called without `X-App-Token` or with an invalid app token.
@@ -1199,6 +1222,28 @@ validation attempt receives an incorrect PIN.
 
 `TRANSACTION_PASSWORD_LOCKED` (HTTP 403) is returned when the transaction
 password is temporarily locked after repeated invalid attempts.
+
+`TRANSACTION_PASSWORD_REQUIRED` (HTTP 403) is reserved for challenge/policy
+flows that require step-up before a sensitive operation can proceed.
+
+`STEP_UP_TOKEN_REQUIRED` (HTTP 401) is returned by protected endpoints when
+header `X-Step-Up-Token` is missing.
+
+`STEP_UP_ENDPOINT_NOT_ALLOWED` (HTTP 403) belongs to step-up authorization and
+is returned when the requested `endpoint_key` is outside the backend allowlist.
+
+`STEP_UP_TOKEN_INVALID` (HTTP 401) is returned for malformed step-up tokens,
+invalid signatures, required claims missing, `scope` different from `step_up`,
+or missing persisted `jti`.
+
+`STEP_UP_TOKEN_EXPIRED` (HTTP 401) is returned when the step-up token is
+already expired.
+
+`STEP_UP_TOKEN_CONSUMED` (HTTP 401) is returned when a previously consumed
+step-up token is reused.
+
+`STEP_UP_ENDPOINT_MISMATCH` (HTTP 403) is returned when the token was issued
+for a different endpoint key than the protected operation.
 
 ## 8. Domain Notes for API Consumers
 
@@ -1545,6 +1590,76 @@ Scenario: access denied
 ```
 
 ### 9.10 POST /accounts/internal-transfers
+
+Scenario: missing `X-Step-Up-Token`
+- Status: 401
+- Code: STEP_UP_TOKEN_REQUIRED
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "STEP_UP_TOKEN_REQUIRED",
+    "message": "Step-up token required"
+  }
+}
+```
+
+Scenario: invalid or malformed step-up token
+- Status: 401
+- Code: STEP_UP_TOKEN_INVALID
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "STEP_UP_TOKEN_INVALID",
+    "message": "Invalid step-up token"
+  }
+}
+```
+
+Scenario: expired step-up token
+- Status: 401
+- Code: STEP_UP_TOKEN_EXPIRED
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "STEP_UP_TOKEN_EXPIRED",
+    "message": "Step-up token expired"
+  }
+}
+```
+
+Scenario: retry with same consumed step-up token
+- Status: 401
+- Code: STEP_UP_TOKEN_CONSUMED
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "STEP_UP_TOKEN_CONSUMED",
+    "message": "Step-up token already consumed"
+  }
+}
+```
+
+Scenario: token issued for another endpoint key
+- Status: 403
+- Code: STEP_UP_ENDPOINT_MISMATCH
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "STEP_UP_ENDPOINT_MISMATCH",
+    "message": "Step-up endpoint mismatch"
+  }
+}
+```
 
 Scenario: invalid JSON or unknown public request field
 - Status: 400
