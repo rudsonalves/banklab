@@ -26,6 +26,7 @@ import (
 	"github.com/seu-usuario/bank-api/internal/database"
 	securityApplication "github.com/seu-usuario/bank-api/internal/security/application"
 	securityDelivery "github.com/seu-usuario/bank-api/internal/security/delivery"
+	securityDomain "github.com/seu-usuario/bank-api/internal/security/domain"
 	securityInfrastructure "github.com/seu-usuario/bank-api/internal/security/infrastructure"
 	sharedhttpmiddleware "github.com/seu-usuario/bank-api/internal/shared/http/middleware"
 	"golang.org/x/crypto/bcrypt"
@@ -54,6 +55,7 @@ func main() {
 	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
 	contactVerificationRepo := authInfrastructure.NewPostgresContactVerificationRepository(db)
 	transactionPasswordRepo := securityInfrastructure.NewPostgresTransactionPasswordRepository(db)
+	stepUpTokenRepo := securityInfrastructure.NewPostgresStepUpTokenRepository(db)
 	transactor := authInfrastructure.NewPostgresTransactor(db)
 
 	// ======================
@@ -62,6 +64,7 @@ func main() {
 	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
 	transactionPasswordHasher := securityInfrastructure.NewBcryptTransactionPasswordHasher(bcrypt.DefaultCost)
 	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, 15*time.Minute)
+	stepUpTokenSigner := securityInfrastructure.NewJWTStepUpTokenSigner(config.JWTSecret)
 
 	// ======================
 	// Use Cases
@@ -92,6 +95,14 @@ func main() {
 	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
 	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
 	createTransactionPasswordUC := securityApplication.NewCreateTransactionPasswordUseCase(transactionPasswordRepo, userRepo, transactionPasswordHasher)
+	authorizeStepUpUC := securityApplication.NewAuthorizeStepUpUseCase(
+		transactionPasswordRepo,
+		userRepo,
+		transactionPasswordHasher,
+		stepUpTokenRepo,
+		stepUpTokenSigner,
+		securityDomain.NewDefaultStepUpEndpointPolicy(),
+	)
 	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
@@ -113,7 +124,7 @@ func main() {
 	)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC, checkCPFUC)
-	securityHandler := securityDelivery.New(createTransactionPasswordUC)
+	securityHandler := securityDelivery.New(createTransactionPasswordUC, authorizeStepUpUC)
 
 	// ======================
 	// Middlewares
@@ -192,6 +203,7 @@ func newAPIRouter(
 	apiRouter.Handle("POST /accounts/internal-transfers", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
 	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
 	apiRouter.Handle("POST /security/transaction-password", withAuth(http.HandlerFunc(securityHandler.CreateTransactionPassword)))
+	apiRouter.Handle("POST /security/step-up/authorize", withAuth(http.HandlerFunc(securityHandler.AuthorizeStepUp)))
 
 	// Terminal cash operations are intentionally disabled until a real terminal channel exists.
 	// apiRouter.Handle("POST /terminal/accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))

@@ -18,6 +18,9 @@ type transactionPasswordRepositoryMock struct {
 	findByUserID     *domain.TransactionPassword
 	findByUserIDErr  error
 	findByUserIDUser uuid.UUID
+	saveCalls        int
+	saveErr          error
+	savedPassword    *domain.TransactionPassword
 }
 
 func (m *transactionPasswordRepositoryMock) Create(ctx context.Context, password *domain.TransactionPassword) error {
@@ -35,7 +38,9 @@ func (m *transactionPasswordRepositoryMock) FindByUserID(ctx context.Context, us
 }
 
 func (m *transactionPasswordRepositoryMock) SaveValidationState(ctx context.Context, password *domain.TransactionPassword) error {
-	return nil
+	m.saveCalls++
+	m.savedPassword = password
+	return m.saveErr
 }
 
 func (m *transactionPasswordRepositoryMock) UpdatePasswordHash(
@@ -86,10 +91,15 @@ func (m *transactionPasswordUserRepositoryMock) FindByIDForUpdate(ctx context.Co
 }
 
 type transactionPasswordHasherMock struct {
-	hashCalls    int
-	hashPassword string
-	hashValue    string
-	hashErr      error
+	hashCalls      int
+	hashPassword   string
+	hashValue      string
+	hashErr        error
+	compareCalls   int
+	compareHash    string
+	comparePIN     string
+	compareMatches bool
+	compareSet     bool
 }
 
 func (m *transactionPasswordHasherMock) Hash(password string) (string, error) {
@@ -99,6 +109,13 @@ func (m *transactionPasswordHasherMock) Hash(password string) (string, error) {
 }
 
 func (m *transactionPasswordHasherMock) Compare(hash, password string) bool {
+	m.compareCalls++
+	m.compareHash = hash
+	m.comparePIN = password
+	if m.compareSet {
+		return m.compareMatches
+	}
+
 	return hash == password
 }
 

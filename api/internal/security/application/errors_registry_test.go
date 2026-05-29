@@ -41,6 +41,12 @@ func TestRegisterErrors_TransactionPasswordMappings(t *testing.T) {
 			wantCode:   sharederrors.ErrCodeTransactionPasswordLocked,
 			wantStatus: http.StatusForbidden,
 		},
+		{
+			name:       "step-up endpoint not allowed",
+			err:        domain.ErrStepUpEndpointNotAllowed,
+			wantCode:   sharederrors.ErrCodeStepUpEndpointNotAllowed,
+			wantStatus: http.StatusForbidden,
+		},
 	}
 
 	for _, tt := range tests {

@@ -49,4 +49,11 @@ func RegisterErrors() {
 		"Transaction password locked",
 		http.StatusForbidden,
 	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrStepUpEndpointNotAllowed,
+		sharederrors.ErrCodeStepUpEndpointNotAllowed,
+		"Step-up endpoint not allowed",
+		http.StatusForbidden,
+	)
 }

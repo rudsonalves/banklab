@@ -1,5 +1,63 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-07
+
+Add step-up authorization flow for transactional password validation.
+
+1. `api/cmd/api/main.go`
+
+   * Wired the step-up token repository and JWT step-up token signer.
+   * Registered `AuthorizeStepUpUseCase` with transaction password validation, token persistence, signing, and endpoint policy.
+   * Injected the new use case into the security handler.
+   * Added `POST /security/step-up/authorize` as an authenticated route.
+
+2. `api/cmd/api/routes_test.go`
+
+   * Added route coverage to ensure the step-up authorization endpoint is protected by the auth middleware.
+
+3. `api/internal/security/application/authorize_step_up.go`
+
+   * Added the step-up authorization use case.
+   * Validates authenticated user, endpoint policy, transaction password format, user status, password state, lock state, and password hash.
+   * Registers failed attempts and lock behavior.
+   * Resets validation state after successful authentication.
+   * Persists the step-up token before signing it.
+   * Returns a signed step-up token with expiration metadata.
+
+4. `api/internal/security/application/authorize_step_up_test.go`
+
+   * Added coverage for successful authorization.
+   * Covered missing user, endpoint not allowed, missing password, invalid password, lock behavior, blocked password, expired lock normalization, and token persistence failure.
+
+5. `api/internal/security/application/create_transaction_password_test.go`
+
+   * Extended test mocks to support validation-state persistence and password comparison assertions.
+
+6. `api/internal/security/application/errors_registry.go`
+
+   * Registered the `ErrStepUpEndpointNotAllowed` domain error.
+
+7. `api/internal/security/application/errors_registry_test.go`
+
+   * Added coverage for the `STEP_UP_ENDPOINT_NOT_ALLOWED` error mapping.
+
+8. `api/internal/security/delivery/handler.go`
+
+   * Added request and response DTOs for step-up authorization.
+   * Implemented `AuthorizeStepUp` HTTP handler.
+   * Added authenticated user extraction, strict JSON decoding, request trimming, use case delegation, and response mapping.
+
+9. `api/internal/security/delivery/handler_test.go`
+
+   * Added handler tests for success, unauthorized access, invalid payload, mapped domain error, and missing use case configuration.
+
+10. `api/internal/shared/errors/codes.go`
+
+* Added the `STEP_UP_ENDPOINT_NOT_ALLOWED` shared error code.
+
+This commit introduces the first complete step-up authorization endpoint, enabling critical operations to request a short-lived authorization token based on transactional password validation.
+
+
 ## 2026/05/29 — api/zta-mvp-transactional-password-06
 
 This commit adds the infrastructure foundation for step-up tokens used by transactional password flows.
