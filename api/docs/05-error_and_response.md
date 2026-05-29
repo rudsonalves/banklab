@@ -172,8 +172,8 @@ Example:
 ZTA clients must depend on `error.code`, not `error.message`.
 
 `STEP_UP_ENDPOINT_NOT_ALLOWED` belongs to step-up authorization/issuance: the
-client requested a step-up token for an `endpoint_key` outside the backend
-allowlist.
+client requested a step-up token for a public operation (`method` + `path`)
+outside the backend allowlist.
 
 `TRANSACTION_PASSWORD_REQUIRED`, `STEP_UP_TOKEN_REQUIRED`,
 `STEP_UP_TOKEN_INVALID`, `STEP_UP_TOKEN_EXPIRED`, `STEP_UP_TOKEN_CONSUMED`, and

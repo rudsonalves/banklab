@@ -11,14 +11,14 @@ import (
 )
 
 type AuthorizeStepUpUseCase struct {
-	passwordRepo   domain.TransactionPasswordRepository
-	userRepo       authdomain.UserRepository
-	hasher         domain.TransactionPasswordHasher
-	tokenRepo      domain.StepUpTokenRepository
-	tokenSigner    domain.StepUpTokenSigner
-	endpointPolicy domain.StepUpEndpointPolicy
-	now            func() time.Time
-	newJTI         func() string
+	passwordRepo            domain.TransactionPasswordRepository
+	userRepo                authdomain.UserRepository
+	hasher                  domain.TransactionPasswordHasher
+	tokenRepo               domain.StepUpTokenRepository
+	tokenSigner             domain.StepUpTokenSigner
+	publicOperationResolver domain.StepUpPublicOperationResolver
+	now                     func() time.Time
+	newJTI                  func() string
 }
 
 func NewAuthorizeStepUpUseCase(
@@ -27,23 +27,24 @@ func NewAuthorizeStepUpUseCase(
 	hasher domain.TransactionPasswordHasher,
 	tokenRepo domain.StepUpTokenRepository,
 	tokenSigner domain.StepUpTokenSigner,
-	endpointPolicy domain.StepUpEndpointPolicy,
+	publicOperationResolver domain.StepUpPublicOperationResolver,
 ) *AuthorizeStepUpUseCase {
 	return &AuthorizeStepUpUseCase{
-		passwordRepo:   passwordRepo,
-		userRepo:       userRepo,
-		hasher:         hasher,
-		tokenRepo:      tokenRepo,
-		tokenSigner:    tokenSigner,
-		endpointPolicy: endpointPolicy,
-		now:            time.Now,
-		newJTI:         uuid.NewString,
+		passwordRepo:            passwordRepo,
+		userRepo:                userRepo,
+		hasher:                  hasher,
+		tokenRepo:               tokenRepo,
+		tokenSigner:             tokenSigner,
+		publicOperationResolver: publicOperationResolver,
+		now:                     time.Now,
+		newJTI:                  uuid.NewString,
 	}
 }
 
 type AuthorizeStepUpInput struct {
 	User                *authdomain.AuthenticatedUser
-	EndpointKey         string
+	Method              string
+	Path                string
 	TransactionPassword string
 }
 
@@ -60,10 +61,17 @@ func (uc *AuthorizeStepUpUseCase) Execute(
 		return nil, authdomain.ErrUnauthorized
 	}
 
-	if uc.endpointPolicy == nil {
+	if uc.publicOperationResolver == nil {
 		return nil, domain.ErrStepUpEndpointNotAllowed
 	}
-	if err := uc.endpointPolicy.Validate(input.EndpointKey); err != nil {
+
+	publicOperation, err := domain.NewPublicHTTPOperation(input.Method, input.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	endpointKey, err := uc.publicOperationResolver.Resolve(publicOperation)
+	if err != nil {
 		return nil, err
 	}
 
@@ -113,7 +121,7 @@ func (uc *AuthorizeStepUpUseCase) Execute(
 		return nil, fmt.Errorf("save transaction password validation state: %w", err)
 	}
 
-	stepUpToken, err := domain.NewStepUpToken(uc.newJTI(), user.ID, input.EndpointKey, now)
+	stepUpToken, err := domain.NewStepUpToken(uc.newJTI(), user.ID, endpointKey, now)
 	if err != nil {
 		return nil, err
 	}

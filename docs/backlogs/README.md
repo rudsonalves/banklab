@@ -27,16 +27,12 @@ backlogs/
 
 ### API
 
-- [006 - zta-mvp-foundation.md](<api/006 - zta-mvp-foundation.md>): fundação e decisões do MVP de ZTA.
-- [006a - transaction-password.md](<api/006a - transaction-password.md>): criação da senha transacional, tentativas e bloqueio.
-- [006a - transaction-password_tasks.md](<api/006a - transaction-password_tasks.md>): tasks da senha transacional.
-- [006b - step-up-token.md](<api/006b - step-up-token.md>): autorização de step-up, token curto e consumo único.
-- [006c - internal-transfer-step-up-enforcement.md](<api/006c - internal-transfer-step-up-enforcement.md>): enforcement na transferência interna.
-- [006d - zta-contracts-and-docs.md](<api/006d - zta-contracts-and-docs.md>): contratos HTTP, erros e documentação.
+- [007 - public-step-up-endpoint-contract.md](<api/007 - public-step-up-endpoint-contract.md>): corrigir o contrato público de step-up para usar método e path HTTP em vez de chave interna de policy.
+- [007 - public-step-up-endpoint-contract_tasks.md](<api/007 - public-step-up-endpoint-contract_tasks.md>): tasks do contrato público de step-up por operação HTTP.
 
 ### Mobile
 
-No momento, não há backlog mobile ativo nesta pasta.
+- [011 - senha-transacional-e-step-up.md](<mobile/011 - senha-transacional-e-step-up.md>): senha transacional e step-up no fluxo mobile de transferência interna.
 
 ## Histórico
 

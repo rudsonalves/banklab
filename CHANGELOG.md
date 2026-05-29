@@ -1,5 +1,230 @@
 # Changelog
 
+## 2026/05/29 - api/zta-mvp-transactional-password-15
+
+This commit completes the migration of the step-up authorization public contract from internal endpoint keys to public HTTP operations (`method` + `path`), strengthening API encapsulation and preventing clients from depending on internal policy identifiers.
+
+### 1. Public Step-Up Contract Refactoring
+
+#### `api/internal/security/application/authorize_step_up.go`
+
+* Replaced `EndpointKey` input with:
+
+  * `Method`
+  * `Path`
+* Introduced public operation validation before authorization.
+* Added resolution layer that converts public operations into internal policy keys.
+* Kept internal endpoint keys exclusively inside the backend and signed step-up tokens.
+
+#### `api/internal/security/delivery/handler.go`
+
+* Updated request contract:
+
+  * removed `endpoint_key`
+  * added `method`
+  * added `path`
+* Updated request mapping and normalization logic.
+
+#### `api/internal/security/domain/interfaces.go`
+
+* Added `StepUpPublicOperationResolver` contract.
+
+#### `api/cmd/api/main.go`
+
+* Replaced endpoint policy registration with the new public operation resolver.
+
+### 2. Public HTTP Operation Domain Model
+
+#### `api/internal/security/domain/public_http_operation.go`
+
+* Added `PublicHTTPOperation` value object.
+* Implemented normalization and validation for:
+
+  * HTTP methods
+  * public paths
+* Added canonical lookup key generation.
+
+Validation rules include:
+
+* method must be non-empty and uppercase
+* path must start with `/`
+* no scheme (`http://`, `https://`)
+* no host
+* no query string
+* no fragment
+
+#### `api/internal/security/domain/errors.go`
+
+* Added:
+
+  * `ErrInvalidStepUpPublicOperation`
+  * `ErrInvalidStepUpPublicOperationMethod`
+  * `ErrInvalidStepUpPublicOperationPath`
+
+### 3. Public Operation Resolver
+
+#### `api/internal/security/domain/step_up_public_operation_resolver.go`
+
+* Added whitelist-based resolver implementation.
+* Added operation-to-policy mapping model.
+* Implemented default mapping:
+
+```text
+POST /accounts/internal-transfers
+    ->
+internal_transfer.create
+```
+
+Benefits:
+
+* clients only know public API contracts
+* backend remains free to rename internal policies
+* future ZTA policies remain decoupled from client implementations
+
+### 4. Error Mapping Improvements
+
+#### `api/internal/security/application/errors_registry.go`
+
+* Registered new validation errors.
+* Mapped invalid public operation inputs to:
+
+  * `INVALID_DATA`
+  * HTTP 400
+
+This preserves consistency with the API error model. 
+
+### 5. Test Coverage Expansion
+
+#### `api/internal/security/application/authorize_step_up_test.go`
+
+* Migrated all tests from endpoint-key inputs to public operation inputs.
+* Added coverage for:
+
+  * invalid methods
+  * invalid paths
+  * whitelist violations
+  * successful operation resolution
+
+#### `api/internal/security/domain/public_http_operation_test.go`
+
+* Added comprehensive validation coverage for:
+
+  * valid operations
+  * empty methods
+  * invalid paths
+  * URLs containing hosts
+  * query strings
+  * fragments
+  * templated routes
+
+#### `api/internal/security/domain/step_up_public_operation_resolver_test.go`
+
+* Added resolver coverage for:
+
+  * successful mappings
+  * unsupported operations
+  * invalid operations
+  * templated route mappings
+  * nil resolver handling
+
+#### `api/internal/security/delivery/handler_test.go`
+
+* Updated request payload tests.
+* Added coverage for:
+
+  * invalid method errors
+  * invalid path errors
+  * legacy payload rejection
+  * successful public contract handling
+
+### 6. Documentation Alignment
+
+#### Updated files
+
+* `README.md`
+* `README_en.md`
+* `api/README.md`
+* `api/docs/05-error_and_response.md`
+* `api/docs/07-api-rest.md`
+* `api/docs/implementations/03-zta-step-up-transaction-password.md`
+* `mobile/README.md`
+* `mobile/docs/01-implemented-features.md`
+* `docs/backlogs/mobile/011 - senha-transacional-e-step-up.md`
+
+Key changes:
+
+* Replaced references to:
+
+  * `endpoint_key`
+  * `internal_transfer.create`
+* Standardized documentation around:
+
+  * `method`
+  * `path`
+* Clarified that internal policy keys are backend implementation details.
+* Updated error descriptions to refer to public operations instead of logical endpoints.
+* Updated transfer documentation to require step-up authorization for:
+
+```text
+POST /accounts/internal-transfers
+```
+
+### 7. Backlog Completion
+
+#### `docs/backlogs/api/007 - public-step-up-endpoint-contract_tasks.md`
+
+* Marked all six tasks as completed.
+* Added final validation record documenting:
+
+  * implementation status
+  * testing results
+  * documentation synchronization
+  * whitelist configuration
+  * enforcement behavior
+
+### Conclusion
+
+This change finalizes the first public-contract version of the step-up authorization flow. Clients now request authorization using only public HTTP operations, while internal policy identifiers remain hidden inside the backend. The implementation introduces a dedicated operation model, whitelist resolver, expanded validation, complete test coverage, and synchronized documentation, providing a cleaner and more maintainable foundation for future Zero Trust and step-up authorization policies.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-14
+
+This commit reorganizes the ZTA backlog documentation and defines the next API and mobile work around the public step-up contract and transactional password flow.
+
+1. `docs/backlogs/README.md`
+
+   * Updated the active API backlog list to replace the completed ZTA MVP backlog entries with the new `007` public step-up endpoint contract backlog.
+   * Added the new mobile backlog for transactional password and step-up.
+   * Moved completed backlog references out of the active list.
+
+2. `docs/backlogs/api/007 - public-step-up-endpoint-contract.md`
+
+   * Added a new API backlog defining the migration from public `endpoint_key` input to a public HTTP operation contract based on `method` and `path`.
+   * Documented the decision that mobile clients must not know internal policy keys such as `internal_transfer.create`.
+   * Defined validation rules for public paths, allowed operations, compatibility decisions, expected errors, acceptance criteria, and out-of-scope items.
+
+3. `docs/backlogs/api/007 - public-step-up-endpoint-contract_tasks.md`
+
+   * Added six implementation tasks for the public step-up contract.
+   * Covered the public HTTP operation model, operation-to-policy resolver, delivery contract changes, tests, documentation updates, and final alignment checks.
+
+4. `docs/backlogs/api/done/*`
+
+   * Moved the completed API ZTA MVP backlog files from the active API backlog folder to `done`.
+   * Preserved file contents while marking the previous ZTA foundation, transaction password, step-up token, enforcement, contracts, and generated migration backlog as completed work.
+
+5. `docs/backlogs/mobile/011 - senha-transacional-e-step-up.md`
+
+   * Added a mobile backlog for transactional password creation and step-up authorization.
+   * Documented API contracts, mobile product flow, architecture impacts, repository/use case responsibilities, UI requirements, ZTA error handling, security constraints, and acceptance criteria.
+
+6. `docs/backlogs/mobile/done/*`
+
+   * Moved the completed multi-page registration mobile backlog and tasks to `done`.
+
+This update separates completed ZTA MVP planning from the next contract refinement stage, clarifies that public clients should use HTTP method and path instead of internal policy keys, and prepares the mobile implementation backlog for transactional password and protected internal transfers.
+
+
 ## 2026/05/29 - api/zta-mvp-transactional-password-13
 
 Finalized the ZTA MVP contract documentation, consolidating step-up token behavior, protected endpoint requirements, error semantics, and client integration guidance across API, implementation, backlog, and mobile documentation.

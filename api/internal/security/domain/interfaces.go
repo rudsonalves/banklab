@@ -95,3 +95,7 @@ func (c *VerifiedStepUpTokenClaims) Validate() error {
 type StepUpEndpointPolicy interface {
 	Validate(endpointKey string) error
 }
+
+type StepUpPublicOperationResolver interface {
+	Resolve(operation *PublicHTTPOperation) (string, error)
+}

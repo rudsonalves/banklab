@@ -67,18 +67,6 @@ func (m *stepUpTokenSignerMock) Sign(token *domain.StepUpToken) (string, error) 
 	return m.signed, m.signErr
 }
 
-type stepUpEndpointPolicyMock struct {
-	validateCalls int
-	endpointKey   string
-	err           error
-}
-
-func (m *stepUpEndpointPolicyMock) Validate(endpointKey string) error {
-	m.validateCalls++
-	m.endpointKey = endpointKey
-	return m.err
-}
-
 func TestAuthorizeStepUpUseCase_Execute_Success(t *testing.T) {
 	userID := uuid.New()
 	now := time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC)
@@ -94,14 +82,15 @@ func TestAuthorizeStepUpUseCase_Execute_Success(t *testing.T) {
 	}
 	tokenRepo := &stepUpTokenRepositoryMock{events: &events}
 	signer := &stepUpTokenSignerMock{signed: "signed-step-up-token", events: &events}
-	policy := domain.NewDefaultStepUpEndpointPolicy()
-	uc := NewAuthorizeStepUpUseCase(passwordRepo, userRepo, hasher, tokenRepo, signer, policy)
+	resolver := domain.NewDefaultStepUpPublicOperationResolver()
+	uc := NewAuthorizeStepUpUseCase(passwordRepo, userRepo, hasher, tokenRepo, signer, resolver)
 	uc.now = func() time.Time { return now }
 	uc.newJTI = func() string { return "deterministic-jti" }
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
 		User:                authenticatedUser(userID),
-		EndpointKey:         domain.StepUpEndpointInternalTransferCreate,
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
 		TransactionPassword: "123456",
 	})
 
@@ -165,11 +154,12 @@ func TestAuthorizeStepUpUseCase_Execute_MissingAuthenticatedUser(t *testing.T) {
 		&transactionPasswordHasherMock{},
 		&stepUpTokenRepositoryMock{},
 		&stepUpTokenSignerMock{},
-		domain.NewDefaultStepUpEndpointPolicy(),
+		domain.NewDefaultStepUpPublicOperationResolver(),
 	)
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
-		EndpointKey:         domain.StepUpEndpointInternalTransferCreate,
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
 		TransactionPassword: "123456",
 	})
 
@@ -194,12 +184,13 @@ func TestAuthorizeStepUpUseCase_Execute_EndpointNotAllowed(t *testing.T) {
 		hasher,
 		tokenRepo,
 		signer,
-		domain.NewDefaultStepUpEndpointPolicy(),
+		domain.NewDefaultStepUpPublicOperationResolver(),
 	)
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
 		User:                authenticatedUser(userID),
-		EndpointKey:         "pix.create",
+		Method:              "POST",
+		Path:                "/accounts/pix-transfers",
 		TransactionPassword: "123456",
 	})
 
@@ -223,6 +214,108 @@ func TestAuthorizeStepUpUseCase_Execute_EndpointNotAllowed(t *testing.T) {
 	}
 }
 
+func TestAuthorizeStepUpUseCase_Execute_InvalidMethod(t *testing.T) {
+	userID := uuid.New()
+	passwordRepo := &transactionPasswordRepositoryMock{}
+	userRepo := &transactionPasswordUserRepositoryMock{}
+	hasher := &transactionPasswordHasherMock{}
+	tokenRepo := &stepUpTokenRepositoryMock{}
+	signer := &stepUpTokenSignerMock{}
+	uc := NewAuthorizeStepUpUseCase(
+		passwordRepo,
+		userRepo,
+		hasher,
+		tokenRepo,
+		signer,
+		domain.NewDefaultStepUpPublicOperationResolver(),
+	)
+
+	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
+		User:                authenticatedUser(userID),
+		Method:              "",
+		Path:                "/accounts/internal-transfers",
+		TransactionPassword: "123456",
+	})
+
+	if !errors.Is(err, domain.ErrInvalidStepUpPublicOperationMethod) {
+		t.Fatalf("expected ErrInvalidStepUpPublicOperationMethod, got %v", err)
+	}
+	if output != nil {
+		t.Fatalf("expected nil output, got %+v", output)
+	}
+	if userRepo.findByIDCalls != 0 {
+		t.Fatalf("expected user lookup not to be called, got %d", userRepo.findByIDCalls)
+	}
+	if hasher.compareCalls != 0 {
+		t.Fatalf("expected Compare not to be called, got %d", hasher.compareCalls)
+	}
+	if tokenRepo.createCalls != 0 {
+		t.Fatalf("expected token Create not to be called, got %d", tokenRepo.createCalls)
+	}
+	if signer.signCalls != 0 {
+		t.Fatalf("expected signer not to be called, got %d", signer.signCalls)
+	}
+	if passwordRepo.saveCalls != 0 {
+		t.Fatalf("expected SaveValidationState not to be called, got %d", passwordRepo.saveCalls)
+	}
+}
+
+func TestAuthorizeStepUpUseCase_Execute_InvalidPathFormats(t *testing.T) {
+	testCases := []string{
+		"http://api.banklab.local/accounts/internal-transfers",
+		"/accounts/internal-transfers?tenant=banklab",
+		"/accounts/internal-transfers#details",
+	}
+
+	for _, path := range testCases {
+		t.Run(path, func(t *testing.T) {
+			userID := uuid.New()
+			passwordRepo := &transactionPasswordRepositoryMock{}
+			userRepo := &transactionPasswordUserRepositoryMock{}
+			hasher := &transactionPasswordHasherMock{}
+			tokenRepo := &stepUpTokenRepositoryMock{}
+			signer := &stepUpTokenSignerMock{}
+			uc := NewAuthorizeStepUpUseCase(
+				passwordRepo,
+				userRepo,
+				hasher,
+				tokenRepo,
+				signer,
+				domain.NewDefaultStepUpPublicOperationResolver(),
+			)
+
+			output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
+				User:                authenticatedUser(userID),
+				Method:              "POST",
+				Path:                path,
+				TransactionPassword: "123456",
+			})
+
+			if !errors.Is(err, domain.ErrInvalidStepUpPublicOperationPath) {
+				t.Fatalf("expected ErrInvalidStepUpPublicOperationPath, got %v", err)
+			}
+			if output != nil {
+				t.Fatalf("expected nil output, got %+v", output)
+			}
+			if userRepo.findByIDCalls != 0 {
+				t.Fatalf("expected user lookup not to be called, got %d", userRepo.findByIDCalls)
+			}
+			if hasher.compareCalls != 0 {
+				t.Fatalf("expected Compare not to be called, got %d", hasher.compareCalls)
+			}
+			if tokenRepo.createCalls != 0 {
+				t.Fatalf("expected token Create not to be called, got %d", tokenRepo.createCalls)
+			}
+			if signer.signCalls != 0 {
+				t.Fatalf("expected signer not to be called, got %d", signer.signCalls)
+			}
+			if passwordRepo.saveCalls != 0 {
+				t.Fatalf("expected SaveValidationState not to be called, got %d", passwordRepo.saveCalls)
+			}
+		})
+	}
+}
+
 func TestAuthorizeStepUpUseCase_Execute_TransactionPasswordNotSet(t *testing.T) {
 	userID := uuid.New()
 	uc := NewAuthorizeStepUpUseCase(
@@ -231,12 +324,13 @@ func TestAuthorizeStepUpUseCase_Execute_TransactionPasswordNotSet(t *testing.T) 
 		&transactionPasswordHasherMock{},
 		&stepUpTokenRepositoryMock{},
 		&stepUpTokenSignerMock{},
-		domain.NewDefaultStepUpEndpointPolicy(),
+		domain.NewDefaultStepUpPublicOperationResolver(),
 	)
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
 		User:                authenticatedUser(userID),
-		EndpointKey:         domain.StepUpEndpointInternalTransferCreate,
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
 		TransactionPassword: "123456",
 	})
 
@@ -266,13 +360,14 @@ func TestAuthorizeStepUpUseCase_Execute_InvalidTransactionPassword(t *testing.T)
 		hasher,
 		tokenRepo,
 		signer,
-		domain.NewDefaultStepUpEndpointPolicy(),
+		domain.NewDefaultStepUpPublicOperationResolver(),
 	)
 	uc.now = func() time.Time { return now }
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
 		User:                authenticatedUser(userID),
-		EndpointKey:         domain.StepUpEndpointInternalTransferCreate,
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
 		TransactionPassword: "000000",
 	})
 
@@ -308,13 +403,14 @@ func TestAuthorizeStepUpUseCase_Execute_ThirdInvalidTransactionPasswordLocks(t *
 		&transactionPasswordHasherMock{compareSet: true, compareMatches: false},
 		&stepUpTokenRepositoryMock{},
 		&stepUpTokenSignerMock{},
-		domain.NewDefaultStepUpEndpointPolicy(),
+		domain.NewDefaultStepUpPublicOperationResolver(),
 	)
 	uc.now = func() time.Time { return now }
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
 		User:                authenticatedUser(userID),
-		EndpointKey:         domain.StepUpEndpointInternalTransferCreate,
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
 		TransactionPassword: "000000",
 	})
 
@@ -359,13 +455,14 @@ func TestAuthorizeStepUpUseCase_Execute_BlockedTransactionPassword(t *testing.T)
 		hasher,
 		tokenRepo,
 		signer,
-		domain.NewDefaultStepUpEndpointPolicy(),
+		domain.NewDefaultStepUpPublicOperationResolver(),
 	)
 	uc.now = func() time.Time { return now }
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
 		User:                authenticatedUser(userID),
-		EndpointKey:         domain.StepUpEndpointInternalTransferCreate,
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
 		TransactionPassword: "123456",
 	})
 
@@ -410,14 +507,15 @@ func TestAuthorizeStepUpUseCase_Execute_ExpiredLockIsNormalizedBeforeValidation(
 		&transactionPasswordHasherMock{compareSet: true, compareMatches: true},
 		&stepUpTokenRepositoryMock{},
 		&stepUpTokenSignerMock{signed: "signed-step-up-token"},
-		domain.NewDefaultStepUpEndpointPolicy(),
+		domain.NewDefaultStepUpPublicOperationResolver(),
 	)
 	uc.now = func() time.Time { return now }
 	uc.newJTI = func() string { return "deterministic-jti" }
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
 		User:                authenticatedUser(userID),
-		EndpointKey:         domain.StepUpEndpointInternalTransferCreate,
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
 		TransactionPassword: "123456",
 	})
 
@@ -451,13 +549,14 @@ func TestAuthorizeStepUpUseCase_Execute_TokenPersistenceFailureDoesNotSign(t *te
 		&transactionPasswordHasherMock{compareSet: true, compareMatches: true},
 		tokenRepo,
 		signer,
-		domain.NewDefaultStepUpEndpointPolicy(),
+		domain.NewDefaultStepUpPublicOperationResolver(),
 	)
 	uc.now = func() time.Time { return now }
 
 	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
 		User:                authenticatedUser(userID),
-		EndpointKey:         domain.StepUpEndpointInternalTransferCreate,
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
 		TransactionPassword: "123456",
 	})
 

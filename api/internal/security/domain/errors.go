@@ -11,6 +11,10 @@ var (
 	ErrInvalidTransactionPassword    = errors.New("invalid transaction password")
 	ErrTransactionPasswordRequired   = errors.New("transaction password required")
 
+	ErrInvalidStepUpPublicOperation       = errors.New("invalid step-up public operation")
+	ErrInvalidStepUpPublicOperationMethod = errors.New("invalid step-up public operation method")
+	ErrInvalidStepUpPublicOperationPath   = errors.New("invalid step-up public operation path")
+
 	ErrStepUpTokenRequired = errors.New("step-up token required")
 
 	ErrInvalidStepUpToken  = errors.New("invalid step-up token")
