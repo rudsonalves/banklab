@@ -1,5 +1,61 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-11
+
+Implement step-up enforcement for internal transfers.
+
+This update connects the transactional password step-up authorization flow to the transfer endpoint, ensuring that internal transfers require a valid, endpoint-bound, single-use step-up token before the transfer use case is executed.
+
+1. `api/cmd/api/main.go`
+
+   * Added `JWTStepUpTokenVerifier`.
+   * Created `EnforceStepUpUseCase`.
+   * Injected step-up enforcement into the transaction handler.
+
+2. `api/internal/account/transaction/delivery/handler.go`
+
+   * Added support for `X-Step-Up-Token`.
+   * Added `enforceStepUpUseCase` dependency.
+   * Enforced step-up validation before executing transfers.
+   * Blocked transfer execution when the step-up token is missing, invalid, expired, consumed, or bound to another endpoint.
+
+3. `api/internal/security/application/enforce_step_up.go`
+
+   * Added `EnforceStepUpUseCase`.
+   * Validates authenticated user context.
+   * Verifies signed step-up token claims.
+   * Checks user ownership, endpoint binding, expiration, and persisted token consistency.
+   * Consumes the step-up token by JTI to enforce single-use semantics.
+
+4. `api/internal/security/infrastructure/jwt_step_up_token_verifier.go`
+
+   * Added JWT verifier for step-up tokens.
+   * Validates HS256 signature, required claims, scope, user ID, endpoint key, JTI, issued time, and expiration.
+
+5. `api/internal/security/domain/errors.go`
+
+   * Added transaction password required error.
+   * Added step-up endpoint mismatch error.
+
+6. `api/internal/shared/errors/codes.go`
+
+   * Added stable error codes for transaction password and step-up enforcement failures.
+
+7. `api/internal/security/application/errors_registry.go`
+
+   * Registered HTTP mappings for the new transaction password and step-up errors.
+
+8. Tests
+
+   * Updated handler constructors across route and integration tests.
+   * Added transfer handler tests to ensure failed step-up enforcement prevents transfer execution.
+   * Added use case tests for successful enforcement, missing tokens, invalid users, verifier failures, user mismatch, endpoint mismatch, consumed tokens, expired tokens, and persisted record divergence.
+   * Added JWT verifier tests for valid tokens, invalid secrets, invalid scopes, missing claims, expired tokens, invalid algorithms, and malformed tokens.
+   * Extended error registry tests for the new error mappings.
+
+This change moves internal transfers closer to the ZTA MVP model by requiring explicit, short-lived, endpoint-scoped authorization before executing a sensitive financial operation.
+
+
 ## 2026/05/29 — api/zta-mvp-transactional-password-10
 
 Introduce the initial step-up token verification contract and align the enforcement backlog with the transactional password/ZTA flow.

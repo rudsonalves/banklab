@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 	transactionapp "github.com/seu-usuario/bank-api/internal/account/transaction/application"
 	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
+	securityapp "github.com/seu-usuario/bank-api/internal/security/application"
+	securitydomain "github.com/seu-usuario/bank-api/internal/security/domain"
 )
 
 type depositUseCaseMock struct {
@@ -33,6 +35,12 @@ type transferUseCaseMock struct {
 type transferReceiptUseCaseMock struct {
 	executeCalls int
 	executeFn    func(ctx context.Context, input transactionapp.GetTransferReceiptInput) (*transactionapp.TransferReceiptResult, error)
+}
+
+type enforceStepUpUseCaseMock struct {
+	executeCalls int
+	input        securityapp.EnforceStepUpInput
+	err          error
 }
 
 func (m *depositUseCaseMock) Execute(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error) {
@@ -67,8 +75,19 @@ func (m *transferReceiptUseCaseMock) Execute(ctx context.Context, input transact
 	return m.executeFn(ctx, input)
 }
 
+func (m *enforceStepUpUseCaseMock) Execute(ctx context.Context, input securityapp.EnforceStepUpInput) error {
+	m.executeCalls++
+	m.input = input
+	return m.err
+}
+
 func stringPtr(value string) *string {
 	return &value
+}
+
+func withStepUpToken(req *http.Request, token string) *http.Request {
+	req.Header.Set(stepUpTokenHeader, token)
+	return req
 }
 
 func TestHandler_Deposit_MissingAuth(t *testing.T) {
@@ -212,10 +231,11 @@ func TestHandler_Transfer_SameAccount(t *testing.T) {
 			return nil, domain.ErrSameAccountTransfer
 		},
 	}
-	h := &Handler{transfer: transferUC}
+	h := &Handler{transfer: transferUC, enforceStepUp: &enforceStepUpUseCaseMock{}}
 
 	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_account_id":"`+accountID.String()+`","to_account_id":"`+accountID.String()+`","amount":100,"idempotency_key":"same-account-key"}`))
 	req = testAuthenticatedRequest(req, customerID)
+	req = withStepUpToken(req, "signed-step-up-token")
 	rec := httptest.NewRecorder()
 
 	h.Transfer(rec, req)
@@ -259,6 +279,84 @@ func TestHandler_Transfer_MissingAuth(t *testing.T) {
 	}
 }
 
+func TestHandler_Transfer_MissingStepUpTokenDoesNotCallTransfer(t *testing.T) {
+	customerID := uuid.New()
+	fromAccountID := uuid.New()
+	toAccountID := uuid.New()
+	transferUC := &transferUseCaseMock{}
+	enforceUC := &enforceStepUpUseCaseMock{err: securitydomain.ErrStepUpTokenRequired}
+	h := &Handler{transfer: transferUC, enforceStepUp: enforceUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/internal-transfers", strings.NewReader(`{"from_account_id":"`+fromAccountID.String()+`","to_account_id":"`+toAccountID.String()+`","amount":100,"idempotency_key":"missing-step-up-key"}`))
+	req = testAuthenticatedRequest(req, customerID)
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Error.Code != "STEP_UP_TOKEN_REQUIRED" {
+		t.Fatalf("expected error code %q, got %q", "STEP_UP_TOKEN_REQUIRED", got.Error.Code)
+	}
+	if enforceUC.executeCalls != 1 {
+		t.Fatalf("expected enforcement Execute once, got %d calls", enforceUC.executeCalls)
+	}
+	if enforceUC.input.Token != "" {
+		t.Fatalf("expected empty step-up token, got %q", enforceUC.input.Token)
+	}
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected transfer Execute not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
+func TestHandler_Transfer_EnforcementFailureDoesNotCallTransfer(t *testing.T) {
+	customerID := uuid.New()
+	fromAccountID := uuid.New()
+	toAccountID := uuid.New()
+	transferUC := &transferUseCaseMock{}
+	enforceUC := &enforceStepUpUseCaseMock{err: securitydomain.ErrInvalidStepUpToken}
+	h := &Handler{transfer: transferUC, enforceStepUp: enforceUC}
+
+	req := httptest.NewRequest(http.MethodPost, "/accounts/internal-transfers", strings.NewReader(`{"from_account_id":"`+fromAccountID.String()+`","to_account_id":"`+toAccountID.String()+`","amount":100,"idempotency_key":"invalid-step-up-key"}`))
+	req = testAuthenticatedRequest(req, customerID)
+	req = withStepUpToken(req, "invalid-step-up-token")
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Error.Code != "STEP_UP_TOKEN_INVALID" {
+		t.Fatalf("expected error code %q, got %q", "STEP_UP_TOKEN_INVALID", got.Error.Code)
+	}
+	if enforceUC.input.Token != "invalid-step-up-token" {
+		t.Fatalf("expected step-up token to be passed to enforcement")
+	}
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected transfer Execute not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
 func TestHandler_Transfer_UseCaseErrors(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -284,10 +382,11 @@ func TestHandler_Transfer_UseCaseErrors(t *testing.T) {
 					return nil, tt.err
 				},
 			}
-			h := &Handler{transfer: transferUC}
+			h := &Handler{transfer: transferUC, enforceStepUp: &enforceStepUpUseCaseMock{}}
 
 			req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_account_id":"`+fromAccountID.String()+`","to_account_id":"`+toAccountID.String()+`","amount":100,"idempotency_key":"use-case-error-key"}`))
 			req = testAuthenticatedRequest(req, uuid.New())
+			req = withStepUpToken(req, "signed-step-up-token")
 			rec := httptest.NewRecorder()
 
 			h.Transfer(rec, req)
@@ -357,10 +456,12 @@ func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 			}, nil
 		},
 	}
-	h := &Handler{transfer: transferUC}
+	enforceUC := &enforceStepUpUseCaseMock{}
+	h := &Handler{transfer: transferUC, enforceStepUp: enforceUC}
 
 	req := httptest.NewRequest(http.MethodPost, "/accounts/transfer", strings.NewReader(`{"from_account_id":"`+fromAccountID.String()+`","to_account_id":"`+toAccountID.String()+`","amount":100,"idempotency_key":"success-key","description":"Aluguel de maio"}`))
 	req = testAuthenticatedRequest(req, customerID)
+	req = withStepUpToken(req, "signed-step-up-token")
 	rec := httptest.NewRecorder()
 
 	h.Transfer(rec, req)
@@ -402,6 +503,18 @@ func TestHandler_Transfer_SuccessWithNewPayload(t *testing.T) {
 
 	if transferUC.executeCalls != 1 {
 		t.Fatalf("expected use case Execute to be called once, got %d calls", transferUC.executeCalls)
+	}
+	if enforceUC.executeCalls != 1 {
+		t.Fatalf("expected enforcement Execute to be called once, got %d calls", enforceUC.executeCalls)
+	}
+	if enforceUC.input.EndpointKey != securitydomain.StepUpEndpointInternalTransferCreate {
+		t.Fatalf("expected endpoint key %q, got %q", securitydomain.StepUpEndpointInternalTransferCreate, enforceUC.input.EndpointKey)
+	}
+	if enforceUC.input.Token != "signed-step-up-token" {
+		t.Fatalf("expected step-up token to be passed to enforcement")
+	}
+	if enforceUC.input.User == nil {
+		t.Fatal("expected authenticated user to be passed to enforcement")
 	}
 }
 

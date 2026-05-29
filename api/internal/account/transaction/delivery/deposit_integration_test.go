@@ -36,7 +36,7 @@ func TestHandler_Deposit_Integration(t *testing.T) {
 
 	repo := transactionInfrastructure.New(pool)
 	depositUC := transactionApplication.NewDeposit(repo)
-	handler := New(depositUC, nil, nil, nil)
+	handler := New(depositUC, nil, nil, nil, nil)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /terminal/accounts/{id}/deposit", func(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +123,7 @@ func TestHandler_Transfer_Integration(t *testing.T) {
 	repo := transactionInfrastructure.New(pool)
 	transferUC := transactionApplication.NewTransfer(repo)
 	receiptUC := transactionApplication.NewGetTransferReceipt(repo)
-	handler := New(nil, nil, transferUC, receiptUC)
+	handler := New(nil, nil, transferUC, receiptUC, &enforceStepUpUseCaseMock{})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /accounts/transfer", func(w http.ResponseWriter, r *http.Request) {

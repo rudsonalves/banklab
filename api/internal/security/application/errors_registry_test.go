@@ -42,6 +42,12 @@ func TestRegisterErrors_TransactionPasswordMappings(t *testing.T) {
 			wantStatus: http.StatusForbidden,
 		},
 		{
+			name:       "transaction password required",
+			err:        domain.ErrTransactionPasswordRequired,
+			wantCode:   sharederrors.ErrCodeTransactionPasswordRequired,
+			wantStatus: http.StatusForbidden,
+		},
+		{
 			name:       "step-up endpoint not allowed",
 			err:        domain.ErrStepUpEndpointNotAllowed,
 			wantCode:   sharederrors.ErrCodeStepUpEndpointNotAllowed,
@@ -52,6 +58,30 @@ func TestRegisterErrors_TransactionPasswordMappings(t *testing.T) {
 			err:        domain.ErrStepUpTokenRequired,
 			wantCode:   sharederrors.ErrCodeStepUpTokenRequired,
 			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "step-up token invalid",
+			err:        domain.ErrInvalidStepUpToken,
+			wantCode:   sharederrors.ErrCodeStepUpTokenInvalid,
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "step-up token expired",
+			err:        domain.ErrStepUpTokenExpired,
+			wantCode:   sharederrors.ErrCodeStepUpTokenExpired,
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "step-up token consumed",
+			err:        domain.ErrStepUpTokenConsumed,
+			wantCode:   sharederrors.ErrCodeStepUpTokenConsumed,
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "step-up endpoint mismatch",
+			err:        domain.ErrStepUpEndpointMismatch,
+			wantCode:   sharederrors.ErrCodeStepUpEndpointMismatch,
+			wantStatus: http.StatusForbidden,
 		},
 	}
 

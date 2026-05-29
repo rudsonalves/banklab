@@ -12,12 +12,16 @@ import (
 )
 
 type stepUpTokenRepositoryMock struct {
-	createCalls int
-	createErr   error
-	created     *domain.StepUpToken
-	findByJTI   *domain.StepUpToken
-	consume     *domain.StepUpToken
-	events      *[]string
+	createCalls  int
+	createErr    error
+	created      *domain.StepUpToken
+	findByJTI    *domain.StepUpToken
+	consume      *domain.StepUpToken
+	consumeCalls int
+	consumeErr   error
+	consumeJTI   string
+	consumeNow   time.Time
+	events       *[]string
 }
 
 func (m *stepUpTokenRepositoryMock) Create(ctx context.Context, token *domain.StepUpToken) error {
@@ -37,7 +41,13 @@ func (m *stepUpTokenRepositoryMock) FindByJTI(ctx context.Context, jti string) (
 }
 
 func (m *stepUpTokenRepositoryMock) ConsumeByJTI(ctx context.Context, jti string, now time.Time) (*domain.StepUpToken, error) {
-	return m.consume, nil
+	m.consumeCalls++
+	m.consumeJTI = jti
+	m.consumeNow = now
+	if m.events != nil {
+		*m.events = append(*m.events, "consume-step-up-token")
+	}
+	return m.consume, m.consumeErr
 }
 
 type stepUpTokenSignerMock struct {

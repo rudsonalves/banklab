@@ -51,6 +51,13 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		domain.ErrTransactionPasswordRequired,
+		sharederrors.ErrCodeTransactionPasswordRequired,
+		"Transaction password required",
+		http.StatusForbidden,
+	)
+
+	sharederrors.RegisterDomainError(
 		domain.ErrStepUpEndpointNotAllowed,
 		sharederrors.ErrCodeStepUpEndpointNotAllowed,
 		"Step-up endpoint not allowed",
@@ -62,5 +69,33 @@ func RegisterErrors() {
 		sharederrors.ErrCodeStepUpTokenRequired,
 		"Step-up token required",
 		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrInvalidStepUpToken,
+		sharederrors.ErrCodeStepUpTokenInvalid,
+		"Invalid step-up token",
+		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrStepUpTokenExpired,
+		sharederrors.ErrCodeStepUpTokenExpired,
+		"Step-up token expired",
+		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrStepUpTokenConsumed,
+		sharederrors.ErrCodeStepUpTokenConsumed,
+		"Step-up token already consumed",
+		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrStepUpEndpointMismatch,
+		sharederrors.ErrCodeStepUpEndpointMismatch,
+		"Step-up endpoint mismatch",
+		http.StatusForbidden,
 	)
 }

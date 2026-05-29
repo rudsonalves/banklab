@@ -25,6 +25,11 @@ const (
 	ErrCodeTransactionPasswordNotSet     = "TRANSACTION_PASSWORD_NOT_SET"
 	ErrCodeTransactionPasswordInvalid    = "TRANSACTION_PASSWORD_INVALID"
 	ErrCodeTransactionPasswordLocked     = "TRANSACTION_PASSWORD_LOCKED"
+	ErrCodeTransactionPasswordRequired   = "TRANSACTION_PASSWORD_REQUIRED"
 	ErrCodeStepUpEndpointNotAllowed      = "STEP_UP_ENDPOINT_NOT_ALLOWED"
 	ErrCodeStepUpTokenRequired           = "STEP_UP_TOKEN_REQUIRED"
+	ErrCodeStepUpTokenInvalid            = "STEP_UP_TOKEN_INVALID"
+	ErrCodeStepUpTokenExpired            = "STEP_UP_TOKEN_EXPIRED"
+	ErrCodeStepUpTokenConsumed           = "STEP_UP_TOKEN_CONSUMED"
+	ErrCodeStepUpEndpointMismatch        = "STEP_UP_ENDPOINT_MISMATCH"
 )
