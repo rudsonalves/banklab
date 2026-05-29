@@ -1,5 +1,126 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-04
+
+Advance the Zero Trust Architecture MVP by implementing the transactional password domain and the first operational step-up authorization components. This commit moves the initiative from architectural planning into executable backend functionality, introducing persistence, business rules, API endpoints, and enforcement primitives required for sensitive financial operations.
+
+### Security module implementation
+
+1. Introduced the initial security module structure:
+
+   * `internal/security/domain/*`
+
+   * `internal/security/application/*`
+
+   * `internal/security/infrastructure/*`
+
+   * `internal/security/delivery/*`
+
+   * Established the layered foundation for security-related capabilities.
+
+   * Preserved dependency direction consistent with the existing modular monolith architecture.
+
+   * Isolated transactional authorization concerns from authentication and account modules.
+
+### Transactional password domain
+
+2. Added transactional password domain modeling:
+
+   * Implemented transactional password entities and value objects.
+   * Defined business invariants for password lifecycle management.
+   * Added validation rules for PIN creation and verification.
+   * Introduced failure tracking and lockout-related domain behavior.
+
+3. Added transactional password repository contracts:
+
+   * Defined persistence abstractions for transactional password storage.
+   * Decoupled business rules from PostgreSQL implementations.
+   * Prepared infrastructure support for future security factors.
+
+### Transactional password persistence
+
+4. Added PostgreSQL persistence support:
+
+   * Implemented repository layer for transactional password management.
+   * Added secure password storage using hashed values.
+   * Introduced lookup and verification support required by step-up authorization flows.
+   * Preserved transactional consistency requirements across security operations.
+
+5. Added database migrations:
+
+   * Created transactional password persistence structures.
+   * Added required indexes and constraints.
+   * Defined schema required for transactional password lifecycle management.
+   * Prepared the database for future security-related extensions.
+
+### Transactional password use cases
+
+6. Implemented transactional password creation flow:
+
+   * Added use case for transactional password registration.
+   * Enforced PIN validation rules.
+   * Prevented invalid or inconsistent password creation scenarios.
+   * Established the first customer-managed authorization factor.
+
+7. Implemented transactional password verification flow:
+
+   * Added password validation use case.
+   * Integrated failure counting behavior.
+   * Added support for temporary protection against repeated invalid attempts.
+   * Returned consistent domain errors for authorization failures.
+
+### HTTP delivery layer
+
+8. Added transactional password endpoints:
+
+   * Implemented request parsing and response mapping.
+   * Integrated security use cases with the HTTP layer.
+   * Preserved the standard API response envelope.
+   * Added authorization requirements aligned with authenticated customer sessions.
+
+9. Added endpoint contracts and DTOs:
+
+   * Defined request and response payloads.
+   * Standardized validation behavior.
+   * Added error mappings for transactional password operations.
+   * Kept API behavior consistent with existing account and authentication endpoints.
+
+### Step-up authorization foundation
+
+10. Introduced step-up authorization services:
+
+    * Added initial step-up token issuance flow.
+    * Implemented token validation primitives.
+    * Prepared support for endpoint-scoped authorization checks.
+    * Established the foundation for sensitive-operation enforcement.
+
+11. Added single-use token behavior:
+
+    * Introduced token consumption semantics.
+    * Prevented token reuse after successful authorization.
+    * Prepared the infrastructure required for future policy enforcement expansion.
+
+### Tests
+
+12. Added automated test coverage:
+
+    * Created domain tests covering transactional password rules.
+    * Added repository tests for persistence behavior.
+    * Added use case tests for creation and verification flows.
+    * Validated error scenarios, lockout behavior, and authorization failures.
+
+### Documentation updates
+
+13. Updated implementation and backlog documentation:
+
+    * Recorded implemented portions of the ZTA MVP roadmap.
+    * Updated progress tracking for transactional password tasks.
+    * Refined endpoint contracts and security flow descriptions.
+    * Aligned implementation documents with the current codebase state.
+
+This commit delivers the first operational authorization factor of the BankLab Zero Trust Architecture MVP, establishing transactional password management, verification flows, and the foundational building blocks required for step-up authorization of sensitive financial operations.
+
+
 ## 2026/05/28 — api/zta-mvp-transactional-password-03
 
 This commit introduces the first part of the transactional password implementation for the API.
