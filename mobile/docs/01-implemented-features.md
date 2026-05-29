@@ -165,7 +165,8 @@ API contract note:
 - the backend now requires `POST /accounts/internal-transfers` to include
   `X-Step-Up-Token`
 - the token must be issued by `POST /security/step-up/authorize` for
-  `internal_transfer.create`
+  the public operation `method=POST` and
+  `path=/accounts/internal-transfers`
 - the token is single-use; after `STEP_UP_TOKEN_CONSUMED`, the client must
   request a new step-up token before retrying the transfer
 - retrying with the same `idempotency_key` may still require a new step-up token

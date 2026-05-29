@@ -102,7 +102,7 @@ func main() {
 		transactionPasswordHasher,
 		stepUpTokenRepo,
 		stepUpTokenSigner,
-		securityDomain.NewDefaultStepUpEndpointPolicy(),
+		securityDomain.NewDefaultStepUpPublicOperationResolver(),
 	)
 	enforceStepUpUC := securityApplication.NewEnforceStepUpUseCase(stepUpTokenVerifier, stepUpTokenRepo)
 	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)

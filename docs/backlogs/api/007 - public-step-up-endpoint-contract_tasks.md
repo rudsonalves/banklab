@@ -13,7 +13,7 @@ Campos sugeridos para todas as tasks:
 
 ## Task 1/6: Definir modelo de operação HTTP pública
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -50,7 +50,7 @@ no endpoint de autorização de step-up.
 
 ## Task 2/6: Criar resolvedor de operação pública para policy interna
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -81,7 +81,7 @@ step-up token e pelo enforcement.
 
 ## Task 3/6: Atualizar autorização de step-up para receber `method` e `path`
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -118,7 +118,7 @@ vez de `endpoint_key`.
 
 ## Task 4/6: Atualizar testes do contrato público de step-up
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -154,7 +154,7 @@ fora de `endpoint_key`.
 
 ## Task 5/6: Atualizar documentação API e mobile para `method` + `path`
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -188,7 +188,7 @@ Remover das documentações de consumo a orientação para clientes enviarem
 
 ## Task 6/6: Verificar alinhamento final do contrato público de step-up
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -221,3 +221,34 @@ novo contrato público.
 ### Depende de
 
 - Task 5.
+
+### Registro de alinhamento final
+
+Data de fechamento: 2026-05-29
+
+Verificações executadas:
+
+- `go test ./...` executado na API com sucesso.
+- `POST /security/step-up/authorize` atualizado para contrato público com:
+  - `method`;
+  - `path`;
+  - `transaction_password`.
+- Payload legado com `endpoint_key` rejeitado como campo inesperado.
+- Resolvedor `method + path -> endpoint_key` implementado com whitelist inicial:
+  - `POST /accounts/internal-transfers` -> `internal_transfer.create`.
+- JWT de step-up mantém claim interno `endpoint_key` para enforcement.
+- Enforcement de `POST /accounts/internal-transfers` segue exigindo
+  `X-Step-Up-Token` válido e de uso único.
+- Testes de delivery/application/domain cobrem:
+  - emissão com contrato novo;
+  - rejeição de payload legado;
+  - rejeição de método/path inválidos;
+  - rejeição de operação fora da whitelist;
+  - resolução de operação pública para policy interna.
+- Documentação REST e mobile atualizada para `method` + `path`, sem orientar
+  clientes a enviar `endpoint_key`.
+
+Conclusão:
+
+- Não há divergência conhecida entre implementação, testes e documentação para
+  o contrato público de step-up por operação HTTP.

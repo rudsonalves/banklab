@@ -44,6 +44,27 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		domain.ErrInvalidStepUpPublicOperation,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrInvalidStepUpPublicOperationMethod,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrInvalidStepUpPublicOperationPath,
+		sharederrors.ErrCodeInvalidData,
+		"Invalid data",
+		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
 		domain.ErrTransactionPasswordLocked,
 		sharederrors.ErrCodeTransactionPasswordLocked,
 		"Transaction password locked",

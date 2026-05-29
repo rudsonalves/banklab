@@ -19,7 +19,8 @@ This is an engineering-oriented app focused on integration quality, predictable 
 - multi-step account creation onboarding and account lifecycle interactions
 - transfer between accounts; the current API contract requires
   `X-Step-Up-Token` from `POST /security/step-up/authorize` for
-  `POST /accounts/internal-transfers` with `endpoint_key=internal_transfer.create`
+  `POST /accounts/internal-transfers` with `method=POST` and
+  `path=/accounts/internal-transfers`
 - transaction history visualization
 
 ## Local setup

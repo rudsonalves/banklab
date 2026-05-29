@@ -206,7 +206,7 @@ GET    /accounts/transfer/{transaction_reference}/receipt
 GET    /accounts/{id}/statement
 ```
 
-Registration and login routes require `X-App-Token`. The other routes require JWT authentication. `POST /accounts/internal-transfers` also requires an `X-Step-Up-Token` issued by `POST /security/step-up/authorize` for `internal_transfer.create`. Administrative routes also require an administrator user role.
+Registration and login routes require `X-App-Token`. The other routes require JWT authentication. `POST /accounts/internal-transfers` also requires an `X-Step-Up-Token` issued by `POST /security/step-up/authorize` for the public operation `method=POST` and `path=/accounts/internal-transfers`. Administrative routes also require an administrator user role.
 
 ## Useful Commands
 

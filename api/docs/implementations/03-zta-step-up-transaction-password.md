@@ -40,13 +40,13 @@ sequenceDiagram
   participant PEP as Policy Enforcement
   participant UC as Use Case sensivel
 
-  App->>API: POST /security/step-up/authorize<br>endpoint_key=internal_transfer.create + senha transacional
-  API->>PEP: validar fator para endpoint_key
+  App->>API: POST /security/step-up/authorize<br>method=POST + path=/accounts/internal-transfers + senha transacional
+  API->>PEP: resolver operacao publica para policy interna
   PEP-->>API: allow
   API-->>App: step_up_token curto
 
   App->>API: POST /accounts/internal-transfers<br>Authorization + Step-Up-Token
-  API->>PEP: validar token para endpoint_key
+  API->>PEP: validar token para operacao protegida
   PEP-->>API: allow
   API->>UC: executar transferencia
 ```
@@ -168,10 +168,15 @@ Authorization: Bearer <access_token>
 
 ```json
 {
-  "endpoint_key": "internal_transfer.create",
+  "method": "POST",
+  "path": "/accounts/internal-transfers",
   "transaction_password": "123456"
 }
 ```
+
+O contrato publico de autorizacao nao recebe `endpoint_key`. Essa chave pode
+continuar existindo apenas internamente no backend e no JWT assinado para
+enforcement.
 
 Resposta definida, seguindo o envelope de resposta da API:
 
@@ -208,14 +213,16 @@ POST /accounts/internal-transfers
 Header do token de step-up:
 X-Step-Up-Token
 
-Endpoint lógico:
-internal_transfer.create
+Operacao publica do MVP:
+method=POST
+path=/accounts/internal-transfers
 ```
 
 Campos JSON:
 
 ```text
-endpoint_key
+method
+path
 transaction_password
 transaction_password_confirmation
 step_up_token
@@ -236,17 +243,18 @@ Contrato inicial de erros:
 | `TRANSACTION_PASSWORD_NOT_SET`     |  409 | usuário ainda não possui senha transacional cadastrada |
 | `TRANSACTION_PASSWORD_INVALID`     |  401 | PIN transacional inválido                              |
 | `TRANSACTION_PASSWORD_LOCKED`      |  403 | PIN transacional bloqueado temporariamente             |
-| `STEP_UP_ENDPOINT_NOT_ALLOWED`     |  403 | endpoint lógico não autorizado para emissão step-up    |
+| `STEP_UP_ENDPOINT_NOT_ALLOWED`     |  403 | operação pública não autorizada para emissão step-up   |
 | `STEP_UP_TOKEN_REQUIRED`           |  401 | endpoint sensível foi chamado sem `X-Step-Up-Token`    |
 | `STEP_UP_TOKEN_INVALID`            |  401 | token de step-up inválido ou malformado                |
 | `STEP_UP_TOKEN_EXPIRED`            |  401 | token de step-up expirado                              |
 | `STEP_UP_TOKEN_CONSUMED`           |  401 | token de step-up já utilizado                          |
-| `STEP_UP_ENDPOINT_MISMATCH`        |  403 | token válido, mas emitido para outro endpoint lógico   |
+| `STEP_UP_ENDPOINT_MISMATCH`        |  403 | token válido, mas emitido para outra operação pública  |
 
 Os clientes devem depender de `error.code`, não de `error.message`.
 
 `STEP_UP_ENDPOINT_NOT_ALLOWED` pertence à autorização/emissão de step-up: o
-cliente pediu um token para um `endpoint_key` fora da whitelist do backend.
+cliente pediu um token para uma operação pública (`method` + `path`) fora da
+whitelist do backend.
 
 `STEP_UP_TOKEN_REQUIRED`, `STEP_UP_TOKEN_INVALID`, `STEP_UP_TOKEN_EXPIRED`,
 `STEP_UP_TOKEN_CONSUMED` e `STEP_UP_ENDPOINT_MISMATCH` pertencem ao enforcement
@@ -339,7 +347,8 @@ garantir uso único.
 
 Com esse desenho, uma operação sensível deixa de depender apenas de uma sessão
 JWT válida. Ela passa a exigir uma confirmação recente de intenção, emitida para
-um endpoint lógico específico, com curta duração e consumo único.
+uma operação pública específica, mapeada internamente para policy, com curta
+duração e consumo único.
 
 Esse MVP cria a base para evoluções futuras com dispositivo confiável, prova de
 vida, biometria local, sinais de risco e políticas mais fortes por contexto da

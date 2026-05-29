@@ -121,6 +121,8 @@ Observação para o mobile:
 O mobile deve pedir autorização para a superfície pública que irá acessar. Ele
 não deve conhecer chaves internas de policy da API, como
 `internal_transfer.create`.
+`endpoint_key` pode continuar existindo internamente no backend/JWT, mas não é
+campo de input público do contrato mobile.
 
 Request:
 

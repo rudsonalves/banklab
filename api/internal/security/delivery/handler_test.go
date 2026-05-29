@@ -253,7 +253,7 @@ func TestHandler_AuthorizeStepUp_Success(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/security/step-up/authorize",
-		strings.NewReader(`{"endpoint_key":" internal_transfer.create ","transaction_password":" 123456 "}`),
+		strings.NewReader(`{"method":" post ","path":" /accounts/internal-transfers ","transaction_password":" 123456 "}`),
 	)
 	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
 		UserID: userID,
@@ -272,8 +272,11 @@ func TestHandler_AuthorizeStepUp_Success(t *testing.T) {
 	if useCase.input.User == nil || useCase.input.User.UserID != userID {
 		t.Fatalf("expected authenticated user %q, got %+v", userID, useCase.input.User)
 	}
-	if useCase.input.EndpointKey != domain.StepUpEndpointInternalTransferCreate {
-		t.Fatalf("expected trimmed endpoint key %q, got %q", domain.StepUpEndpointInternalTransferCreate, useCase.input.EndpointKey)
+	if useCase.input.Method != "post" {
+		t.Fatalf("expected trimmed method %q, got %q", "post", useCase.input.Method)
+	}
+	if useCase.input.Path != "/accounts/internal-transfers" {
+		t.Fatalf("expected trimmed path %q, got %q", "/accounts/internal-transfers", useCase.input.Path)
 	}
 	if useCase.input.TransactionPassword != "123456" {
 		t.Fatalf("expected trimmed transaction password")
@@ -306,7 +309,7 @@ func TestHandler_AuthorizeStepUp_Unauthorized(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/security/step-up/authorize",
-		strings.NewReader(`{"endpoint_key":"internal_transfer.create","transaction_password":"123456"}`),
+		strings.NewReader(`{"method":"POST","path":"/accounts/internal-transfers","transaction_password":"123456"}`),
 	)
 	rec := httptest.NewRecorder()
 
@@ -327,7 +330,7 @@ func TestHandler_AuthorizeStepUp_InvalidPayload(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/security/step-up/authorize",
-		strings.NewReader(`{"endpoint_key":"internal_transfer.create","transaction_password":"123456","extra":true}`),
+		strings.NewReader(`{"method":"POST","path":"/accounts/internal-transfers","transaction_password":"123456","extra":true}`),
 	)
 	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
 		UserID: userID,
@@ -352,7 +355,7 @@ func TestHandler_AuthorizeStepUp_MapsDomainError(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/security/step-up/authorize",
-		strings.NewReader(`{"endpoint_key":"pix.create","transaction_password":"123456"}`),
+		strings.NewReader(`{"method":"POST","path":"/accounts/pix-transfers","transaction_password":"123456"}`),
 	)
 	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
 		UserID: userID,
@@ -379,12 +382,80 @@ func TestHandler_AuthorizeStepUp_MapsDomainError(t *testing.T) {
 	}
 }
 
+func TestHandler_AuthorizeStepUp_MapsInvalidMethodError(t *testing.T) {
+	userID := uuid.New()
+	useCase := &authorizeStepUpUseCaseMock{err: domain.ErrInvalidStepUpPublicOperationMethod}
+	handler := New(nil, useCase)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/security/step-up/authorize",
+		strings.NewReader(`{"method":"","path":"/accounts/internal-transfers","transaction_password":"123456"}`),
+	)
+	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
+		UserID: userID,
+		Role:   authdomain.RoleCustomer,
+	}))
+	rec := httptest.NewRecorder()
+
+	handler.AuthorizeStepUp(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Error.Code != "INVALID_DATA" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_DATA", got.Error.Code)
+	}
+}
+
+func TestHandler_AuthorizeStepUp_MapsInvalidPathError(t *testing.T) {
+	userID := uuid.New()
+	useCase := &authorizeStepUpUseCaseMock{err: domain.ErrInvalidStepUpPublicOperationPath}
+	handler := New(nil, useCase)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/security/step-up/authorize",
+		strings.NewReader(`{"method":"POST","path":"http://api.banklab.local/accounts/internal-transfers","transaction_password":"123456"}`),
+	)
+	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
+		UserID: userID,
+		Role:   authdomain.RoleCustomer,
+	}))
+	rec := httptest.NewRecorder()
+
+	handler.AuthorizeStepUp(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Error.Code != "INVALID_DATA" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_DATA", got.Error.Code)
+	}
+}
+
 func TestHandler_AuthorizeStepUp_InternalErrorOnNilUseCase(t *testing.T) {
 	handler := New(nil)
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/security/step-up/authorize",
-		strings.NewReader(`{"endpoint_key":"internal_transfer.create","transaction_password":"123456"}`),
+		strings.NewReader(`{"method":"POST","path":"/accounts/internal-transfers","transaction_password":"123456"}`),
 	)
 	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
 		UserID: uuid.New(),
@@ -396,5 +467,30 @@ func TestHandler_AuthorizeStepUp_InternalErrorOnNilUseCase(t *testing.T) {
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
+	}
+}
+
+func TestHandler_AuthorizeStepUp_RejectsLegacyEndpointKeyPayload(t *testing.T) {
+	userID := uuid.New()
+	useCase := &authorizeStepUpUseCaseMock{}
+	handler := New(nil, useCase)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/security/step-up/authorize",
+		strings.NewReader(`{"endpoint_key":"internal_transfer.create","transaction_password":"123456"}`),
+	)
+	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
+		UserID: userID,
+		Role:   authdomain.RoleCustomer,
+	}))
+	rec := httptest.NewRecorder()
+
+	handler.AuthorizeStepUp(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+	if useCase.calls != 0 {
+		t.Fatalf("expected Execute not to be called, got %d", useCase.calls)
 	}
 }

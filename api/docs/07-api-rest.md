@@ -608,18 +608,23 @@ Possible errors:
 
 Authorizes a sensitive logical endpoint with the authenticated user's
 transaction password and returns a short-lived step-up token. In the MVP, the
-only accepted endpoint key is `internal_transfer.create`.
+only accepted public operation is `POST /accounts/internal-transfers`.
 
 The step-up token is an `HS256` JWT. It lasts 120 seconds, is scoped to the
-requested endpoint key, and is tracked by a persisted `jti` so it can be
+requested public operation, and is tracked by a persisted `jti` so it can be
 consumed once during enforcement. The response never returns the transaction
 password, password hash, or operation payload.
+
+The client must send only the public HTTP operation (`method` + `path`).
+Internal policy keys (for example `internal_transfer.create`) are resolved by
+the backend and are not part of the public request contract.
 
 Request body:
 
 ```json
 {
-  "endpoint_key": "internal_transfer.create",
+  "method": "POST",
+  "path": "/accounts/internal-transfers",
   "transaction_password": "123456"
 }
 ```
@@ -644,7 +649,7 @@ Possible errors:
 - 400 INVALID_DATA: PIN is not numeric with 6 digits
 - 403 FORBIDDEN: authenticated user is not active
 - 403 TRANSACTION_PASSWORD_LOCKED: transaction password is temporarily blocked
-- 403 STEP_UP_ENDPOINT_NOT_ALLOWED: endpoint key is not allowed for step-up
+- 403 STEP_UP_ENDPOINT_NOT_ALLOWED: public operation is not allowed for step-up
 - 409 TRANSACTION_PASSWORD_NOT_SET: transaction password does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
@@ -880,7 +885,7 @@ client. The destination account ID should come from recipient lookup or another
 trusted internal account selection flow.
 
 This endpoint is step-up protected. The client must send a valid
-`X-Step-Up-Token` issued for the `internal_transfer.create` endpoint key.
+`X-Step-Up-Token` issued for `POST /accounts/internal-transfers`.
 
 Request headers:
 
@@ -909,7 +914,7 @@ Notes:
 - The backend validates that `to_account_id` exists and can receive internal
   transfers.
 - `X-Step-Up-Token` is mandatory and must be a valid token issued for
-  `internal_transfer.create`.
+  `POST /accounts/internal-transfers`.
 - The step-up token is consumed atomically before the transfer use case is
   executed.
 - Because the token is single-use, retrying with the same `X-Step-Up-Token`
@@ -954,7 +959,7 @@ Possible errors:
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
 - 403 FORBIDDEN: authenticated user cannot operate the source account
-- 403 STEP_UP_ENDPOINT_MISMATCH: step-up token endpoint key does not match
+- 403 STEP_UP_ENDPOINT_MISMATCH: step-up token operation does not match
 - 403 TRANSACTION_PASSWORD_REQUIRED: endpoint requires step-up authorization
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
 - 422 INSUFFICIENT_FUNDS: source account has insufficient funds
@@ -1230,7 +1235,8 @@ flows that require step-up before a sensitive operation can proceed.
 header `X-Step-Up-Token` is missing.
 
 `STEP_UP_ENDPOINT_NOT_ALLOWED` (HTTP 403) belongs to step-up authorization and
-is returned when the requested `endpoint_key` is outside the backend allowlist.
+is returned when the requested public operation (`method` + `path`) is outside
+the backend allowlist.
 
 `STEP_UP_TOKEN_INVALID` (HTTP 401) is returned for malformed step-up tokens,
 invalid signatures, required claims missing, `scope` different from `step_up`,
@@ -1243,7 +1249,7 @@ already expired.
 step-up token is reused.
 
 `STEP_UP_ENDPOINT_MISMATCH` (HTTP 403) is returned when the token was issued
-for a different endpoint key than the protected operation.
+for a different operation than the protected endpoint.
 
 ## 8. Domain Notes for API Consumers
 
@@ -1647,7 +1653,7 @@ Scenario: retry with same consumed step-up token
 }
 ```
 
-Scenario: token issued for another endpoint key
+Scenario: token issued for another operation
 - Status: 403
 - Code: STEP_UP_ENDPOINT_MISMATCH
 

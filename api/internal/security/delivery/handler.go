@@ -33,7 +33,8 @@ type createTransactionPasswordRequest struct {
 }
 
 type authorizeStepUpRequest struct {
-	EndpointKey         string `json:"endpoint_key"`
+	Method              string `json:"method"`
+	Path                string `json:"path"`
 	TransactionPassword string `json:"transaction_password"`
 }
 
@@ -125,7 +126,8 @@ func (h *Handler) AuthorizeStepUp(w http.ResponseWriter, r *http.Request) {
 
 	output, err := h.authorizeStepUp.Execute(r.Context(), application.AuthorizeStepUpInput{
 		User:                user,
-		EndpointKey:         strings.TrimSpace(req.EndpointKey),
+		Method:              strings.TrimSpace(req.Method),
+		Path:                strings.TrimSpace(req.Path),
 		TransactionPassword: strings.TrimSpace(req.TransactionPassword),
 	})
 	if err != nil {
