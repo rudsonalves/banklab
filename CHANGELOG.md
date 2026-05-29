@@ -1,5 +1,59 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-06
+
+This commit adds the infrastructure foundation for step-up tokens used by transactional password flows.
+
+1. `api/internal/security/domain/errors.go`
+
+   * Added `ErrStepUpEndpointNotAllowed` to represent rejected step-up endpoint usage.
+
+2. `api/internal/security/domain/interfaces.go`
+
+   * Added contracts for:
+
+     * `StepUpTokenRepository`
+     * `StepUpTokenSigner`
+     * `StepUpEndpointPolicy`
+
+3. `api/internal/security/domain/step_up_endpoint_policy.go`
+
+   * Added whitelist-based endpoint validation for step-up operations.
+   * Added the default allowed endpoint key for internal transfer creation.
+   * Added normalization and rejection of blank or unsupported endpoint keys.
+
+4. `api/internal/security/domain/step_up_endpoint_policy_test.go`
+
+   * Added tests for default endpoint allowance, unknown endpoint rejection, blank input rejection, input trimming, custom whitelist behavior, and nil policy rejection.
+
+5. `api/internal/security/infrastructure/jwt_step_up_token_signer.go`
+
+   * Added JWT signer for persisted step-up tokens.
+   * Added minimal step-up claims containing user ID, endpoint key, scope, JTI, issued-at, and expiration.
+   * Ensured sensitive data and operation payloads are not embedded in the signed token.
+
+6. `api/internal/security/infrastructure/jwt_step_up_token_signer_test.go`
+
+   * Added tests for JWT claim generation, signature validation, invalid secret rejection, consumed/invalid token rejection, and absence of sensitive payload fields.
+
+7. `api/internal/security/infrastructure/postgres_step_up_token_repository.go`
+
+   * Added PostgreSQL repository for creating, finding, and consuming step-up tokens.
+   * Added transaction-aware executor support.
+   * Added atomic token consumption with status and expiration checks.
+   * Mapped database constraint failures and token state failures to domain errors.
+
+8. `api/internal/security/infrastructure/postgres_step_up_token_repository_test.go`
+
+   * Added integration coverage for step-up token creation, lookup, duplicate JTI handling, successful consumption, repeated consumption, expired token handling, and missing token handling.
+
+9. `api/internal/security/infrastructure/postgres_transaction_password_repository_test.go`
+
+   * Extended the security repository test schema with the `step_up_tokens` table, constraints, indexes, default UUID generation, and cleanup logic.
+
+This establishes the persistence, signing, endpoint policy, and test coverage required for the next step of the transactional password step-up flow.
+
+
 ## 2026/05/29 — api/zta-mvp-transactional-password-05
 
 Introduce the initial domain and database foundation for step-up tokens used by transactional password flows.

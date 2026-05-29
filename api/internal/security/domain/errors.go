@@ -13,4 +13,6 @@ var (
 	ErrInvalidStepUpToken  = errors.New("invalid step-up token")
 	ErrStepUpTokenExpired  = errors.New("step-up token expired")
 	ErrStepUpTokenConsumed = errors.New("step-up token already consumed")
+
+	ErrStepUpEndpointNotAllowed = errors.New("step-up endpoint not allowed")
 )

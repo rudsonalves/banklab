@@ -264,6 +264,33 @@ func ensureSecurityRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpo
 		)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS ux_transaction_passwords_user_id
 			ON transaction_passwords(user_id)`,
+		`CREATE TABLE IF NOT EXISTS step_up_tokens (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			jti VARCHAR(120) NOT NULL,
+			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			endpoint_key VARCHAR(120) NOT NULL,
+			status VARCHAR(20) NOT NULL DEFAULT 'active',
+			expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+			consumed_at TIMESTAMP WITH TIME ZONE,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+			CONSTRAINT chk_step_up_tokens_status CHECK (status IN ('active', 'consumed')),
+			CONSTRAINT chk_step_up_tokens_jti_not_blank CHECK (length(trim(jti)) > 0),
+			CONSTRAINT chk_step_up_tokens_endpoint_key_not_blank CHECK (length(trim(endpoint_key)) > 0),
+			CONSTRAINT chk_step_up_tokens_expires_after_created CHECK (expires_at > created_at),
+			CONSTRAINT chk_step_up_tokens_consumed_at_consistency CHECK (
+				(status = 'active' AND consumed_at IS NULL)
+				OR
+				(status = 'consumed' AND consumed_at IS NOT NULL)
+			)
+		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS ux_step_up_tokens_jti
+			ON step_up_tokens(jti)`,
+		`CREATE INDEX IF NOT EXISTS idx_step_up_tokens_user_id
+			ON step_up_tokens(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_step_up_tokens_endpoint_key
+			ON step_up_tokens(endpoint_key)`,
+		`CREATE INDEX IF NOT EXISTS idx_step_up_tokens_expires_at
+			ON step_up_tokens(expires_at)`,
 	}
 
 	for _, statement := range statements {
@@ -277,6 +304,9 @@ func ensureSecurityRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpo
 	}
 	if _, err := pool.Exec(ctx, `ALTER TABLE transaction_passwords ALTER COLUMN id SET DEFAULT gen_random_uuid()`); err != nil {
 		t.Fatalf("failed to ensure transaction_passwords.id default: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `ALTER TABLE step_up_tokens ALTER COLUMN id SET DEFAULT gen_random_uuid()`); err != nil {
+		t.Fatalf("failed to ensure step_up_tokens.id default: %v", err)
 	}
 }
 
@@ -311,6 +341,10 @@ func cleanupSecurityTestUser(t *testing.T, ctx context.Context, pool *pgxpool.Po
 
 	if _, err := pool.Exec(ctx, `DELETE FROM transaction_passwords WHERE user_id = $1`, userID); err != nil {
 		t.Logf("cleanup warning: failed to delete transaction password for user %q: %v", userID, err)
+	}
+
+	if _, err := pool.Exec(ctx, `DELETE FROM step_up_tokens WHERE user_id = $1`, userID); err != nil {
+		t.Logf("cleanup warning: failed to delete step-up tokens for user %q: %v", userID, err)
 	}
 
 	if _, err := pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID); err != nil {
