@@ -87,6 +87,7 @@ expires_in
 | `TRANSACTION_PASSWORD_NOT_SET`     |  409 | usuário ainda não possui senha transacional cadastrada |
 | `TRANSACTION_PASSWORD_INVALID`     |  401 | PIN transacional inválido                              |
 | `TRANSACTION_PASSWORD_LOCKED`      |  403 | PIN transacional bloqueado temporariamente             |
+| `STEP_UP_ENDPOINT_NOT_ALLOWED`     |  403 | endpoint lógico não autorizado para emissão step-up    |
 | `STEP_UP_TOKEN_REQUIRED`           |  401 | endpoint sensível foi chamado sem `X-Step-Up-Token`    |
 | `STEP_UP_TOKEN_INVALID`            |  401 | token de step-up inválido ou malformado                |
 | `STEP_UP_TOKEN_EXPIRED`            |  401 | token de step-up expirado                              |

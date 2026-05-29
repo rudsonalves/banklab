@@ -190,6 +190,9 @@ POST   /auth/login
 POST   /auth/refresh
 GET    /auth/me
 
+POST   /security/transaction-password
+POST   /security/step-up/authorize
+
 POST   /admin/users/{id}/approve
 POST   /admin/customers/{customer_id}/accounts
 

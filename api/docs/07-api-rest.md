@@ -18,6 +18,7 @@
     - [3.5 Approve User (Admin Only)](#35-approve-user-admin-only)
     - [3.6 Create Customer Account (Admin Only)](#36-create-customer-account-admin-only)
     - [3.7 Create Transaction Password](#37-create-transaction-password)
+    - [3.8 Authorize Step-Up](#38-authorize-step-up)
   - [4. Account Endpoints](#4-account-endpoints)
     - [4.1 List Accounts](#41-list-accounts)
     - [4.2 Customer Account Creation Removed](#42-customer-account-creation-removed)
@@ -598,6 +599,54 @@ Possible errors:
 - 409 TRANSACTION_PASSWORD_ALREADY_SET: transaction password already exists
 - 500 INTERNAL_ERROR: unexpected internal error
 
+### 3.8 Authorize Step-Up
+
+- Method: POST
+- Path: /security/step-up/authorize
+- Auth required: JWT
+
+Authorizes a sensitive logical endpoint with the authenticated user's
+transaction password and returns a short-lived step-up token. In the MVP, the
+only accepted endpoint key is `internal_transfer.create`.
+
+The step-up token lasts 120 seconds, is scoped to the requested endpoint key,
+and is tracked by a persisted `jti` so it can be consumed once during
+enforcement. The response never returns the transaction password, password hash,
+or operation payload.
+
+Request body:
+
+```json
+{
+  "endpoint_key": "internal_transfer.create",
+  "transaction_password": "123456"
+}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "step_up_token": "<token>",
+    "expires_in": 120
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 401 TRANSACTION_PASSWORD_INVALID: transaction password PIN is incorrect
+- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
+- 400 INVALID_DATA: PIN is not numeric with 6 digits
+- 403 FORBIDDEN: authenticated user is not active
+- 403 TRANSACTION_PASSWORD_LOCKED: transaction password is temporarily blocked
+- 403 STEP_UP_ENDPOINT_NOT_ALLOWED: endpoint key is not allowed for step-up
+- 409 TRANSACTION_PASSWORD_NOT_SET: transaction password does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
 ## 4. Account Endpoints
 
 All account routes are protected and require Authorization header with Bearer token.
@@ -829,6 +878,9 @@ Executes an internal transfer between two account IDs previously known by the
 client. The destination account ID should come from recipient lookup or another
 trusted internal account selection flow.
 
+This endpoint is step-up protected. The client must send a valid
+`X-Step-Up-Token` issued for the `internal_transfer.create` endpoint key.
+
 Request body:
 
 ```json
@@ -876,12 +928,18 @@ Success response (200):
 Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 401 STEP_UP_TOKEN_REQUIRED: step-up token header was not provided
+- 401 STEP_UP_TOKEN_INVALID: step-up token is invalid or malformed
+- 401 STEP_UP_TOKEN_EXPIRED: step-up token has expired
+- 401 STEP_UP_TOKEN_CONSUMED: step-up token was already consumed
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_DATA: missing or malformed account IDs, or missing
   `idempotency_key`
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
 - 403 FORBIDDEN: authenticated user cannot operate the source account
+- 403 STEP_UP_ENDPOINT_MISMATCH: step-up token endpoint key does not match
+- 403 TRANSACTION_PASSWORD_REQUIRED: endpoint requires step-up authorization
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
 - 422 INSUFFICIENT_FUNDS: source account has insufficient funds
 - 422 ACCOUNT_INACTIVE: one account is inactive

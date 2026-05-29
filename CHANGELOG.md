@@ -1,5 +1,124 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-09
+
+Consolidate transactional password and step-up authorization documentation, aligning API contracts, error mappings, implementation notes, and project references with the current Zero Trust MVP flow.
+
+### Documentation Updates
+
+#### 1. API Contract (`api/docs/07-api-rest.md`)
+
+* Added documentation for `POST /security/step-up/authorize`.
+* Defined request and response payloads for step-up authorization.
+* Documented step-up token lifetime (`expires_in: 120`).
+* Added `STEP_UP_ENDPOINT_NOT_ALLOWED` error contract.
+* Clarified the transactional password validation flow used to obtain a step-up token.
+* Documented that `POST /accounts/internal-transfers` requires the `X-Step-Up-Token` header.
+* Added transfer-related step-up enforcement errors:
+
+  * `STEP_UP_TOKEN_REQUIRED`
+  * `STEP_UP_TOKEN_INVALID`
+  * `STEP_UP_TOKEN_EXPIRED`
+  * `STEP_UP_TOKEN_CONSUMED`
+  * `STEP_UP_ENDPOINT_MISMATCH`
+  * `TRANSACTION_PASSWORD_REQUIRED`
+
+#### 2. Error and Response Standard (`api/docs/05-error_and_response.md`)
+
+* Expanded client error guidance to include:
+
+  * `401 Unauthorized`
+  * `403 Forbidden`
+* Added security-domain error mappings for:
+
+  * Transaction password setup and validation
+  * Step-up authorization
+  * Step-up token enforcement
+* Improved HTTP status classification for authentication and authorization failures.
+
+#### 3. Step-Up Implementation Documentation (`api/docs/implementations/03-zta-step-up-transaction-password.md`)
+
+* Added `STEP_UP_ENDPOINT_NOT_ALLOWED` to the documented error contract.
+* Updated the conceptual `step_up_tokens` model to include persisted `jti` support.
+* Improved alignment between implementation notes and runtime behavior.
+
+#### 4. Backlog Documentation (`docs/backlogs/api/006d - zta-contracts-and-docs.md`)
+
+* Extended the MVP error matrix with `STEP_UP_ENDPOINT_NOT_ALLOWED`.
+* Kept backlog specifications synchronized with the implemented contract.
+
+### Project Documentation Improvements
+
+#### 5. Repository Readmes
+
+**README.md**
+
+* Added security endpoints:
+
+  * `POST /security/transaction-password`
+  * `POST /security/step-up/authorize`
+
+**README_en.md**
+
+* Added the new security endpoints to the public API list.
+* Fixed backlog documentation links using URL-encoded paths.
+
+**api/README.md**
+
+* Added transactional password and step-up authorization to the feature list.
+* Added security endpoints to the API route summary.
+* Updated migration command examples:
+
+  * `make api-migrate-up` → `make migrate-up`
+* Updated test command examples:
+
+  * `make api-test` → `make api-tests`
+
+**mobile/README.md**
+
+* Updated test command reference:
+
+  * `make mobile-test` → `make mobile-tests`
+* Removed outdated mention of deposit and withdraw operations from the feature summary.
+
+### Changelog
+
+#### 6. `CHANGELOG.md`
+
+* Added the release entry for `api/zta-mvp-transactional-password-08`.
+* Recorded all contract, documentation, and security-flow updates introduced in this iteration.
+
+### Result
+
+This commit completes the documentation consolidation for the transactional password MVP, ensuring that API contracts, error mappings, implementation references, backlog specifications, and project-level documentation consistently reflect the current step-up authorization flow and Zero Trust enforcement model.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-08
+
+Consolidate the ZTA transactional-password MVP contracts and documentation with the implemented step-up flow.
+
+1. `api/docs/07-api-rest.md`
+
+  * Added `POST /security/step-up/authorize` endpoint documentation.
+  * Documented step-up request/response payload and lifetime (`expires_in: 120`).
+  * Added `STEP_UP_ENDPOINT_NOT_ALLOWED` error to step-up authorization.
+  * Clarified that `POST /accounts/internal-transfers` requires `X-Step-Up-Token`.
+  * Added step-up enforcement errors for internal transfers (`STEP_UP_TOKEN_REQUIRED`, `STEP_UP_TOKEN_INVALID`, `STEP_UP_TOKEN_EXPIRED`, `STEP_UP_TOKEN_CONSUMED`, `STEP_UP_ENDPOINT_MISMATCH`, `TRANSACTION_PASSWORD_REQUIRED`).
+
+2. `api/docs/implementations/03-zta-step-up-transaction-password.md`
+
+  * Added `STEP_UP_ENDPOINT_NOT_ALLOWED` to the initial error contract table.
+  * Updated conceptual `step_up_tokens` model with persisted `jti`.
+
+3. `docs/backlogs/api/006d - zta-contracts-and-docs.md`
+
+  * Added `STEP_UP_ENDPOINT_NOT_ALLOWED` to the MVP error contract matrix.
+
+4. `api/docs/05-error_and_response.md`
+
+  * Expanded HTTP client error guidance with 401/403 semantics.
+  * Added security and step-up domain error mappings for transactional-password and step-up token flows.
+
 ## 2026/05/29 — api/zta-mvp-transactional-password-07
 
 Add step-up authorization flow for transactional password validation.
