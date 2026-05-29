@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-14
+
+This commit reorganizes the ZTA backlog documentation and defines the next API and mobile work around the public step-up contract and transactional password flow.
+
+1. `docs/backlogs/README.md`
+
+   * Updated the active API backlog list to replace the completed ZTA MVP backlog entries with the new `007` public step-up endpoint contract backlog.
+   * Added the new mobile backlog for transactional password and step-up.
+   * Moved completed backlog references out of the active list.
+
+2. `docs/backlogs/api/007 - public-step-up-endpoint-contract.md`
+
+   * Added a new API backlog defining the migration from public `endpoint_key` input to a public HTTP operation contract based on `method` and `path`.
+   * Documented the decision that mobile clients must not know internal policy keys such as `internal_transfer.create`.
+   * Defined validation rules for public paths, allowed operations, compatibility decisions, expected errors, acceptance criteria, and out-of-scope items.
+
+3. `docs/backlogs/api/007 - public-step-up-endpoint-contract_tasks.md`
+
+   * Added six implementation tasks for the public step-up contract.
+   * Covered the public HTTP operation model, operation-to-policy resolver, delivery contract changes, tests, documentation updates, and final alignment checks.
+
+4. `docs/backlogs/api/done/*`
+
+   * Moved the completed API ZTA MVP backlog files from the active API backlog folder to `done`.
+   * Preserved file contents while marking the previous ZTA foundation, transaction password, step-up token, enforcement, contracts, and generated migration backlog as completed work.
+
+5. `docs/backlogs/mobile/011 - senha-transacional-e-step-up.md`
+
+   * Added a mobile backlog for transactional password creation and step-up authorization.
+   * Documented API contracts, mobile product flow, architecture impacts, repository/use case responsibilities, UI requirements, ZTA error handling, security constraints, and acceptance criteria.
+
+6. `docs/backlogs/mobile/done/*`
+
+   * Moved the completed multi-page registration mobile backlog and tasks to `done`.
+
+This update separates completed ZTA MVP planning from the next contract refinement stage, clarifies that public clients should use HTTP method and path instead of internal policy keys, and prepares the mobile implementation backlog for transactional password and protected internal transfers.
+
+
 ## 2026/05/29 - api/zta-mvp-transactional-password-13
 
 Finalized the ZTA MVP contract documentation, consolidating step-up token behavior, protected endpoint requirements, error semantics, and client integration guidance across API, implementation, backlog, and mobile documentation.
