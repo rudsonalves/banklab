@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-05
+
+Introduce the initial domain and database foundation for step-up tokens used by transactional password flows.
+
+1. `Makefile`
+
+   * Added a centralized `DOCKER_COMPOSE` variable with explicit compose file and project name.
+   * Replaced direct `docker compose` calls with `$(DOCKER_COMPOSE)`.
+   * Updated database reset, readiness check, and schema export commands to use the compose service name.
+   * Improved `db-reset` reliability by using `DROP DATABASE ... WITH (FORCE)` and `ON_ERROR_STOP=1`.
+
+2. `api/internal/security/domain/errors.go`
+
+   * Added domain errors for invalid, expired, and already consumed step-up tokens.
+
+3. `api/internal/security/domain/step_up_token.go`
+
+   * Added the `StepUpToken` domain entity.
+   * Added active and consumed token statuses.
+   * Added default token duration of two minutes.
+   * Implemented creation, restoration, validation, expiration checking, and consumption behavior.
+   * Enforced UTC normalization and consistency rules for token timestamps and status transitions.
+
+4. `api/internal/security/domain/step_up_token_test.go`
+
+   * Added unit tests covering token creation, validation, restoration, expiration checks, successful consumption, consumed-token rejection, and expired-token rejection.
+
+5. `api/migrations/000011_step_up_tokens.up.sql`
+
+   * Added the `step_up_tokens` table.
+   * Added constraints for status validity, non-blank JTI, non-blank endpoint key, expiration consistency, and consumed-at consistency.
+   * Added unique and lookup indexes for JTI, user ID, endpoint key, and expiration time.
+
+6. `api/migrations/000011_step_up_tokens.down.sql`
+
+   * Added rollback logic for indexes and the `step_up_tokens` table.
+
+This commit establishes the persistence and domain rules required for short-lived, single-use step-up authorization tokens in the ZTA transactional password MVP.
+
+
 ## 2026/05/29 — api/zta-mvp-transactional-password-04
 
 Advance the Zero Trust Architecture MVP by implementing the transactional password domain and the first operational step-up authorization components. This commit moves the initiative from architectural planning into executable backend functionality, introducing persistence, business rules, API endpoints, and enforcement primitives required for sensitive financial operations.
