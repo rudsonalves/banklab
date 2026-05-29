@@ -159,3 +159,19 @@ Contrato confirmado com a implementação atual:
 - Retry com o mesmo `X-Step-Up-Token` após consumo retorna
   `STEP_UP_TOKEN_CONSUMED`.
 - Retry com mesmo `idempotency_key` pode exigir novo step-up token.
+
+Verificação final:
+
+- `go test ./...` passa na API.
+- Não há divergência conhecida entre constantes, registry de erros,
+  signer/verifier JWT, enforcement, handler de transferência interna e
+  documentação revisada.
+- Este backlog pode ser considerado fechado para o escopo do MVP.
+
+Fora do escopo do MVP:
+
+- vincular o step-up token ao payload detalhado da operação;
+- ampliar a policy para outros endpoints sensíveis;
+- implementar dispositivo confiável, biometria local, prova de vida ou sinais
+  de risco;
+- exigir coleção Postman como artefato deste backlog.

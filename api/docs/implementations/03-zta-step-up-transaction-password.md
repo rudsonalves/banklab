@@ -243,6 +243,17 @@ Contrato inicial de erros:
 | `STEP_UP_TOKEN_CONSUMED`           |  401 | token de step-up já utilizado                          |
 | `STEP_UP_ENDPOINT_MISMATCH`        |  403 | token válido, mas emitido para outro endpoint lógico   |
 
+Os clientes devem depender de `error.code`, não de `error.message`.
+
+`STEP_UP_ENDPOINT_NOT_ALLOWED` pertence à autorização/emissão de step-up: o
+cliente pediu um token para um `endpoint_key` fora da whitelist do backend.
+
+`STEP_UP_TOKEN_REQUIRED`, `STEP_UP_TOKEN_INVALID`, `STEP_UP_TOKEN_EXPIRED`,
+`STEP_UP_TOKEN_CONSUMED` e `STEP_UP_ENDPOINT_MISMATCH` pertencem ao enforcement
+do endpoint sensível. `STEP_UP_TOKEN_INVALID` cobre token malformado,
+assinatura inválida, claims obrigatórios ausentes, `scope` diferente de
+`step_up` ou `jti` inexistente na persistência.
+
 ## Ponto de entrada arquitetural
 
 O ponto de entrada do ZTA fica entre delivery e application.

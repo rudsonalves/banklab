@@ -93,7 +93,7 @@ Documentar o contrato estável do step-up token emitido pelo backend.
 
 ## Task 3/6: Consolidar contrato de erros ZTA
 
-Status: Backlog
+Status: Done
 
 ### Objetivo
 
@@ -139,7 +139,7 @@ o contrato compartilhado da API.
 
 ## Task 4/6: Atualizar documentação REST do fluxo ZTA
 
-Status: Backlog
+Status: Done
 
 ### Objetivo
 
@@ -178,7 +178,7 @@ respostas e erros implementados no MVP ZTA.
 
 ## Task 5/6: Atualizar documentação ZTA, READMEs e referências de consumo
 
-Status: Backlog
+Status: Done
 
 ### Objetivo
 
@@ -212,7 +212,7 @@ rápidas de consumo reflitam o fluxo final do MVP ZTA.
 
 ## Task 6/6: Verificar alinhamento final do contrato ZTA
 
-Status: Backlog
+Status: Done
 
 ### Objetivo
 

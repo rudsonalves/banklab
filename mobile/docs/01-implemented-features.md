@@ -130,7 +130,7 @@ Implemented account behavior:
 
 ## Transfer Features
 
-Transfer-related functionality is implemented end to end at the client level:
+Transfer-related functionality is implemented at the client level:
 
 - internal transfer orchestration
 - recipient lookup for internal transfers
@@ -159,6 +159,16 @@ Implemented transfer behavior:
 - the app can retrieve and display transfer receipts
 - transfer and receipt flows are coordinated through domain use cases where
   multi-repository orchestration is needed
+
+API contract note:
+
+- the backend now requires `POST /accounts/internal-transfers` to include
+  `X-Step-Up-Token`
+- the token must be issued by `POST /security/step-up/authorize` for
+  `internal_transfer.create`
+- the token is single-use; after `STEP_UP_TOKEN_CONSUMED`, the client must
+  request a new step-up token before retrying the transfer
+- retrying with the same `idempotency_key` may still require a new step-up token
 
 ## Routing And Navigation
 

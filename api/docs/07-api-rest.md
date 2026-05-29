@@ -882,6 +882,13 @@ trusted internal account selection flow.
 This endpoint is step-up protected. The client must send a valid
 `X-Step-Up-Token` issued for the `internal_transfer.create` endpoint key.
 
+Request headers:
+
+```http
+Authorization: Bearer <access_token>
+X-Step-Up-Token: <step_up_token>
+```
+
 Request body:
 
 ```json
@@ -1222,9 +1229,12 @@ flows that require step-up before a sensitive operation can proceed.
 `STEP_UP_TOKEN_REQUIRED` (HTTP 401) is returned by protected endpoints when
 header `X-Step-Up-Token` is missing.
 
+`STEP_UP_ENDPOINT_NOT_ALLOWED` (HTTP 403) belongs to step-up authorization and
+is returned when the requested `endpoint_key` is outside the backend allowlist.
+
 `STEP_UP_TOKEN_INVALID` (HTTP 401) is returned for malformed step-up tokens,
-invalid signatures, invalid claims, unsupported scope, or missing persisted
-`jti`.
+invalid signatures, required claims missing, `scope` different from `step_up`,
+or missing persisted `jti`.
 
 `STEP_UP_TOKEN_EXPIRED` (HTTP 401) is returned when the step-up token is
 already expired.
