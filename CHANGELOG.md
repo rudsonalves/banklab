@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-10
+
+Introduce the initial step-up token verification contract and align the enforcement backlog with the transactional password/ZTA flow.
+
+1. `api/internal/security/domain`
+
+   * Added `ErrStepUpTokenRequired`.
+   * Added `StepUpTokenVerifier` contract.
+   * Added `VerifiedStepUpTokenClaims` with validation and normalization.
+   * Centralized the step-up JWT scope as `StepUpTokenScope`.
+
+2. `api/internal/security/application`
+
+   * Registered `STEP_UP_TOKEN_REQUIRED` as a mapped domain error.
+   * Added test coverage for the new error mapping.
+
+3. `api/internal/security/infrastructure`
+
+   * Updated the JWT step-up token signer to use the shared domain scope constant.
+   * Adjusted signer tests to validate the shared scope definition.
+
+4. `api/internal/shared/errors`
+
+   * Added the shared `STEP_UP_TOKEN_REQUIRED` error code.
+
+5. `docs/backlogs/api`
+
+   * Expanded the internal transfer step-up enforcement backlog.
+   * Added detailed enforcement decisions for JWT validation, persisted `jti` comparison, atomic consumption, retry behavior, and error semantics.
+   * Added a dedicated task breakdown for the enforcement implementation.
+   * Updated the ZTA contract documentation with the step-up JWT claims and error separation.
+
+This prepares the API for implementing step-up enforcement on internal transfers while keeping JWT verification behind a clean domain contract.
+
+
 ## 2026/05/29 — api/zta-mvp-transactional-password-09
 
 Consolidate transactional password and step-up authorization documentation, aligning API contracts, error mappings, implementation notes, and project references with the current Zero Trust MVP flow.

@@ -56,4 +56,11 @@ func RegisterErrors() {
 		"Step-up endpoint not allowed",
 		http.StatusForbidden,
 	)
+
+	sharederrors.RegisterDomainError(
+		domain.ErrStepUpTokenRequired,
+		sharederrors.ErrCodeStepUpTokenRequired,
+		"Step-up token required",
+		http.StatusUnauthorized,
+	)
 }

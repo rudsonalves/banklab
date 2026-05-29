@@ -41,8 +41,8 @@ func TestJWTStepUpTokenSigner_SignContainsRequiredClaims(t *testing.T) {
 	if claims.EndpointKey != domain.StepUpEndpointInternalTransferCreate {
 		t.Fatalf("expected endpoint_key %q, got %q", domain.StepUpEndpointInternalTransferCreate, claims.EndpointKey)
 	}
-	if claims.Scope != stepUpTokenScope {
-		t.Fatalf("expected scope %q, got %q", stepUpTokenScope, claims.Scope)
+	if claims.Scope != domain.StepUpTokenScope {
+		t.Fatalf("expected scope %q, got %q", domain.StepUpTokenScope, claims.Scope)
 	}
 	if claims.ID != jti {
 		t.Fatalf("expected jti %q, got %q", jti, claims.ID)

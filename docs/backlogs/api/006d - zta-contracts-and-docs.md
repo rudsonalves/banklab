@@ -66,7 +66,27 @@ step_up_token
 expires_in
 ```
 
-## 4. Resposta de autorização de step-up
+## 4. JWT de step-up
+
+O step-up token é um JWT curto, assinado pelo backend, com validade de 120
+segundos. O backend também persiste o `jti` para permitir consumo único no
+enforcement.
+
+Claims mínimos:
+
+```text
+user_id
+endpoint_key
+scope=step_up
+exp
+iat
+jti
+```
+
+O token não deve conter senha transacional, hash, dados sensíveis ou payload da
+operação.
+
+## 5. Resposta de autorização de step-up
 
 ```json
 {
@@ -78,7 +98,7 @@ expires_in
 }
 ```
 
-## 5. Contrato inicial de erros
+## 6. Contrato inicial de erros
 
 | Código                             | HTTP | Cenário                                                |
 | ---------------------------------- | ---: | ------------------------------------------------------ |
@@ -97,7 +117,19 @@ expires_in
 Os códigos acima são contrato do MVP. As mensagens podem seguir o padrão textual
 da API, desde que o `error.code` permaneça estável.
 
-## 6. Documentos a atualizar
+Separação entre autorização e enforcement:
+
+- `STEP_UP_ENDPOINT_NOT_ALLOWED` pertence à emissão/autorização de step-up:
+  o cliente pediu autorização para um `endpoint_key` fora da whitelist.
+- `TRANSACTION_PASSWORD_REQUIRED`, `STEP_UP_TOKEN_REQUIRED`,
+  `STEP_UP_TOKEN_INVALID`, `STEP_UP_TOKEN_EXPIRED`,
+  `STEP_UP_TOKEN_CONSUMED` e `STEP_UP_ENDPOINT_MISMATCH` pertencem ao
+  enforcement do endpoint sensível.
+- `STEP_UP_TOKEN_INVALID` cobre token malformado, assinatura inválida,
+  `scope` diferente de `step_up`, `jti` inexistente ou claims obrigatórios
+  ausentes.
+
+## 7. Documentos a atualizar
 
 Quando a implementação avançar, revisar:
 

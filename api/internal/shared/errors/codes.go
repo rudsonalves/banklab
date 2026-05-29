@@ -26,4 +26,5 @@ const (
 	ErrCodeTransactionPasswordInvalid    = "TRANSACTION_PASSWORD_INVALID"
 	ErrCodeTransactionPasswordLocked     = "TRANSACTION_PASSWORD_LOCKED"
 	ErrCodeStepUpEndpointNotAllowed      = "STEP_UP_ENDPOINT_NOT_ALLOWED"
+	ErrCodeStepUpTokenRequired           = "STEP_UP_TOKEN_REQUIRED"
 )
