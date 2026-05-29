@@ -216,6 +216,40 @@ func TestEnforceStepUpUseCase_Execute_ConsumeErrors(t *testing.T) {
 	}
 }
 
+func TestEnforceStepUpUseCase_Execute_RetryWithSameTokenReturnsConsumed(t *testing.T) {
+	userID := uuid.New()
+	now := time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC)
+	claims := verifiedStepUpClaims(t, userID, domain.StepUpEndpointInternalTransferCreate, "step-up-jti", now)
+
+	repo := &stepUpTokenRepositoryMock{
+		consume: consumedStepUpToken(t, userID, domain.StepUpEndpointInternalTransferCreate, "step-up-jti", now),
+	}
+	uc := NewEnforceStepUpUseCase(&stepUpTokenVerifierMock{claims: claims}, repo)
+
+	input := EnforceStepUpInput{
+		User:        authenticatedUser(userID),
+		EndpointKey: domain.StepUpEndpointInternalTransferCreate,
+		Token:       "signed-step-up-token",
+		Now:         now,
+	}
+
+	if err := uc.Execute(context.Background(), input); err != nil {
+		t.Fatalf("expected first execution to succeed, got %v", err)
+	}
+
+	// Simulate persisted one-time usage: same jti cannot be consumed again.
+	repo.consume = nil
+	repo.consumeErr = domain.ErrStepUpTokenConsumed
+
+	err := uc.Execute(context.Background(), input)
+	if !errors.Is(err, domain.ErrStepUpTokenConsumed) {
+		t.Fatalf("expected ErrStepUpTokenConsumed on retry, got %v", err)
+	}
+	if repo.consumeCalls != 2 {
+		t.Fatalf("expected ConsumeByJTI to be called twice, got %d", repo.consumeCalls)
+	}
+}
+
 func TestEnforceStepUpUseCase_Execute_PersistedRecordDivergence(t *testing.T) {
 	now := time.Now().UTC()
 

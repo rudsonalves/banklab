@@ -206,7 +206,7 @@ GET    /accounts/transfer/{transaction_reference}/receipt
 GET    /accounts/{id}/statement
 ```
 
-As rotas de registro e login exigem `X-App-Token`. As demais rotas exigem autenticação por JWT. Rotas administrativas também exigem um usuário com papel de administrador.
+As rotas de registro e login exigem `X-App-Token`. As demais rotas exigem autenticação por JWT. `POST /accounts/internal-transfers` também exige `X-Step-Up-Token` emitido por `POST /security/step-up/authorize` para `internal_transfer.create`. Rotas administrativas também exigem um usuário com papel de administrador.
 
 ## Comandos úteis
 

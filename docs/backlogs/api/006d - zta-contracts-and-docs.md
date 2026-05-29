@@ -68,9 +68,9 @@ expires_in
 
 ## 4. JWT de step-up
 
-O step-up token é um JWT curto, assinado pelo backend, com validade de 120
-segundos. O backend também persiste o `jti` para permitir consumo único no
-enforcement.
+O step-up token é um JWT curto, assinado pelo backend com `HS256`, com validade
+de 120 segundos. O backend também persiste o `jti` para permitir consumo único
+no enforcement.
 
 Claims mínimos:
 
@@ -136,5 +136,26 @@ Quando a implementação avançar, revisar:
 - `api/docs/05-error_and_response.md`;
 - `api/docs/07-api-rest.md`;
 - `api/docs/implementations/03-zta-step-up-transaction-password.md`;
-- coleção Postman, se o fluxo estiver coberto nela;
 - documentação mobile, se houver impacto direto no consumo.
+
+## 8. Status de alinhamento (MVP enforcement)
+
+Contrato confirmado com a implementação atual:
+
+- Endpoint sensível protegido: `POST /accounts/internal-transfers`.
+- Header obrigatório de enforcement: `X-Step-Up-Token`.
+- Endpoint lógico exigido no token: `internal_transfer.create`.
+- Ponto arquitetural do enforcement:
+  `internal/account/transaction/delivery -> internal/security/application`
+  antes de `internal/account/transaction/application`.
+- O use case de transferência não recebe step-up token, senha transacional nem
+  detalhes de política ZTA.
+- O step-up token autoriza uma chamada ao endpoint lógico e não é vinculado ao
+  payload da transferência no MVP.
+- Step-up token é de uso único com consumo atômico por `jti` antes do use case
+  sensível.
+- Se a transferência falhar depois do enforcement, o step-up token permanece
+  consumido.
+- Retry com o mesmo `X-Step-Up-Token` após consumo retorna
+  `STEP_UP_TOKEN_CONSUMED`.
+- Retry com mesmo `idempotency_key` pode exigir novo step-up token.

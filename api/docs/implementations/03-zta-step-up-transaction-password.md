@@ -75,6 +75,7 @@ sequenceDiagram
 
 ### Step-up token
 
+- Deve ser um JWT assinado com `HS256`.
 - Deve durar 2 minutos.
 - Deve ser de uso único.
 - Deve estar associado ao usuário autenticado.
@@ -82,6 +83,26 @@ sequenceDiagram
 - No MVP, não deve ser vinculado ao payload da operação.
 - O endpoint sensível deve validar usuário, endpoint lógico, expiração e
   consumo.
+
+Regras de consumo e retry no endpoint sensível (`POST /accounts/internal-transfers`):
+
+- O `jti` deve ser consumido de forma atômica antes da execução do use case de
+  transferência.
+- Se a transferência falhar depois do enforcement (ex.: saldo insuficiente), o
+  step-up token permanece consumido.
+- Retry com o mesmo `X-Step-Up-Token` deve retornar
+  `STEP_UP_TOKEN_CONSUMED`.
+- Mesmo com o mesmo `idempotency_key`, o cliente pode precisar obter novo
+  step-up token para nova tentativa.
+
+Cobertura automatizada esperada:
+
+- Verifier JWT valida assinatura, algoritmo, expiração e claims obrigatórios.
+- `EnforceStepUpUseCase` cobre sucesso, ausência do header, token inválido,
+  token expirado, token consumido, mismatch de usuário, mismatch de endpoint e
+  divergência entre JWT e registro persistido.
+- Teste integrado cobre signer JWT, verifier JWT, repositório Postgres e
+  enforcement consumindo o `jti` persistido uma única vez.
 
 ## Endpoint lógico
 
@@ -208,19 +229,19 @@ Todas as respostas devem seguir o padrão definido em
 
 Contrato inicial de erros:
 
-| Código | HTTP | Cenário |
-|---|---:|---|
-| `TRANSACTION_PASSWORD_ALREADY_SET` | 409 | usuário tenta criar senha transacional já ativa |
-| `TRANSACTION_PASSWORD_REQUIRED` | 403 | endpoint sensível exige step-up |
-| `TRANSACTION_PASSWORD_NOT_SET` | 409 | usuário ainda não possui senha transacional cadastrada |
-| `TRANSACTION_PASSWORD_INVALID` | 401 | PIN transacional inválido |
-| `TRANSACTION_PASSWORD_LOCKED` | 403 | PIN transacional bloqueado temporariamente |
-| `STEP_UP_ENDPOINT_NOT_ALLOWED` | 403 | endpoint lógico não autorizado para emissão step-up |
-| `STEP_UP_TOKEN_REQUIRED` | 401 | endpoint sensível foi chamado sem `X-Step-Up-Token` |
-| `STEP_UP_TOKEN_INVALID` | 401 | token de step-up inválido ou malformado |
-| `STEP_UP_TOKEN_EXPIRED` | 401 | token de step-up expirado |
-| `STEP_UP_TOKEN_CONSUMED` | 401 | token de step-up já utilizado |
-| `STEP_UP_ENDPOINT_MISMATCH` | 403 | token válido, mas emitido para outro endpoint lógico |
+| Código                             | HTTP | Cenário                                                |
+| ---------------------------------- | ---: | ------------------------------------------------------ |
+| `TRANSACTION_PASSWORD_ALREADY_SET` |  409 | usuário tenta criar senha transacional já ativa        |
+| `TRANSACTION_PASSWORD_REQUIRED`    |  403 | endpoint sensível exige step-up                        |
+| `TRANSACTION_PASSWORD_NOT_SET`     |  409 | usuário ainda não possui senha transacional cadastrada |
+| `TRANSACTION_PASSWORD_INVALID`     |  401 | PIN transacional inválido                              |
+| `TRANSACTION_PASSWORD_LOCKED`      |  403 | PIN transacional bloqueado temporariamente             |
+| `STEP_UP_ENDPOINT_NOT_ALLOWED`     |  403 | endpoint lógico não autorizado para emissão step-up    |
+| `STEP_UP_TOKEN_REQUIRED`           |  401 | endpoint sensível foi chamado sem `X-Step-Up-Token`    |
+| `STEP_UP_TOKEN_INVALID`            |  401 | token de step-up inválido ou malformado                |
+| `STEP_UP_TOKEN_EXPIRED`            |  401 | token de step-up expirado                              |
+| `STEP_UP_TOKEN_CONSUMED`           |  401 | token de step-up já utilizado                          |
+| `STEP_UP_ENDPOINT_MISMATCH`        |  403 | token válido, mas emitido para outro endpoint lógico   |
 
 ## Ponto de entrada arquitetural
 
