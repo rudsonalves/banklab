@@ -111,7 +111,6 @@ func NewTransaction(
 	referenceID *uuid.UUID,
 ) *Transaction {
 	return &Transaction{
-		ID:           uuid.New(),
 		AccountID:    accountID,
 		Type:         ttype,
 		Amount:       amount,
@@ -136,7 +135,6 @@ func NewTransactionWithIdempotency(
 ) *Transaction {
 	key := idempotencyKey
 	return &Transaction{
-		ID:               uuid.New(),
 		AccountID:        accountID,
 		Type:             ttype,
 		Amount:           amount,

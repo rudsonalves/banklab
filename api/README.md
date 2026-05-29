@@ -28,6 +28,7 @@ Dependency direction:
 ## Features
 
 - auth: register, login, current user
+- transaction password setup and step-up authorization
 - customer self-profile lookup
 - account creation/provisioning
 - account balance lookup
@@ -46,6 +47,9 @@ POST   /auth/register
 POST   /auth/login
 POST   /auth/refresh
 GET    /auth/me
+
+POST   /security/transaction-password
+POST   /security/step-up/authorize
 
 POST   /admin/users/{id}/approve
 POST   /admin/customers/{customer_id}/accounts
@@ -86,7 +90,7 @@ It installs `pg_cron` and starts PostgreSQL with:
 2. Run migrations:
 
 ```bash
-make api-migrate-up
+make migrate-up
 ```
 
 3. Build API:
@@ -109,7 +113,7 @@ Default URL: http://localhost:8080
 From repository root:
 
 ```bash
-make api-test
+make api-tests
 ```
 
 Or directly from api directory:

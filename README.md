@@ -190,6 +190,9 @@ POST   /auth/login
 POST   /auth/refresh
 GET    /auth/me
 
+POST   /security/transaction-password
+POST   /security/step-up/authorize
+
 POST   /admin/users/{id}/approve
 POST   /admin/customers/{customer_id}/accounts
 
@@ -266,8 +269,8 @@ Para organizar o trabalho, use o padrão descrito em [CONTRIBUTING.md](CONTRIBUT
 - [docs/README.md](docs/README.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md)
 - [docs/backlogs/README.md](docs/backlogs/README.md)
-- [docs/backlogs/api/000 - pre-onboarding.md](<docs/backlogs/api/000 - pre-onboarding.md>)
-- [docs/backlogs/api/001 - onboarding.md](<docs/backlogs/api/001 - onboarding.md>)
+- [docs/backlogs/api/000 - pre-onboarding.md](docs/backlogs/api/000%20-%20pre-onboarding.md)
+- [docs/backlogs/api/001 - onboarding.md](docs/backlogs/api/001%20-%20onboarding.md)
 - [CHANGELOG.md](CHANGELOG.md)
 - [tools/postman/README.md](tools/postman/README.md)
 

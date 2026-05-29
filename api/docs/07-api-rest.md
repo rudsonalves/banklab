@@ -17,6 +17,8 @@
     - [3.4 Get Current User](#34-get-current-user)
     - [3.5 Approve User (Admin Only)](#35-approve-user-admin-only)
     - [3.6 Create Customer Account (Admin Only)](#36-create-customer-account-admin-only)
+    - [3.7 Create Transaction Password](#37-create-transaction-password)
+    - [3.8 Authorize Step-Up](#38-authorize-step-up)
   - [4. Account Endpoints](#4-account-endpoints)
     - [4.1 List Accounts](#41-list-accounts)
     - [4.2 Customer Account Creation Removed](#42-customer-account-creation-removed)
@@ -48,6 +50,7 @@
     - [9.12 GET /accounts/{id}/balance](#912-get-accountsidbalance)
     - [9.13 GET /accounts/{id}/statement](#913-get-accountsidstatement)
     - [9.14 GET /customers/me](#914-get-customersme)
+    - [9.15 POST /security/transaction-password](#915-post-securitytransaction-password)
   - [10. Postman Setup](#10-postman-setup)
     - [10.1 Files in Repository](#101-files-in-repository)
     - [10.2 Environment Variables](#102-environment-variables)
@@ -68,7 +71,7 @@ Content type:
 Authentication:
 - `POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, and `POST /auth/login` require header `X-App-Token: <app_token>`
 - `POST /auth/refresh` requires a valid `refresh_token` in the request body
-- `GET /auth/me`, all `/accounts` and `/accounts/*`, and all `/customers/*` require JWT Bearer token
+- `GET /auth/me`, all `/accounts` and `/accounts/*`, all `/customers/*`, and `POST /security/transaction-password` require JWT Bearer token
 - Send JWT in header `Authorization: Bearer <access_token>`
 
 Access control summary:
@@ -552,6 +555,98 @@ Possible errors:
 - 404 CUSTOMER_NOT_FOUND: customer does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
 
+### 3.7 Create Transaction Password
+
+- Method: POST
+- Path: /security/transaction-password
+- Auth required: JWT
+
+Creates the authenticated user's initial transaction password. This endpoint is
+used only for first credential setup. It does not require a previous transaction
+password or a step-up token.
+
+The transaction password is a numeric PIN with exactly 6 digits. The API stores
+only the hash. The response never returns the PIN or hash.
+
+Request body:
+
+```json
+{
+  "transaction_password": "123456",
+  "transaction_password_confirmation": "123456"
+}
+```
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "status": "active",
+    "created_at": "2026-05-28T10:00:00Z"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
+- 400 INVALID_DATA: PIN is not numeric with 6 digits or confirmation differs
+- 403 FORBIDDEN: authenticated user is not active
+- 409 TRANSACTION_PASSWORD_ALREADY_SET: transaction password already exists
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 3.8 Authorize Step-Up
+
+- Method: POST
+- Path: /security/step-up/authorize
+- Auth required: JWT
+
+Authorizes a sensitive logical endpoint with the authenticated user's
+transaction password and returns a short-lived step-up token. In the MVP, the
+only accepted endpoint key is `internal_transfer.create`.
+
+The step-up token lasts 120 seconds, is scoped to the requested endpoint key,
+and is tracked by a persisted `jti` so it can be consumed once during
+enforcement. The response never returns the transaction password, password hash,
+or operation payload.
+
+Request body:
+
+```json
+{
+  "endpoint_key": "internal_transfer.create",
+  "transaction_password": "123456"
+}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "step_up_token": "<token>",
+    "expires_in": 120
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 401 TRANSACTION_PASSWORD_INVALID: transaction password PIN is incorrect
+- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
+- 400 INVALID_DATA: PIN is not numeric with 6 digits
+- 403 FORBIDDEN: authenticated user is not active
+- 403 TRANSACTION_PASSWORD_LOCKED: transaction password is temporarily blocked
+- 403 STEP_UP_ENDPOINT_NOT_ALLOWED: endpoint key is not allowed for step-up
+- 409 TRANSACTION_PASSWORD_NOT_SET: transaction password does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
 ## 4. Account Endpoints
 
 All account routes are protected and require Authorization header with Bearer token.
@@ -783,6 +878,9 @@ Executes an internal transfer between two account IDs previously known by the
 client. The destination account ID should come from recipient lookup or another
 trusted internal account selection flow.
 
+This endpoint is step-up protected. The client must send a valid
+`X-Step-Up-Token` issued for the `internal_transfer.create` endpoint key.
+
 Request body:
 
 ```json
@@ -830,12 +928,18 @@ Success response (200):
 Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 401 STEP_UP_TOKEN_REQUIRED: step-up token header was not provided
+- 401 STEP_UP_TOKEN_INVALID: step-up token is invalid or malformed
+- 401 STEP_UP_TOKEN_EXPIRED: step-up token has expired
+- 401 STEP_UP_TOKEN_CONSUMED: step-up token was already consumed
 - 400 INVALID_REQUEST: invalid JSON body
 - 400 INVALID_DATA: missing or malformed account IDs, or missing
   `idempotency_key`
 - 400 INVALID_AMOUNT: amount must be greater than zero
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
 - 403 FORBIDDEN: authenticated user cannot operate the source account
+- 403 STEP_UP_ENDPOINT_MISMATCH: step-up token endpoint key does not match
+- 403 TRANSACTION_PASSWORD_REQUIRED: endpoint requires step-up authorization
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
 - 422 INSUFFICIENT_FUNDS: source account has insufficient funds
 - 422 ACCOUNT_INACTIVE: one account is inactive
@@ -1063,6 +1167,10 @@ Common error codes currently used by handlers:
 - INSUFFICIENT_FUNDS
 - SAME_ACCOUNT_TRANSFER
 - TRANSACTION_NOT_FOUND
+- TRANSACTION_PASSWORD_ALREADY_SET
+- TRANSACTION_PASSWORD_NOT_SET
+- TRANSACTION_PASSWORD_INVALID
+- TRANSACTION_PASSWORD_LOCKED
 - INTERNAL_ERROR
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when onboarding routes protected by AppToken (`POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, `POST /auth/login`) are called without `X-App-Token` or with an invalid app token.
@@ -1079,6 +1187,18 @@ both contact channels are not verified. The payload may include
 `INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or refresh token signature invalid.
 
 `INVALID_USER_STATE` (HTTP 409) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
+
+`TRANSACTION_PASSWORD_ALREADY_SET` (HTTP 409) is returned when the authenticated
+user tries to create a transaction password after one already exists.
+
+`TRANSACTION_PASSWORD_NOT_SET` (HTTP 409) is returned by transaction-password
+dependent flows when the authenticated user has not created the credential yet.
+
+`TRANSACTION_PASSWORD_INVALID` (HTTP 401) is returned when a transaction password
+validation attempt receives an incorrect PIN.
+
+`TRANSACTION_PASSWORD_LOCKED` (HTTP 403) is returned when the transaction
+password is temporarily locked after repeated invalid attempts.
 
 ## 8. Domain Notes for API Consumers
 
@@ -1645,6 +1765,64 @@ Scenario: customer not found
   "error": {
     "code": "CUSTOMER_NOT_FOUND",
     "message": "Customer not found"
+  }
+}
+```
+
+### 9.15 POST /security/transaction-password
+
+Scenario: invalid PIN or confirmation mismatch
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+Scenario: invalid JSON or unknown public request field
+- Status: 400
+- Code: INVALID_REQUEST
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request"
+  }
+}
+```
+
+Scenario: authenticated user is not active
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+Scenario: transaction password already exists
+- Status: 409
+- Code: TRANSACTION_PASSWORD_ALREADY_SET
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "TRANSACTION_PASSWORD_ALREADY_SET",
+    "message": "Transaction password already set"
   }
 }
 ```

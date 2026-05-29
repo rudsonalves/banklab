@@ -49,7 +49,6 @@ func NewAccount(customerID uuid.UUID, number, branch string) (*Account, error) {
 	}
 
 	return &Account{
-		ID:         uuid.New(),
 		CustomerID: customerID,
 		Number:     number,
 		Branch:     branch,

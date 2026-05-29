@@ -13,6 +13,7 @@ import (
 	adminDelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authDelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
+	securityDelivery "github.com/seu-usuario/bank-api/internal/security/delivery"
 	sharedhttpmiddleware "github.com/seu-usuario/bank-api/internal/shared/http/middleware"
 )
 
@@ -93,6 +94,7 @@ func TestAPIRouter_OperationalAccountRoutes(t *testing.T) {
 		customerDelivery.New(nil, nil),
 		statementDelivery.New(nil),
 		transactionDelivery.New(nil, nil, nil, nil),
+		securityDelivery.New(nil),
 	)
 
 	tests := []struct {
@@ -132,6 +134,37 @@ func TestAPIRouter_OperationalAccountRoutes(t *testing.T) {
 				t.Fatalf("expected status %d, got %d", tc.wantStatus, rec.Code)
 			}
 		})
+	}
+}
+
+func TestAPIRouter_StepUpAuthorizeRouteRequiresAuth(t *testing.T) {
+	authCalled := false
+	router := newAPIRouter(
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				authCalled = true
+				next.ServeHTTP(w, r)
+			})
+		},
+		adminDelivery.New(nil),
+		accountDelivery.New(nil, nil, nil, nil),
+		customerDelivery.New(nil, nil),
+		statementDelivery.New(nil),
+		transactionDelivery.New(nil, nil, nil, nil),
+		securityDelivery.New(nil),
+	)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/security/step-up/authorize",
+		strings.NewReader(`{"endpoint_key":"internal_transfer.create","transaction_password":"123456"}`),
+	)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if !authCalled {
+		t.Fatal("expected step-up authorize route to be wrapped by auth middleware")
 	}
 }
 

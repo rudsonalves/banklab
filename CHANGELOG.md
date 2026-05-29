@@ -1,5 +1,693 @@
 # Changelog
 
+## 2026/05/29 — api/zta-mvp-transactional-password-09
+
+Consolidate transactional password and step-up authorization documentation, aligning API contracts, error mappings, implementation notes, and project references with the current Zero Trust MVP flow.
+
+### Documentation Updates
+
+#### 1. API Contract (`api/docs/07-api-rest.md`)
+
+* Added documentation for `POST /security/step-up/authorize`.
+* Defined request and response payloads for step-up authorization.
+* Documented step-up token lifetime (`expires_in: 120`).
+* Added `STEP_UP_ENDPOINT_NOT_ALLOWED` error contract.
+* Clarified the transactional password validation flow used to obtain a step-up token.
+* Documented that `POST /accounts/internal-transfers` requires the `X-Step-Up-Token` header.
+* Added transfer-related step-up enforcement errors:
+
+  * `STEP_UP_TOKEN_REQUIRED`
+  * `STEP_UP_TOKEN_INVALID`
+  * `STEP_UP_TOKEN_EXPIRED`
+  * `STEP_UP_TOKEN_CONSUMED`
+  * `STEP_UP_ENDPOINT_MISMATCH`
+  * `TRANSACTION_PASSWORD_REQUIRED`
+
+#### 2. Error and Response Standard (`api/docs/05-error_and_response.md`)
+
+* Expanded client error guidance to include:
+
+  * `401 Unauthorized`
+  * `403 Forbidden`
+* Added security-domain error mappings for:
+
+  * Transaction password setup and validation
+  * Step-up authorization
+  * Step-up token enforcement
+* Improved HTTP status classification for authentication and authorization failures.
+
+#### 3. Step-Up Implementation Documentation (`api/docs/implementations/03-zta-step-up-transaction-password.md`)
+
+* Added `STEP_UP_ENDPOINT_NOT_ALLOWED` to the documented error contract.
+* Updated the conceptual `step_up_tokens` model to include persisted `jti` support.
+* Improved alignment between implementation notes and runtime behavior.
+
+#### 4. Backlog Documentation (`docs/backlogs/api/006d - zta-contracts-and-docs.md`)
+
+* Extended the MVP error matrix with `STEP_UP_ENDPOINT_NOT_ALLOWED`.
+* Kept backlog specifications synchronized with the implemented contract.
+
+### Project Documentation Improvements
+
+#### 5. Repository Readmes
+
+**README.md**
+
+* Added security endpoints:
+
+  * `POST /security/transaction-password`
+  * `POST /security/step-up/authorize`
+
+**README_en.md**
+
+* Added the new security endpoints to the public API list.
+* Fixed backlog documentation links using URL-encoded paths.
+
+**api/README.md**
+
+* Added transactional password and step-up authorization to the feature list.
+* Added security endpoints to the API route summary.
+* Updated migration command examples:
+
+  * `make api-migrate-up` → `make migrate-up`
+* Updated test command examples:
+
+  * `make api-test` → `make api-tests`
+
+**mobile/README.md**
+
+* Updated test command reference:
+
+  * `make mobile-test` → `make mobile-tests`
+* Removed outdated mention of deposit and withdraw operations from the feature summary.
+
+### Changelog
+
+#### 6. `CHANGELOG.md`
+
+* Added the release entry for `api/zta-mvp-transactional-password-08`.
+* Recorded all contract, documentation, and security-flow updates introduced in this iteration.
+
+### Result
+
+This commit completes the documentation consolidation for the transactional password MVP, ensuring that API contracts, error mappings, implementation references, backlog specifications, and project-level documentation consistently reflect the current step-up authorization flow and Zero Trust enforcement model.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-08
+
+Consolidate the ZTA transactional-password MVP contracts and documentation with the implemented step-up flow.
+
+1. `api/docs/07-api-rest.md`
+
+  * Added `POST /security/step-up/authorize` endpoint documentation.
+  * Documented step-up request/response payload and lifetime (`expires_in: 120`).
+  * Added `STEP_UP_ENDPOINT_NOT_ALLOWED` error to step-up authorization.
+  * Clarified that `POST /accounts/internal-transfers` requires `X-Step-Up-Token`.
+  * Added step-up enforcement errors for internal transfers (`STEP_UP_TOKEN_REQUIRED`, `STEP_UP_TOKEN_INVALID`, `STEP_UP_TOKEN_EXPIRED`, `STEP_UP_TOKEN_CONSUMED`, `STEP_UP_ENDPOINT_MISMATCH`, `TRANSACTION_PASSWORD_REQUIRED`).
+
+2. `api/docs/implementations/03-zta-step-up-transaction-password.md`
+
+  * Added `STEP_UP_ENDPOINT_NOT_ALLOWED` to the initial error contract table.
+  * Updated conceptual `step_up_tokens` model with persisted `jti`.
+
+3. `docs/backlogs/api/006d - zta-contracts-and-docs.md`
+
+  * Added `STEP_UP_ENDPOINT_NOT_ALLOWED` to the MVP error contract matrix.
+
+4. `api/docs/05-error_and_response.md`
+
+  * Expanded HTTP client error guidance with 401/403 semantics.
+  * Added security and step-up domain error mappings for transactional-password and step-up token flows.
+
+## 2026/05/29 — api/zta-mvp-transactional-password-07
+
+Add step-up authorization flow for transactional password validation.
+
+1. `api/cmd/api/main.go`
+
+   * Wired the step-up token repository and JWT step-up token signer.
+   * Registered `AuthorizeStepUpUseCase` with transaction password validation, token persistence, signing, and endpoint policy.
+   * Injected the new use case into the security handler.
+   * Added `POST /security/step-up/authorize` as an authenticated route.
+
+2. `api/cmd/api/routes_test.go`
+
+   * Added route coverage to ensure the step-up authorization endpoint is protected by the auth middleware.
+
+3. `api/internal/security/application/authorize_step_up.go`
+
+   * Added the step-up authorization use case.
+   * Validates authenticated user, endpoint policy, transaction password format, user status, password state, lock state, and password hash.
+   * Registers failed attempts and lock behavior.
+   * Resets validation state after successful authentication.
+   * Persists the step-up token before signing it.
+   * Returns a signed step-up token with expiration metadata.
+
+4. `api/internal/security/application/authorize_step_up_test.go`
+
+   * Added coverage for successful authorization.
+   * Covered missing user, endpoint not allowed, missing password, invalid password, lock behavior, blocked password, expired lock normalization, and token persistence failure.
+
+5. `api/internal/security/application/create_transaction_password_test.go`
+
+   * Extended test mocks to support validation-state persistence and password comparison assertions.
+
+6. `api/internal/security/application/errors_registry.go`
+
+   * Registered the `ErrStepUpEndpointNotAllowed` domain error.
+
+7. `api/internal/security/application/errors_registry_test.go`
+
+   * Added coverage for the `STEP_UP_ENDPOINT_NOT_ALLOWED` error mapping.
+
+8. `api/internal/security/delivery/handler.go`
+
+   * Added request and response DTOs for step-up authorization.
+   * Implemented `AuthorizeStepUp` HTTP handler.
+   * Added authenticated user extraction, strict JSON decoding, request trimming, use case delegation, and response mapping.
+
+9. `api/internal/security/delivery/handler_test.go`
+
+   * Added handler tests for success, unauthorized access, invalid payload, mapped domain error, and missing use case configuration.
+
+10. `api/internal/shared/errors/codes.go`
+
+* Added the `STEP_UP_ENDPOINT_NOT_ALLOWED` shared error code.
+
+This commit introduces the first complete step-up authorization endpoint, enabling critical operations to request a short-lived authorization token based on transactional password validation.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-06
+
+This commit adds the infrastructure foundation for step-up tokens used by transactional password flows.
+
+1. `api/internal/security/domain/errors.go`
+
+   * Added `ErrStepUpEndpointNotAllowed` to represent rejected step-up endpoint usage.
+
+2. `api/internal/security/domain/interfaces.go`
+
+   * Added contracts for:
+
+     * `StepUpTokenRepository`
+     * `StepUpTokenSigner`
+     * `StepUpEndpointPolicy`
+
+3. `api/internal/security/domain/step_up_endpoint_policy.go`
+
+   * Added whitelist-based endpoint validation for step-up operations.
+   * Added the default allowed endpoint key for internal transfer creation.
+   * Added normalization and rejection of blank or unsupported endpoint keys.
+
+4. `api/internal/security/domain/step_up_endpoint_policy_test.go`
+
+   * Added tests for default endpoint allowance, unknown endpoint rejection, blank input rejection, input trimming, custom whitelist behavior, and nil policy rejection.
+
+5. `api/internal/security/infrastructure/jwt_step_up_token_signer.go`
+
+   * Added JWT signer for persisted step-up tokens.
+   * Added minimal step-up claims containing user ID, endpoint key, scope, JTI, issued-at, and expiration.
+   * Ensured sensitive data and operation payloads are not embedded in the signed token.
+
+6. `api/internal/security/infrastructure/jwt_step_up_token_signer_test.go`
+
+   * Added tests for JWT claim generation, signature validation, invalid secret rejection, consumed/invalid token rejection, and absence of sensitive payload fields.
+
+7. `api/internal/security/infrastructure/postgres_step_up_token_repository.go`
+
+   * Added PostgreSQL repository for creating, finding, and consuming step-up tokens.
+   * Added transaction-aware executor support.
+   * Added atomic token consumption with status and expiration checks.
+   * Mapped database constraint failures and token state failures to domain errors.
+
+8. `api/internal/security/infrastructure/postgres_step_up_token_repository_test.go`
+
+   * Added integration coverage for step-up token creation, lookup, duplicate JTI handling, successful consumption, repeated consumption, expired token handling, and missing token handling.
+
+9. `api/internal/security/infrastructure/postgres_transaction_password_repository_test.go`
+
+   * Extended the security repository test schema with the `step_up_tokens` table, constraints, indexes, default UUID generation, and cleanup logic.
+
+This establishes the persistence, signing, endpoint policy, and test coverage required for the next step of the transactional password step-up flow.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-05
+
+Introduce the initial domain and database foundation for step-up tokens used by transactional password flows.
+
+1. `Makefile`
+
+   * Added a centralized `DOCKER_COMPOSE` variable with explicit compose file and project name.
+   * Replaced direct `docker compose` calls with `$(DOCKER_COMPOSE)`.
+   * Updated database reset, readiness check, and schema export commands to use the compose service name.
+   * Improved `db-reset` reliability by using `DROP DATABASE ... WITH (FORCE)` and `ON_ERROR_STOP=1`.
+
+2. `api/internal/security/domain/errors.go`
+
+   * Added domain errors for invalid, expired, and already consumed step-up tokens.
+
+3. `api/internal/security/domain/step_up_token.go`
+
+   * Added the `StepUpToken` domain entity.
+   * Added active and consumed token statuses.
+   * Added default token duration of two minutes.
+   * Implemented creation, restoration, validation, expiration checking, and consumption behavior.
+   * Enforced UTC normalization and consistency rules for token timestamps and status transitions.
+
+4. `api/internal/security/domain/step_up_token_test.go`
+
+   * Added unit tests covering token creation, validation, restoration, expiration checks, successful consumption, consumed-token rejection, and expired-token rejection.
+
+5. `api/migrations/000011_step_up_tokens.up.sql`
+
+   * Added the `step_up_tokens` table.
+   * Added constraints for status validity, non-blank JTI, non-blank endpoint key, expiration consistency, and consumed-at consistency.
+   * Added unique and lookup indexes for JTI, user ID, endpoint key, and expiration time.
+
+6. `api/migrations/000011_step_up_tokens.down.sql`
+
+   * Added rollback logic for indexes and the `step_up_tokens` table.
+
+This commit establishes the persistence and domain rules required for short-lived, single-use step-up authorization tokens in the ZTA transactional password MVP.
+
+
+## 2026/05/29 — api/zta-mvp-transactional-password-04
+
+Advance the Zero Trust Architecture MVP by implementing the transactional password domain and the first operational step-up authorization components. This commit moves the initiative from architectural planning into executable backend functionality, introducing persistence, business rules, API endpoints, and enforcement primitives required for sensitive financial operations.
+
+### Security module implementation
+
+1. Introduced the initial security module structure:
+
+   * `internal/security/domain/*`
+
+   * `internal/security/application/*`
+
+   * `internal/security/infrastructure/*`
+
+   * `internal/security/delivery/*`
+
+   * Established the layered foundation for security-related capabilities.
+
+   * Preserved dependency direction consistent with the existing modular monolith architecture.
+
+   * Isolated transactional authorization concerns from authentication and account modules.
+
+### Transactional password domain
+
+2. Added transactional password domain modeling:
+
+   * Implemented transactional password entities and value objects.
+   * Defined business invariants for password lifecycle management.
+   * Added validation rules for PIN creation and verification.
+   * Introduced failure tracking and lockout-related domain behavior.
+
+3. Added transactional password repository contracts:
+
+   * Defined persistence abstractions for transactional password storage.
+   * Decoupled business rules from PostgreSQL implementations.
+   * Prepared infrastructure support for future security factors.
+
+### Transactional password persistence
+
+4. Added PostgreSQL persistence support:
+
+   * Implemented repository layer for transactional password management.
+   * Added secure password storage using hashed values.
+   * Introduced lookup and verification support required by step-up authorization flows.
+   * Preserved transactional consistency requirements across security operations.
+
+5. Added database migrations:
+
+   * Created transactional password persistence structures.
+   * Added required indexes and constraints.
+   * Defined schema required for transactional password lifecycle management.
+   * Prepared the database for future security-related extensions.
+
+### Transactional password use cases
+
+6. Implemented transactional password creation flow:
+
+   * Added use case for transactional password registration.
+   * Enforced PIN validation rules.
+   * Prevented invalid or inconsistent password creation scenarios.
+   * Established the first customer-managed authorization factor.
+
+7. Implemented transactional password verification flow:
+
+   * Added password validation use case.
+   * Integrated failure counting behavior.
+   * Added support for temporary protection against repeated invalid attempts.
+   * Returned consistent domain errors for authorization failures.
+
+### HTTP delivery layer
+
+8. Added transactional password endpoints:
+
+   * Implemented request parsing and response mapping.
+   * Integrated security use cases with the HTTP layer.
+   * Preserved the standard API response envelope.
+   * Added authorization requirements aligned with authenticated customer sessions.
+
+9. Added endpoint contracts and DTOs:
+
+   * Defined request and response payloads.
+   * Standardized validation behavior.
+   * Added error mappings for transactional password operations.
+   * Kept API behavior consistent with existing account and authentication endpoints.
+
+### Step-up authorization foundation
+
+10. Introduced step-up authorization services:
+
+    * Added initial step-up token issuance flow.
+    * Implemented token validation primitives.
+    * Prepared support for endpoint-scoped authorization checks.
+    * Established the foundation for sensitive-operation enforcement.
+
+11. Added single-use token behavior:
+
+    * Introduced token consumption semantics.
+    * Prevented token reuse after successful authorization.
+    * Prepared the infrastructure required for future policy enforcement expansion.
+
+### Tests
+
+12. Added automated test coverage:
+
+    * Created domain tests covering transactional password rules.
+    * Added repository tests for persistence behavior.
+    * Added use case tests for creation and verification flows.
+    * Validated error scenarios, lockout behavior, and authorization failures.
+
+### Documentation updates
+
+13. Updated implementation and backlog documentation:
+
+    * Recorded implemented portions of the ZTA MVP roadmap.
+    * Updated progress tracking for transactional password tasks.
+    * Refined endpoint contracts and security flow descriptions.
+    * Aligned implementation documents with the current codebase state.
+
+This commit delivers the first operational authorization factor of the BankLab Zero Trust Architecture MVP, establishing transactional password management, verification flows, and the foundational building blocks required for step-up authorization of sensitive financial operations.
+
+
+## 2026/05/28 — api/zta-mvp-transactional-password-03
+
+This commit introduces the first part of the transactional password implementation for the API.
+
+1. `api/cmd/api/main.go`
+
+   * Wired the new security module into the API bootstrap.
+   * Added the transaction password repository, bcrypt hasher, use case, handler, and route registration.
+   * Registered the protected endpoint:
+
+     * `POST /security/transaction-password`
+
+2. `api/internal/security/domain`
+
+   * Added the transactional password domain model.
+   * Defined PIN validation rules for a numeric 6-digit password.
+   * Added status handling for active and blocked passwords.
+   * Added failure tracking, temporary locking, lock normalization, and success reset behavior.
+   * Added domain errors and repository/hasher contracts.
+
+3. `api/internal/security/application`
+
+   * Added `CreateTransactionPasswordUseCase`.
+   * Validates authenticated user context, PIN format, confirmation, active user status, and duplicate password creation.
+   * Hashes the PIN before persistence.
+   * Added security error registration and mappings to API error codes.
+
+4. `api/internal/security/delivery`
+
+   * Added the HTTP handler for creating the initial transaction password.
+   * Enforces authenticated access.
+   * Rejects unknown JSON fields.
+   * Maps domain/application errors to the standard response envelope.
+
+5. `api/internal/security/infrastructure`
+
+   * Added bcrypt-based transaction password hasher.
+   * Added PostgreSQL repository for creating, finding, updating validation state, and changing password hashes.
+   * Added support for contextual transactions through the existing database transaction context.
+
+6. `api/internal/shared/errors`
+
+   * Added transaction password error codes:
+
+     * `TRANSACTION_PASSWORD_ALREADY_SET`
+     * `TRANSACTION_PASSWORD_NOT_SET`
+     * `TRANSACTION_PASSWORD_INVALID`
+     * `TRANSACTION_PASSWORD_LOCKED`
+
+7. `api/internal/bootstrap/errors.go`
+
+   * Registered security-specific errors during application bootstrap.
+
+8. Tests
+
+   * Added domain tests for PIN validation, password creation, lock behavior, failure tracking, and success reset.
+   * Added use case tests covering success, invalid input, inactive user, missing user, duplicate password, hash failure, and repository failure.
+   * Added handler tests for success, unauthorized access, invalid payloads, mapped domain errors, nil use case, and unknown errors.
+   * Added PostgreSQL integration tests for repository persistence, duplicate handling, validation state updates, and hash updates.
+   * Updated route tests to include the new security handler dependency.
+
+9. Documentation
+
+   * Updated REST API documentation with the new transaction password endpoint.
+   * Documented request/response payloads, authentication requirements, and related error scenarios.
+   * Added transaction password error codes to the documented API error catalog.
+
+This establishes the initial transactional password foundation, including domain rules, persistence, HTTP exposure, error mapping, and test coverage, preparing the API for later transaction-password validation and step-up authorization flows.
+
+
+## 2026/05/28 — api/zta-mvp-transactional-password-02
+
+This change introduces database-generated UUIDs as the default strategy for persisted entities whenever possible, and starts the transactional password persistence model for the ZTA MVP.
+
+1. Updated UUID generation strategy
+
+   * Moved primary key generation from domain constructors and application code to PostgreSQL defaults using `gen_random_uuid()`.
+   * Added `CREATE EXTENSION IF NOT EXISTS pgcrypto` to the baseline schema and test schemas.
+   * Updated tables such as `customers`, `accounts`, `users`, `user_sessions`, and `transactions` to use database-generated IDs.
+   * Adjusted repositories to omit `id` from inserts and retrieve generated IDs with `RETURNING id`.
+   * Updated mocks and tests to populate IDs when simulating successful persistence.
+
+2. Refactored domain constructors
+
+   * Removed direct UUID generation from `Customer`, `CustomerDocument`, `Account`, `User`, `ContactVerification`, and `Transaction` constructors.
+   * Simplified `NewUser` by removing the explicit ID argument.
+   * Preserved domain invariants while leaving persistence identity assignment to the repository/database layer.
+
+3. Updated registration flow
+
+   * Adjusted user registration so the customer is persisted before creating the CPF document.
+   * Normalized and validated CPF before customer persistence.
+   * Created the CPF document only after the database has assigned the customer ID.
+
+4. Updated transaction persistence
+
+   * Changed transaction inserts to rely on database-generated IDs.
+   * Preserved idempotency behavior with `ON CONFLICT`.
+   * Mapped `pgx.ErrNoRows` to duplicate transaction handling when an idempotency conflict occurs.
+
+5. Added transactional password migration
+
+   * Added the `transaction_passwords` table.
+   * Added fields for password hash, status, failed attempts, lock control, and timestamps.
+   * Added constraints for valid status, non-negative failed attempts, and blocked-state consistency.
+   * Added indexes for user uniqueness and lock expiration lookup.
+
+6. Added migration planning documentation
+
+   * Added a backlog document describing the staged migration toward database-generated IDs.
+   * Documented the recommended order for moving each entity to the new persistence identity model.
+
+This change intentionally breaks compatibility with the previous development database schema, because the project is still in active development. The practical impact is limited to recreating the current test data, especially the existing test user.
+
+
+## 2026/05/28 — api/zta-mvp-transactional-password-01
+
+Introduce the first architectural foundation for the Zero Trust Architecture (ZTA) MVP by defining transactional password, step-up authorization flow, enforcement boundaries, and related API contracts. This commit also reorganizes the API security backlog structure and includes supporting mobile/iOS adjustments.
+
+### API ZTA MVP documentation and architecture
+
+1. Added the new implementation document:
+
+   * `api/docs/implementations/03-zta-step-up-transaction-password.md`
+
+     * Defined the first ZTA MVP increment for BankLab.
+     * Introduced the transactional password concept as an additional authorization factor.
+     * Defined the short-lived step-up token model with single-use semantics.
+     * Documented the complete authorization flow using:
+
+       * JWT session authentication
+       * transactional password validation
+       * endpoint-scoped step-up token enforcement
+     * Added Mermaid sequence diagrams and a visual flow image.
+     * Defined:
+
+       * endpoint names
+       * logical endpoint keys
+       * JSON payload fields
+       * response envelopes
+       * initial error contracts
+     * Documented:
+
+       * Policy Enforcement Point (PEP)
+       * Policy Engine
+       * Transaction Password Factor
+       * architectural positioning between delivery and application layers
+     * Introduced conceptual data models for:
+
+       * `transaction_passwords`
+       * `step_up_tokens`
+
+2. Added ZTA MVP backlog foundation:
+
+   * `docs/backlogs/api/006 - zta-mvp-foundation.md`
+
+     * Established the architectural direction for the new `internal/security` module.
+     * Defined module responsibilities and future evolution goals.
+     * Documented the initial ZTA enforcement flow and dependency boundaries.
+     * Listed MVP scope exclusions and future security evolution points.
+
+3. Added transactional password backlog:
+
+   * `docs/backlogs/api/006a - transaction-password.md`
+
+     * Defined:
+
+       * transactional password creation flow
+       * PIN rules
+       * temporary blocking behavior
+       * failure counting
+       * conceptual persistence model
+     * Documented all initial business constraints and expected error scenarios.
+
+4. Added transactional password implementation task breakdown:
+
+   * `docs/backlogs/api/006a - transaction-password_tasks.md`
+
+     * Created a complete 8-task implementation roadmap covering:
+
+       * migrations
+       * domain modeling
+       * repository contracts
+       * Postgres persistence
+       * use cases
+       * HTTP delivery
+       * error mapping
+       * automated tests
+     * Added detailed objectives, scope, acceptance criteria, and dependency mapping for each task.
+
+5. Added step-up token backlog:
+
+   * `docs/backlogs/api/006b - step-up-token.md`
+
+     * Defined the hybrid JWT + persisted `jti` model.
+     * Specified:
+
+       * token claims
+       * expiration behavior
+       * atomic consumption requirements
+       * endpoint scoping
+       * issuance flow
+     * Documented conceptual persistence model and related errors.
+
+6. Added internal transfer enforcement backlog:
+
+   * `docs/backlogs/api/006c - internal-transfer-step-up-enforcement.md`
+
+     * Defined protection rules for:
+
+       * `POST /accounts/internal-transfers`
+     * Documented:
+
+       * `X-Step-Up-Token` validation
+       * endpoint-key validation
+       * single-use enforcement
+       * user/token matching
+       * atomic token consumption behavior
+     * Clarified delivery-to-security interaction boundaries.
+
+7. Added ZTA contracts and documentation backlog:
+
+   * `docs/backlogs/api/006d - zta-contracts-and-docs.md`
+
+     * Consolidated:
+
+       * response envelope standards
+       * endpoint naming
+       * JSON fields
+       * step-up response contract
+       * HTTP error mapping
+     * Formalized the initial public error-code contract for ZTA operations.
+
+8. Updated backlog index:
+
+   * `docs/backlogs/README.md`
+
+     * Added references to all ZTA MVP backlogs.
+     * Reorganized API backlog listing around the new security initiative.
+
+9. Reorganized completed onboarding backlog:
+
+   * Moved:
+
+     * `docs/backlogs/api/001 - onboarding.md`
+     * to:
+     * `docs/backlogs/api/done/001 - onboarding.md`
+
+### API documentation assets
+
+10. Added new architectural flow image:
+
+    * `api/docs/images/fluxo_senha-trans.png`
+
+      * Added visual representation of the transactional password and step-up authorization flow.
+
+### Mobile Flutter improvements
+
+11. Refactored birthdate selection state handling:
+
+    * `mobile/lib/ui/pages/register/register_birthdate_page.dart`
+
+      * Replaced mutable `DateTime?` state with:
+
+        * `ValueNotifier<DateTime?>`
+      * Added `ValueListenableBuilder` for granular UI updates.
+      * Simplified reactive rendering for selected date display.
+      * Updated initialization and validation flow to use notifier values consistently.
+      * Preserved age validation behavior for account creation.
+
+### iOS / Flutter build system updates
+
+12. Updated iOS Flutter integration:
+
+    * `mobile/ios/Runner.xcodeproj/project.pbxproj`
+    * `mobile/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme`
+    * `mobile/ios/Podfile.lock`
+
+      * Migrated plugin integration toward Swift Package Manager-based Flutter plugin handling.
+      * Added `FlutterGeneratedPluginSwiftPackage`.
+      * Added Xcode pre-build prepare script for Flutter framework generation.
+      * Removed obsolete CocoaPods embed framework script entries.
+      * Updated iOS dependency metadata accordingly.
+
+### Tooling and local environment updates
+
+13. Updated Postman environment:
+
+    * `tools/postman/Environment.postman_environment.json`
+
+      * Adjusted local `base_url` IP address for current development environment.
+
+This commit establishes the first concrete architectural and contractual foundation for ZTA inside BankLab, introducing a layered security model centered on transactional authorization, short-lived step-up tokens, and explicit policy enforcement before sensitive financial operations.
+
+
+
 ## 2026/05/22 - milestone/basic-banking-core
 
 This commit establishes an important architectural milestone for the BankLab project.

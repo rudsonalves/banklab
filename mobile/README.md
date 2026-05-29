@@ -17,7 +17,6 @@ This is an engineering-oriented app focused on integration quality, predictable 
 
 - authentication with JWT, including approval-pending login states before access is granted
 - multi-step account creation onboarding and account lifecycle interactions
-- deposit and withdraw operations
 - transfer between accounts
 - transaction history visualization
 
@@ -51,7 +50,7 @@ Adjust or load the environment expected by your run configuration so the app poi
 From repository root:
 
 ```bash
-make mobile-test
+make mobile-tests
 make mobile-test-unit
 ```
 

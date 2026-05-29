@@ -71,6 +71,9 @@ func (m *contactVerificationRepositoryMock) CreateContactVerification(
 	verification *domain.ContactVerification,
 ) error {
 	m.createCalls++
+	if m.createErr == nil && verification.ID == uuid.Nil {
+		verification.ID = uuid.New()
+	}
 	m.createdVerification = verification
 	return m.createErr
 }

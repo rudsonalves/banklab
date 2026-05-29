@@ -50,3 +50,9 @@ DROP SEQUENCE IF EXISTS account_number_seq;
 
 DROP TYPE IF EXISTS transaction_type;
 DROP TYPE IF EXISTS account_status;
+
+-- ============================================================
+-- EXTENSIONS
+-- ============================================================
+
+DROP EXTENSION IF EXISTS pgcrypto;

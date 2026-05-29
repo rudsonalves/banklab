@@ -128,12 +128,14 @@ Example:
 
 ### 5.2 Client Errors
 
-| Code | Usage                        |
-| ---- | ---------------------------- |
-| 400  | invalid request              |
-| 404  | resource not found           |
-| 409  | conflict (e.g., duplication) |
-| 422  | business rule violation      |
+| Code | Usage                                       |
+| ---- | ------------------------------------------- |
+| 401  | authentication/authorization token issues   |
+| 403  | forbidden access or missing required factor |
+| 400  | invalid request                             |
+| 404  | resource not found                          |
+| 409  | conflict (e.g., duplication)                |
+| 422  | business rule violation                     |
 
 ---
 
@@ -147,14 +149,24 @@ Example:
 
 ## 6. Domain Error Mapping
 
-| Domain Error            | HTTP | Code                    |
-| ----------------------- | ---- | ----------------------- |
-| customer already exists | 409  | CUSTOMER_ALREADY_EXISTS |
-| account not found       | 404  | ACCOUNT_NOT_FOUND       |
-| insufficient funds      | 422  | INSUFFICIENT_FUNDS      |
-| invalid amount          | 400  | INVALID_AMOUNT          |
-| inactive account        | 422  | ACCOUNT_INACTIVE        |
-| duplicate operation     | 409  | DUPLICATE_REQUEST       |
+| Domain Error                  | HTTP | Code                          |
+| ----------------------------- | ---- | ----------------------------- |
+| customer already exists       | 409  | CUSTOMER_ALREADY_EXISTS       |
+| account not found             | 404  | ACCOUNT_NOT_FOUND             |
+| insufficient funds            | 422  | INSUFFICIENT_FUNDS            |
+| invalid amount                | 400  | INVALID_AMOUNT                |
+| inactive account              | 422  | ACCOUNT_INACTIVE              |
+| duplicate operation           | 409  | DUPLICATE_REQUEST             |
+| step-up endpoint not allowed  | 403  | STEP_UP_ENDPOINT_NOT_ALLOWED  |
+| transaction password required | 403  | TRANSACTION_PASSWORD_REQUIRED |
+| transaction password not set  | 409  | TRANSACTION_PASSWORD_NOT_SET  |
+| transaction password invalid  | 401  | TRANSACTION_PASSWORD_INVALID  |
+| transaction password locked   | 403  | TRANSACTION_PASSWORD_LOCKED   |
+| step-up token required        | 401  | STEP_UP_TOKEN_REQUIRED        |
+| step-up token invalid         | 401  | STEP_UP_TOKEN_INVALID         |
+| step-up token expired         | 401  | STEP_UP_TOKEN_EXPIRED         |
+| step-up token consumed        | 401  | STEP_UP_TOKEN_CONSUMED        |
+| step-up endpoint mismatch     | 403  | STEP_UP_ENDPOINT_MISMATCH     |
 
 ---
 

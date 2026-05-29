@@ -46,12 +46,11 @@ func (r Role) IsValid() bool {
 
 // NewUser constructs a User and enforces domain invariants.
 // For RoleCustomer, customerID must be non-nil.
-func NewUser(id uuid.UUID, email, passwordHash string, role Role, customerID *uuid.UUID, now time.Time) (*User, error) {
+func NewUser(email, passwordHash string, role Role, customerID *uuid.UUID, now time.Time) (*User, error) {
 	if role == RoleCustomer && customerID == nil {
 		return nil, ErrInvalidUserState
 	}
 	return &User{
-		ID:           id,
 		Email:        email,
 		PasswordHash: passwordHash,
 		Role:         role,

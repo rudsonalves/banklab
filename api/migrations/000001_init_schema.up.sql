@@ -3,6 +3,12 @@
 -- Replaces all prior incremental migrations.
 
 -- ============================================================
+-- EXTENSIONS
+-- ============================================================
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ============================================================
 -- ENUMS
 -- ============================================================
 
@@ -42,7 +48,7 @@ $$ LANGUAGE plpgsql;
 -- ============================================================
 
 CREATE TABLE customers (
-    id         UUID PRIMARY KEY,
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name       VARCHAR(120) NOT NULL,
     cpf        VARCHAR(11)  NOT NULL UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -51,7 +57,7 @@ CREATE TABLE customers (
 );
 
 CREATE TABLE accounts (
-    id          UUID PRIMARY KEY,
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id UUID        NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
     number      VARCHAR(20) NOT NULL UNIQUE,
     branch      VARCHAR(10) NOT NULL,
@@ -61,7 +67,7 @@ CREATE TABLE accounts (
 );
 
 CREATE TABLE users (
-    id            UUID PRIMARY KEY,
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email         VARCHAR(120) NOT NULL UNIQUE,
     password_hash TEXT         NOT NULL,
     role          VARCHAR(20)  NOT NULL,
@@ -75,7 +81,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_sessions (
-    id         UUID        PRIMARY KEY,
+    id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash CHAR(64)    NOT NULL UNIQUE,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -85,7 +91,7 @@ CREATE TABLE user_sessions (
 
 -- Immutable financial ledger. All balance changes are recorded here.
 CREATE TABLE transactions (
-    id                UUID         PRIMARY KEY,
+    id                UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id        UUID         NOT NULL REFERENCES accounts(id),
     type              transaction_type NOT NULL,
     amount            BIGINT       NOT NULL,

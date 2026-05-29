@@ -11,6 +11,7 @@ DB_URL=postgres://postgres:postgres@localhost:5432/bank?sslmode=disable
 MIGRATIONS_PATH=api/migrations
 BOOK_PT_DIR=api/docs/visao_geral
 TEMPLATE=templates/eisvogel.latex
+DOCKER_COMPOSE=docker compose -f docker-compose.yml -p banklab
 
 # =========================
 # Help
@@ -27,16 +28,16 @@ help: ## List available commands
 # Docker
 # =========================
 docker-up: ## Start Docker containers in detached mode
-	docker compose up -d --no-recreate
+	$(DOCKER_COMPOSE) up -d --no-recreate
 
 docker-down: ## Stop and remove Docker containers
-	docker compose down
+	$(DOCKER_COMPOSE) down
 
 docker-logs: ## Follow Docker container logs
-	docker compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 docker-clean: ## Remove containers and volumes
-	docker compose down -v
+	$(DOCKER_COMPOSE) down -v
 
 docker-check: ## Check if Docker is running
 	@if command -v colima > /dev/null 2>&1; then \
@@ -55,13 +56,13 @@ run: docker-check docker-up db-wait migrate-up api-run ## Start full system
 reset: docker-check docker-clean docker-up db-wait db-reset migrate-up ## Hard reset environment
 
 db-reset: ## Reset only the database
-	docker exec -i bank-postgres psql -U postgres -c "DROP DATABASE IF EXISTS bank;"
-	docker exec -i bank-postgres psql -U postgres -c "CREATE DATABASE bank;"
+	$(DOCKER_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS bank WITH (FORCE);"
+	$(DOCKER_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "CREATE DATABASE bank;"
 
 db-wait: ## Wait for the database to be ready
 	@echo "Waiting for database..."
 	@for i in $$(seq 1 30); do \
-		if docker exec bank-postgres pg_isready -U postgres > /dev/null 2>&1; then \
+		if $(DOCKER_COMPOSE) exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then \
 			echo "Database is ready"; \
 			exit 0; \
 		fi; \
@@ -112,7 +113,7 @@ migrate-down: ## Rollback last API database migration
 	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down
 
 dbschema: ## Export database schema to schema.sql
-	docker exec -t bank-postgres pg_dump -U postgres -d bank > schema.sql
+	$(DOCKER_COMPOSE) exec -T postgres pg_dump -U postgres -d bank > schema.sql
 
 # =========================
 # Mobile (Flutter)

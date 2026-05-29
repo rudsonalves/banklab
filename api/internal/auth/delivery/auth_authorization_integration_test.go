@@ -365,6 +365,7 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 	t.Helper()
 
 	statements := []string{
+		`CREATE EXTENSION IF NOT EXISTS pgcrypto`,
 		`CREATE TABLE IF NOT EXISTS customers (
 			id UUID PRIMARY KEY,
 			name VARCHAR(120) NOT NULL,
@@ -400,7 +401,7 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		)`,
 		`CREATE SEQUENCE IF NOT EXISTS account_number_seq START WITH 10000000 INCREMENT BY 1`,
 		`CREATE TABLE IF NOT EXISTS transactions (
-			id UUID PRIMARY KEY,
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			account_id UUID NOT NULL REFERENCES accounts(id),
 			type VARCHAR(20) NOT NULL,
 			amount BIGINT NOT NULL,
@@ -428,7 +429,7 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP WITH TIME ZONE`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP WITH TIME ZONE`,
 		`CREATE TABLE IF NOT EXISTS contact_verifications (
-			id UUID PRIMARY KEY,
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			channel VARCHAR(20) NOT NULL,
 			target VARCHAR(160) NOT NULL,
 			token VARCHAR(20) NOT NULL,
@@ -438,13 +439,15 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 			CONSTRAINT chk_contact_verifications_channel CHECK (channel IN ('email', 'phone'))
 		)`,
+		`ALTER TABLE contact_verifications
+			ALTER COLUMN id SET DEFAULT gen_random_uuid()`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS contact_verifications_unique_target_channel
 			ON contact_verifications(target, channel)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS contact_verifications_unique_verification_token
 			ON contact_verifications(verification_token)
 			WHERE verification_token IS NOT NULL`,
 		`CREATE TABLE IF NOT EXISTS user_sessions (
-			id UUID PRIMARY KEY,
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			token_hash CHAR(64) NOT NULL UNIQUE,
 			expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -470,6 +473,10 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 
 	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS description TEXT`); err != nil {
 		t.Fatalf("failed to ensure transactions.description column: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `ALTER TABLE transactions ALTER COLUMN id SET DEFAULT gen_random_uuid()`); err != nil {
+		t.Fatalf("failed to ensure transactions.id default: %v", err)
 	}
 
 	if _, err := pool.Exec(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS ux_transactions_idempotency

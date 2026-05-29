@@ -27,8 +27,12 @@ backlogs/
 
 ### API
 
-- [000 - pre-onboarding.md](<api/000 - pre-onboarding.md>): reestruturação cadastral antes do onboarding.
-- [001 - onboarding.md](<api/001 - onboarding.md>): evolução do onboarding por checkpoints.
+- [006 - zta-mvp-foundation.md](<api/006 - zta-mvp-foundation.md>): fundação e decisões do MVP de ZTA.
+- [006a - transaction-password.md](<api/006a - transaction-password.md>): criação da senha transacional, tentativas e bloqueio.
+- [006a - transaction-password_tasks.md](<api/006a - transaction-password_tasks.md>): tasks da senha transacional.
+- [006b - step-up-token.md](<api/006b - step-up-token.md>): autorização de step-up, token curto e consumo único.
+- [006c - internal-transfer-step-up-enforcement.md](<api/006c - internal-transfer-step-up-enforcement.md>): enforcement na transferência interna.
+- [006d - zta-contracts-and-docs.md](<api/006d - zta-contracts-and-docs.md>): contratos HTTP, erros e documentação.
 
 ### Mobile
 

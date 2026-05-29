@@ -23,11 +23,14 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 
 	t.Run("create and query user with null customer id", func(t *testing.T) {
 		user := testUser(time.Now().UTC())
-		defer cleanupUserByID(t, ctx, pool, user.ID)
 
 		err := repo.Create(ctx, user)
 		if err != nil {
 			t.Fatalf("expected no error creating user, got %v", err)
+		}
+		defer cleanupUserByID(t, ctx, pool, user.ID)
+		if user.ID == uuid.Nil {
+			t.Fatal("expected repository to populate generated user id")
 		}
 
 		gotByEmail, err := repo.FindByEmail(ctx, user.Email)
@@ -77,11 +80,11 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 
 	t.Run("update status", func(t *testing.T) {
 		user := testUser(time.Now().UTC())
-		defer cleanupUserByID(t, ctx, pool, user.ID)
 
 		if err := repo.Create(ctx, user); err != nil {
 			t.Fatalf("expected no error creating user, got %v", err)
 		}
+		defer cleanupUserByID(t, ctx, pool, user.ID)
 
 		if err := repo.UpdateStatus(ctx, user.ID, domain.UserStatusActive); err != nil {
 			t.Fatalf("expected no error updating status, got %v", err)
@@ -104,7 +107,6 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		email := strings.ToLower(uuid.NewString()) + "@example.com"
 
 		userA := &domain.User{
-			ID:           uuid.New(),
 			Email:        email,
 			PasswordHash: "hash-a",
 			Role:         domain.RoleCustomer,
@@ -112,10 +114,8 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}
-		defer cleanupUserByID(t, ctx, pool, userA.ID)
 
 		userB := &domain.User{
-			ID:           uuid.New(),
 			Email:        email,
 			PasswordHash: "hash-b",
 			Role:         domain.RoleCustomer,
@@ -123,11 +123,11 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}
-		defer cleanupUserByID(t, ctx, pool, userB.ID)
 
 		if err := repo.Create(ctx, userA); err != nil {
 			t.Fatalf("expected first create to succeed, got %v", err)
 		}
+		defer cleanupUserByID(t, ctx, pool, userA.ID)
 
 		err := repo.Create(ctx, userB)
 		if err == nil {
@@ -206,7 +206,7 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS users (
-			id UUID PRIMARY KEY,
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(120) NOT NULL UNIQUE,
 			phone VARCHAR(20) UNIQUE,
 			password_hash TEXT NOT NULL,
@@ -251,7 +251,6 @@ func cleanupUserByID(t *testing.T, ctx context.Context, pool *pgxpool.Pool, user
 
 func testUser(now time.Time) *domain.User {
 	return &domain.User{
-		ID:           uuid.New(),
 		Email:        strings.ToLower(uuid.NewString()) + "@example.com",
 		Phone:        "+5511" + strings.ReplaceAll(uuid.NewString(), "-", "")[:9],
 		PasswordHash: "hashed-password",

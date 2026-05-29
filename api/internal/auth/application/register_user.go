@@ -134,13 +134,21 @@ func (uc *RegisterUserUseCase) Execute(
 			return err
 		}
 
-		cpfDocument, err := customerdomain.NewCPFDocument(customer.ID, input.CPF, true)
-		if err != nil {
-			return err
+		normalizedCPF := customerdomain.NormalizeCPF(input.CPF)
+		if normalizedCPF == "" {
+			return customerdomain.ErrCPFRequired
+		}
+		if !customerdomain.ValidateCPF(normalizedCPF) {
+			return customerdomain.ErrCPFInvalid
 		}
 
 		if err := uc.customerRepo.Create(txCtx, customer); err != nil {
 			return fmt.Errorf("create customer: %w", err)
+		}
+
+		cpfDocument, err := customerdomain.NewCPFDocument(customer.ID, normalizedCPF, true)
+		if err != nil {
+			return err
 		}
 
 		if err := uc.customerDocumentRepo.CreateDocument(txCtx, cpfDocument); err != nil {
@@ -155,7 +163,7 @@ func (uc *RegisterUserUseCase) Execute(
 		customerID := customer.ID
 		now := time.Now().UTC()
 		var newUserErr error
-		user, newUserErr = domain.NewUser(uuid.New(), email, hash, domain.RoleCustomer, &customerID, now)
+		user, newUserErr = domain.NewUser(email, hash, domain.RoleCustomer, &customerID, now)
 		if newUserErr != nil {
 			return newUserErr
 		}
