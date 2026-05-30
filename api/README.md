@@ -102,9 +102,13 @@ make api-build
 4. Run API:
 
 ```bash
-export JWT_SECRET=dev-change-me
+export APP_TOKEN=dev-app-token
+export JWT_SECRET=dev-jwt-secret
+export TRANSACTION_PASSWORD_PEPPER=dev-transaction-password-pepper-32chars-min
 ./api/build/bank-api
 ```
+
+Use a dedicated random value for `TRANSACTION_PASSWORD_PEPPER` (for example `openssl rand -base64 32`) and do not reuse `APP_TOKEN` or `JWT_SECRET`.
 
 Default URL: http://localhost:8080
 

@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026/05/30 — api/transaction-password-papper-01
+
+Implements transaction password pepper hardening in the API, adding a required server-side secret to strengthen PIN hashing while preserving the public mobile contract.
+
+### 1. Configuration
+
+* Added `TRANSACTION_PASSWORD_PEPPER` to API bootstrap configuration.
+* Added fail-fast validation for:
+
+  * missing pepper;
+  * pepper shorter than 32 characters;
+  * pepper equal to `APP_TOKEN`;
+  * pepper equal to `JWT_SECRET`.
+
+### 2. Transaction Password Hashing
+
+* Updated `BcryptTransactionPasswordHasher` to require a pepper.
+* Added HMAC-SHA256 preprocessing before bcrypt.
+* Encoded the HMAC output as base64 before hashing.
+* Updated both `Hash` and `Compare` to use the pepper-derived value.
+* Kept the persisted value as a valid bcrypt hash.
+
+### 3. API Wiring
+
+* Updated `cmd/api/main.go` to inject `config.TransactionPasswordPepper` into the transaction password hasher.
+
+### 4. Tests
+
+* Added unit tests for the transaction password hasher.
+* Covered:
+
+  * empty pepper validation;
+  * successful hash and compare;
+  * wrong password failure;
+  * different pepper failure;
+  * valid bcrypt hash generation.
+
+### 5. Documentation and Setup
+
+* Updated API README and getting started documentation with `TRANSACTION_PASSWORD_PEPPER`.
+* Added guidance for generating the pepper with `openssl rand -base64 32`.
+* Documented that pepper rotation invalidates existing transaction password hashes without a migration strategy.
+* Updated `ensure-env-files.sh` to generate and persist a local pepper for new API `.env` files.
+
+### 6. Backlog Organization
+
+* Moved the public step-up endpoint contract backlog to `done`.
+* Added the completed transaction password pepper backlog and task documentation under `docs/backlogs/api/done`.
+
+The API now requires a dedicated transaction password pepper, applies it before bcrypt hashing, and is ready to support the mobile transaction password flow without changing public request contracts.
+
+
 ## 2026/05/29 - api/zta-mvp-transactional-password-15
 
 This commit completes the migration of the step-up authorization public contract from internal endpoint keys to public HTTP operations (`method` + `path`), strengthening API encapsulation and preventing clients from depending on internal policy identifiers.

@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026/05/30 — api/transaction-password-pepper
+
+Implements and closes the transaction password pepper hardening backlog,
+introducing a required API-side pepper for transaction password hashing while
+preserving public mobile contracts.
+
+---
+
+### 1. Bootstrap Configuration (fail-fast)
+
+* Added required `TRANSACTION_PASSWORD_PEPPER` in API config loading
+* Startup now fails when pepper is missing
+* Startup now fails when pepper is shorter than 32 characters
+* Startup now fails when pepper matches `APP_TOKEN` or `JWT_SECRET`
+
+---
+
+### 2. Transaction Password Hasher Hardening
+
+* Updated transaction password hasher constructor to require pepper
+* Added preprocessing before bcrypt:
+  * `HMAC-SHA256(key=pepper, message=PIN)`
+  * `base64(mac)`
+* `Hash` and `Compare` now use the derived value instead of raw PIN
+* Persisted value remains a valid bcrypt hash
+
+---
+
+### 3. Wiring Update
+
+* Updated API composition root (`cmd/api/main.go`) to inject
+  `config.TransactionPasswordPepper` into transaction password hasher
+
+---
+
+### 4. Documentation and Local Setup
+
+* Updated getting started documentation to include
+  `TRANSACTION_PASSWORD_PEPPER`
+* Added local guidance for secret generation (`openssl rand -base64 32`)
+* Documented that rotating pepper invalidates existing transaction password
+  hashes without migration strategy
+* Updated env initialization script to create pepper for new `api/.env` files
+
+---
+
+### 5. Verification and Contract Stability
+
+* `go test ./...` passed in API after the full change set
+* Tests cover failure when hash is validated with a different pepper
+* Public mobile contract remained unchanged:
+  * `POST /security/transaction-password`
+  * `POST /security/step-up/authorize`
+  * `transaction_password` request field
+
+---
+
 ## 2026/04/17 — api/refresh_token-02
 
 Refactors and hardens the refresh token flow to guarantee **atomic rotation, consistency, and correctness of session management**, while simplifying dependency contracts and eliminating invalid execution paths.

@@ -62,7 +62,10 @@ func main() {
 	// Services
 	// ======================
 	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
-	transactionPasswordHasher := securityInfrastructure.NewBcryptTransactionPasswordHasher(bcrypt.DefaultCost)
+	transactionPasswordHasher := securityInfrastructure.NewBcryptTransactionPasswordHasher(
+		bcrypt.DefaultCost,
+		config.TransactionPasswordPepper,
+	)
 	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, 15*time.Minute)
 	stepUpTokenSigner := securityInfrastructure.NewJWTStepUpTokenSigner(config.JWTSecret)
 	stepUpTokenVerifier := securityInfrastructure.NewJWTStepUpTokenVerifier(config.JWTSecret)
