@@ -67,6 +67,7 @@ Add the following variables:
 ```env
 APP_TOKEN=your_app_token_here
 JWT_SECRET=your_jwt_secret_here
+TRANSACTION_PASSWORD_PEPPER=your_transaction_password_pepper_here
 ```
 
 Example:
@@ -74,7 +75,20 @@ Example:
 ```env
 APP_TOKEN=a3f5905dc26977e9408b3eca832869c2d49e4f7cf6d2026cff234075fd703ad5
 JWT_SECRET=b03ff724fc843ace8ea69f2e00bdb6192e342f90038a8532d55bae3d42427d2d
+TRANSACTION_PASSWORD_PEPPER=Q3xZW9o7K5f7M2x8d6Vf2f4i1xP7X2zVj7jv4C7mK2Y=
 ```
+
+To generate a strong pepper value:
+
+```bash
+openssl rand -base64 32
+```
+
+Requirements:
+
+- `TRANSACTION_PASSWORD_PEPPER` must be at least 32 characters
+- `TRANSACTION_PASSWORD_PEPPER` must be different from `APP_TOKEN` and `JWT_SECRET`
+- never commit the real value to Git
 
 ### Description
 
@@ -85,6 +99,11 @@ JWT_SECRET=b03ff724fc843ace8ea69f2e00bdb6192e342f90038a8532d55bae3d42427d2d
 - **JWT_SECRET**
   - Used to sign and validate JWT tokens
   - Must remain stable between application restarts
+
+- **TRANSACTION_PASSWORD_PEPPER**
+  - Used as an API-side secret to derive transaction password input before bcrypt
+  - Is never stored in the database
+  - Rotating this value invalidates existing transaction password hashes unless a migration strategy is implemented
 
 ---
 
@@ -250,6 +269,12 @@ or
 
 ```
 missing required environment variable: JWT_SECRET
+```
+
+or
+
+```
+TRANSACTION_PASSWORD_PEPPER environment variable is required
 ```
 
 Ensure the file `api/.env` exists and is correctly populated.

@@ -9,8 +9,9 @@ import (
 )
 
 type Config struct {
-	AppToken  string
-	JWTSecret string
+	AppToken                  string
+	JWTSecret                 string
+	TransactionPasswordPepper string
 }
 
 // Init initializes the application by loading environment variables
@@ -33,9 +34,27 @@ func LoadConfig() Config {
 		log.Fatal("JWT_SECRET environment variable is required")
 	}
 
+	transactionPasswordPepper := os.Getenv("TRANSACTION_PASSWORD_PEPPER")
+	if transactionPasswordPepper == "" {
+		log.Fatal("TRANSACTION_PASSWORD_PEPPER environment variable is required")
+	}
+
+	if len(transactionPasswordPepper) < 32 {
+		log.Fatal("TRANSACTION_PASSWORD_PEPPER must be at least 32 characters")
+	}
+
+	if transactionPasswordPepper == appToken {
+		log.Fatal("TRANSACTION_PASSWORD_PEPPER must not match APP_TOKEN")
+	}
+
+	if transactionPasswordPepper == jwtSecret {
+		log.Fatal("TRANSACTION_PASSWORD_PEPPER must not match JWT_SECRET")
+	}
+
 	return Config{
-		AppToken:  appToken,
-		JWTSecret: jwtSecret,
+		AppToken:                  appToken,
+		JWTSecret:                 jwtSecret,
+		TransactionPasswordPepper: transactionPasswordPepper,
 	}
 }
 

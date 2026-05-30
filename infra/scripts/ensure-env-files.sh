@@ -27,6 +27,21 @@ random_hex_64() {
   date +%s | shasum -a 256 | awk '{print $1}'
 }
 
+random_base64_32() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -base64 32
+    return 0
+  fi
+
+  if command -v xxd >/dev/null 2>&1; then
+    xxd -l 32 -p /dev/urandom | xxd -r -p | base64
+    return 0
+  fi
+
+  # Last-resort fallback for local dev only.
+  date +%s | shasum -a 256 | awk '{print $1}'
+}
+
 extract_env_value() {
   local file="$1"
   local key="$2"
@@ -56,6 +71,11 @@ if [[ -z "$JWT_SECRET" ]]; then
   JWT_SECRET="$(random_hex_64)"
 fi
 
+TRANSACTION_PASSWORD_PEPPER="$(extract_env_value "$API_ENV" "TRANSACTION_PASSWORD_PEPPER")"
+if [[ -z "$TRANSACTION_PASSWORD_PEPPER" ]]; then
+  TRANSACTION_PASSWORD_PEPPER="$(random_base64_32)"
+fi
+
 create_if_missing() {
   local file="$1"
   local content="$2"
@@ -72,7 +92,8 @@ EOF
 }
 
 create_if_missing "$API_ENV" "APP_TOKEN=$APP_TOKEN
-JWT_SECRET=$JWT_SECRET"
+JWT_SECRET=$JWT_SECRET
+TRANSACTION_PASSWORD_PEPPER=$TRANSACTION_PASSWORD_PEPPER"
 
 create_if_missing "$MOBILE_DEV_ENV" "BASE_URL=http://localhost:8080
 
