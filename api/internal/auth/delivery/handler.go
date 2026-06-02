@@ -26,6 +26,10 @@ type getCurrentUserUseCase interface {
 	Execute(ctx context.Context) (*application.GetCurrentUserOutput, error)
 }
 
+type getSessionUseCase interface {
+	Execute(ctx context.Context) (*application.GetSessionOutput, error)
+}
+
 type refreshAccessTokenUseCase interface {
 	Execute(ctx context.Context, input application.RefreshAccessTokenInput) (*application.RefreshAccessTokenOutput, error)
 }
@@ -42,6 +46,7 @@ type Handler struct {
 	registerUser               registerUserUseCase
 	loginUser                  loginUserUseCase
 	getCurrentUser             getCurrentUserUseCase
+	getSession                 getSessionUseCase
 	refreshAccessToken         refreshAccessTokenUseCase
 	requestContactVerification requestContactVerificationUseCase
 	confirmContactVerification confirmContactVerificationUseCase
@@ -93,6 +98,35 @@ type loginData struct {
 	CustomerID   *uuid.UUID `json:"customer_id,omitempty"`
 }
 
+type sessionData struct {
+	User      sessionUserData      `json:"user"`
+	Customer  sessionCustomerData  `json:"customer"`
+	Readiness sessionReadinessData `json:"readiness"`
+}
+
+type sessionUserData struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+	Phone string    `json:"phone"`
+	Role  string    `json:"role"`
+}
+
+type sessionCustomerData struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CPF       string    `json:"cpf"`
+	BirthDate string    `json:"birth_date"`
+	CreatedAt string    `json:"created_at"`
+}
+
+type sessionReadinessData struct {
+	OnboardingCompleted       bool   `json:"onboarding_completed"`
+	Approved                  bool   `json:"approved"`
+	HasOperationalAccount     bool   `json:"has_operational_account"`
+	TransactionPasswordStatus string `json:"transaction_password_status"`
+	CanAccessHome             bool   `json:"can_access_home"`
+}
+
 type refreshAccessTokenData struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
@@ -109,8 +143,9 @@ func New(
 	refreshAccessToken refreshAccessTokenUseCase,
 	requestContactVerification requestContactVerificationUseCase,
 	confirmContactVerification confirmContactVerificationUseCase,
+	getSession ...getSessionUseCase,
 ) *Handler {
-	return &Handler{
+	handler := &Handler{
 		registerUser:               registerUser,
 		loginUser:                  loginUser,
 		getCurrentUser:             getCurrentUser,
@@ -118,6 +153,11 @@ func New(
 		requestContactVerification: requestContactVerification,
 		confirmContactVerification: confirmContactVerification,
 	}
+	if len(getSession) > 0 {
+		handler.getSession = getSession[0]
+	}
+
+	return handler
 }
 
 // Register handles HTTP requests for user registration.
@@ -262,6 +302,14 @@ func isValidRegisterRequest(req registerUserRequest) bool {
 	return true
 }
 
+func formatDate(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+
+	return value.Format("2006-01-02")
+}
+
 // Login handles the HTTP request for user login. It validates the input, calls the
 // loginUser use case to perform the login operation, and returns the access token,
 // refresh token, and user information in the response. If any step in the process
@@ -327,6 +375,47 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		Email:      output.Email,
 		Role:       output.Role,
 		CustomerID: output.CustomerID,
+	})
+}
+
+func (h *Handler) Session(w http.ResponseWriter, r *http.Request) {
+	if h.getSession == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	output, err := h.getSession.Execute(r.Context())
+	if err != nil {
+		log.Printf("event=get_session error=%v", err)
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+	if output == nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(nil))
+		return
+	}
+
+	sharedhttp.WriteJSON(w, http.StatusOK, sessionData{
+		User: sessionUserData{
+			ID:    output.User.ID,
+			Email: output.User.Email,
+			Phone: output.User.Phone,
+			Role:  output.User.Role,
+		},
+		Customer: sessionCustomerData{
+			ID:        output.Customer.ID,
+			Name:      output.Customer.Name,
+			CPF:       output.Customer.CPF,
+			BirthDate: formatDate(output.Customer.BirthDate),
+			CreatedAt: output.Customer.CreatedAt.Format(time.RFC3339),
+		},
+		Readiness: sessionReadinessData{
+			OnboardingCompleted:       output.Readiness.OnboardingCompleted,
+			Approved:                  output.Readiness.Approved,
+			HasOperationalAccount:     output.Readiness.HasOperationalAccount,
+			TransactionPasswordStatus: output.Readiness.TransactionPasswordStatus,
+			CanAccessHome:             output.Readiness.CanAccessHome,
+		},
 	})
 }
 

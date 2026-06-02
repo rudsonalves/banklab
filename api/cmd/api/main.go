@@ -96,6 +96,7 @@ func main() {
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
+	getSessionUC := authApplication.NewGetSessionUseCase(userRepo, customerRepo, accountRepo, transactionPasswordRepo)
 	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
 	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
 	createTransactionPasswordUC := securityApplication.NewCreateTransactionPasswordUseCase(transactionPasswordRepo, userRepo, transactionPasswordHasher)
@@ -126,6 +127,7 @@ func main() {
 		refreshAccessTokenUC,
 		requestContactVerificationUC,
 		confirmContactVerificationUC,
+		getSessionUC,
 	)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC, checkCPFUC)
@@ -182,6 +184,7 @@ func newAuthRouter(
 	// Session refresh is authenticated by the refresh token payload itself.
 	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
 	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
+	authRouter.Handle("GET /auth/session", withAuth(http.HandlerFunc(authHandler.Session)))
 
 	return authRouter
 }

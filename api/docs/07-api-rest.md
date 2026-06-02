@@ -14,7 +14,8 @@
     - [3.1 Register User](#31-register-user)
     - [3.2 Login User](#32-login-user)
     - [3.3 Refresh Access Token](#33-refresh-access-token)
-    - [3.4 Get Current User](#34-get-current-user)
+    - [3.4 Get Auth Session](#34-get-auth-session)
+    - [3.4.1 Get Current User](#341-get-current-user)
     - [3.5 Approve User (Admin Only)](#35-approve-user-admin-only)
     - [3.6 Create Customer Account (Admin Only)](#36-create-customer-account-admin-only)
     - [3.7 Create Transaction Password](#37-create-transaction-password)
@@ -39,7 +40,8 @@
     - [9.1 POST /auth/register](#91-post-authregister)
     - [9.2 POST /auth/login](#92-post-authlogin)
     - [9.3 POST /auth/refresh](#93-post-authrefresh)
-    - [9.4 GET /auth/me](#94-get-authme)
+    - [9.4 GET /auth/session](#94-get-authsession)
+    - [9.4.1 GET /auth/me](#941-get-authme)
     - [9.5 GET /accounts](#95-get-accounts)
     - [9.6 POST /admin/customers/{customer\_id}/accounts](#96-post-admincustomerscustomer_idaccounts)
     - [9.7 POST /terminal/accounts/{id}/deposit](#97-post-terminalaccountsiddeposit)
@@ -71,7 +73,7 @@ Content type:
 Authentication:
 - `POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, and `POST /auth/login` require header `X-App-Token: <app_token>`
 - `POST /auth/refresh` requires a valid `refresh_token` in the request body
-- `GET /auth/me`, all `/accounts` and `/accounts/*`, all `/customers/*`, and `POST /security/transaction-password` require JWT Bearer token
+- `GET /auth/session`, `GET /auth/me`, all `/accounts` and `/accounts/*`, all `/customers/*`, and `POST /security/transaction-password` require JWT Bearer token
 - Send JWT in header `Authorization: Bearer <access_token>`
 
 Access control summary:
@@ -427,7 +429,72 @@ Possible errors:
 - 401 INVALID_TOKEN: invalid, revoked, expired, or unknown refresh token
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 3.4 Get Current User
+### 3.4 Get Auth Session
+
+- Method: GET
+- Path: /auth/session
+- Auth required: JWT Bearer token
+
+Returns the canonical authenticated session snapshot for clients after login.
+This endpoint is intended to replace client-side composition of `GET /auth/me`
+and `GET /customers/me` during app bootstrap, while keeping those endpoints
+available for compatibility and focused use cases.
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "user": {
+      "id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+      "email": "user@example.com",
+      "phone": "+5527999999999",
+      "role": "customer"
+    },
+    "customer": {
+      "id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
+      "name": "Maria Silva",
+      "cpf": "12345678901",
+      "birth_date": "1990-01-15",
+      "created_at": "2026-05-29T10:00:00Z"
+    },
+    "readiness": {
+      "onboarding_completed": true,
+      "approved": true,
+      "has_operational_account": true,
+      "transaction_password_status": "active",
+      "can_access_home": true
+    }
+  },
+  "error": null
+}
+```
+
+Readiness fields:
+- `onboarding_completed`: currently returns `true`; future onboarding steps,
+  such as address, may change this value.
+- `approved`: whether the authenticated customer user is approved/active.
+- `has_operational_account`: whether the customer has at least one active
+  account.
+- `transaction_password_status`: one of `active`, `not_set`, `locked`, or
+  `unknown`.
+- `can_access_home`: decision calculated by the API for post-login routing.
+
+The response intentionally does not include `user.customer_id` or
+`customer.email`. The customer identifier is represented by `customer.id`, and
+the authenticated contact e-mail belongs to `user.email`.
+
+The endpoint never returns transaction password material, password hashes,
+pepper values, step-up tokens, or any other sensitive credential material.
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 409 INVALID_USER_STATE: customer user has an inconsistent customer link
+- 404 CUSTOMER_NOT_FOUND or equivalent: linked customer record was not found
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 3.4.1 Get Current User
 
 - Method: GET
 - Path: /auth/me
@@ -1417,7 +1484,37 @@ Scenario: missing/invalid JWT authentication
 }
 ```
 
-### 9.4 GET /auth/me
+### 9.4 GET /auth/session
+
+Scenario: missing/invalid authentication
+- Status: 401
+- Code: UNAUTHORIZED or INVALID_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+Scenario: invalid customer user state
+- Status: 409
+- Code: INVALID_USER_STATE
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_USER_STATE",
+    "message": "Invalid user state"
+  }
+}
+```
+
+### 9.4.1 GET /auth/me
 
 Scenario: missing/invalid authentication
 - Status: 401

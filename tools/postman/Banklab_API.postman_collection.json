@@ -710,6 +710,34 @@
           "response": []
         },
         {
+          "name": "Session",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/session",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "session"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Me",
           "request": {
             "auth": {

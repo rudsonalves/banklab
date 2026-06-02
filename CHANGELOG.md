@@ -1,5 +1,68 @@
 # Changelog
 
+## 2026/06/02 - api/auth-session-bootstrap-01
+
+Implement authenticated session bootstrap endpoint for post-login API readiness.
+
+1. `api/cmd/api/main.go`
+
+   * Wired `GetSessionUseCase` into the auth module dependencies.
+   * Registered `GET /auth/session` as a JWT-protected route.
+   * Passed the session use case into the auth handler constructor.
+
+2. `api/cmd/api/routes_test.go`
+
+   * Added route coverage to ensure `/auth/session` is wrapped by the authentication middleware.
+
+3. `api/internal/auth/application/get_session.go`
+
+   * Added `GetSessionUseCase`.
+   * Implemented authenticated user resolution from context.
+   * Loaded user, linked customer, operational accounts, and transaction password state.
+   * Calculated readiness fields for post-login routing.
+   * Added transaction password session states: `active`, `not_set`, `locked`, and `unknown`.
+
+4. `api/internal/auth/application/get_session_test.go`
+
+   * Added application tests for ready sessions, missing transaction password, missing auth context, invalid customer link, and missing customer profile.
+
+5. `api/internal/auth/delivery/handler.go`
+
+   * Added `Session` handler.
+   * Added response DTOs for `user`, `customer`, and `readiness`.
+   * Ensured sensitive fields such as `user.customer_id`, `customer.email`, and credential material are not returned.
+   * Added date formatting for customer birth date.
+
+6. `api/internal/auth/delivery/handler_test.go`
+
+   * Added delivery tests for successful session response.
+   * Added unauthorized session response coverage.
+   * Validated response shape and excluded fields.
+
+7. `api/docs/07-api-rest.md`
+
+   * Documented `GET /auth/session`.
+   * Updated authentication requirements and endpoint index.
+   * Added success and error response examples.
+   * Clarified that `/auth/me` remains available for compatibility.
+
+8. `tools/postman/Banklab_API.postman_collection.json`
+
+   * Added Postman request for `GET /auth/session` using bearer authentication.
+
+9. `docs/backlogs/api/009 - auth-session-bootstrap_tasks.md`
+
+   * Marked all API session bootstrap tasks as completed.
+   * Added final alignment notes and validation checklist.
+
+10. `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
+
+* Updated the mobile backlog to use `GET /auth/session` as the post-login gate source.
+* Removed pending API-contract assumptions and obsolete `next_required_step` references.
+
+This change completes the API-side session bootstrap contract and provides the mobile client with a single canonical endpoint for post-login readiness decisions.
+
+
 ## 2026/06/02 - backlog/api-009-auth-session-bootstrap
 
 Add backlog documentation for the authenticated post-login session bootstrap flow.

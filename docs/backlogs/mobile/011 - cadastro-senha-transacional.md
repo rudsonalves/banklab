@@ -52,14 +52,9 @@ Finalidade:
 Permitir que o mobile saiba, após login, se o usuário autenticado já possui
 senha transacional ativa.
 
-Este contrato ainda não existe na API atual. Hoje, o módulo de segurança expõe
-apenas:
-
-- `POST /security/transaction-password`;
-- `POST /security/step-up/authorize`.
-
-Portanto, o gate pós-login depende de uma evolução de contrato na API antes de
-ser concluído no mobile.
+O status da senha transacional deve ser lido do snapshot de sessão autenticada
+em `GET /auth/session`, definido pela backlog de API
+`docs/backlogs/api/009 - auth-session-bootstrap.md`.
 
 O mobile não deve descobrir a existência da senha tentando criá-la e tratando
 `TRANSACTION_PASSWORD_ALREADY_SET`, porque isso mistura verificação de estado
@@ -79,8 +74,7 @@ Resposta parcial esperada:
   "data": {
     "readiness": {
       "transaction_password_status": "active",
-      "can_access_home": true,
-      "next_required_step": null
+      "can_access_home": true
     }
   },
   "error": null
@@ -178,7 +172,7 @@ Endpoint existente hoje:
 
 - `POST /security/transaction-password`.
 
-Endpoint necessário, ainda pendente de API:
+Endpoint de sessão usado pelo gate pós-login:
 
 - `GET /auth/session`, conforme backlog
   `docs/backlogs/api/009 - auth-session-bootstrap.md`.
@@ -187,7 +181,6 @@ Endpoint necessário, ainda pendente de API:
 
 Uso:
 
-- ainda depende de contrato na API;
 - chamado após login bem-sucedido, depois que a sessão estiver disponível;
 - chamado antes de navegar para a Home;
 - não envia body;
@@ -206,12 +199,7 @@ DTOs sugeridos:
 
 - DTO de sessão pós-login no módulo de auth/session;
 - campos mínimos para este fluxo:
-  `readiness.transactionPasswordStatus`, `readiness.canAccessHome` e
-  `readiness.nextRequiredStep`.
-
-Enquanto esse contrato não existir, a implementação mobile pode preparar o
-pacote, DTOs e fronteira de repositório, mas o gate pós-login real fica
-bloqueado pela API.
+  `readiness.transactionPasswordStatus` e `readiness.canAccessHome`.
 
 ### 4.3 Endpoint: criar senha transacional
 
@@ -403,8 +391,7 @@ Verificação pós-login:
 
 - Usuário autenticado consegue criar senha transacional pelo app.
 - Após login, app verifica se o usuário possui senha transacional ativa.
-- Verificação pós-login usa `GET /auth/session` quando esse contrato existir na
-  API.
+- Verificação pós-login usa `GET /auth/session`.
 - Usuário sem senha transacional ativa é direcionado para cadastro antes da
   Home.
 - Usuário com senha transacional ativa segue para a Home.

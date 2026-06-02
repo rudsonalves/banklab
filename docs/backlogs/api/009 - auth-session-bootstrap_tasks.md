@@ -13,7 +13,7 @@ Campos sugeridos para todas as tasks:
 
 ## Task 1/7: Definir DTO de resposta de sessão
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -62,7 +62,7 @@ padronizado da aplicação.
 
 ## Task 2/7: Criar use case de sessão autenticada
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -98,7 +98,7 @@ pós-login.
 
 ## Task 3/7: Consultar senha transacional e calcular readiness
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -139,7 +139,7 @@ bootstrap pós-login.
 
 ## Task 4/7: Implementar handler e rota `GET /auth/session`
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -168,7 +168,7 @@ Expor o novo contrato HTTP autenticado.
 
 ## Task 5/7: Cobrir testes de application e delivery
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -205,7 +205,7 @@ Garantir cobertura automatizada do contrato e das regras de sessão.
 
 ## Task 6/7: Atualizar documentação REST e referências mobile
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -238,7 +238,7 @@ Documentar o novo endpoint e sua relação com o bootstrap pós-login do mobile.
 
 ## Task 7/7: Validar alinhamento final da API
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -271,3 +271,43 @@ documentação.
 
 - Task 5.
 - Task 6.
+
+### Registro de alinhamento final
+
+Data de fechamento: 2026-06-02
+
+Verificações executadas:
+
+- `go test ./...` executado na API com sucesso.
+- `GET /auth/session` registrado com autenticação JWT.
+- Handler `Session` retorna envelope padronizado `{ data, error }`.
+- Resposta inclui:
+  - `user.id`;
+  - `user.email`;
+  - `user.phone`;
+  - `user.role`;
+  - `customer.id`;
+  - `customer.name`;
+  - `customer.cpf`;
+  - `customer.birth_date`;
+  - `customer.created_at`;
+  - `readiness.onboarding_completed`;
+  - `readiness.approved`;
+  - `readiness.has_operational_account`;
+  - `readiness.transaction_password_status`;
+  - `readiness.can_access_home`.
+- Resposta não inclui:
+  - `user.customer_id`;
+  - `customer.email`;
+  - `readiness.next_required_step`.
+- `/auth/me` e `/customers/me` permanecem disponíveis.
+- Documentação REST atualizada.
+- Collection Postman atualizada.
+- Backlog mobile de cadastro de senha transacional alinhado para usar
+  `GET /auth/session` no gate pós-login.
+
+Conclusão:
+
+- Implementação da API está alinhada com contrato, testes e documentação.
+- O mobile pode migrar o bootstrap pós-login para `GET /auth/session` em etapa
+  posterior.

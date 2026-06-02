@@ -168,6 +168,30 @@ func TestAPIRouter_StepUpAuthorizeRouteRequiresAuth(t *testing.T) {
 	}
 }
 
+func TestAuthRouter_SessionRouteRequiresAuth(t *testing.T) {
+	authCalled := false
+	router := newAuthRouter(
+		authDelivery.New(nil, nil, nil, nil, nil, nil),
+		customerDelivery.New(nil, nil),
+		func(next http.Handler) http.Handler { return next },
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				authCalled = true
+				next.ServeHTTP(w, r)
+			})
+		},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if !authCalled {
+		t.Fatal("expected auth session route to be wrapped by auth middleware")
+	}
+}
+
 func assertInvalidAppToken(t *testing.T, rec *httptest.ResponseRecorder) {
 	t.Helper()
 
