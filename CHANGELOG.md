@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026/06/02 - backlog/api-009-auth-session-bootstrap
+
+Add backlog documentation for the authenticated post-login session bootstrap flow.
+
+1. `docs/backlogs/README.md`
+
+   * Replaced completed API backlog entries with the new `009 - auth-session-bootstrap` backlog and tasks.
+   * Split the previous mobile transactional password and step-up backlog into two independent entries:
+
+     * transactional password registration;
+     * internal transfer step-up authorization.
+
+2. `docs/backlogs/api/009 - auth-session-bootstrap.md`
+
+   * Added the parent backlog for `GET /auth/session`.
+   * Defined the endpoint objective, response contract, readiness fields, compatibility strategy, errors, out-of-scope items, acceptance criteria, and implementation references.
+   * Established `GET /auth/session` as the canonical authenticated bootstrap endpoint for post-login clients.
+
+3. `docs/backlogs/api/009 - auth-session-bootstrap_tasks.md`
+
+   * Added seven implementation tasks covering DTOs, use case, readiness calculation, HTTP handler, tests, REST documentation, and final API validation.
+
+4. `docs/backlogs/api/done/007 - public-step-up-endpoint-contract.md`
+
+   * Updated references to point to the renamed mobile step-up backlog.
+
+5. `docs/backlogs/api/done/007 - public-step-up-endpoint-contract_tasks.md`
+
+   * Updated documentation task references to the new mobile step-up backlog name.
+
+6. `docs/backlogs/api/done/008 - transaction-password-pepper.md`
+
+   * Updated references to include both the transactional password registration backlog and the internal transfer step-up backlog.
+
+7. `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
+
+   * Added a dedicated mobile backlog for transactional password registration.
+   * Defined the post-login gate, PIN registration flow, API contracts, security constraints, architecture impacts, UX requirements, and acceptance criteria.
+
+8. `docs/backlogs/mobile/012 - step-up-transferencia-interna.md`
+
+   * Renamed and refocused the previous combined backlog.
+   * Removed transactional password registration from its scope.
+   * Kept the backlog focused on step-up authorization for internal transfers.
+   * Added retry handling for expired step-up tokens and routing behavior when the transactional password is not set.
+
+9. `api/docs/images/database.png`
+
+   * Updated the database diagram image.
+
+10. `tools/postman/Environment.postman_environment.json`
+
+* Updated the local `base_url` from `192.168.0.21` to `192.168.0.17`.
+
+This commit separates transactional password registration from transfer step-up authorization and introduces the API session bootstrap backlog required to support a cleaner post-login mobile flow.
+
+
 ## 2026/05/30 — api/transaction-password-papper-01
 
 Implements transaction password pepper hardening in the API, adding a required server-side secret to strengthen PIN hashing while preserving the public mobile contract.

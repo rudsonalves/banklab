@@ -158,4 +158,5 @@ API que ainda mudará a forma interna de persistência/validação da credencial
 - `api/internal/bootstrap/bootstrap.go`
 - `api/cmd/api/main.go`
 - `api/docs/00-getting_started.md`
-- `docs/backlogs/mobile/011 - senha-transacional-e-step-up.md`
+- `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
+- `docs/backlogs/mobile/012 - step-up-transferencia-interna.md`
