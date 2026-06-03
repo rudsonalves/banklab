@@ -3,10 +3,8 @@ import '/core/result/result.dart';
 import '/core/services/client_http/client_http.dart';
 import '/core/services/logging/console_log.dart';
 import '/domain/common/auth/models/auth_user.dart';
-import '/domain/common/auth/models/user_profile.dart';
+import '../../../../domain/common/auth/models/auth_session/auth_session.dart';
 import '../../apis/core/api_envelope.dart';
-import 'dtos/auth_me_response_dto.dart';
-import 'dtos/customer_me_response_dto.dart';
 import 'dtos/login_request_dto.dart';
 
 class AuthApi {
@@ -81,83 +79,53 @@ class AuthApi {
     }
   }
 
-  AsyncResult<UserProfile> getProfile() async {
-    final respCustomer = await _client.get(
+  AsyncResult<AuthSession> getProfile() async {
+    final result = await _client.get(
       RestClientRequest(
-        path: '/customers/me',
+        path: '/auth/session',
       ),
     );
 
-    if (respCustomer.isFailure) {
-      _log.error('Request failed: ${respCustomer.error}', label: 'getProfile');
-      return Result.failure(respCustomer.error!);
-    }
-
-    final respMe = await _client.get(
-      RestClientRequest(
-        path: '/auth/me',
-      ),
-    );
-
-    if (respMe.isFailure) {
-      _log.error('Request failed: ${respMe.error}', label: 'getProfile');
-      return Result.failure(respMe.error!);
+    if (result.isFailure) {
+      _log.error('Request failed: ${result.error}', label: 'getProfile');
+      return Result.failure(result.error!);
     }
 
     try {
-      final clientCustomer = respCustomer.value as RestClientResponse;
-      if (clientCustomer.statusCode == null ||
-          clientCustomer.statusCode! < 200 ||
-          clientCustomer.statusCode! >= 300) {
+      final response = result.value as RestClientResponse;
+      if (response.statusCode == null ||
+          response.statusCode! < 200 ||
+          response.statusCode! >= 300) {
         _log.error(
-          'HTTP error: ${clientCustomer.statusCode} ${clientCustomer.statusMessage}',
+          'HTTP error: ${response.statusCode} ${response.statusMessage}',
           label: 'getProfile',
         );
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
             message:
-                'HTTP error: ${clientCustomer.statusCode} ${clientCustomer.statusMessage}',
+                'HTTP error: ${response.statusCode} ${response.statusMessage}',
           ),
         );
       }
 
-      final envCustomer = ApiEnvelope<CustomerMeResponseDto>.fromMap(
-        clientCustomer.data as Map<String, dynamic>,
-        CustomerMeResponseDto.fromMap,
+      final apiEnv = ApiEnvelope<AuthSession>.fromMap(
+        response.data as Map<String, dynamic>,
+        AuthSession.fromApi,
       );
 
-      final clientMe = respMe.value as RestClientResponse;
-      if (clientMe.statusCode == null ||
-          clientMe.statusCode! < 200 ||
-          clientMe.statusCode! >= 300) {
-        _log.error(
-          'HTTP error: ${clientMe.statusCode} ${clientMe.statusMessage}',
-          label: 'getProfile',
-        );
+      final authSession = apiEnv.data;
+      if (authSession == null) {
+        _log.error('API error: ${apiEnv.error?.message}', label: 'getProfile');
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
-            message:
-                'HTTP error: ${clientMe.statusCode} ${clientMe.statusMessage}',
+            message: apiEnv.error?.message ?? 'Unknown API error',
           ),
         );
       }
 
-      final envUserMe = ApiEnvelope<AuthMeResponseDto>.fromMap(
-        clientMe.data as Map<String, dynamic>,
-        AuthMeResponseDto.fromMap,
-      );
-
-      final authMe = envUserMe.data!;
-      final customer = envCustomer.data!;
-
-      final userProfile = UserProfile.fromMe(
-        userMe: authMe,
-        customer: customer,
-      );
-
-      return Success(userProfile);
+      return Success(authSession);
     } catch (err, stack) {
       _log.error(
         'Error parsing response: $err',

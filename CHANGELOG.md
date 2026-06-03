@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026/06/02 - mobile/create_transaction_password-01
+
+Prepare mobile authentication session model and token input foundation.
+
+1. `docs/backlogs/api`
+
+   * Moved the completed auth session bootstrap backlog and task documents to the `done` folder.
+
+2. `mobile/ios`
+
+   * Removed CocoaPods integration references from Flutter iOS build configuration.
+   * Deleted the iOS `Podfile`.
+   * Cleaned Pods-related framework, group, build phase, and xcconfig references from the Xcode project.
+
+3. `mobile/lib/data/repositories/auth`
+
+   * Replaced `UserProfile` usage with the new `AuthSession` domain model.
+   * Updated cached last login identity to use customer name and CPF from the session payload.
+   * Adjusted profile caching to store the full authentication session.
+
+4. `mobile/lib/data/services/apis/auth`
+
+   * Changed profile loading to consume the new `GET /auth/session` endpoint.
+   * Removed the previous two-step `/customers/me` and `/auth/me` composition.
+   * Added direct parsing of the canonical API envelope into `AuthSession`.
+
+5. `mobile/lib/domain/common/auth/models/auth_session`
+
+   * Added `AuthSession`, `UserSession`, `CustommerSession`, and `ReadinessSession`.
+   * Added `TransactionPasswordStatus` enum to represent transaction password readiness.
+   * Exported the session-related models through the main auth session file.
+
+6. `mobile/lib/domain/common/auth/models`
+
+   * Removed the old `UserProfile` model.
+
+7. `mobile/lib/ui/components/input_text`
+
+   * Added `TokenInput`, a reusable numeric token/password input component with fixed-length cells, autofocus, visibility control, initial value support, and completion callbacks.
+
+8. `mobile/test/data/repositories/auth`
+
+   * Updated auth repository tests to validate the new `AuthSession` model and CPF-based cache identity.
+
+9. `mobile/test/data/services/apis/auth`
+
+   * Added tests covering the `/auth/session` contract parsing and `AuthApi.getProfile()` behavior.
+
+This commit aligns the mobile client with the new auth session contract and introduces the first UI foundation required for transaction password flows.
+
+
 ## 2026/06/02 - api/auth-session-bootstrap-01
 
 Implement authenticated session bootstrap endpoint for post-login API readiness.

@@ -9,8 +9,8 @@ import 'package:bankflow/data/services/apis/auth/auth_api.dart';
 import 'package:bankflow/data/services/apis/auth/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/cache/last_login/last_login_cache_service.dart';
 import 'package:bankflow/data/services/cache/last_login/models/last_login_identity.dart';
+import 'package:bankflow/domain/common/auth/models/auth_session/auth_session.dart';
 import 'package:bankflow/domain/common/auth/models/auth_user.dart';
-import 'package:bankflow/domain/common/auth/models/user_profile.dart';
 import 'package:bankflow/domain/common/user/enums/user_role.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -82,9 +82,9 @@ void main() {
         expect(storage.writesByKey[StorageKeys.refreshToken], 'refresh-token');
         expect(cache.saveCalls, 1);
         expect(cache.lastSavedIdentity?.name, 'Maria Silva');
-        expect(cache.lastSavedIdentity?.identifier, 'customer@example.com');
+        expect(cache.lastSavedIdentity?.identifier, '12345678901');
         expect(repository.isLoggedIn, isTrue);
-        expect(repository.userProfile?.name, 'Maria Silva');
+        expect(repository.userProfile?.customer?.name, 'Maria Silva');
       },
     );
   });
@@ -101,21 +101,33 @@ LoggedUser _loggedUser() {
   );
 }
 
-UserProfile _profile() {
-  return UserProfile(
-    userId: 'user-1',
-    customerId: 'customer-1',
-    name: 'Maria Silva',
-    email: 'customer@example.com',
-    role: UserRole.customer,
-    createdAt: DateTime(2026, 5, 13),
-    updatedAt: DateTime(2026, 5, 13),
+AuthSession _profile() {
+  return AuthSession(
+    user: UserSession(
+      userId: 'user-1',
+      email: 'customer@example.com',
+      role: UserRole.customer,
+    ),
+    customer: CustommerSession(
+      id: 'customer-1',
+      name: 'Maria Silva',
+      cpf: '12345678901',
+      birthDate: DateTime(1990, 1, 1),
+      createdAt: DateTime(2026, 5, 13),
+    ),
+    readiness: ReadinessSession(
+      onboardingCompleted: true,
+      approved: true,
+      hasOperationalAccount: true,
+      transactionPasswordStatus: TransactionPasswordStatus.active,
+      canAccessHome: true,
+    ),
   );
 }
 
 class _FakeAuthApi extends AuthApi {
   Result<LoggedUser> loginResult;
-  Result<UserProfile> profileResult;
+  Result<AuthSession> profileResult;
 
   int loginCalls = 0;
   int getProfileCalls = 0;
@@ -132,7 +144,7 @@ class _FakeAuthApi extends AuthApi {
   }
 
   @override
-  AsyncResult<UserProfile> getProfile() async {
+  AsyncResult<AuthSession> getProfile() async {
     getProfileCalls++;
     return profileResult;
   }
