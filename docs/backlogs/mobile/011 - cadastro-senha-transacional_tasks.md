@@ -284,6 +284,20 @@ Integrar os novos serviços, repositories, view models e rotas ao app.
 - Task 6.
 - Task 7.
 
+### Resultado
+
+- `TransactionPasswordApi` registrado em `Services.add` com `add`.
+- `TransactionPasswordRepository` registrado em `Repositories.add` com `add`.
+- `TransactionPasswordViewModel` registrado em `Viewmodels.add` com `add`.
+- Rotas `TransactionPasswordRoutes.create` e
+  `TransactionPasswordRoutes.confirm` adicionadas ao router.
+- Login completo e login curto navegam por nome para
+  `TransactionPasswordRoutes.create` quando o gate pós-login identifica
+  `transactionPasswordStatus = notSet`.
+- Nenhum singleton/lazy singleton mantém PIN ou confirmação; o PIN fica no
+  estado local da primeira página e cruza para confirmação via `GoRouter.extra`
+  transitório.
+
 ## Task 9/9: Validar, testar e atualizar documentação
 
 ### Objetivo
@@ -315,3 +329,13 @@ Fechar a implementação com cobertura e documentação atualizada.
 ### Depende de
 
 - Task 8.
+
+### Resultado
+
+- DTOs, API service, repository, helper de erro backend, gate pós-login,
+  view model do fluxo e codec de extras possuem testes focados.
+- `TRANSACTION_PASSWORD_ALREADY_SET` é mapeado para
+  `AppErrorCode.transactionPasswordAlreadySet` antes de chegar à decisão da UI.
+- Documentação mobile atualizada para refletir o uso de usuário logado/JWT, o
+  fluxo em duas páginas, a passagem transitória por `GoRouter.extra` e a
+  ausência de storage/cache/log para PIN e confirmação.

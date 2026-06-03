@@ -7,6 +7,9 @@ import '../core/api_envelope.dart';
 import 'dtos/create_transaction_password_request_dto.dart';
 import 'dtos/transaction_password_status_response_dto.dart';
 
+const _transactionPasswordAlreadySetBackendCode =
+    'TRANSACTION_PASSWORD_ALREADY_SET';
+
 class TransactionPasswordApi {
   final RestClient _client;
 
@@ -46,10 +49,15 @@ class TransactionPasswordApi {
           );
 
       if (envelope.error != null) {
+        final error = envelope.error!;
         return Failure(
           AppError(
-            code: AppErrorCode.httpError,
-            message: envelope.error!.message,
+            code: _mapBackendErrorCode(error.code),
+            message: error.message,
+            details: {
+              'code': error.code,
+              if (error.details != null) 'details': error.details,
+            },
           ),
         );
       }
@@ -73,5 +81,13 @@ class TransactionPasswordApi {
         ),
       );
     }
+  }
+
+  AppErrorCode _mapBackendErrorCode(String code) {
+    if (code == _transactionPasswordAlreadySetBackendCode) {
+      return AppErrorCode.transactionPasswordAlreadySet;
+    }
+
+    return AppErrorCode.httpError;
   }
 }

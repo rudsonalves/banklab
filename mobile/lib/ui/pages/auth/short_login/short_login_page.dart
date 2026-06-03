@@ -9,6 +9,7 @@ import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '../../../components/input_text/basic_input_text.dart';
+import '../models/post_login_destination.dart';
 import 'viewmodel/short_login_viewmodel.dart';
 
 const _accountApprovalRequiredMessage =
@@ -19,6 +20,10 @@ const _contactNotVerifiedEmailOnlyMessage =
     'Confirme seu e-mail antes de entrar.';
 const _contactNotVerifiedPhoneOnlyMessage =
     'Confirme seu telefone antes de entrar.';
+const _postLoginBlockedMessage =
+    'Não foi possível liberar seu acesso agora. Tente novamente.';
+const _postLoginSessionErrorMessage =
+    'Não foi possível carregar sua sessão. Entre novamente.';
 
 class ShortLoginPage extends StatefulWidget {
   final ShortLoginViewModel viewModel;
@@ -210,17 +215,39 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
       return;
     }
 
-    if (loginCommand.isSuccess) {
-      AppSnackbar.show(
-        context,
-        type: SnackbarType.success,
-        title: 'Sucesso',
-        message: 'Login realizado com sucesso.',
-      );
-    }
+    if (loginCommand.isSuccess) _handlePostLoginDestination();
+  }
 
-    if (!mounted) return;
-    context.goNamed(BaseRoutes.home.name);
+  void _handlePostLoginDestination() {
+    final destination = _viewModel.resolvePostLoginDestination();
+
+    switch (destination) {
+      case PostLoginDestination.home:
+        context.goNamed(BaseRoutes.home.name);
+        return;
+
+      case PostLoginDestination.transactionPassword:
+        context.goNamed(TransactionPasswordRoutes.create.name);
+        return;
+
+      case PostLoginDestination.blocked:
+        AppSnackbar.show(
+          context,
+          type: SnackbarType.error,
+          title: 'Acesso indisponível',
+          message: _postLoginBlockedMessage,
+        );
+        return;
+
+      case PostLoginDestination.sessionError:
+        AppSnackbar.show(
+          context,
+          type: SnackbarType.error,
+          title: 'Sessão indisponível',
+          message: _postLoginSessionErrorMessage,
+        );
+        return;
+    }
   }
 
   String _resolveLoginErrorMessage(AppError? error) {

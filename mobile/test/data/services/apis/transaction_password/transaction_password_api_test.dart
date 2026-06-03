@@ -71,7 +71,45 @@ void main() {
       expect(result, isA<Failure<TransactionPasswordStatusResponseDto>>());
       expect(result.error?.code, AppErrorCode.httpError);
       expect(result.error?.message, 'transaction password is invalid');
+      expect(backendErrorCode(result.error), 'VALIDATION_ERROR');
     });
+
+    test(
+      'maps already set backend envelope error to specific AppErrorCode',
+      () async {
+        final api = TransactionPasswordApi(
+          _FakeRestClient(
+            postResult: const Result.success(
+              RestClientResponse(
+                statusCode: 200,
+                data: {
+                  'data': null,
+                  'error': {
+                    'code': 'TRANSACTION_PASSWORD_ALREADY_SET',
+                    'message': 'transaction password already set',
+                  },
+                },
+              ),
+            ),
+          ),
+        );
+
+        final result = await api.create(
+          CreateTransactionPasswordRequestDto(
+            password: '123456',
+            confirmation: '123456',
+          ),
+        );
+
+        expect(result, isA<Failure<TransactionPasswordStatusResponseDto>>());
+        expect(result.error?.code, AppErrorCode.transactionPasswordAlreadySet);
+        expect(result.error?.message, 'transaction password already set');
+        expect(
+          backendErrorCode(result.error),
+          'TRANSACTION_PASSWORD_ALREADY_SET',
+        );
+      },
+    );
 
     test('maps non-2xx response to HTTP error failure', () async {
       final api = TransactionPasswordApi(

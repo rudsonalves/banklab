@@ -7,7 +7,9 @@ import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/messages/app_snackbar.dart';
+import '../../../../core/extensions/string.dart';
 import '../../../components/input_text/basic_input_text.dart';
+import '../models/post_login_destination.dart';
 import 'viewmodel/login_viewmodel.dart';
 
 const _accountApprovalRequiredMessage =
@@ -18,6 +20,10 @@ const _contactNotVerifiedEmailOnlyMessage =
     'Confirme seu e-mail antes de entrar.';
 const _contactNotVerifiedPhoneOnlyMessage =
     'Confirme seu telefone antes de entrar.';
+const _postLoginBlockedMessage =
+    'Não foi possível liberar seu acesso agora. Tente novamente.';
+const _postLoginSessionErrorMessage =
+    'Não foi possível carregar sua sessão. Entre novamente.';
 
 class LoginPage extends StatefulWidget {
   final LoginViewModel viewModel;
@@ -187,12 +193,7 @@ class _LoginPageState extends State<LoginPage> {
     final email = (value ?? '').trim();
     if (email.isEmpty) return 'Informe o e-mail.';
 
-    final emailRegex = RegExp(
-      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-    );
-    if (!emailRegex.hasMatch(email)) {
-      return 'Informe um e-mail valido.';
-    }
+    if (!email.isValidEmail) return 'Informe um e-mail válido.';
 
     return null;
   }
@@ -201,7 +202,7 @@ class _LoginPageState extends State<LoginPage> {
     final password = value ?? '';
     if (password.isEmpty) return 'Informe a senha.';
     if (password.length < 6) {
-      return 'A senha deve ter no minimo 6 caracteres.';
+      return 'A senha deve ter no mínimo 6 caracteres.';
     }
     return null;
   }
@@ -224,17 +225,39 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    if (loginCommand.isSuccess) {
-      AppSnackbar.show(
-        context,
-        type: SnackbarType.success,
-        title: 'Sucesso',
-        message: 'Login realizado com sucesso.',
-      );
-    }
+    if (loginCommand.isSuccess) _handlePostLoginDestination();
+  }
 
-    if (!mounted) return;
-    context.goNamed(BaseRoutes.home.name);
+  void _handlePostLoginDestination() {
+    final destination = _viewModel.resolvePostLoginDestination();
+
+    switch (destination) {
+      case PostLoginDestination.home:
+        context.goNamed(BaseRoutes.home.name);
+        return;
+
+      case PostLoginDestination.transactionPassword:
+        context.goNamed(TransactionPasswordRoutes.create.name);
+        return;
+
+      case PostLoginDestination.blocked:
+        AppSnackbar.show(
+          context,
+          type: SnackbarType.error,
+          title: 'Acesso indisponível',
+          message: _postLoginBlockedMessage,
+        );
+        return;
+
+      case PostLoginDestination.sessionError:
+        AppSnackbar.show(
+          context,
+          type: SnackbarType.error,
+          title: 'Sessão indisponível',
+          message: _postLoginSessionErrorMessage,
+        );
+        return;
+    }
   }
 
   String _resolveLoginErrorMessage(AppError? error) {

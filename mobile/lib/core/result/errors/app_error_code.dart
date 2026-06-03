@@ -24,4 +24,7 @@ enum AppErrorCode {
 
   // Registration-specific
   cpfAlreadyRegistered,
+
+  // Transaction password-specific
+  transactionPasswordAlreadySet,
 }

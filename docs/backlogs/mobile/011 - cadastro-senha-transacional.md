@@ -309,9 +309,11 @@ Elementos mínimos:
 - estados de loading, sucesso e erro;
 - feedback claro quando a senha já existe.
 
-A senha transacional deve ficar apenas em estado local/transitório da tela ou do
-view model responsável pelo formulário. Ela não deve ser persistida, enviada em
-route extras, cache local ou estado global duradouro.
+A senha transacional deve ficar apenas em estado local/transitório do fluxo. Na
+implementação atual, o PIN é passado da página de criação para a página de
+confirmação via `GoRouter.extra` como dado transitório entre rotas, sem storage,
+cache local, log, analytics ou singleton/lazy singleton segurando o valor em
+memória duradoura.
 
 ## 7. Erros que o mobile deve tratar
 
@@ -353,9 +355,12 @@ Gate pós-login via snapshot de sessão já existente:
 - Não persistir senha transacional.
 - Não logar senha transacional.
 - Não enviar senha transacional em analytics.
-- Não colocar senha transacional em route extras.
+- Não persistir senha transacional em route state recuperável, deep link,
+  storage, cache ou estado global duradouro.
+- Permitir apenas passagem transitória via `GoRouter.extra` entre as páginas de
+  criação e confirmação.
 - Não armazenar senha transacional em secure storage.
-- Usar somente `error.code` para decisão de fluxo.
+- Usar `error.code`/`AppErrorCode` tipado para decisão de fluxo.
 - Usar helper compartilhado para extrair o código de erro da API e evitar
   strings soltas nas telas.
 
@@ -394,6 +399,8 @@ Gate pós-login via snapshot de sessão já existente:
 - App não usa tentativa de criação como checagem principal de existência da
   senha transacional.
 - App trata `TRANSACTION_PASSWORD_ALREADY_SET` por `error.code`.
+- App mapeia `TRANSACTION_PASSWORD_ALREADY_SET` para
+  `AppErrorCode.transactionPasswordAlreadySet` antes da decisão na UI.
 - App trata `notSet` no gate pós-login a partir de
   `readiness.transactionPasswordStatus`.
 - App usa helper compartilhado para aplicar o gate pós-login no login completo

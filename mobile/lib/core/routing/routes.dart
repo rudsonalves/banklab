@@ -9,6 +9,15 @@ enum AuthRoutes {
   final String path;
 }
 
+enum TransactionPasswordRoutes {
+  create('/transaction-password/create'),
+  confirm('/transaction-password/confirm');
+
+  const TransactionPasswordRoutes(this.path);
+
+  final String path;
+}
+
 enum RegisterRoutes {
   cpf('/register/cpf'),
   name('/register/name'),
@@ -19,8 +28,7 @@ enum RegisterRoutes {
   phoneToken('/register/phone-token'),
   password('/register/password'),
   success('/register/success'),
-  failure('/register/failure')
-  ;
+  failure('/register/failure');
 
   const RegisterRoutes(this.path);
 
@@ -30,8 +38,7 @@ enum RegisterRoutes {
 enum BaseRoutes {
   home('/home'),
   splash('/splash'),
-  statement('/statement')
-  ;
+  statement('/statement');
 
   const BaseRoutes(this.path);
 
@@ -40,8 +47,7 @@ enum BaseRoutes {
 
 enum GeneralRoutes {
   splash('/splash'),
-  receipt('/receipt')
-  ;
+  receipt('/receipt');
 
   const GeneralRoutes(this.path);
 
@@ -53,8 +59,7 @@ enum TransferRoutes {
   payment('/payment'),
   confirmation('/confirmation'),
   statusSuccess('/status/success'),
-  statusFailure('/status/failure')
-  ;
+  statusFailure('/status/failure');
 
   const TransferRoutes(this.path);
 
@@ -62,8 +67,7 @@ enum TransferRoutes {
 }
 
 enum SharedRoutes {
-  details('/details')
-  ;
+  details('/details');
 
   const SharedRoutes(this.path);
 
