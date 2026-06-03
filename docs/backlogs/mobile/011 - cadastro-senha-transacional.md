@@ -45,22 +45,20 @@ O fluxo mobile deve:
 
 ## 3. Contratos de API
 
-### 3.1 Verificar status da senha transacional
+### 3.1 Sessão autenticada já disponível
 
-Finalidade:
+Dependência já implementada:
 
-Permitir que o mobile saiba, após login, se o usuário autenticado já possui
-senha transacional ativa.
-
-O status da senha transacional deve ser lido do snapshot de sessão autenticada
-em `GET /auth/session`, definido pela backlog de API
-`docs/backlogs/api/009 - auth-session-bootstrap.md`.
+O status da senha transacional já é lido do snapshot de sessão autenticada em
+`GET /auth/session`, implementado pela backlog de API
+`docs/backlogs/api/009 - auth-session-bootstrap.md` e já consumido pelo fluxo
+mobile de login.
 
 O mobile não deve descobrir a existência da senha tentando criá-la e tratando
 `TRANSACTION_PASSWORD_ALREADY_SET`, porque isso mistura verificação de estado
 com mutação.
 
-Formato decidido para a evolução da API:
+Formato disponível:
 
 ```http
 GET /auth/session
@@ -81,15 +79,11 @@ Resposta parcial esperada:
 }
 ```
 
-Detalhes do contrato estão na backlog
+Detalhes do contrato estão na backlog concluída
 `docs/backlogs/api/009 - auth-session-bootstrap.md`.
 
-Erros relevantes para o mobile:
-
-- `TRANSACTION_PASSWORD_NOT_SET`: usuário ainda não cadastrou senha
-  transacional;
-- `UNAUTHORIZED` / `INVALID_TOKEN`: sessão ausente ou inválida;
-- `FORBIDDEN`: usuário autenticado não está apto para a operação.
+Nesta backlog, esse contrato deve ser usado apenas como fonte do gate
+pós-login. Não há novo endpoint de status a implementar.
 
 ### 3.2 Criar senha transacional
 
@@ -99,7 +93,7 @@ Criar a primeira senha transacional do usuário autenticado.
 
 Autenticação:
 
-- exige JWT válido no header `Authorization`;
+- exige usuário logado, com JWT válido no header `Authorization`;
 - não usa `X-Step-Up-Token`;
 - não deve receber senha de login.
 
@@ -155,7 +149,7 @@ Erros relevantes para o mobile:
 A implementação mobile deve começar pela criação do pacote de API:
 
 ```text
-mobile/lib/data/services/apis/senha_transacional/
+mobile/lib/data/services/apis/transaction_password/
 ```
 
 Esse pacote deve concentrar as chamadas de senha transacional. A UI, os view
@@ -163,53 +157,23 @@ models e os use cases não devem montar paths, headers ou payloads diretamente.
 
 ### 4.1 Mapa de endpoints
 
-| Fluxo | Método | Path | Uso no mobile | API service sugerido |
-| --- | --- | --- | --- | --- |
-| Cadastro | `POST` | `/security/transaction-password` | Criar a senha transacional com PIN e confirmação. | `SenhaTransacionalApi.create()` |
-| Gate pós-login | `GET` | `/auth/session` | Verificar readiness pós-login, incluindo senha transacional ativa antes de liberar a Home. | API de sessão/auth pós-login |
+| Fluxo    | Método | Path                             | Uso no mobile                                     | API service sugerido              |
+| -------- | ------ | -------------------------------- | ------------------------------------------------- | --------------------------------- |
+| Cadastro | `POST` | `/security/transaction-password` | Criar a senha transacional com PIN e confirmação. | `TransactionPasswordApi.create()` |
 
 Endpoint existente hoje:
 
 - `POST /security/transaction-password`.
 
-Endpoint de sessão usado pelo gate pós-login:
-
-- `GET /auth/session`, conforme backlog
-  `docs/backlogs/api/009 - auth-session-bootstrap.md`.
-
-### 4.2 Endpoint: status da senha transacional
-
-Uso:
-
-- chamado após login bem-sucedido, depois que a sessão estiver disponível;
-- chamado antes de navegar para a Home;
-- não envia body;
-- depende apenas do JWT injetado pelo interceptor de autenticação;
-- não usa `X-App-Token`;
-- não usa `X-Step-Up-Token`.
-
-Resultado esperado no mobile:
-
-- sucesso com `status = active`: liberar Home;
-- `TRANSACTION_PASSWORD_NOT_SET`: navegar para cadastro de senha transacional;
-- `UNAUTHORIZED` / `INVALID_TOKEN`: tratar como sessão inválida;
-- `FORBIDDEN`: bloquear o avanço e exibir erro apropriado.
-
-DTOs sugeridos:
-
-- DTO de sessão pós-login no módulo de auth/session;
-- campos mínimos para este fluxo:
-  `readiness.transactionPasswordStatus` e `readiness.canAccessHome`.
-
-### 4.3 Endpoint: criar senha transacional
+### 4.2 Endpoint: criar senha transacional
 
 Uso:
 
 - chamado somente a partir do fluxo de cadastro;
+- exige usuário logado;
 - recebe PIN e confirmação;
 - não recebe senha de login;
 - depende apenas do JWT injetado pelo interceptor de autenticação;
-- não usa `X-App-Token`;
 - não usa `X-Step-Up-Token`.
 
 Resultado esperado no mobile:
@@ -225,13 +189,13 @@ Resultado esperado no mobile:
 
 DTOs sugeridos:
 
-- `CreateSenhaTransacionalRequestDto`;
-- `SenhaTransacionalStatusResponseDto`, reutilizando o mesmo formato de
+- `CreateTransactionPasswordRequestDto`;
+- `TransactionPasswordStatusResponseDto`, reutilizando o mesmo formato de
   metadados retornado pelo status.
 
-### 4.4 Fora deste pacote inicial
+### 4.3 Fora deste pacote inicial
 
-Não entram em `data/services/apis/senha_transacional/` nesta backlog:
+Não entram em `data/services/apis/transaction_password/` nesta backlog:
 
 - `POST /security/step-up/authorize`;
 - envio de `X-Step-Up-Token`;
@@ -243,7 +207,7 @@ Esses pontos pertencem à backlog
 Também não entra como endpoint de segurança nesta backlog:
 
 - `GET /auth/session`, porque ele pertence ao bootstrap de sessão pós-login e
-  será definido na backlog de API `009 - auth-session-bootstrap.md`.
+  já foi implementado pela backlog de API `009 - auth-session-bootstrap.md`.
 
 ## 5. Fluxo de produto
 
@@ -253,7 +217,8 @@ Fluxo obrigatório após login:
 
 1. O usuário faz login com sucesso.
 2. O app salva a sessão conforme o fluxo atual.
-3. O app verifica se o usuário possui senha transacional ativa.
+3. O app usa o snapshot já carregado de `GET /auth/session` para verificar se
+   o usuário possui senha transacional ativa.
 4. Se possuir senha transacional ativa, o app navega para a Home.
 5. Se não possuir senha transacional ativa, o app navega para o cadastro da
    senha transacional.
@@ -267,15 +232,23 @@ explicitamente definida.
 
 1. O usuário autenticado acessa a criação de senha transacional após o gate de
    pós-login.
-2. O app solicita PIN de 6 dígitos.
-3. O app solicita confirmação do PIN.
+2. O app solicita PIN de 6 dígitos na primeira página do fluxo.
+3. O app solicita confirmação do PIN na segunda página do fluxo.
 4. O app valida formato e confirmação localmente.
-5. O app chama `POST /security/transaction-password`.
+5. O app chama `POST /security/transaction-password`, que é a operação
+   responsável por criar a credencial na API.
 6. Em sucesso, o app considera a senha transacional ativa.
 7. O app navega para a Home.
 
 Decisões iniciais:
 
+- usar helper compartilhado para decidir a navegação pós-login a partir de
+  `AuthRepository.userProfile.readiness`;
+- bloquear o acesso à Home apenas no fluxo pós-login desta backlog, sem criar
+  guard global de rotas neste momento;
+- começar a implementação com view model + repository, sem use case dedicado;
+- criar helper para extrair o `error.code` real retornado pela API quando ele
+  vier encapsulado em `AppError.details`;
 - não criar recuperação, troca ou reset de senha transacional neste backlog;
 - não integrar este fluxo à execução de transferência neste backlog;
 - não usar tentativa de criação como mecanismo principal de verificação de
@@ -290,43 +263,48 @@ Decisões iniciais:
 Adicionar API service para o módulo de segurança, seguindo o padrão de
 `mobile/lib/data/services/apis`:
 
-- pacote `data/services/apis/senha_transacional/`;
-- `SenhaTransacionalApi` ou equivalente;
-- DTO de status da senha transacional, caso o status venha de endpoint de
-  segurança dedicado;
+- pacote `data/services/apis/transaction_password/`;
+- `TransactionPasswordApi` ou equivalente;
 - DTO de criação de senha transacional;
 - DTO de resposta com metadados da credencial criada.
 
 ### 6.2 Repository layer
 
-Adicionar repositório de segurança:
+O status da senha transacional para o gate pós-login deve continuar vindo da
+sessão autenticada (`GET /auth/session`), já carregada pelo fluxo de login.
 
-- verificar status da senha transacional;
+Adicionar um repositório dedicado de senha transacional:
+
 - criar senha transacional;
 - mapear erros relevantes para erros de aplicação;
 - expor resultado de sucesso sem retornar dados sensíveis.
 
 ### 6.3 Domain/use case layer
 
-Criar use case ou método específico para o cadastro quando a coordenação ficar
-maior que uma simples delegação de view model para repositório.
+A implementação inicial não deve criar use case dedicado para este fluxo.
 
-O use case, se criado, deve:
+O cadastro deve ser coordenado por view model + repository:
 
-- coordenar o gate pós-login quando o usuário não possuir senha transacional;
-- validar a intenção de cadastro em termos de aplicação;
-- delegar a chamada ao repositório de segurança;
-- retornar `Result`/`AsyncResult`;
-- não conhecer widgets, navegação ou controllers.
+- view model valida formato, confirmação local e estados de UI;
+- repository delega a chamada ao API service e mapeia erros relevantes;
+- repository retorna `Result`/`AsyncResult`;
+- nenhum singleton/lazy singleton deve manter PIN ou confirmação em memória
+  duradoura.
+
+Um use case stateless pode ser introduzido depois se o fluxo ganhar regras de
+aplicação além de validação local e chamada ao repositório.
 
 ### 6.4 UI layer
 
 Elementos mínimos:
 
-- tela ou fluxo para cadastrar senha transacional;
+- fluxo em duas páginas para cadastrar senha transacional;
 - navegação pós-login para o cadastro quando a senha transacional não existir;
-- componente de entrada de PIN de 6 dígitos;
-- confirmação do PIN;
+- helper compartilhado para aplicar o gate pós-login em login completo e login
+  curto;
+- primeira página com `TokenInput.visible = true` para entrada do PIN de 6
+  dígitos;
+- segunda página com `TokenInput.visible = false` para confirmação do PIN;
 - validação local antes de chamar a API;
 - estados de loading, sucesso e erro;
 - feedback claro quando a senha já existe.
@@ -348,19 +326,22 @@ Criação da senha transacional:
 - `INVALID_TOKEN`;
 - `FORBIDDEN`.
 
-Verificação pós-login:
+Gate pós-login via snapshot de sessão já existente:
 
-- `TRANSACTION_PASSWORD_NOT_SET`;
-- `UNAUTHORIZED`;
-- `INVALID_TOKEN`;
-- `FORBIDDEN`.
+- `readiness.transactionPasswordStatus = active`: liberar Home quando
+  `readiness.canAccessHome = true`;
+- `readiness.transactionPasswordStatus = notSet`: navegar para o cadastro da
+  senha transacional;
+- `readiness.transactionPasswordStatus = locked` ou `unknown`: bloquear avanço
+  e exibir feedback apropriado definido durante a implementação.
 
 ## 8. UX mínima
 
-- PIN de 6 dígitos.
-- Confirmação do PIN.
-- Entrada não deve mostrar o valor digitado.
+- Primeira página para PIN de 6 dígitos, usando `TokenInput.visible = true`.
+- Segunda página para confirmação do PIN, usando `TokenInput.visible = false`.
 - Validação local antes de chamar a API.
+- Mesmo com validação local, o app envia `transaction_password` e
+  `transaction_password_confirmation` para a API.
 - Após login, usuário sem senha transacional deve ser levado diretamente para o
   cadastro.
 - Após cadastro bem-sucedido, usuário deve ir para a Home.
@@ -375,12 +356,15 @@ Verificação pós-login:
 - Não colocar senha transacional em route extras.
 - Não armazenar senha transacional em secure storage.
 - Usar somente `error.code` para decisão de fluxo.
+- Usar helper compartilhado para extrair o código de erro da API e evitar
+  strings soltas nas telas.
 
 ## 10. Fora do escopo inicial
 
 - autorização step-up para transferência interna;
 - envio de `X-Step-Up-Token`;
 - acesso à Home sem senha transacional ativa;
+- guard global de rotas para proteger a Home fora do pós-login;
 - recuperação de senha transacional;
 - troca de senha transacional;
 - reset administrativo;
@@ -390,24 +374,34 @@ Verificação pós-login:
 ## 11. Critérios de aceite
 
 - Usuário autenticado consegue criar senha transacional pelo app.
-- Após login, app verifica se o usuário possui senha transacional ativa.
-- Verificação pós-login usa `GET /auth/session`.
+- Após login, app usa o snapshot de sessão já carregado para decidir se o
+  usuário possui senha transacional ativa.
 - Usuário sem senha transacional ativa é direcionado para cadastro antes da
   Home.
 - Usuário com senha transacional ativa segue para a Home.
 - Após cadastro bem-sucedido, usuário segue para a Home.
+- App usa duas páginas: PIN visível na primeira e confirmação mascarada na
+  segunda.
 - App valida PIN de 6 dígitos e confirmação localmente.
 - App chama `POST /security/transaction-password` com o payload correto.
-- Chamadas de status e criação ficam concentradas em
-  `data/services/apis/senha_transacional/`.
+- Chamada de criação fica concentrada em
+  `data/services/apis/transaction_password/`.
+- Status pós-login usa o snapshot de sessão autenticada já carregado por
+  `GET /auth/session`.
+- App executa a criação usando a sessão do usuário logado, via JWT.
 - App não envia senha de login nem `X-Step-Up-Token` nessa chamada.
 - App não persiste nem loga a senha transacional.
 - App não usa tentativa de criação como checagem principal de existência da
   senha transacional.
 - App trata `TRANSACTION_PASSWORD_ALREADY_SET` por `error.code`.
-- App trata `TRANSACTION_PASSWORD_NOT_SET` no gate pós-login por `error.code`.
+- App trata `notSet` no gate pós-login a partir de
+  `readiness.transactionPasswordStatus`.
+- App usa helper compartilhado para aplicar o gate pós-login no login completo
+  e no login curto.
+- App usa helper compartilhado para extrair `error.code` real da API.
 - App trata erros de sessão e dados inválidos por `error.code`.
-- Testes cobrem DTOs, API service, repositório e view model/use case afetados.
+- Testes cobrem DTOs, API service, repositório, helper de erro, helper de gate
+  pós-login e view models afetados.
 - Documentação mobile é atualizada ao final da implementação.
 
 ## 12. Referências

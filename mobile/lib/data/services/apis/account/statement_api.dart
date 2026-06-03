@@ -5,16 +5,9 @@ import '../core/api_envelope.dart';
 import 'dtos/statement_query_params_dto.dart';
 import 'dtos/statement_response_dto.dart';
 
-/// API service for fetching account statement data.
-///
-/// This class handles HTTP requests to retrieve transaction statements
-/// for a given account, with support for filtering via query parameters.
 class StatementApi {
   final RestClient _client;
 
-  /// Creates a new [StatementApi] instance.
-  ///
-  /// The [_client] parameter is a [RestClient] used to make HTTP requests.
   StatementApi(this._client);
 
   final _log = ConsoleLog('StatementApi');

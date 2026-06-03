@@ -33,6 +33,7 @@ backlogs/
 ### Mobile
 
 - [011 - cadastro-senha-transacional.md](<mobile/011 - cadastro-senha-transacional.md>): cadastro da senha transacional no mobile.
+- [011 - cadastro-senha-transacional_tasks.md](<mobile/011 - cadastro-senha-transacional_tasks.md>): tasks do cadastro da senha transacional no mobile.
 - [012 - step-up-transferencia-interna.md](<mobile/012 - step-up-transferencia-interna.md>): autorização step-up no fluxo mobile de transferência interna.
 
 ## Histórico

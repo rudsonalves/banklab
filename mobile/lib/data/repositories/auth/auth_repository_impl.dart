@@ -7,8 +7,8 @@ import '/data/services/apis/auth/auth_api.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/data/services/cache/last_login/last_login_cache_service.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
+import '/domain/common/auth/models/auth_session/auth_session.dart';
 import '/domain/common/auth/models/auth_user.dart';
-import '../../../domain/common/auth/models/auth_session/auth_session.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApi _api;
@@ -107,7 +107,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
     if (_authSession != null) return Success(_authSession!);
 
-    final result = await _api.getProfile();
+    final result = await _api.getAuthSession();
     if (result.isFailure) return Result.failure(result.error!);
 
     _authSession = result.value!;

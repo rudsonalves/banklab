@@ -2,9 +2,9 @@ import '/core/resources/app_env.dart';
 import '/core/result/result.dart';
 import '/core/services/client_http/client_http.dart';
 import '/core/services/logging/console_log.dart';
+import '/data/services/apis/core/api_envelope.dart';
+import '/domain/common/auth/models/auth_session/auth_session.dart';
 import '/domain/common/auth/models/auth_user.dart';
-import '../../../../domain/common/auth/models/auth_session/auth_session.dart';
-import '../../apis/core/api_envelope.dart';
 import 'dtos/login_request_dto.dart';
 
 class AuthApi {
@@ -79,7 +79,7 @@ class AuthApi {
     }
   }
 
-  AsyncResult<AuthSession> getProfile() async {
+  AsyncResult<AuthSession> getAuthSession() async {
     final result = await _client.get(
       RestClientRequest(
         path: '/auth/session',
@@ -87,7 +87,7 @@ class AuthApi {
     );
 
     if (result.isFailure) {
-      _log.error('Request failed: ${result.error}', label: 'getProfile');
+      _log.error('Request failed: ${result.error}', label: 'getAuthSession');
       return Result.failure(result.error!);
     }
 
@@ -98,7 +98,7 @@ class AuthApi {
           response.statusCode! >= 300) {
         _log.error(
           'HTTP error: ${response.statusCode} ${response.statusMessage}',
-          label: 'getProfile',
+          label: 'getAuthSession',
         );
         return Failure(
           AppError(
@@ -116,7 +116,10 @@ class AuthApi {
 
       final authSession = apiEnv.data;
       if (authSession == null) {
-        _log.error('API error: ${apiEnv.error?.message}', label: 'getProfile');
+        _log.error(
+          'API error: ${apiEnv.error?.message}',
+          label: 'getAuthSession',
+        );
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -131,7 +134,7 @@ class AuthApi {
         'Error parsing response: $err',
         error: err,
         stack: stack,
-        label: 'getProfile',
+        label: 'getAuthSession',
       );
       return Failure(
         AppError(

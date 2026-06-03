@@ -658,6 +658,11 @@ Success response (201):
 }
 ```
 
+Response fields:
+- `status`: currently always returns `active` on successful creation. The
+  transaction password domain also has `blocked` for later validation/step-up
+  flows, but a newly created transaction password is always active.
+
 Possible errors:
 - 401 UNAUTHORIZED: authentication required
 - 401 INVALID_TOKEN: token invalid, malformed, or expired

@@ -1,5 +1,73 @@
 # Changelog
 
+## 2026/06/02 - mobile/create_transaction_password-02
+
+Start the mobile transaction password creation flow by documenting the implementation plan and adding the initial API integration layer.
+
+1. `api/docs/07-api-rest.md`
+
+   * Clarified that successful transaction password creation currently returns `status = active`.
+   * Documented that `blocked` exists in the domain for future validation and step-up flows.
+
+2. `docs/backlogs/README.md`
+
+   * Added the task document for the mobile transaction password registration backlog.
+
+3. `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
+
+   * Refined the backlog to use the existing authenticated session snapshot from `GET /auth/session`.
+   * Removed the need for a dedicated transaction password status endpoint.
+   * Standardized naming around `transaction_password`.
+   * Defined the initial implementation as view model + repository, without a dedicated use case.
+   * Added decisions for post-login gating, two-page PIN flow, API error-code extraction, and test coverage.
+
+4. `docs/backlogs/mobile/011 - cadastro-senha-transacional_tasks.md`
+
+   * Added a complete 9-task implementation plan for the transaction password creation flow.
+   * Covered DTOs, API service, repository, post-login gate helper, UI flow, dependency registration, tests, and documentation.
+
+5. `mobile/lib/data/repositories/auth/auth_repository_impl.dart`
+
+   * Updated the auth session loading call from `getProfile()` to `getAuthSession()`.
+   * Adjusted imports to use the project absolute import style.
+
+6. `mobile/lib/data/services/apis/auth/auth_api.dart`
+
+   * Renamed `getProfile()` to `getAuthSession()` to better represent the `/auth/session` contract.
+   * Updated log labels accordingly.
+   * Adjusted imports to the project absolute import style.
+
+7. `mobile/lib/data/services/apis/account/statement_api.dart`
+
+   * Removed redundant documentation comments from the API service.
+
+8. `mobile/lib/data/services/apis/transaction_password/`
+
+   * Added `CreateTransactionPasswordRequestDto`.
+   * Added `TransactionPasswordStatusResponseDto`.
+   * Added `TransactionPasswordStatus` enum.
+   * Added `TransactionPasswordApi` with support for `POST /security/transaction-password`.
+
+9. `mobile/lib/data/services/services.dart`
+
+   * Registered `TransactionPasswordApi` in the service container.
+
+10. `mobile/test/data/repositories/auth/auth_repository_impl_test.dart`
+
+    * Updated the fake auth API to match the new `getAuthSession()` method name.
+
+11. `mobile/test/data/services/apis/auth/auth_api_get_profile_test.dart`
+
+    * Updated the auth API test to call `getAuthSession()`.
+
+12. `mobile/test/data/services/apis/transaction_password/`
+
+    * Added DTO tests for request serialization and response parsing.
+    * Added API service tests for success, envelope error, HTTP error, and client failure scenarios.
+
+This commit establishes the first technical base for mobile transaction password creation, aligning documentation, backlog planning, API contracts, service registration, and tests.
+
+
 ## 2026/06/02 - mobile/create_transaction_password-01
 
 Prepare mobile authentication session model and token input foundation.

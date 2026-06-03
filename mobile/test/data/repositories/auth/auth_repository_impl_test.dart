@@ -144,7 +144,7 @@ class _FakeAuthApi extends AuthApi {
   }
 
   @override
-  AsyncResult<AuthSession> getProfile() async {
+  AsyncResult<AuthSession> getAuthSession() async {
     getProfileCalls++;
     return profileResult;
   }

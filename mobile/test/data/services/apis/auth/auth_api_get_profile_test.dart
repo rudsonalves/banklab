@@ -47,7 +47,7 @@ void main() {
         );
         final api = AuthApi(client);
 
-        final result = await api.getProfile();
+        final result = await api.getAuthSession();
 
         expect(result, isA<Success<AuthSession>>());
         expect(client.getCalls, 1);
