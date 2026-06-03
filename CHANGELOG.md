@@ -1,6 +1,129 @@
 # Changelog
 
-## 2026/06/02 - mobile/create_transaction_password-03
+## 2026/06/03 - mobile/create_transaction_password-04
+
+Implemented the complete transactional password onboarding flow, including post-login gating, route integration, backend error mapping, dependency registration, and comprehensive test coverage.
+
+### Documentation Updates
+
+1. **docs/backlogs/mobile/011 - cadastro-senha-transacional.md**
+
+   * Clarified the security model for transactional password handling.
+   * Updated guidance to allow transient PIN transport via `GoRouter.extra` between creation and confirmation pages.
+   * Refined restrictions around route state, storage, cache, analytics, logs, and long-lived memory.
+   * Standardized UI decision rules around typed `AppErrorCode`.
+   * Added explicit mapping of `TRANSACTION_PASSWORD_ALREADY_SET` to `AppErrorCode.transactionPasswordAlreadySet`.
+
+2. **docs/backlogs/mobile/011 - cadastro-senha-transacional_tasks.md**
+
+   * Added implementation results for dependency registration and route integration.
+   * Documented post-login gate behavior.
+   * Documented transient PIN transport strategy.
+   * Added completion notes for tests, error mapping, and updated security documentation.
+
+### Error Handling Improvements
+
+3. **mobile/lib/core/result/errors/**
+
+   * Added `BackendErrorCode` helper for extracting backend error codes from nested error payloads.
+   * Exported the helper through `app_error.dart`.
+   * Added new `AppErrorCode.transactionPasswordAlreadySet`.
+
+### Routing and Navigation
+
+4. **mobile/lib/core/routing/**
+
+   * Added `TransactionPasswordRoutes` enum.
+   * Registered transactional password routes in the application router.
+   * Implemented dedicated route definitions for:
+
+     * Transaction password creation.
+     * Transaction password confirmation.
+   * Added route validation to ensure only valid six-digit PINs reach the confirmation page.
+
+### Transaction Password Feature
+
+5. **mobile/lib/data/repositories/transaction_password/**
+
+   * Added repository contract.
+   * Added repository implementation.
+   * Registered repository in dependency injection.
+
+6. **mobile/lib/data/services/apis/transaction_password/**
+
+   * Added backend-to-app error code mapping.
+   * Preserved backend error metadata inside `AppError.details`.
+   * Mapped `TRANSACTION_PASSWORD_ALREADY_SET` to a dedicated typed error.
+
+7. **mobile/lib/ui/pages/auth/transaction_password/**
+
+   * Added transactional password creation page.
+   * Added transactional password confirmation page.
+   * Added transactional password view model.
+   * Implemented PIN confirmation validation.
+   * Added handling for already-configured transactional passwords.
+   * Cleared sensitive in-memory state after successful completion and special handling flows.
+   * Registered the view model in dependency injection.
+
+### Post-Login Readiness Gate
+
+8. **mobile/lib/ui/pages/auth/models/post_login_destination.dart**
+
+   * Added post-login destination resolution model.
+   * Introduced navigation outcomes:
+
+     * `home`
+     * `transactionPassword`
+     * `blocked`
+     * `sessionError`
+   * Centralized readiness evaluation based on session state.
+
+9. **mobile/lib/ui/pages/auth/login/**
+
+   * Added post-login destination evaluation after successful authentication.
+   * Redirects users without a transactional password to the creation flow.
+   * Added dedicated blocked/session error handling messages.
+   * Replaced local email validation regex with shared string extension validation.
+   * Improved Portuguese accentuation in validation messages.
+
+10. **mobile/lib/ui/pages/auth/short_login/**
+
+    * Implemented the same post-login readiness gate behavior used by the standard login flow.
+    * Added destination resolution through the shared resolver.
+
+### Dependency Registration
+
+11. **mobile/lib/data/repositories.dart**
+
+    * Registered `TransactionPasswordRepository`.
+
+12. **mobile/lib/ui/viewmodels.dart**
+
+    * Registered `TransactionPasswordViewModel`.
+
+13. **mobile/lib/core/routing/router.dart**
+
+    * Registered transactional password routes.
+
+### Test Coverage
+
+14. **mobile/test/**
+
+    * Added tests for backend error code extraction.
+    * Added tests for route extra encoding/decoding.
+    * Added repository tests for transactional password creation.
+    * Added API tests validating backend error mapping.
+    * Added post-login destination resolution tests.
+    * Added transactional password view model tests.
+    * Verified preservation of backend error codes across layers.
+    * Verified mapping of `TRANSACTION_PASSWORD_ALREADY_SET` to typed application errors.
+
+### Conclusion
+
+This commit completes the first version of the transactional password onboarding flow, integrating secure PIN creation, confirmation, post-login readiness gating, typed backend error handling, dependency registration, route orchestration, and automated test coverage while maintaining the requirement that transactional passwords remain transient and are never persisted in application storage.
+
+
+## 2026/06/03 - mobile/create_transaction_password-03
 
 Implemented the complete transactional password onboarding flow, including post-login gating, dedicated creation and confirmation screens, backend error mapping, dependency registration, routing integration, and comprehensive test coverage.
 
@@ -159,7 +282,7 @@ Implemented the complete transactional password onboarding flow, including post-
 This update completes the first version of the transactional password onboarding flow, introducing secure PIN creation and confirmation screens, centralized post-login gating, typed backend error handling, dependency and routing integration, and a dedicated test suite to validate both navigation and error-processing behavior.
 
 
-## 2026/06/02 - mobile/create_transaction_password-02
+## 2026/06/03 - mobile/create_transaction_password-02
 
 Start the mobile transaction password creation flow by documenting the implementation plan and adding the initial API integration layer.
 
@@ -227,7 +350,7 @@ Start the mobile transaction password creation flow by documenting the implement
 This commit establishes the first technical base for mobile transaction password creation, aligning documentation, backlog planning, API contracts, service registration, and tests.
 
 
-## 2026/06/02 - mobile/create_transaction_password-01
+## 2026/06/03 - mobile/create_transaction_password-01
 
 Prepare mobile authentication session model and token input foundation.
 

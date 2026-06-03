@@ -26,7 +26,12 @@ class AuthApi {
     );
 
     if (response.isFailure) {
-      _log.error('Request failed: ${response.error}', label: 'login');
+      final error = response.error!;
+      _log.warn(
+        'Request failed (${error.statusCode ?? '-'}/${error.code.name}): '
+        '${error.message}',
+        label: 'login',
+      );
       return Result.failure(response.error!);
     }
 
@@ -87,7 +92,12 @@ class AuthApi {
     );
 
     if (result.isFailure) {
-      _log.error('Request failed: ${result.error}', label: 'getAuthSession');
+      final error = result.error!;
+      _log.warn(
+        'Request failed (${error.statusCode ?? '-'}/${error.code.name}): '
+        '${error.message}',
+        label: 'getAuthSession',
+      );
       return Result.failure(result.error!);
     }
 

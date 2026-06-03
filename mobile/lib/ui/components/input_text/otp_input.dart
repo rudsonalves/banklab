@@ -30,215 +30,165 @@ class OtpInput extends StatefulWidget {
 }
 
 class _OtpInputState extends State<OtpInput> {
-  late final List<TextEditingController> _controllers;
-  late final List<FocusNode> _focusNodes;
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
 
-  String get value => _controllers.map((c) => c.text).join();
+  String get value => _controller.text;
 
   @override
   void initState() {
     super.initState();
 
-    _controllers = List.generate(
-      widget.lenth,
-      (index) => TextEditingController(),
-    );
-
-    _focusNodes = List.generate(
-      widget.lenth,
-      (index) => FocusNode(
-        onKeyEvent: (_, event) => _handleKeyEvent(index, event),
+    _controller = TextEditingController(
+      text: (widget.initialValue ?? '').onlyNumbers.substring(
+        0,
+        ((widget.initialValue ?? '').onlyNumbers.length).clamp(
+          0,
+          widget.lenth,
+        ),
       ),
     );
-
-    for (int i = 0; i < widget.lenth; i++) {
-      _focusNodes[i].addListener(() {
-        if (_focusNodes[i].hasFocus) {
-          _selectCellContent(i);
-        }
-      });
-    }
-
-    _fillInitialValue();
+    _focusNode = FocusNode()..addListener(_onFocusChanged);
+    _controller.addListener(_onTextChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _requestInitialFocus();
+      if (widget.autoFocus) _focusNode.requestFocus();
     });
   }
 
   @override
   void dispose() {
-    for (final controller in _controllers) {
-      controller.dispose();
-    }
-
-    for (final focusNode in _focusNodes) {
-      focusNode.dispose();
-    }
+    _controller.removeListener(_onTextChanged);
+    _focusNode.removeListener(_onFocusChanged);
+    _controller.dispose();
+    _focusNode.dispose();
 
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(
-        widget.lenth,
-        (index) => SizedBox(
-          width: widget.fieldWidth,
-          height: widget.fieldHeight,
-          child: TextField(
-            controller: _controllers[index],
-            focusNode: _focusNodes[index],
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.oneTimeCode],
-            style: const TextStyle(fontWeight: FontWeight.w700),
-            decoration: const InputDecoration(
-              counterText: '',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _focusNode.requestFocus(),
+      onLongPress: _pasteFromClipboard,
+      child: SizedBox(
+        height: widget.fieldHeight,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(
+                widget.lenth,
+                (index) => _OtpCell(
+                  char: index < value.length ? value[index] : null,
+                  isFocused:
+                      _focusNode.hasFocus &&
+                      index == value.length.clamp(0, widget.lenth - 1),
+                  width: widget.fieldWidth,
+                  height: widget.fieldHeight,
+                ),
               ),
             ),
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(1),
-            ],
-            maxLength: 1,
-            maxLines: 1,
-            onChanged: (text) => _handleChanged(index, text),
-            onTap: _onTap,
-          ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0,
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    keyboardType: TextInputType.number,
+                    autofillHints: const [AutofillHints.oneTimeCode],
+                    enableInteractiveSelection: false,
+                    showCursor: false,
+                    textAlign: TextAlign.center,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(widget.lenth),
+                    ],
+                    maxLength: widget.lenth,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      counterText: '',
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _onTap() async {
+  void _onFocusChanged() => setState(() {});
+
+  void _onTextChanged() {
+    setState(() {});
+
+    widget.onChanged?.call(value);
+
+    if (value.length == widget.lenth) {
+      widget.onCompleted?.call(value);
+      _focusNode.unfocus();
+    }
+  }
+
+  Future<void> _pasteFromClipboard() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text;
-    if (text == null || text.length <= 1) return;
+    final digits = data?.text?.onlyNumbers;
 
-    await _handlePaste(text);
-  }
+    if (digits == null || digits.isEmpty) return;
 
-  void _fillInitialValue() {
-    final initial = widget.initialValue ?? '';
-
-    for (int i = 0; i < widget.lenth; i++) {
-      if (i < initial.length) {
-        _controllers[i].text = initial[i];
-      }
-    }
-  }
-
-  void _requestInitialFocus() {
-    if (!widget.autoFocus) return;
-
-    final firstEmptyIndex = _controllers.indexWhere(
-      (controller) => controller.text.isEmpty,
+    _controller.text = digits.substring(
+      0,
+      digits.length.clamp(0, widget.lenth),
     );
-
-    if (firstEmptyIndex == -1) return;
-
-    _focusNodes[firstEmptyIndex].requestFocus();
-  }
-
-  void _notifyChanges() {
-    final currentValue = value;
-
-    widget.onChanged?.call(currentValue);
-
-    if (currentValue.length == widget.lenth &&
-        !_controllers.any((controller) => controller.text.isEmpty)) {
-      widget.onCompleted?.call(currentValue);
-    }
-  }
-
-  void _handleChanged(int index, String text) {
-    if (text.isEmpty) {
-      if (index > 0) {
-        _focusNodes[index - 1].requestFocus();
-      }
-
-      _notifyChanges();
-      return;
-    }
-
-    _controllers[index].text = text;
-    _controllers[index].selection = const TextSelection.collapsed(offset: 1);
-
-    if (index < widget.lenth - 1) {
-      _focusNodes[index + 1].requestFocus();
-    } else {
-      _focusNodes[index].unfocus();
-    }
-
-    _notifyChanges();
-  }
-
-  KeyEventResult _handleKeyEvent(int index, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-    if (event.logicalKey != LogicalKeyboardKey.backspace) {
-      return KeyEventResult.ignored;
-    }
-
-    final controller = _controllers[index];
-
-    if (controller.text.isNotEmpty) {
-      controller.clear();
-      if (index > 0) {
-        _focusNodes[index - 1].requestFocus();
-      }
-      _notifyChanges();
-      return KeyEventResult.handled;
-    }
-
-    if (index > 0) {
-      _focusAndSelectCellContent(index - 1);
-    }
-
-    return KeyEventResult.handled;
-  }
-
-  void _focusAndSelectCellContent(int index) {
-    _focusNodes[index].requestFocus();
-    _selectCellContent(index);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      _selectCellContent(index);
-    });
-  }
-
-  void _selectCellContent(int index) {
-    _controllers[index].selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: _controllers[index].text.length,
+    _controller.selection = TextSelection.collapsed(
+      offset: _controller.text.length,
     );
+    _focusNode.requestFocus();
   }
+}
 
-  Future<void> _handlePaste(String text) async {
-    final digits = text.onlyNumbers;
+class _OtpCell extends StatelessWidget {
+  final String? char;
+  final bool isFocused;
+  final double width;
+  final double height;
 
-    if (digits.isEmpty) return;
+  const _OtpCell({
+    required this.char,
+    required this.isFocused,
+    required this.width,
+    required this.height,
+  });
 
-    for (int i = 0; i < widget.lenth; i++) {
-      _controllers[i].text = i < digits.length ? digits[i] : '';
-    }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
-    final nextFocus = digits.length.clamp(0, widget.lenth - 1);
-
-    if (digits.length >= widget.lenth) {
-      _focusNodes.last.unfocus();
-    } else {
-      _focusNodes[nextFocus].requestFocus();
-    }
-
-    _notifyChanges();
+    return SizedBox(
+      width: width,
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isFocused
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            char ?? '',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ),
+    );
   }
 }
