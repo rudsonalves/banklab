@@ -255,7 +255,7 @@ Prioridades para tornar o BankLab mais completo como laboratório de produto fin
 ### DevEx
 
 - Melhorar comandos do Makefile quando houver fricção no setup.
-- Atualizar coleção Postman ou alternativa equivalente.
+- Atualizar coleção Bruno ou alternativa equivalente.
 - Criar uma lista de tarefas `good first issue`.
 - Padronizar templates de issue e pull request.
 - Documentar decisões arquiteturais relevantes de forma clara, em português ou inglês conforme o contexto.

@@ -71,9 +71,44 @@ if [[ -z "$JWT_SECRET" ]]; then
   JWT_SECRET="$(random_hex_64)"
 fi
 
+JWT_ACCESS_TOKEN_DURATION="$(extract_env_value "$API_ENV" "JWT_ACCESS_TOKEN_DURATION")"
+if [[ -z "$JWT_ACCESS_TOKEN_DURATION" ]]; then
+  JWT_ACCESS_TOKEN_DURATION="15m"
+fi
+
+JWT_REFRESH_TOKEN_DURATION="$(extract_env_value "$API_ENV" "JWT_REFRESH_TOKEN_DURATION")"
+if [[ -z "$JWT_REFRESH_TOKEN_DURATION" ]]; then
+  JWT_REFRESH_TOKEN_DURATION="168h"
+fi
+
 TRANSACTION_PASSWORD_PEPPER="$(extract_env_value "$API_ENV" "TRANSACTION_PASSWORD_PEPPER")"
 if [[ -z "$TRANSACTION_PASSWORD_PEPPER" ]]; then
   TRANSACTION_PASSWORD_PEPPER="$(random_base64_32)"
+fi
+
+DB_HOST="$(extract_env_value "$API_ENV" "DB_HOST")"
+if [[ -z "$DB_HOST" ]]; then
+  DB_HOST="localhost"
+fi
+
+DB_PORT="$(extract_env_value "$API_ENV" "DB_PORT")"
+if [[ -z "$DB_PORT" ]]; then
+  DB_PORT="5432"
+fi
+
+DB_NAME="$(extract_env_value "$API_ENV" "DB_NAME")"
+if [[ -z "$DB_NAME" ]]; then
+  DB_NAME="bank"
+fi
+
+DB_USER="$(extract_env_value "$API_ENV" "DB_USER")"
+if [[ -z "$DB_USER" ]]; then
+  DB_USER="postgres"
+fi
+
+DB_PASSWORD="$(extract_env_value "$API_ENV" "DB_PASSWORD")"
+if [[ -z "$DB_PASSWORD" ]]; then
+  DB_PASSWORD="postgres"
 fi
 
 create_if_missing() {
@@ -91,9 +126,42 @@ EOF
   echo "Created: $file"
 }
 
+append_missing_env_value() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+
+  if grep -q "^$key=" "$file"; then
+    return 0
+  fi
+
+  printf '%s=%s\n' "$key" "$value" >> "$file"
+  echo "Added: $key to $file"
+}
+
 create_if_missing "$API_ENV" "APP_TOKEN=$APP_TOKEN
 JWT_SECRET=$JWT_SECRET
-TRANSACTION_PASSWORD_PEPPER=$TRANSACTION_PASSWORD_PEPPER"
+JWT_ACCESS_TOKEN_DURATION=$JWT_ACCESS_TOKEN_DURATION
+JWT_REFRESH_TOKEN_DURATION=$JWT_REFRESH_TOKEN_DURATION
+TRANSACTION_PASSWORD_PEPPER=$TRANSACTION_PASSWORD_PEPPER
+SERVER_PORT=8080
+DB_HOST=$DB_HOST
+DB_PORT=$DB_PORT
+DB_NAME=$DB_NAME
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD"
+
+append_missing_env_value "$API_ENV" "APP_TOKEN" "$APP_TOKEN"
+append_missing_env_value "$API_ENV" "JWT_SECRET" "$JWT_SECRET"
+append_missing_env_value "$API_ENV" "JWT_ACCESS_TOKEN_DURATION" "$JWT_ACCESS_TOKEN_DURATION"
+append_missing_env_value "$API_ENV" "JWT_REFRESH_TOKEN_DURATION" "$JWT_REFRESH_TOKEN_DURATION"
+append_missing_env_value "$API_ENV" "TRANSACTION_PASSWORD_PEPPER" "$TRANSACTION_PASSWORD_PEPPER"
+append_missing_env_value "$API_ENV" "SERVER_PORT" "8080"
+append_missing_env_value "$API_ENV" "DB_HOST" "$DB_HOST"
+append_missing_env_value "$API_ENV" "DB_PORT" "$DB_PORT"
+append_missing_env_value "$API_ENV" "DB_NAME" "$DB_NAME"
+append_missing_env_value "$API_ENV" "DB_USER" "$DB_USER"
+append_missing_env_value "$API_ENV" "DB_PASSWORD" "$DB_PASSWORD"
 
 create_if_missing "$MOBILE_DEV_ENV" "BASE_URL=http://localhost:8080
 

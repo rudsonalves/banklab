@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	accountApplication "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
 	accountDelivery "github.com/seu-usuario/bank-api/internal/account/bankaccount/delivery"
@@ -32,6 +32,60 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func newAuthRouter(
+	authHandler *authDelivery.Handler,
+	customerHandler *customerDelivery.Handler,
+	appTokenMiddleware func(http.Handler) http.Handler,
+	withAuth func(http.Handler) http.Handler,
+) *http.ServeMux {
+	authRouter := http.NewServeMux()
+
+	// Onboarding (AppToken)
+	authRouter.Handle("POST /auth/cpf-check", appTokenMiddleware(http.HandlerFunc(customerHandler.CheckCPF)))
+	authRouter.Handle("POST /auth/contact-verifications", appTokenMiddleware(http.HandlerFunc(authHandler.RequestContactVerification)))
+	authRouter.Handle("POST /auth/contact-verifications/confirm", appTokenMiddleware(http.HandlerFunc(authHandler.ConfirmContactVerification)))
+	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))
+	authRouter.Handle("POST /auth/login", appTokenMiddleware(http.HandlerFunc(authHandler.Login)))
+
+	// Session refresh is authenticated by the refresh token payload itself.
+	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
+	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
+	authRouter.Handle("GET /auth/session", withAuth(http.HandlerFunc(authHandler.Session)))
+
+	return authRouter
+}
+
+func newAPIRouter(
+	withAuth func(http.Handler) http.Handler,
+	adminHandler *adminDelivery.Handler,
+	accountHandler *accountDelivery.Handler,
+	customerHandler *customerDelivery.Handler,
+	statementHandler *statementDelivery.Handler,
+	transactionHandler *transactionDelivery.Handler,
+	securityHandler *securityDelivery.Handler,
+) *http.ServeMux {
+	apiRouter := http.NewServeMux()
+	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(adminHandler.ApproveUser)))
+	apiRouter.Handle("POST /admin/customers/{customer_id}/accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccountForCustomer)))
+
+	apiRouter.Handle("GET /customers/me", withAuth(http.HandlerFunc(customerHandler.Me)))
+
+	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
+	apiRouter.Handle("GET /accounts/internal-transfers/recipients", withAuth(http.HandlerFunc(accountHandler.LookupInternalTransferRecipients)))
+	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(statementHandler.Statement)))
+	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
+	apiRouter.Handle("POST /accounts/internal-transfers", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
+	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
+	apiRouter.Handle("POST /security/transaction-password", withAuth(http.HandlerFunc(securityHandler.CreateTransactionPassword)))
+	apiRouter.Handle("POST /security/step-up/authorize", withAuth(http.HandlerFunc(securityHandler.AuthorizeStepUp)))
+
+	// Terminal cash operations are intentionally disabled until a real terminal channel exists.
+	// apiRouter.Handle("POST /terminal/accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))
+	// apiRouter.Handle("POST /terminal/accounts/{id}/withdraw", withAuth(http.HandlerFunc(transactionHandler.Withdraw)))
+
+	return apiRouter
+}
+
 func main() {
 	bootstrap.Init()
 
@@ -40,7 +94,13 @@ func main() {
 	// ======================
 	config := bootstrap.LoadConfig()
 
-	db := database.NewPool()
+	db := database.NewPool(database.Config{
+		Host:     config.Database.Host,
+		Port:     config.Database.Port,
+		Name:     config.Database.Name,
+		User:     config.Database.User,
+		Password: config.Database.Password,
+	})
 	log.Println("DB connected")
 
 	// ======================
@@ -66,7 +126,7 @@ func main() {
 		bcrypt.DefaultCost,
 		config.TransactionPasswordPepper,
 	)
-	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, 15*time.Minute)
+	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, config.JWTAccessTokenDuration)
 	stepUpTokenSigner := securityInfrastructure.NewJWTStepUpTokenSigner(config.JWTSecret)
 	stepUpTokenVerifier := securityInfrastructure.NewJWTStepUpTokenVerifier(config.JWTSecret)
 
@@ -93,8 +153,10 @@ func main() {
 		hasher,
 		transactor,
 	)
-	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
-	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
+	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo).
+		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
+	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor).
+		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
 	getSessionUC := authApplication.NewGetSessionUseCase(userRepo, customerRepo, accountRepo, transactionPasswordRepo)
 	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
@@ -159,63 +221,11 @@ func main() {
 	mainRouter.Handle("/auth/", authRouter)
 	mainRouter.Handle("/", apiRouter)
 
-	log.Println("Server running in localhost on port 8080")
+	urlHost := fmt.Sprintf(":%s", config.Port)
 
-	if err := http.ListenAndServe(":8080", mainRouter); err != nil {
+	log.Printf("Server running in http://localhost:%s", config.Port)
+
+	if err := http.ListenAndServe(urlHost, mainRouter); err != nil {
 		log.Fatal("failed to start server:", err)
 	}
-}
-
-func newAuthRouter(
-	authHandler *authDelivery.Handler,
-	customerHandler *customerDelivery.Handler,
-	appTokenMiddleware func(http.Handler) http.Handler,
-	withAuth func(http.Handler) http.Handler,
-) *http.ServeMux {
-	authRouter := http.NewServeMux()
-
-	// Onboarding (AppToken)
-	authRouter.Handle("POST /auth/cpf-check", appTokenMiddleware(http.HandlerFunc(customerHandler.CheckCPF)))
-	authRouter.Handle("POST /auth/contact-verifications", appTokenMiddleware(http.HandlerFunc(authHandler.RequestContactVerification)))
-	authRouter.Handle("POST /auth/contact-verifications/confirm", appTokenMiddleware(http.HandlerFunc(authHandler.ConfirmContactVerification)))
-	authRouter.Handle("POST /auth/register", appTokenMiddleware(http.HandlerFunc(authHandler.Register)))
-	authRouter.Handle("POST /auth/login", appTokenMiddleware(http.HandlerFunc(authHandler.Login)))
-
-	// Session refresh is authenticated by the refresh token payload itself.
-	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
-	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
-	authRouter.Handle("GET /auth/session", withAuth(http.HandlerFunc(authHandler.Session)))
-
-	return authRouter
-}
-
-func newAPIRouter(
-	withAuth func(http.Handler) http.Handler,
-	adminHandler *adminDelivery.Handler,
-	accountHandler *accountDelivery.Handler,
-	customerHandler *customerDelivery.Handler,
-	statementHandler *statementDelivery.Handler,
-	transactionHandler *transactionDelivery.Handler,
-	securityHandler *securityDelivery.Handler,
-) *http.ServeMux {
-	apiRouter := http.NewServeMux()
-	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(adminHandler.ApproveUser)))
-	apiRouter.Handle("POST /admin/customers/{customer_id}/accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccountForCustomer)))
-
-	apiRouter.Handle("GET /customers/me", withAuth(http.HandlerFunc(customerHandler.Me)))
-
-	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
-	apiRouter.Handle("GET /accounts/internal-transfers/recipients", withAuth(http.HandlerFunc(accountHandler.LookupInternalTransferRecipients)))
-	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(statementHandler.Statement)))
-	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
-	apiRouter.Handle("POST /accounts/internal-transfers", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
-	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
-	apiRouter.Handle("POST /security/transaction-password", withAuth(http.HandlerFunc(securityHandler.CreateTransactionPassword)))
-	apiRouter.Handle("POST /security/step-up/authorize", withAuth(http.HandlerFunc(securityHandler.AuthorizeStepUp)))
-
-	// Terminal cash operations are intentionally disabled until a real terminal channel exists.
-	// apiRouter.Handle("POST /terminal/accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))
-	// apiRouter.Handle("POST /terminal/accounts/{id}/withdraw", withAuth(http.HandlerFunc(transactionHandler.Withdraw)))
-
-	return apiRouter
 }

@@ -62,12 +62,24 @@ If you prefer manual setup, create the API environment file:
 touch api/.env
 ```
 
+`api/.env` is the source of truth for API runtime configuration and local database
+settings. Make targets that start Docker Compose or run migrations read this file
+explicitly; a repository-root `.env` file is not required.
+
 Add the following variables:
 
 ```env
 APP_TOKEN=your_app_token_here
 JWT_SECRET=your_jwt_secret_here
+JWT_ACCESS_TOKEN_DURATION=15m
+JWT_REFRESH_TOKEN_DURATION=168h
 TRANSACTION_PASSWORD_PEPPER=your_transaction_password_pepper_here
+SERVER_PORT=8080
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=bank
+DB_USER=postgres
+DB_PASSWORD=postgres
 ```
 
 Example:
@@ -75,7 +87,15 @@ Example:
 ```env
 APP_TOKEN=a3f5905dc26977e9408b3eca832869c2d49e4f7cf6d2026cff234075fd703ad5
 JWT_SECRET=b03ff724fc843ace8ea69f2e00bdb6192e342f90038a8532d55bae3d42427d2d
+JWT_ACCESS_TOKEN_DURATION=15m
+JWT_REFRESH_TOKEN_DURATION=168h
 TRANSACTION_PASSWORD_PEPPER=Q3xZW9o7K5f7M2x8d6Vf2f4i1xP7X2zVj7jv4C7mK2Y=
+SERVER_PORT=8080
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=bank
+DB_USER=postgres
+DB_PASSWORD=postgres
 ```
 
 To generate a strong pepper value:
@@ -88,6 +108,7 @@ Requirements:
 
 - `TRANSACTION_PASSWORD_PEPPER` must be at least 32 characters
 - `TRANSACTION_PASSWORD_PEPPER` must be different from `APP_TOKEN` and `JWT_SECRET`
+- `JWT_ACCESS_TOKEN_DURATION` and `JWT_REFRESH_TOKEN_DURATION` use Go duration syntax (`15m`, `168h`)
 - never commit the real value to Git
 
 ### Description
@@ -100,10 +121,23 @@ Requirements:
   - Used to sign and validate JWT tokens
   - Must remain stable between application restarts
 
+- **JWT_ACCESS_TOKEN_DURATION**
+  - Controls the JWT access token expiration
+  - Optional; defaults to `15m` when omitted
+
+- **JWT_REFRESH_TOKEN_DURATION**
+  - Controls the persisted refresh session expiration
+  - Optional; defaults to `168h` when omitted
+
 - **TRANSACTION_PASSWORD_PEPPER**
   - Used as an API-side secret to derive transaction password input before bcrypt
   - Is never stored in the database
   - Rotating this value invalidates existing transaction password hashes unless a migration strategy is implemented
+
+- **DB_HOST**, **DB_PORT**, **DB_NAME**, **DB_USER**, **DB_PASSWORD**
+  - Configure the local PostgreSQL connection
+  - Are also used by Make targets for Docker Compose, migrations, reset, readiness checks, and schema export
+  - Use `DB_HOST=localhost` when the API runs on the host machine
 
 ---
 
@@ -136,6 +170,8 @@ This flow will:
 5. start the API server
 
 There is no extra Make target needed to create the container; `make docker-up` already runs `docker compose up -d --no-recreate`.
+Docker Compose is invoked with `--env-file api/.env`, so PostgreSQL user,
+password, database name, and host port follow the API environment file.
 On a clean environment Docker builds the local PostgreSQL image from `infra/docker/postgres/Dockerfile`, which installs the `postgresql-17-cron` package required by `pg_cron`.
 
 If you prefer the explicit sequence, the bootstrap is equivalent to:
@@ -162,7 +198,7 @@ docker exec -i bank-postgres psql -U postgres -d bank \
 
 Replace `admin@example.com` with the email of the user that should become the initial administrator.
 
-This bootstrap admin user does not need a bank account. The admin only needs to log in through the web client or Postman, obtain a JWT, and call the approval endpoint for newly registered users:
+This bootstrap admin user does not need a bank account. The admin only needs to log in through the web client or Bruno, obtain a JWT, and call the approval endpoint for newly registered users:
 
 ```http
 POST {{base_url}}/admin/users/{{id}}/approve
@@ -278,6 +314,10 @@ TRANSACTION_PASSWORD_PEPPER environment variable is required
 ```
 
 Ensure the file `api/.env` exists and is correctly populated.
+The API fails fast when any required `APP_TOKEN`, `JWT_SECRET`,
+`TRANSACTION_PASSWORD_PEPPER`, or `DB_*` value is missing.
+JWT duration variables are optional, but if provided they must be valid positive
+Go durations such as `15m` or `168h`.
 
 If files are missing, regenerate them safely with:
 

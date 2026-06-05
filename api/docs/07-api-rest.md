@@ -53,7 +53,7 @@
     - [9.13 GET /accounts/{id}/statement](#913-get-accountsidstatement)
     - [9.14 GET /customers/me](#914-get-customersme)
     - [9.15 POST /security/transaction-password](#915-post-securitytransaction-password)
-  - [10. Postman Setup](#10-postman-setup)
+  - [10. Bruno Setup](#10-bruno-setup)
     - [10.1 Files in Repository](#101-files-in-repository)
     - [10.2 Environment Variables](#102-environment-variables)
     - [10.3 How to Import and Configure](#103-how-to-import-and-configure)
@@ -375,6 +375,9 @@ Success response (200):
 `customer_id` is always populated for users with role `customer`. The JWT embeds this value for use in subsequent requests.
 
 Every login issues a new refresh token and persists a corresponding server-side session. The refresh token is required to obtain a new access token via `POST /auth/refresh`.
+Access token and refresh session lifetimes are configured through
+`JWT_ACCESS_TOKEN_DURATION` and `JWT_REFRESH_TOKEN_DURATION`. Defaults are `15m`
+and `168h` when those variables are omitted.
 
 Customer users can complete login only after admin approval has provisioned at
 least one account through `POST /admin/users/{id}/approve`. If approval or
@@ -2050,19 +2053,18 @@ Scenario: transaction password already exists
 }
 ```
 
-## 10. Postman Setup
+## 10. Bruno Setup
 
-The repository includes a ready-to-use Postman collection and environment under `tools/postman`.
+The repository uses Bruno for local API exploration under `tools/bruno`.
 
 ### 10.1 Files in Repository
 
-- `tools/postman/Banklab_API.postman_collection.json`
-- `tools/postman/Environment.postman_environment.json`
-- `tools/postman/README.md`
+- `tools/bruno/README.md`
+- Bruno collection files (`*.bru`) when requests are exported/versioned
 
 ### 10.2 Environment Variables
 
-Use these variables when configuring the Postman environment:
+Use these variables when configuring the Bruno environment:
 
 - `base_url`: API base URL (default: `http://localhost:8080`)
 - `app_token`: application token used by auth entry routes (`/auth/cpf-check`, `/auth/contact-verifications`, `/auth/contact-verifications/confirm`, `/auth/register`, and `/auth/login`)
@@ -2083,9 +2085,9 @@ Use these variables when configuring the Postman environment:
 
 ### 10.3 How to Import and Configure
 
-1. Import `tools/postman/Banklab_API.postman_collection.json` into Postman.
-2. Import `tools/postman/Environment.postman_environment.json` into Postman.
-3. Select the imported environment in Postman.
+1. Open Bruno.
+2. Open the collection directory under `tools/bruno` when collection files are present.
+3. Configure the environment variables listed above.
 4. Adjust `base_url` if your API is not running on `http://localhost:8080`.
 5. Confirm `app_token` matches the value configured in your local API environment.
 6. Run auth requests to obtain tokens and update `access_token` / `refresh_token`.

@@ -33,7 +33,7 @@ Você pode ajudar em várias frentes:
 - **Testes**: cobertura de regras, fluxos críticos, casos de erro e cenários de integração.
 - **Documentação**: guias, exemplos de payload, diagramas, decisões técnicas e tutoriais de setup.
 - **Produto financeiro**: refinamento de fluxos, regras de negócio, nomes e limites do domínio.
-- **Infra e DevEx**: scripts, Makefile, Docker, CI, Postman e melhoria do ambiente local.
+- **Infra e DevEx**: scripts, Makefile, Docker, CI, Bruno e melhoria do ambiente local.
 
 ## Organização das issues
 

@@ -73,6 +73,15 @@ real terminal channel is outside the project scope.
 ## Local setup
 
 The recommended flow is from repository root.
+The API runtime environment lives in `api/.env`. Local Make targets use that same
+file for Docker Compose, migrations, database reset, readiness checks, and API
+startup.
+
+Initialize missing environment files:
+
+```bash
+make env-init
+```
 
 1. Start database:
 
@@ -102,13 +111,12 @@ make api-build
 4. Run API:
 
 ```bash
-export APP_TOKEN=dev-app-token
-export JWT_SECRET=dev-jwt-secret
-export TRANSACTION_PASSWORD_PEPPER=dev-transaction-password-pepper-32chars-min
-./api/build/bank-api
+make api-run
 ```
 
 Use a dedicated random value for `TRANSACTION_PASSWORD_PEPPER` (for example `openssl rand -base64 32`) and do not reuse `APP_TOKEN` or `JWT_SECRET`.
+JWT token lifetimes can be configured with `JWT_ACCESS_TOKEN_DURATION` and
+`JWT_REFRESH_TOKEN_DURATION`; when omitted, they default to `15m` and `168h`.
 
 Default URL: http://localhost:8080
 

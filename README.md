@@ -107,7 +107,7 @@ banklab/
 ├── mobile/            # App Flutter BankFlow
 ├── packages/          # Futuro repositório de pacotes auxiliares
 ├── templates/         # Templates do pandoc
-└── tools/postman/     # Coleções e apoio para testar a API
+└── tools/bruno/       # Coleções e apoio para testar a API
 ```
 
 ## O que já existe
@@ -158,6 +158,13 @@ make run
 ```
 
 Esse comando valida o Docker, sobe o PostgreSQL, aguarda o banco ficar pronto, aplica as migrations e inicia a API.
+
+O arquivo `api/.env` é a fonte de verdade da API. Os comandos do Make usam esse
+mesmo arquivo para configurar Docker Compose, migrations, reset do banco e
+startup da API.
+
+As durações de token podem ser configuradas com `JWT_ACCESS_TOKEN_DURATION` e
+`JWT_REFRESH_TOKEN_DURATION`; quando omitidas, a API usa `15m` e `168h`.
 
 O banco local é criado a partir de uma imagem customizada baseada em PostgreSQL 17 com `pg_cron`. A extensão é usada para rotinas agendadas de manutenção do banco, como a limpeza diária de verificações temporárias de contato.
 
@@ -247,7 +254,7 @@ Boas frentes para contribuir:
 - **Testes**: unitários, integração, cenários de concorrência e cobertura de fluxos críticos.
 - **Documentação**: guias de setup, explicação da arquitetura, diagramas e exemplos de uso.
 - **Produto financeiro**: modelagem de fluxos, regras de negócio e refinamento do roadmap.
-- **Infra e DevEx**: automação, scripts, CI, ambiente local e coleções Postman.
+- **Infra e DevEx**: automação, scripts, CI, ambiente local e coleções Bruno.
 
 Para organizar o trabalho, use o padrão descrito em [CONTRIBUTING.md](CONTRIBUTING.md). A ideia é classificar cada tarefa por tipo, área e prioridade, facilitando a entrada de novos colaboradores.
 
@@ -272,7 +279,7 @@ Para organizar o trabalho, use o padrão descrito em [CONTRIBUTING.md](CONTRIBUT
 - [docs/backlogs/api/000 - pre-onboarding.md](docs/backlogs/api/000%20-%20pre-onboarding.md)
 - [docs/backlogs/api/001 - onboarding.md](docs/backlogs/api/001%20-%20onboarding.md)
 - [CHANGELOG.md](CHANGELOG.md)
-- [tools/postman/README.md](tools/postman/README.md)
+- [tools/bruno/README.md](tools/bruno/README.md)
 
 ### API
 

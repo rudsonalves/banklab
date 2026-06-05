@@ -18,9 +18,10 @@ type LoginUserUseCase struct {
 	hasher                     domain.PasswordHasher
 	tokenService               domain.TokenService
 	sessionRepo                domain.SessionRepository
+	refreshSessionTTL          time.Duration
 }
 
-const refreshSessionTTL = 30 * 24 * time.Hour
+const defaultRefreshSessionTTL = 30 * 24 * time.Hour
 
 type AccountProvisioningChecker interface {
 	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)
@@ -46,7 +47,16 @@ func NewLoginUserUseCase(
 		hasher:                     hasher,
 		tokenService:               tokenService,
 		sessionRepo:                sessionRepo,
+		refreshSessionTTL:          defaultRefreshSessionTTL,
 	}
+}
+
+func (uc *LoginUserUseCase) WithRefreshSessionTTL(ttl time.Duration) *LoginUserUseCase {
+	if ttl > 0 {
+		uc.refreshSessionTTL = ttl
+	}
+
+	return uc
 }
 
 type LoginUserInput struct {
@@ -119,7 +129,7 @@ func (uc *LoginUserUseCase) Execute(
 	hash := sha256.Sum256([]byte(refreshToken))
 	tokenHash := hex.EncodeToString(hash[:])
 
-	err = uc.sessionRepo.Create(ctx, user.ID, tokenHash, time.Now().UTC().Add(refreshSessionTTL))
+	err = uc.sessionRepo.Create(ctx, user.ID, tokenHash, time.Now().UTC().Add(uc.refreshSessionTTL))
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}

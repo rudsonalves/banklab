@@ -1,5 +1,128 @@
 # Changelog
 
+## 2026/06/05 - mobile/create_transaction_password-05
+
+Refactor environment configuration and migrate API testing assets from Postman to Bruno while introducing configurable JWT lifetimes and database connectivity settings.
+
+### Changes
+
+#### 1. Environment Configuration and Bootstrap
+
+* Centralized runtime configuration around `api/.env` as the single source of truth.
+* Added support for:
+
+  * `SERVER_PORT`
+  * `DB_HOST`
+  * `DB_PORT`
+  * `DB_NAME`
+  * `DB_USER`
+  * `DB_PASSWORD`
+  * `JWT_ACCESS_TOKEN_DURATION`
+  * `JWT_REFRESH_TOKEN_DURATION`
+* Introduced typed database configuration structures in bootstrap and database layers.
+* Added validation helpers for required environment variables.
+* Added duration parsing and validation for JWT lifetime configuration.
+* Added default values:
+
+  * Access token: `15m`
+  * Refresh session: `168h`
+* Improved startup logging with configurable server URL information.
+
+#### 2. Makefile Modernization
+
+* Updated Makefile to load values directly from `api/.env`.
+* Replaced hardcoded PostgreSQL connection details with configurable variables.
+* Unified Docker Compose, migrations, database reset, schema export, and API startup around the same environment source.
+* Added `env-init` dependency to critical targets to guarantee environment readiness.
+* Parameterized:
+
+  * database connection URL
+  * database reset commands
+  * readiness checks
+  * schema export operations
+* Updated Docker Compose invocation to use `--env-file api/.env`.
+
+#### 3. Database Initialization Refactor
+
+* Refactored PostgreSQL pool creation to receive an explicit configuration object.
+* Removed hardcoded connection strings from application code.
+* Added URL-safe PostgreSQL connection string builder.
+* Improved separation between runtime configuration and infrastructure concerns.
+
+#### 4. Configurable Session Lifetimes
+
+* Removed hardcoded refresh session expiration values from authentication use cases.
+* Added configurable refresh session TTL support for:
+
+  * Login flow
+  * Refresh token rotation flow
+* Introduced fluent configuration methods:
+
+  * `WithRefreshSessionTTL(...)`
+* Connected session expiration to environment-driven JWT configuration.
+
+#### 5. API Startup and Routing Cleanup
+
+* Reorganized route registration into dedicated helper functions.
+* Improved startup configuration flow.
+* Replaced hardcoded port binding with configurable server port.
+* Updated server logging to reflect runtime configuration.
+* Preserved existing route structure while improving composition readability.
+
+#### 6. Docker and Local Development Improvements
+
+* Updated Docker Compose PostgreSQL configuration to consume database settings from environment variables.
+* Enabled configurable database port mapping.
+* Improved local environment portability across machines and contributors.
+
+#### 7. Environment Automation Enhancements
+
+* Expanded `ensure-env-files.sh` to automatically provision:
+
+  * JWT duration variables
+  * database configuration variables
+  * server port configuration
+* Added support for appending missing values into existing environment files without overwriting user configuration.
+* Improved bootstrap experience for new contributors.
+
+#### 8. Migration from Postman to Bruno
+
+* Replaced all references to Postman across:
+
+  * README files
+  * API documentation
+  * contributor documentation
+  * roadmap
+  * architecture presentations
+* Added dedicated Bruno documentation.
+* Introduced versionable Bruno workspace structure.
+* Added:
+
+  * workspace configuration
+  * collections
+  * environments
+  * authentication requests
+  * admin approval request examples
+* Removed legacy Postman collections and environment files.
+* Removed automatic Postman environment synchronization from development scripts.
+
+#### 9. Documentation Updates
+
+* Updated repository documentation in both Portuguese and English.
+* Documented:
+
+  * environment configuration strategy
+  * JWT lifetime configuration
+  * database configuration variables
+  * Docker Compose integration
+  * Bruno usage and setup
+* Updated onboarding, authentication, infrastructure, and API reference documentation to reflect the new runtime model.
+
+### Result
+
+The project now uses a unified environment-driven configuration model, supports configurable authentication lifetimes and database connectivity, removes hardcoded infrastructure values, and standardizes API testing workflows around Bruno instead of Postman. The setup process is more portable, reproducible, and contributor-friendly while reducing configuration drift between the API, Docker environment, and development tooling.
+
+
 ## 2026/06/03 - mobile/create_transaction_password-04
 
 Implemented the complete transactional password onboarding flow, including post-login gating, route integration, backend error mapping, dependency registration, and comprehensive test coverage.
