@@ -91,8 +91,39 @@ class DioRestClient implements RestClient {
         ),
       );
     } catch (err, stack) {
-      _log.error('Request error: $err', error: err, stack: stack);
-      return Result.failure(mapHttpError(err, stack));
+      final error = mapHttpError(err, stack);
+
+      if (_shouldLogAsTechnicalError(err, error)) {
+        _log.error('Request error: ${error.message}', error: err, stack: stack);
+      } else {
+        _log.warn(
+          'Request failed (${error.statusCode ?? '-'}/${error.code.name}): '
+          '${error.message}',
+        );
+      }
+
+      return Result.failure(error);
     }
+  }
+
+  bool _shouldLogAsTechnicalError(Object err, AppError error) {
+    if (err is DioException) {
+      final statusCode = err.response?.statusCode;
+
+      if (statusCode != null) {
+        return statusCode >= 500;
+      }
+
+      return switch (err.type) {
+        DioExceptionType.connectionTimeout ||
+        DioExceptionType.sendTimeout ||
+        DioExceptionType.receiveTimeout ||
+        DioExceptionType.connectionError ||
+        DioExceptionType.cancel => false,
+        _ => true,
+      };
+    }
+
+    return error.code == AppErrorCode.unexpected;
   }
 }

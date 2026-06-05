@@ -51,6 +51,17 @@ func (m *getCurrentUserUseCaseMock) Execute(ctx context.Context) (*application.G
 	return m.output, m.err
 }
 
+type getSessionUseCaseMock struct {
+	output *application.GetSessionOutput
+	err    error
+	called bool
+}
+
+func (m *getSessionUseCaseMock) Execute(ctx context.Context) (*application.GetSessionOutput, error) {
+	m.called = true
+	return m.output, m.err
+}
+
 type refreshAccessTokenUseCaseMock struct {
 	output *application.RefreshAccessTokenOutput
 	err    error
@@ -656,6 +667,118 @@ func TestHandler_Me_Unauthorized(t *testing.T) {
 		t.Fatalf("failed to decode response body: %v", err)
 	}
 
+	if got.Error.Code != "UNAUTHORIZED" {
+		t.Fatalf("expected error code %q, got %q", "UNAUTHORIZED", got.Error.Code)
+	}
+}
+
+func TestHandler_Session_Success(t *testing.T) {
+	userID := uuid.New()
+	customerID := uuid.New()
+	birthDate := time.Date(1990, 1, 15, 0, 0, 0, 0, time.UTC)
+	createdAt := time.Date(2026, 6, 2, 10, 0, 0, 0, time.UTC)
+	sessionUC := &getSessionUseCaseMock{
+		output: &application.GetSessionOutput{
+			User: application.GetSessionUserOutput{
+				ID:    userID,
+				Email: "user@example.com",
+				Phone: "+5527999999999",
+				Role:  "customer",
+			},
+			Customer: application.GetSessionCustomerOutput{
+				ID:        customerID,
+				Name:      "Maria Silva",
+				CPF:       "12345678901",
+				BirthDate: birthDate,
+				CreatedAt: createdAt,
+			},
+			Readiness: application.GetSessionReadinessOutput{
+				OnboardingCompleted:       true,
+				Approved:                  true,
+				HasOperationalAccount:     true,
+				TransactionPasswordStatus: "active",
+				CanAccessHome:             true,
+			},
+		},
+	}
+	handler := New(nil, nil, nil, nil, nil, nil, sessionUC)
+	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
+	rec := httptest.NewRecorder()
+
+	handler.Session(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+	if !sessionUC.called {
+		t.Fatal("expected use case to be called")
+	}
+
+	var got struct {
+		Data struct {
+			User      map[string]any `json:"user"`
+			Customer  map[string]any `json:"customer"`
+			Readiness struct {
+				OnboardingCompleted       bool   `json:"onboarding_completed"`
+				Approved                  bool   `json:"approved"`
+				HasOperationalAccount     bool   `json:"has_operational_account"`
+				TransactionPasswordStatus string `json:"transaction_password_status"`
+				CanAccessHome             bool   `json:"can_access_home"`
+			} `json:"readiness"`
+		} `json:"data"`
+		Error any `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error != nil {
+		t.Fatalf("expected nil error, got %#v", got.Error)
+	}
+	if got.Data.User["phone"] != "+5527999999999" {
+		t.Fatalf("expected user phone %q, got %#v", "+5527999999999", got.Data.User["phone"])
+	}
+	if _, ok := got.Data.User["customer_id"]; ok {
+		t.Fatal("expected user.customer_id to be absent")
+	}
+	if _, ok := got.Data.Customer["email"]; ok {
+		t.Fatal("expected customer.email to be absent")
+	}
+	if got.Data.Customer["birth_date"] != "1990-01-15" {
+		t.Fatalf("expected birth_date %q, got %#v", "1990-01-15", got.Data.Customer["birth_date"])
+	}
+	if got.Data.Readiness.TransactionPasswordStatus != "active" {
+		t.Fatalf("expected transaction_password_status active, got %q", got.Data.Readiness.TransactionPasswordStatus)
+	}
+	if !got.Data.Readiness.CanAccessHome {
+		t.Fatal("expected can_access_home true")
+	}
+}
+
+func TestHandler_Session_Unauthorized(t *testing.T) {
+	sessionUC := &getSessionUseCaseMock{err: domain.ErrUnauthorized}
+	handler := New(nil, nil, nil, nil, nil, nil, sessionUC)
+	req := httptest.NewRequest(http.MethodGet, "/auth/session", nil)
+	rec := httptest.NewRecorder()
+
+	handler.Session(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+
+	var got struct {
+		Data  any `json:"data"`
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Data != nil {
+		t.Fatalf("expected nil data, got %#v", got.Data)
+	}
 	if got.Error.Code != "UNAUTHORIZED" {
 		t.Fatalf("expected error code %q, got %q", "UNAUTHORIZED", got.Error.Code)
 	}

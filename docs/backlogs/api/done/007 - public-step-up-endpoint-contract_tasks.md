@@ -167,7 +167,7 @@ Remover das documentações de consumo a orientação para clientes enviarem
 - Atualizar `api/docs/implementations/03-zta-step-up-transaction-password.md`.
 - Atualizar docs de erro se houver mudança de descrição.
 - Atualizar READMEs quando citarem o contrato de step-up.
-- Atualizar `docs/backlogs/mobile/011 - senha-transacional-e-step-up.md`.
+- Atualizar `docs/backlogs/mobile/012 - step-up-transferencia-interna.md`.
 - Documentar que `endpoint_key` pode existir internamente, mas não é input
   público.
 - Documentar que rotas parametrizadas devem usar template público, como

@@ -1,5 +1,649 @@
 # Changelog
 
+## 2026/06/05 - mobile/create_transaction_password-05
+
+Refactor environment configuration and migrate API testing assets from Postman to Bruno while introducing configurable JWT lifetimes and database connectivity settings.
+
+### Changes
+
+#### 1. Environment Configuration and Bootstrap
+
+* Centralized runtime configuration around `api/.env` as the single source of truth.
+* Added support for:
+
+  * `SERVER_PORT`
+  * `DB_HOST`
+  * `DB_PORT`
+  * `DB_NAME`
+  * `DB_USER`
+  * `DB_PASSWORD`
+  * `JWT_ACCESS_TOKEN_DURATION`
+  * `JWT_REFRESH_TOKEN_DURATION`
+* Introduced typed database configuration structures in bootstrap and database layers.
+* Added validation helpers for required environment variables.
+* Added duration parsing and validation for JWT lifetime configuration.
+* Added default values:
+
+  * Access token: `15m`
+  * Refresh session: `168h`
+* Improved startup logging with configurable server URL information.
+
+#### 2. Makefile Modernization
+
+* Updated Makefile to load values directly from `api/.env`.
+* Replaced hardcoded PostgreSQL connection details with configurable variables.
+* Unified Docker Compose, migrations, database reset, schema export, and API startup around the same environment source.
+* Added `env-init` dependency to critical targets to guarantee environment readiness.
+* Parameterized:
+
+  * database connection URL
+  * database reset commands
+  * readiness checks
+  * schema export operations
+* Updated Docker Compose invocation to use `--env-file api/.env`.
+
+#### 3. Database Initialization Refactor
+
+* Refactored PostgreSQL pool creation to receive an explicit configuration object.
+* Removed hardcoded connection strings from application code.
+* Added URL-safe PostgreSQL connection string builder.
+* Improved separation between runtime configuration and infrastructure concerns.
+
+#### 4. Configurable Session Lifetimes
+
+* Removed hardcoded refresh session expiration values from authentication use cases.
+* Added configurable refresh session TTL support for:
+
+  * Login flow
+  * Refresh token rotation flow
+* Introduced fluent configuration methods:
+
+  * `WithRefreshSessionTTL(...)`
+* Connected session expiration to environment-driven JWT configuration.
+
+#### 5. API Startup and Routing Cleanup
+
+* Reorganized route registration into dedicated helper functions.
+* Improved startup configuration flow.
+* Replaced hardcoded port binding with configurable server port.
+* Updated server logging to reflect runtime configuration.
+* Preserved existing route structure while improving composition readability.
+
+#### 6. Docker and Local Development Improvements
+
+* Updated Docker Compose PostgreSQL configuration to consume database settings from environment variables.
+* Enabled configurable database port mapping.
+* Improved local environment portability across machines and contributors.
+
+#### 7. Environment Automation Enhancements
+
+* Expanded `ensure-env-files.sh` to automatically provision:
+
+  * JWT duration variables
+  * database configuration variables
+  * server port configuration
+* Added support for appending missing values into existing environment files without overwriting user configuration.
+* Improved bootstrap experience for new contributors.
+
+#### 8. Migration from Postman to Bruno
+
+* Replaced all references to Postman across:
+
+  * README files
+  * API documentation
+  * contributor documentation
+  * roadmap
+  * architecture presentations
+* Added dedicated Bruno documentation.
+* Introduced versionable Bruno workspace structure.
+* Added:
+
+  * workspace configuration
+  * collections
+  * environments
+  * authentication requests
+  * admin approval request examples
+* Removed legacy Postman collections and environment files.
+* Removed automatic Postman environment synchronization from development scripts.
+
+#### 9. Documentation Updates
+
+* Updated repository documentation in both Portuguese and English.
+* Documented:
+
+  * environment configuration strategy
+  * JWT lifetime configuration
+  * database configuration variables
+  * Docker Compose integration
+  * Bruno usage and setup
+* Updated onboarding, authentication, infrastructure, and API reference documentation to reflect the new runtime model.
+
+### Result
+
+The project now uses a unified environment-driven configuration model, supports configurable authentication lifetimes and database connectivity, removes hardcoded infrastructure values, and standardizes API testing workflows around Bruno instead of Postman. The setup process is more portable, reproducible, and contributor-friendly while reducing configuration drift between the API, Docker environment, and development tooling.
+
+
+## 2026/06/03 - mobile/create_transaction_password-04
+
+Implemented the complete transactional password onboarding flow, including post-login gating, route integration, backend error mapping, dependency registration, and comprehensive test coverage.
+
+### Documentation Updates
+
+1. **docs/backlogs/mobile/011 - cadastro-senha-transacional.md**
+
+   * Clarified the security model for transactional password handling.
+   * Updated guidance to allow transient PIN transport via `GoRouter.extra` between creation and confirmation pages.
+   * Refined restrictions around route state, storage, cache, analytics, logs, and long-lived memory.
+   * Standardized UI decision rules around typed `AppErrorCode`.
+   * Added explicit mapping of `TRANSACTION_PASSWORD_ALREADY_SET` to `AppErrorCode.transactionPasswordAlreadySet`.
+
+2. **docs/backlogs/mobile/011 - cadastro-senha-transacional_tasks.md**
+
+   * Added implementation results for dependency registration and route integration.
+   * Documented post-login gate behavior.
+   * Documented transient PIN transport strategy.
+   * Added completion notes for tests, error mapping, and updated security documentation.
+
+### Error Handling Improvements
+
+3. **mobile/lib/core/result/errors/**
+
+   * Added `BackendErrorCode` helper for extracting backend error codes from nested error payloads.
+   * Exported the helper through `app_error.dart`.
+   * Added new `AppErrorCode.transactionPasswordAlreadySet`.
+
+### Routing and Navigation
+
+4. **mobile/lib/core/routing/**
+
+   * Added `TransactionPasswordRoutes` enum.
+   * Registered transactional password routes in the application router.
+   * Implemented dedicated route definitions for:
+
+     * Transaction password creation.
+     * Transaction password confirmation.
+   * Added route validation to ensure only valid six-digit PINs reach the confirmation page.
+
+### Transaction Password Feature
+
+5. **mobile/lib/data/repositories/transaction_password/**
+
+   * Added repository contract.
+   * Added repository implementation.
+   * Registered repository in dependency injection.
+
+6. **mobile/lib/data/services/apis/transaction_password/**
+
+   * Added backend-to-app error code mapping.
+   * Preserved backend error metadata inside `AppError.details`.
+   * Mapped `TRANSACTION_PASSWORD_ALREADY_SET` to a dedicated typed error.
+
+7. **mobile/lib/ui/pages/auth/transaction_password/**
+
+   * Added transactional password creation page.
+   * Added transactional password confirmation page.
+   * Added transactional password view model.
+   * Implemented PIN confirmation validation.
+   * Added handling for already-configured transactional passwords.
+   * Cleared sensitive in-memory state after successful completion and special handling flows.
+   * Registered the view model in dependency injection.
+
+### Post-Login Readiness Gate
+
+8. **mobile/lib/ui/pages/auth/models/post_login_destination.dart**
+
+   * Added post-login destination resolution model.
+   * Introduced navigation outcomes:
+
+     * `home`
+     * `transactionPassword`
+     * `blocked`
+     * `sessionError`
+   * Centralized readiness evaluation based on session state.
+
+9. **mobile/lib/ui/pages/auth/login/**
+
+   * Added post-login destination evaluation after successful authentication.
+   * Redirects users without a transactional password to the creation flow.
+   * Added dedicated blocked/session error handling messages.
+   * Replaced local email validation regex with shared string extension validation.
+   * Improved Portuguese accentuation in validation messages.
+
+10. **mobile/lib/ui/pages/auth/short_login/**
+
+    * Implemented the same post-login readiness gate behavior used by the standard login flow.
+    * Added destination resolution through the shared resolver.
+
+### Dependency Registration
+
+11. **mobile/lib/data/repositories.dart**
+
+    * Registered `TransactionPasswordRepository`.
+
+12. **mobile/lib/ui/viewmodels.dart**
+
+    * Registered `TransactionPasswordViewModel`.
+
+13. **mobile/lib/core/routing/router.dart**
+
+    * Registered transactional password routes.
+
+### Test Coverage
+
+14. **mobile/test/**
+
+    * Added tests for backend error code extraction.
+    * Added tests for route extra encoding/decoding.
+    * Added repository tests for transactional password creation.
+    * Added API tests validating backend error mapping.
+    * Added post-login destination resolution tests.
+    * Added transactional password view model tests.
+    * Verified preservation of backend error codes across layers.
+    * Verified mapping of `TRANSACTION_PASSWORD_ALREADY_SET` to typed application errors.
+
+### Conclusion
+
+This commit completes the first version of the transactional password onboarding flow, integrating secure PIN creation, confirmation, post-login readiness gating, typed backend error handling, dependency registration, route orchestration, and automated test coverage while maintaining the requirement that transactional passwords remain transient and are never persisted in application storage.
+
+
+## 2026/06/03 - mobile/create_transaction_password-03
+
+Implemented the complete transactional password onboarding flow, including post-login gating, dedicated creation and confirmation screens, backend error mapping, dependency registration, routing integration, and comprehensive test coverage.
+
+### Documentation
+
+1. `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
+
+   * Updated the security guidance to allow transient PIN transport through `GoRouter.extra`.
+   * Clarified that transactional passwords must not be persisted in storage, cache, analytics, logs, or long-lived application state.
+   * Documented the use of typed `AppErrorCode` values for flow decisions.
+   * Added the mapping requirement from `TRANSACTION_PASSWORD_ALREADY_SET` to `AppErrorCode.transactionPasswordAlreadySet`.
+
+2. `docs/backlogs/mobile/011 - cadastro-senha-transacional_tasks.md`
+
+   * Documented the expected results for dependency registration, routing, and post-login gate integration.
+   * Added implementation outcomes for testing, backend error handling, and secure PIN transport.
+
+### Error Handling
+
+3. `mobile/lib/core/result/errors/app_error.dart`
+
+   * Exported backend error helper utilities.
+
+4. `mobile/lib/core/result/errors/app_error_code.dart`
+
+   * Added `transactionPasswordAlreadySet` to the application error catalog.
+
+5. `mobile/lib/core/result/errors/backend_error_code.dart`
+
+   * Introduced a reusable helper to extract backend error codes from nested API payload structures.
+   * Supports direct, nested `error`, and nested `details` error formats.
+
+### Routing
+
+6. `mobile/lib/core/routing/router.dart`
+
+   * Registered transactional password routes in the application router.
+
+7. `mobile/lib/core/routing/routes.dart`
+
+   * Added `TransactionPasswordRoutes`.
+   * Applied minor enum formatting cleanup.
+
+8. `mobile/lib/core/routing/routes/transaction_password_routes.dart`
+
+   * Added creation and confirmation routes.
+   * Validated route extras before rendering the confirmation page.
+   * Redirected invalid navigation attempts back to the creation screen.
+   * Injected the transactional password view model through DI.
+
+### Dependency Registration
+
+9. `mobile/lib/data/repositories.dart`
+
+   * Registered `TransactionPasswordRepository`.
+
+10. `mobile/lib/ui/viewmodels.dart`
+
+    * Registered `TransactionPasswordViewModel`.
+
+### Transaction Password Data Layer
+
+11. `mobile/lib/data/repositories/transaction_password/transaction_password_repository.dart`
+
+    * Added repository contract for transactional password creation.
+
+12. `mobile/lib/data/repositories/transaction_password/transaction_password_repository_impl.dart`
+
+    * Implemented repository delegation to the API layer.
+
+13. `mobile/lib/data/services/apis/transaction_password/transaction_password_api.dart`
+
+    * Added backend error code preservation.
+    * Mapped `TRANSACTION_PASSWORD_ALREADY_SET` to a dedicated application error code.
+    * Preserved backend error metadata through `details`.
+
+### Post-Login Gate
+
+14. `mobile/lib/ui/pages/auth/models/post_login_destination.dart`
+
+    * Added centralized post-login destination resolution.
+    * Implemented routing decisions based on readiness and transactional password status.
+
+15. `mobile/lib/ui/pages/auth/login/viewmodel/login_viewmodel.dart`
+
+    * Added destination resolution support.
+
+16. `mobile/lib/ui/pages/auth/short_login/viewmodel/short_login_viewmodel.dart`
+
+    * Added destination resolution support.
+    * Stored repository reference for post-login evaluation.
+
+17. `mobile/lib/ui/pages/auth/login/login_page.dart`
+
+    * Replaced direct home navigation with post-login gate evaluation.
+    * Added transactional password onboarding redirection.
+    * Added blocked and session error handling.
+    * Replaced local email regex validation with shared string extension validation.
+    * Improved validation messages.
+
+18. `mobile/lib/ui/pages/auth/short_login/short_login_page.dart`
+
+    * Applied the same post-login gate behavior used in the full login flow.
+    * Added transactional password onboarding routing and failure handling.
+
+### Transaction Password UI
+
+19. `mobile/lib/ui/pages/auth/transaction_password/create_transaction_password_page.dart`
+
+    * Added PIN creation screen.
+    * Implemented secure local PIN handling.
+    * Navigated to confirmation using transient `GoRouter.extra`.
+
+20. `mobile/lib/ui/pages/auth/transaction_password/confirm_transaction_password_page.dart`
+
+    * Added PIN confirmation screen.
+    * Implemented confirmation validation and mismatch handling.
+    * Executed transactional password creation through the view model.
+    * Handled already-configured password scenarios.
+    * Cleared sensitive state after successful completion.
+
+21. `mobile/lib/ui/pages/auth/transaction_password/viewmodel/transaction_password_viewmodel.dart`
+
+    * Added command-based transactional password creation workflow.
+
+### Tests
+
+22. `mobile/test/core/result/errors/backend_error_code_test.dart`
+
+    * Added coverage for backend error extraction logic.
+
+23. `mobile/test/core/routing/extra_codec_test.dart`
+
+    * Added validation for string extra encoding and decoding.
+
+24. `mobile/test/data/repositories/transaction_password/transaction_password_repository_impl_test.dart`
+
+    * Added repository success and failure propagation tests.
+    * Verified backend error code preservation.
+
+25. `mobile/test/data/services/apis/transaction_password/transaction_password_api_test.dart`
+
+    * Added validation for mapping backend transaction password errors into typed application errors.
+
+26. `mobile/test/ui/pages/auth/post_login_destination_test.dart`
+
+    * Added coverage for all post-login destination scenarios.
+    * Verified identical behavior between login and short-login flows.
+
+27. `mobile/test/ui/pages/auth/transaction_password/viewmodel/transaction_password_viewmodel_test.dart`
+
+    * Added view model success and failure tests.
+
+### Conclusion
+
+This update completes the first version of the transactional password onboarding flow, introducing secure PIN creation and confirmation screens, centralized post-login gating, typed backend error handling, dependency and routing integration, and a dedicated test suite to validate both navigation and error-processing behavior.
+
+
+## 2026/06/03 - mobile/create_transaction_password-02
+
+Start the mobile transaction password creation flow by documenting the implementation plan and adding the initial API integration layer.
+
+1. `api/docs/07-api-rest.md`
+
+   * Clarified that successful transaction password creation currently returns `status = active`.
+   * Documented that `blocked` exists in the domain for future validation and step-up flows.
+
+2. `docs/backlogs/README.md`
+
+   * Added the task document for the mobile transaction password registration backlog.
+
+3. `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
+
+   * Refined the backlog to use the existing authenticated session snapshot from `GET /auth/session`.
+   * Removed the need for a dedicated transaction password status endpoint.
+   * Standardized naming around `transaction_password`.
+   * Defined the initial implementation as view model + repository, without a dedicated use case.
+   * Added decisions for post-login gating, two-page PIN flow, API error-code extraction, and test coverage.
+
+4. `docs/backlogs/mobile/011 - cadastro-senha-transacional_tasks.md`
+
+   * Added a complete 9-task implementation plan for the transaction password creation flow.
+   * Covered DTOs, API service, repository, post-login gate helper, UI flow, dependency registration, tests, and documentation.
+
+5. `mobile/lib/data/repositories/auth/auth_repository_impl.dart`
+
+   * Updated the auth session loading call from `getProfile()` to `getAuthSession()`.
+   * Adjusted imports to use the project absolute import style.
+
+6. `mobile/lib/data/services/apis/auth/auth_api.dart`
+
+   * Renamed `getProfile()` to `getAuthSession()` to better represent the `/auth/session` contract.
+   * Updated log labels accordingly.
+   * Adjusted imports to the project absolute import style.
+
+7. `mobile/lib/data/services/apis/account/statement_api.dart`
+
+   * Removed redundant documentation comments from the API service.
+
+8. `mobile/lib/data/services/apis/transaction_password/`
+
+   * Added `CreateTransactionPasswordRequestDto`.
+   * Added `TransactionPasswordStatusResponseDto`.
+   * Added `TransactionPasswordStatus` enum.
+   * Added `TransactionPasswordApi` with support for `POST /security/transaction-password`.
+
+9. `mobile/lib/data/services/services.dart`
+
+   * Registered `TransactionPasswordApi` in the service container.
+
+10. `mobile/test/data/repositories/auth/auth_repository_impl_test.dart`
+
+    * Updated the fake auth API to match the new `getAuthSession()` method name.
+
+11. `mobile/test/data/services/apis/auth/auth_api_get_profile_test.dart`
+
+    * Updated the auth API test to call `getAuthSession()`.
+
+12. `mobile/test/data/services/apis/transaction_password/`
+
+    * Added DTO tests for request serialization and response parsing.
+    * Added API service tests for success, envelope error, HTTP error, and client failure scenarios.
+
+This commit establishes the first technical base for mobile transaction password creation, aligning documentation, backlog planning, API contracts, service registration, and tests.
+
+
+## 2026/06/03 - mobile/create_transaction_password-01
+
+Prepare mobile authentication session model and token input foundation.
+
+1. `docs/backlogs/api`
+
+   * Moved the completed auth session bootstrap backlog and task documents to the `done` folder.
+
+2. `mobile/ios`
+
+   * Removed CocoaPods integration references from Flutter iOS build configuration.
+   * Deleted the iOS `Podfile`.
+   * Cleaned Pods-related framework, group, build phase, and xcconfig references from the Xcode project.
+
+3. `mobile/lib/data/repositories/auth`
+
+   * Replaced `UserProfile` usage with the new `AuthSession` domain model.
+   * Updated cached last login identity to use customer name and CPF from the session payload.
+   * Adjusted profile caching to store the full authentication session.
+
+4. `mobile/lib/data/services/apis/auth`
+
+   * Changed profile loading to consume the new `GET /auth/session` endpoint.
+   * Removed the previous two-step `/customers/me` and `/auth/me` composition.
+   * Added direct parsing of the canonical API envelope into `AuthSession`.
+
+5. `mobile/lib/domain/common/auth/models/auth_session`
+
+   * Added `AuthSession`, `UserSession`, `CustommerSession`, and `ReadinessSession`.
+   * Added `TransactionPasswordStatus` enum to represent transaction password readiness.
+   * Exported the session-related models through the main auth session file.
+
+6. `mobile/lib/domain/common/auth/models`
+
+   * Removed the old `UserProfile` model.
+
+7. `mobile/lib/ui/components/input_text`
+
+   * Added `TokenInput`, a reusable numeric token/password input component with fixed-length cells, autofocus, visibility control, initial value support, and completion callbacks.
+
+8. `mobile/test/data/repositories/auth`
+
+   * Updated auth repository tests to validate the new `AuthSession` model and CPF-based cache identity.
+
+9. `mobile/test/data/services/apis/auth`
+
+   * Added tests covering the `/auth/session` contract parsing and `AuthApi.getProfile()` behavior.
+
+This commit aligns the mobile client with the new auth session contract and introduces the first UI foundation required for transaction password flows.
+
+
+## 2026/06/02 - api/auth-session-bootstrap-01
+
+Implement authenticated session bootstrap endpoint for post-login API readiness.
+
+1. `api/cmd/api/main.go`
+
+   * Wired `GetSessionUseCase` into the auth module dependencies.
+   * Registered `GET /auth/session` as a JWT-protected route.
+   * Passed the session use case into the auth handler constructor.
+
+2. `api/cmd/api/routes_test.go`
+
+   * Added route coverage to ensure `/auth/session` is wrapped by the authentication middleware.
+
+3. `api/internal/auth/application/get_session.go`
+
+   * Added `GetSessionUseCase`.
+   * Implemented authenticated user resolution from context.
+   * Loaded user, linked customer, operational accounts, and transaction password state.
+   * Calculated readiness fields for post-login routing.
+   * Added transaction password session states: `active`, `not_set`, `locked`, and `unknown`.
+
+4. `api/internal/auth/application/get_session_test.go`
+
+   * Added application tests for ready sessions, missing transaction password, missing auth context, invalid customer link, and missing customer profile.
+
+5. `api/internal/auth/delivery/handler.go`
+
+   * Added `Session` handler.
+   * Added response DTOs for `user`, `customer`, and `readiness`.
+   * Ensured sensitive fields such as `user.customer_id`, `customer.email`, and credential material are not returned.
+   * Added date formatting for customer birth date.
+
+6. `api/internal/auth/delivery/handler_test.go`
+
+   * Added delivery tests for successful session response.
+   * Added unauthorized session response coverage.
+   * Validated response shape and excluded fields.
+
+7. `api/docs/07-api-rest.md`
+
+   * Documented `GET /auth/session`.
+   * Updated authentication requirements and endpoint index.
+   * Added success and error response examples.
+   * Clarified that `/auth/me` remains available for compatibility.
+
+8. `tools/postman/Banklab_API.postman_collection.json`
+
+   * Added Postman request for `GET /auth/session` using bearer authentication.
+
+9. `docs/backlogs/api/009 - auth-session-bootstrap_tasks.md`
+
+   * Marked all API session bootstrap tasks as completed.
+   * Added final alignment notes and validation checklist.
+
+10. `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
+
+* Updated the mobile backlog to use `GET /auth/session` as the post-login gate source.
+* Removed pending API-contract assumptions and obsolete `next_required_step` references.
+
+This change completes the API-side session bootstrap contract and provides the mobile client with a single canonical endpoint for post-login readiness decisions.
+
+
+## 2026/06/02 - backlog/api-009-auth-session-bootstrap
+
+Add backlog documentation for the authenticated post-login session bootstrap flow.
+
+1. `docs/backlogs/README.md`
+
+   * Replaced completed API backlog entries with the new `009 - auth-session-bootstrap` backlog and tasks.
+   * Split the previous mobile transactional password and step-up backlog into two independent entries:
+
+     * transactional password registration;
+     * internal transfer step-up authorization.
+
+2. `docs/backlogs/api/009 - auth-session-bootstrap.md`
+
+   * Added the parent backlog for `GET /auth/session`.
+   * Defined the endpoint objective, response contract, readiness fields, compatibility strategy, errors, out-of-scope items, acceptance criteria, and implementation references.
+   * Established `GET /auth/session` as the canonical authenticated bootstrap endpoint for post-login clients.
+
+3. `docs/backlogs/api/009 - auth-session-bootstrap_tasks.md`
+
+   * Added seven implementation tasks covering DTOs, use case, readiness calculation, HTTP handler, tests, REST documentation, and final API validation.
+
+4. `docs/backlogs/api/done/007 - public-step-up-endpoint-contract.md`
+
+   * Updated references to point to the renamed mobile step-up backlog.
+
+5. `docs/backlogs/api/done/007 - public-step-up-endpoint-contract_tasks.md`
+
+   * Updated documentation task references to the new mobile step-up backlog name.
+
+6. `docs/backlogs/api/done/008 - transaction-password-pepper.md`
+
+   * Updated references to include both the transactional password registration backlog and the internal transfer step-up backlog.
+
+7. `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
+
+   * Added a dedicated mobile backlog for transactional password registration.
+   * Defined the post-login gate, PIN registration flow, API contracts, security constraints, architecture impacts, UX requirements, and acceptance criteria.
+
+8. `docs/backlogs/mobile/012 - step-up-transferencia-interna.md`
+
+   * Renamed and refocused the previous combined backlog.
+   * Removed transactional password registration from its scope.
+   * Kept the backlog focused on step-up authorization for internal transfers.
+   * Added retry handling for expired step-up tokens and routing behavior when the transactional password is not set.
+
+9. `api/docs/images/database.png`
+
+   * Updated the database diagram image.
+
+10. `tools/postman/Environment.postman_environment.json`
+
+* Updated the local `base_url` from `192.168.0.21` to `192.168.0.17`.
+
+This commit separates transactional password registration from transfer step-up authorization and introduces the API session bootstrap backlog required to support a cleaner post-login mobile flow.
+
+
 ## 2026/05/30 — api/transaction-password-papper-01
 
 Implements transaction password pepper hardening in the API, adding a required server-side secret to strengthen PIN hashing while preserving the public mobile contract.

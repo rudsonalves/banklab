@@ -7,11 +7,20 @@
 # =========================
 # Variables
 # =========================
-DB_URL=postgres://postgres:postgres@localhost:5432/bank?sslmode=disable
+API_ENV_FILE=api/.env
+-include $(API_ENV_FILE)
+
+DB_HOST ?= localhost
+DB_PORT ?= 5432
+DB_NAME ?= bank
+DB_USER ?= postgres
+DB_PASSWORD ?= postgres
+
+DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 MIGRATIONS_PATH=api/migrations
 BOOK_PT_DIR=api/docs/visao_geral
 TEMPLATE=templates/eisvogel.latex
-DOCKER_COMPOSE=docker compose -f docker-compose.yml -p banklab
+DOCKER_COMPOSE=docker compose --env-file $(API_ENV_FILE) -f docker-compose.yml -p banklab
 
 # =========================
 # Help
@@ -27,16 +36,16 @@ help: ## List available commands
 # =========================
 # Docker
 # =========================
-docker-up: ## Start Docker containers in detached mode
+docker-up: env-init ## Start Docker containers in detached mode
 	$(DOCKER_COMPOSE) up -d --no-recreate
 
-docker-down: ## Stop and remove Docker containers
+docker-down: env-init ## Stop and remove Docker containers
 	$(DOCKER_COMPOSE) down
 
-docker-logs: ## Follow Docker container logs
+docker-logs: env-init ## Follow Docker container logs
 	$(DOCKER_COMPOSE) logs -f
 
-docker-clean: ## Remove containers and volumes
+docker-clean: env-init ## Remove containers and volumes
 	$(DOCKER_COMPOSE) down -v
 
 docker-check: ## Check if Docker is running
@@ -49,20 +58,20 @@ docker-check: ## Check if Docker is running
 # =========================
 # Bootstrap and Reset
 # =========================
-setup: docker-check docker-up db-wait migrate-up ## Full setup from scratch
+setup: env-init docker-check docker-up db-wait migrate-up ## Full setup from scratch
 
-run: docker-check docker-up db-wait migrate-up api-run ## Start full system
+run: env-init docker-check docker-up db-wait migrate-up api-run ## Start full system
 
-reset: docker-check docker-clean docker-up db-wait db-reset migrate-up ## Hard reset environment
+reset: env-init docker-check docker-clean docker-up db-wait db-reset migrate-up ## Hard reset environment
 
-db-reset: ## Reset only the database
-	$(DOCKER_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS bank WITH (FORCE);"
-	$(DOCKER_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "CREATE DATABASE bank;"
+db-reset: env-init ## Reset only the database
+	$(DOCKER_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U $(DB_USER) -d postgres -c "DROP DATABASE IF EXISTS $(DB_NAME) WITH (FORCE);"
+	$(DOCKER_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U $(DB_USER) -d postgres -c "CREATE DATABASE $(DB_NAME);"
 
-db-wait: ## Wait for the database to be ready
+db-wait: env-init ## Wait for the database to be ready
 	@echo "Waiting for database..."
 	@for i in $$(seq 1 30); do \
-		if $(DOCKER_COMPOSE) exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then \
+		if $(DOCKER_COMPOSE) exec -T postgres pg_isready -U $(DB_USER) > /dev/null 2>&1; then \
 			echo "Database is ready"; \
 			exit 0; \
 		fi; \
@@ -91,7 +100,7 @@ api-build: ## Build API binary into api/build/
 api-tests: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
-api-run: mobile-sync-ip ## Run API server
+api-run: env-init mobile-sync-ip ## Run API server
 	cd api && go run ./cmd/api
 
 api-stop: ## Stop API server running on port 8080
@@ -106,14 +115,14 @@ api-stop: ## Stop API server running on port 8080
 # =========================
 # Database Migrations
 # =========================
-migrate-up: ## Run API database migrations
+migrate-up: env-init ## Run API database migrations
 	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" up
 
-migrate-down: ## Rollback last API database migration
+migrate-down: env-init ## Rollback last API database migration
 	migrate -path $(MIGRATIONS_PATH) -database "$(DB_URL)" down
 
-dbschema: ## Export database schema to schema.sql
-	$(DOCKER_COMPOSE) exec -T postgres pg_dump -U postgres -d bank > schema.sql
+dbschema: env-init ## Export database schema to schema.sql
+	$(DOCKER_COMPOSE) exec -T postgres pg_dump -U $(DB_USER) -d $(DB_NAME) > schema.sql
 
 # =========================
 # Mobile (Flutter)

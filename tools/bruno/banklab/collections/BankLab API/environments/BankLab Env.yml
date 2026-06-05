@@ -1,0 +1,24 @@
+name: BankLab Env
+variables:
+  - name: user_email
+    value: ""
+  - secret: true
+    name: user_pass
+  - name: admin_email
+    value: gus@email.com
+  - secret: true
+    name: admin_pass
+  - name: base_url
+    value: http://localhost:8080
+  - secret: true
+    name: app_token
+  - name: id
+    value: 47721812-dda9-41c5-9562-67047357df5d
+  - name: user_id
+    value: ""
+  - name: account_id
+    value: ""
+  - secret: true
+    name: access_token
+  - secret: true
+    name: refresh_token

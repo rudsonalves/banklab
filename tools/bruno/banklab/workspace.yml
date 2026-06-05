@@ -1,0 +1,12 @@
+opencollection: 1.0.0
+info:
+  name: "BankLab"
+  type: workspace
+
+collections:
+  - name: "BankLab API"
+    path: "collections/BankLab API"
+
+specs:
+
+docs: ''

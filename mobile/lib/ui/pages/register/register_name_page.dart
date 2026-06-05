@@ -61,7 +61,6 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
               BasicInputText(
                 controller: _nameController,
                 hintText: 'Digite seu nome completo',
-                keyboardType: TextInputType.name,
                 textCapitalization: TextCapitalization.words,
                 onChanged: _nameChanged,
               ),

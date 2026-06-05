@@ -165,13 +165,35 @@ Responsabilidades:
 
 ## 7. Configuração
 
-As configurações serão externas ao código:
+As configurações são externas ao código.
+
+`api/.env` é a fonte de verdade para a configuração local da API. Os comandos do
+Makefile carregam esse arquivo para:
+
+* iniciar o Docker Compose
+* montar a URL de migrations
+* resetar o banco
+* verificar readiness
+* iniciar a API
 
 Exemplos:
 
-* DATABASE_URL
-* PORT
-* ENVIRONMENT
+* APP_TOKEN
+* JWT_SECRET
+* JWT_ACCESS_TOKEN_DURATION
+* JWT_REFRESH_TOKEN_DURATION
+* TRANSACTION_PASSWORD_PEPPER
+* SERVER_PORT
+* DB_HOST
+* DB_PORT
+* DB_NAME
+* DB_USER
+* DB_PASSWORD
+
+`JWT_ACCESS_TOKEN_DURATION` e `JWT_REFRESH_TOKEN_DURATION` são opcionais. Quando
+omitidos, a API usa `15m` para access tokens e `168h` para sessões de refresh.
+Quando configurados, ambos devem usar a sintaxe de duração do Go e ser maiores
+que zero.
 
 ---
 

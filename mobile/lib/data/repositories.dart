@@ -12,6 +12,8 @@ import 'repositories/registration/registration_repository.dart';
 import 'repositories/registration/registration_repository_impl.dart';
 import 'repositories/transaction/transaction_repository.dart';
 import 'repositories/transaction/transaction_repository_impl.dart';
+import 'repositories/transaction_password/transaction_password_repository.dart';
+import 'repositories/transaction_password/transaction_password_repository_impl.dart';
 
 class Repositories {
   static void add(AutoInjector injector) {
@@ -27,6 +29,9 @@ class Repositories {
       )
       ..addLazySingleton<RegistrationRepository>(
         RegistrationRepositoryImpl.new,
+      )
+      ..add<TransactionPasswordRepository>(
+        TransactionPasswordRepositoryImpl.new,
       );
   }
 }

@@ -27,12 +27,14 @@ backlogs/
 
 ### API
 
-- [007 - public-step-up-endpoint-contract.md](<api/007 - public-step-up-endpoint-contract.md>): corrigir o contrato público de step-up para usar método e path HTTP em vez de chave interna de policy.
-- [007 - public-step-up-endpoint-contract_tasks.md](<api/007 - public-step-up-endpoint-contract_tasks.md>): tasks do contrato público de step-up por operação HTTP.
+- [009 - auth-session-bootstrap.md](<api/009 - auth-session-bootstrap.md>): endpoint único de sessão pós-login para perfil e readiness do usuário.
+- [009 - auth-session-bootstrap_tasks.md](<api/009 - auth-session-bootstrap_tasks.md>): tasks do endpoint único de sessão pós-login.
 
 ### Mobile
 
-- [011 - senha-transacional-e-step-up.md](<mobile/011 - senha-transacional-e-step-up.md>): senha transacional e step-up no fluxo mobile de transferência interna.
+- [011 - cadastro-senha-transacional.md](<mobile/011 - cadastro-senha-transacional.md>): cadastro da senha transacional no mobile.
+- [011 - cadastro-senha-transacional_tasks.md](<mobile/011 - cadastro-senha-transacional_tasks.md>): tasks do cadastro da senha transacional no mobile.
+- [012 - step-up-transferencia-interna.md](<mobile/012 - step-up-transferencia-interna.md>): autorização step-up no fluxo mobile de transferência interna.
 
 ## Histórico
 

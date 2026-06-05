@@ -69,26 +69,10 @@ class AuthInterceptor extends Interceptor {
     final statusCode = err.response?.statusCode;
     final path = err.requestOptions.path;
 
-    _log.error(
-      '[AuthInterceptor] ERROR $statusCode → ${err.requestOptions.method} $path',
-      error: err,
-      stack: err.stackTrace,
-    );
-
-    // Log the full error for debugging
     if (statusCode == null) {
       _log.error(
-        '[AuthInterceptor] Full error: ${err.toString()}',
-        error: err,
-        stack: err.stackTrace,
-      );
-      _log.error(
-        '[AuthInterceptor] Error type: ${err.type}',
-        error: err,
-        stack: err.stackTrace,
-      );
-      _log.error(
-        '[AuthInterceptor] Error message: ${err.message}',
+        '[AuthInterceptor] ${err.requestOptions.method} $path failed: '
+        '${err.message}',
         error: err,
         stack: err.stackTrace,
       );
@@ -96,8 +80,27 @@ class AuthInterceptor extends Interceptor {
 
     // only attempt refresh if 401 from non-refresh endpoint
     if (statusCode != 401 || path.endsWith(_refreshPath)) {
+      if (statusCode != null && statusCode >= 500) {
+        _log.error(
+          '[AuthInterceptor] HTTP $statusCode → '
+          '${err.requestOptions.method} $path',
+          error: err,
+          stack: err.stackTrace,
+        );
+      } else if (statusCode != null) {
+        _log.warn(
+          '[AuthInterceptor] HTTP $statusCode → '
+          '${err.requestOptions.method} $path',
+        );
+      }
+
       return handler.next(err);
     }
+
+    _log.warn(
+      '[AuthInterceptor] HTTP 401 → ${err.requestOptions.method} $path; '
+      'attempting token refresh.',
+    );
 
     final alreadyRefreshedToken = await _accessTokenUpdatedAfter(err);
     if (alreadyRefreshedToken != null) {

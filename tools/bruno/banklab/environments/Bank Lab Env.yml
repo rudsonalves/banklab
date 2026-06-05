@@ -1,0 +1,6 @@
+name: Bank Lab Env
+variables:
+  - name: base_url
+    value: http://localhost:8080
+  - secret: true
+    name: app_token

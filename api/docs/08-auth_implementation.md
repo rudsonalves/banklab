@@ -65,6 +65,7 @@ A user-scoped token issued after successful authentication.
 * short-lived
 * contains claims (`sub`, `role`, `customer_id`)
 * validated via JWT middleware
+* lifetime is configured by `JWT_ACCESS_TOKEN_DURATION` and defaults to `15m`
 
 ---
 
@@ -138,6 +139,8 @@ The refresh endpoint is authenticated by the refresh token in the request body,
 not by the expired access token. The handler delegates validation to the refresh
 use case, which checks the token signature, persisted session, revocation state,
 expiration, and user identity before rotating the session.
+Refresh session lifetime is configured by `JWT_REFRESH_TOKEN_DURATION` and
+defaults to `168h`.
 
 ---
 

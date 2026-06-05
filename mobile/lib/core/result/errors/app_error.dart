@@ -1,6 +1,7 @@
 import 'app_error_code.dart';
 
 export 'app_error_code.dart';
+export 'backend_error_code.dart';
 
 class AppError implements Exception {
   final int? statusCode;

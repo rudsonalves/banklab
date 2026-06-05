@@ -1,96 +1,42 @@
-# Backlog: senha transacional e step-up no mobile
+# Backlog: step-up na transferência interna mobile
 
 ## 1. Contexto
 
-O backlog `api/006` fechou o contrato do MVP ZTA na API:
+O backlog `api/006` fechou o contrato do MVP ZTA na API para autorização de
+operações sensíveis:
 
-- o usuário cria uma senha transacional em `POST /security/transaction-password`;
 - o app autoriza uma operação sensível em
   `POST /security/step-up/authorize`;
-- a API retorna um `step_up_token` curto, de uso único, emitido para o
-  endpoint público `POST /accounts/internal-transfers`;
-- `POST /accounts/internal-transfers` exige o header `X-Step-Up-Token`.
+- a API retorna um `step_up_token` curto, de uso único, emitido para o endpoint
+  público `POST /accounts/internal-transfers`;
+- `POST /accounts/internal-transfers` exige o header `X-Step-Up-Token`;
+- a senha transacional é enviada somente para o endpoint de autorização
+  step-up, nunca no payload da transferência.
 
-Este backlog define os elementos básicos para implementar esse fluxo no mobile,
-sem alterar o contrato da API.
+Este backlog trata somente do uso da senha transacional para autorizar a
+transferência interna.
+
+O cadastro da senha transacional fica em backlog independente:
+`011 - cadastro-senha-transacional.md`.
 
 ## 2. Objetivo
 
-Permitir que o usuário cadastre sua senha transacional e use essa credencial
-para autorizar uma transferência interna antes da execução final.
+Permitir que o usuário autorize uma transferência interna com senha
+transacional antes da execução final.
 
 O fluxo mobile deve:
 
 - manter a senha transacional fora do endpoint de transferência;
-- solicitar step-up apenas no momento de confirmar uma operação sensível;
-- enviar `X-Step-Up-Token` na transferência interna;
-- tratar os erros ZTA por `error.code`;
+- solicitar step-up apenas no momento de confirmar a operação sensível;
+- chamar `POST /security/step-up/authorize` para obter um `step_up_token`;
+- enviar `X-Step-Up-Token` em `POST /accounts/internal-transfers`;
+- descartar o token após sucesso, erro ou cancelamento;
+- tratar erros ZTA por `error.code`;
 - respeitar a arquitetura mobile atual.
 
 ## 3. Contratos de API
 
-### 3.1 Criar senha transacional
-
-Finalidade:
-
-Criar a primeira senha transacional do usuário autenticado. Esta chamada é
-usada no setup inicial da credencial e não exige step-up prévio, porque a
-credencial ainda não existe.
-
-Autenticação:
-
-- exige JWT válido no header `Authorization`;
-- não usa `X-Step-Up-Token`;
-- não deve receber senha de login.
-
-```http
-POST /security/transaction-password
-Authorization: Bearer <access_token>
-```
-
-Payload:
-
-- `transaction_password`: PIN numérico de 6 dígitos;
-- `transaction_password_confirmation`: confirmação local do mesmo PIN.
-
-Request:
-
-```json
-{
-  "transaction_password": "123456",
-  "transaction_password_confirmation": "123456"
-}
-```
-
-Resposta:
-
-- retorna somente metadados da credencial criada;
-- não retorna PIN, hash ou qualquer material sensível;
-- o mobile deve tratar sucesso como confirmação de que o usuário já possui
-  senha transacional ativa.
-
-Resposta de sucesso:
-
-```json
-{
-  "data": {
-    "user_id": "<user_id>",
-    "status": "active",
-    "created_at": "2026-05-29T10:00:00Z"
-  },
-  "error": null
-}
-```
-
-Erros relevantes para o mobile:
-
-- `TRANSACTION_PASSWORD_ALREADY_SET`: usuário já possui senha transacional;
-- `INVALID_DATA`: PIN inválido ou confirmação divergente;
-- `INVALID_REQUEST`: JSON inválido ou campo inesperado;
-- `UNAUTHORIZED` / `INVALID_TOKEN`: sessão ausente ou inválida;
-- `FORBIDDEN`: usuário autenticado não está apto para a operação.
-
-### 3.2 Autorizar step-up
+### 3.1 Autorizar step-up
 
 Finalidade:
 
@@ -121,8 +67,6 @@ Observação para o mobile:
 O mobile deve pedir autorização para a superfície pública que irá acessar. Ele
 não deve conhecer chaves internas de policy da API, como
 `internal_transfer.create`.
-`endpoint_key` pode continuar existindo internamente no backend/JWT, mas não é
-campo de input público do contrato mobile.
 
 Request:
 
@@ -167,7 +111,7 @@ Erros relevantes para o mobile:
 - `UNAUTHORIZED` / `INVALID_TOKEN`: sessão ausente ou inválida;
 - `FORBIDDEN`: usuário autenticado não está apto para a operação.
 
-### 3.3 Executar transferência interna
+### 3.2 Executar transferência interna
 
 Finalidade:
 
@@ -232,25 +176,6 @@ Ordem esperada no mobile:
 
 ## 4. Fluxo de produto
 
-### 4.1 Cadastro da senha transacional
-
-Fluxo inicial:
-
-1. O usuário autenticado acessa a criação de senha transacional.
-2. O app solicita PIN de 6 dígitos.
-3. O app solicita confirmação do PIN.
-4. O app valida formato e confirmação localmente.
-5. O app chama `POST /security/transaction-password`.
-6. Em sucesso, o app volta ao fluxo anterior ou mostra status de senha criada.
-
-Decisão inicial:
-
-- não criar recuperação, troca ou reset de senha transacional neste backlog;
-- não armazenar a senha transacional no dispositivo;
-- não exibir senha transacional em logs, analytics ou mensagens de erro.
-
-### 4.2 Step-up na transferência interna
-
 Fluxo esperado:
 
 1. Usuário preenche a transferência como hoje.
@@ -264,9 +189,17 @@ Fluxo esperado:
 6. Se a transferência falhar depois do enforcement, o mesmo token não deve ser
    reutilizado.
 
-Retry:
+Se a API retornar `TRANSACTION_PASSWORD_NOT_SET`, o app deve direcionar o
+usuário para o fluxo de cadastro de senha transacional definido na backlog
+`011 - cadastro-senha-transacional.md`.
+
+Este backlog não precisa implementar o cadastro completo. Ele deve apenas
+reagir ao erro de senha ausente e encaminhar o usuário para o fluxo existente.
+
+### Retry
 
 - se a API retornar `STEP_UP_TOKEN_CONSUMED`, o app deve solicitar novo step-up;
+- se a API retornar `STEP_UP_TOKEN_EXPIRED`, o app deve solicitar novo step-up;
 - mesmo mantendo o mesmo `idempotency_key`, o app pode precisar de novo
   `step_up_token`;
 - o `idempotency_key` deve continuar representando a tentativa lógica de
@@ -276,11 +209,10 @@ Retry:
 
 ### 5.1 Data layer
 
-Adicionar API service para o módulo de segurança, seguindo o padrão de
-`mobile/lib/data/services/apis`:
+Adicionar ou reutilizar API service para o módulo de segurança, seguindo o
+padrão de `mobile/lib/data/services/apis`:
 
 - `SecurityApi` ou equivalente;
-- DTO de criação de senha transacional;
 - DTO de autorização step-up;
 - DTO de resposta com `step_up_token` e `expires_in`.
 
@@ -292,17 +224,16 @@ Atualizar o serviço de transferência:
 
 ### 5.2 Repository layer
 
-Adicionar repositório de segurança:
+Adicionar ou ampliar repositório de segurança:
 
-- criar senha transacional;
 - autorizar step-up;
 - expor uma operação para autorização de transferência interna usando método e
   path públicos;
 - mapear erros ZTA para erros de aplicação.
 
 O repositório de transação deve continuar responsável por executar a
-transferência, mas receber o step-up token como parâmetro de execução ou por um
-objeto de input explícito.
+transferência, mas deve receber o step-up token como parâmetro de execução ou
+por um objeto de input explícito.
 
 ### 5.3 Domain/use case layer
 
@@ -326,12 +257,11 @@ policy, como `internal_transfer.create`, são responsabilidade exclusiva da API.
 
 Elementos mínimos:
 
-- tela ou fluxo para cadastrar senha transacional;
-- componente de entrada de PIN de 6 dígitos;
-- confirmação do PIN no cadastro;
 - prompt/modal/página de step-up na confirmação da transferência;
+- entrada de PIN de 6 dígitos;
 - estados de loading, sucesso e erro;
-- mensagens específicas para bloqueio, senha ausente e senha inválida.
+- mensagens específicas para bloqueio, senha ausente e senha inválida;
+- cancelamento do step-up com retorno para a confirmação da transferência.
 
 O prompt de step-up deve ser transitório e não deve preservar a senha em route
 extras, cache local ou estado global.
@@ -339,15 +269,6 @@ extras, cache local ou estado global.
 ## 6. Erros que o mobile deve tratar
 
 Clientes devem depender de `error.code`.
-
-Criação da senha transacional:
-
-- `TRANSACTION_PASSWORD_ALREADY_SET`;
-- `INVALID_DATA`;
-- `INVALID_REQUEST`;
-- `UNAUTHORIZED`;
-- `INVALID_TOKEN`;
-- `FORBIDDEN`.
 
 Autorização de step-up:
 
@@ -374,15 +295,6 @@ Transferência protegida:
 
 ## 7. UX mínima
 
-### Cadastro
-
-- PIN de 6 dígitos.
-- Confirmação do PIN.
-- Validação local antes de chamar a API.
-- Feedback claro quando a senha já existe.
-
-### Step-up
-
 - Entrada curta e focada da senha transacional.
 - Não mostrar o valor digitado.
 - Permitir cancelar e voltar para a confirmação da transferência.
@@ -402,6 +314,7 @@ Transferência protegida:
 
 ## 9. Fora do escopo inicial
 
+- cadastro completo da senha transacional;
 - recuperação de senha transacional;
 - troca de senha transacional;
 - reset administrativo;
@@ -412,14 +325,16 @@ Transferência protegida:
 
 ## 10. Critérios de aceite
 
-- Usuário consegue criar senha transacional pelo app.
 - App não envia senha transacional no endpoint de transferência.
 - App autoriza step-up antes de executar transferência interna.
 - Transferência interna envia `X-Step-Up-Token`.
 - Token é descartado após a tentativa.
 - Retry com `STEP_UP_TOKEN_CONSUMED` solicita novo step-up.
+- Retry com `STEP_UP_TOKEN_EXPIRED` solicita novo step-up.
 - Mesmo `idempotency_key` pode ser reutilizado com novo step-up token quando
   fizer sentido para a mesma tentativa lógica.
+- `TRANSACTION_PASSWORD_NOT_SET` direciona para o fluxo de cadastro da backlog
+  `011 - cadastro-senha-transacional.md`.
 - Erros ZTA são tratados por `error.code`.
 - Testes cobrem DTOs, API services, repositórios, use cases e view models
   afetados.
@@ -427,7 +342,7 @@ Transferência protegida:
 
 ## 11. Referências
 
-- `docs/backlogs/api/006a - transaction-password.md`
+- `docs/backlogs/mobile/011 - cadastro-senha-transacional.md`
 - `docs/backlogs/api/006b - step-up-token.md`
 - `docs/backlogs/api/006c - internal-transfer-step-up-enforcement.md`
 - `docs/backlogs/api/006d - zta-contracts-and-docs.md`

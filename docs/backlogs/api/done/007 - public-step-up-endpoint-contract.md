@@ -156,5 +156,5 @@ padrão atual da API.
 - `docs/backlogs/api/done/006b - step-up-token.md`
 - `docs/backlogs/api/done/006c - internal-transfer-step-up-enforcement.md`
 - `docs/backlogs/api/done/006d - zta-contracts-and-docs.md`
-- `docs/backlogs/mobile/011 - senha-transacional-e-step-up.md`
+- `docs/backlogs/mobile/012 - step-up-transferencia-interna.md`
 - `api/docs/07-api-rest.md`

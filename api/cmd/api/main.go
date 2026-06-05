@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	accountApplication "github.com/seu-usuario/bank-api/internal/account/bankaccount/application"
 	accountDelivery "github.com/seu-usuario/bank-api/internal/account/bankaccount/delivery"
@@ -32,138 +32,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func main() {
-	bootstrap.Init()
-
-	// ======================
-	// Config (fail-fast)
-	// ======================
-	config := bootstrap.LoadConfig()
-
-	db := database.NewPool()
-	log.Println("DB connected")
-
-	// ======================
-	// Repositories
-	// ======================
-	customerRepo := customerInfrastructure.New(db)
-	accountRepo := accountInfrastructure.New(db)
-	transactionRepo := transactionInfrastructure.New(db)
-	statementRepo := statementInfrastructure.New(db)
-
-	userRepo := authInfrastructure.NewPostgresUserRepository(db)
-	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
-	contactVerificationRepo := authInfrastructure.NewPostgresContactVerificationRepository(db)
-	transactionPasswordRepo := securityInfrastructure.NewPostgresTransactionPasswordRepository(db)
-	stepUpTokenRepo := securityInfrastructure.NewPostgresStepUpTokenRepository(db)
-	transactor := authInfrastructure.NewPostgresTransactor(db)
-
-	// ======================
-	// Services
-	// ======================
-	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
-	transactionPasswordHasher := securityInfrastructure.NewBcryptTransactionPasswordHasher(
-		bcrypt.DefaultCost,
-		config.TransactionPasswordPepper,
-	)
-	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, 15*time.Minute)
-	stepUpTokenSigner := securityInfrastructure.NewJWTStepUpTokenSigner(config.JWTSecret)
-	stepUpTokenVerifier := securityInfrastructure.NewJWTStepUpTokenVerifier(config.JWTSecret)
-
-	// ======================
-	// Use Cases
-	// ======================
-	branchPolicy := accountApplication.NewDefaultBranchPolicy()
-
-	listAccountsUC := accountApplication.NewListAccounts(accountRepo)
-	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
-	lookupInternalTransferRecipientsUC := accountApplication.NewLookupInternalTransferRecipients(accountRepo)
-	depositUC := transactionApplication.NewDeposit(transactionRepo)
-	withdrawUC := transactionApplication.NewWithdraw(transactionRepo)
-	transferUC := transactionApplication.NewTransfer(transactionRepo)
-	transferReceiptUC := transactionApplication.NewGetTransferReceipt(transactionRepo)
-	statementUC := statementApplication.NewGetStatement(statementRepo)
-	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
-
-	registerUserUC := authApplication.NewRegisterUserUseCase(
-		userRepo,
-		customerRepo,
-		customerRepo,
-		contactVerificationRepo,
-		hasher,
-		transactor,
-	)
-	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo)
-	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor)
-	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
-	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
-	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
-	createTransactionPasswordUC := securityApplication.NewCreateTransactionPasswordUseCase(transactionPasswordRepo, userRepo, transactionPasswordHasher)
-	authorizeStepUpUC := securityApplication.NewAuthorizeStepUpUseCase(
-		transactionPasswordRepo,
-		userRepo,
-		transactionPasswordHasher,
-		stepUpTokenRepo,
-		stepUpTokenSigner,
-		securityDomain.NewDefaultStepUpPublicOperationResolver(),
-	)
-	enforceStepUpUC := securityApplication.NewEnforceStepUpUseCase(stepUpTokenVerifier, stepUpTokenRepo)
-	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
-
-	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
-	checkCPFUC := customerApplication.NewCheckCPFUseCase(customerRepo)
-
-	// ======================
-	// Handlers
-	// ======================
-	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC, lookupInternalTransferRecipientsUC)
-	statementHandler := statementDelivery.New(statementUC)
-	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC, transferReceiptUC, enforceStepUpUC)
-	authHandler := authDelivery.New(
-		registerUserUC,
-		loginUserUC,
-		getCurrentUserUC,
-		refreshAccessTokenUC,
-		requestContactVerificationUC,
-		confirmContactVerificationUC,
-	)
-	adminHandler := adminDelivery.New(approveUserUC)
-	customerHandler := customerDelivery.New(nil, getCustomerMeUC, checkCPFUC)
-	securityHandler := securityDelivery.New(createTransactionPasswordUC, authorizeStepUpUC)
-
-	// ======================
-	// Middlewares
-	// ======================
-	appTokenMiddleware := sharedhttpmiddleware.AppToken(config.AppToken)
-	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
-
-	withAuth := authMiddleware.RequireAuth
-
-	// ======================
-	// Routers
-	// ======================
-
-	// --- Auth Router ---
-	authRouter := newAuthRouter(authHandler, customerHandler, appTokenMiddleware, withAuth)
-
-	// --- API Router ---
-	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler, securityHandler)
-
-	// ======================
-	// Main Router
-	// ======================
-	mainRouter := http.NewServeMux()
-
-	mainRouter.Handle("/auth/", authRouter)
-	mainRouter.Handle("/", apiRouter)
-
-	log.Println("Server running in localhost on port 8080")
-
-	if err := http.ListenAndServe(":8080", mainRouter); err != nil {
-		log.Fatal("failed to start server:", err)
-	}
-}
-
 func newAuthRouter(
 	authHandler *authDelivery.Handler,
 	customerHandler *customerDelivery.Handler,
@@ -182,6 +50,7 @@ func newAuthRouter(
 	// Session refresh is authenticated by the refresh token payload itself.
 	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
 	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
+	authRouter.Handle("GET /auth/session", withAuth(http.HandlerFunc(authHandler.Session)))
 
 	return authRouter
 }
@@ -215,4 +84,148 @@ func newAPIRouter(
 	// apiRouter.Handle("POST /terminal/accounts/{id}/withdraw", withAuth(http.HandlerFunc(transactionHandler.Withdraw)))
 
 	return apiRouter
+}
+
+func main() {
+	bootstrap.Init()
+
+	// ======================
+	// Config (fail-fast)
+	// ======================
+	config := bootstrap.LoadConfig()
+
+	db := database.NewPool(database.Config{
+		Host:     config.Database.Host,
+		Port:     config.Database.Port,
+		Name:     config.Database.Name,
+		User:     config.Database.User,
+		Password: config.Database.Password,
+	})
+	log.Println("DB connected")
+
+	// ======================
+	// Repositories
+	// ======================
+	customerRepo := customerInfrastructure.New(db)
+	accountRepo := accountInfrastructure.New(db)
+	transactionRepo := transactionInfrastructure.New(db)
+	statementRepo := statementInfrastructure.New(db)
+
+	userRepo := authInfrastructure.NewPostgresUserRepository(db)
+	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
+	contactVerificationRepo := authInfrastructure.NewPostgresContactVerificationRepository(db)
+	transactionPasswordRepo := securityInfrastructure.NewPostgresTransactionPasswordRepository(db)
+	stepUpTokenRepo := securityInfrastructure.NewPostgresStepUpTokenRepository(db)
+	transactor := authInfrastructure.NewPostgresTransactor(db)
+
+	// ======================
+	// Services
+	// ======================
+	hasher := authInfrastructure.NewBcryptPasswordHasher(bcrypt.DefaultCost)
+	transactionPasswordHasher := securityInfrastructure.NewBcryptTransactionPasswordHasher(
+		bcrypt.DefaultCost,
+		config.TransactionPasswordPepper,
+	)
+	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, config.JWTAccessTokenDuration)
+	stepUpTokenSigner := securityInfrastructure.NewJWTStepUpTokenSigner(config.JWTSecret)
+	stepUpTokenVerifier := securityInfrastructure.NewJWTStepUpTokenVerifier(config.JWTSecret)
+
+	// ======================
+	// Use Cases
+	// ======================
+	branchPolicy := accountApplication.NewDefaultBranchPolicy()
+
+	listAccountsUC := accountApplication.NewListAccounts(accountRepo)
+	createAccountUC := accountApplication.NewCreateAccount(accountRepo, customerRepo, userRepo, branchPolicy)
+	lookupInternalTransferRecipientsUC := accountApplication.NewLookupInternalTransferRecipients(accountRepo)
+	depositUC := transactionApplication.NewDeposit(transactionRepo)
+	withdrawUC := transactionApplication.NewWithdraw(transactionRepo)
+	transferUC := transactionApplication.NewTransfer(transactionRepo)
+	transferReceiptUC := transactionApplication.NewGetTransferReceipt(transactionRepo)
+	statementUC := statementApplication.NewGetStatement(statementRepo)
+	balanceUC := accountApplication.NewGetAccountBalance(accountRepo)
+
+	registerUserUC := authApplication.NewRegisterUserUseCase(
+		userRepo,
+		customerRepo,
+		customerRepo,
+		contactVerificationRepo,
+		hasher,
+		transactor,
+	)
+	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo).
+		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
+	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor).
+		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
+	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
+	getSessionUC := authApplication.NewGetSessionUseCase(userRepo, customerRepo, accountRepo, transactionPasswordRepo)
+	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
+	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
+	createTransactionPasswordUC := securityApplication.NewCreateTransactionPasswordUseCase(transactionPasswordRepo, userRepo, transactionPasswordHasher)
+	authorizeStepUpUC := securityApplication.NewAuthorizeStepUpUseCase(
+		transactionPasswordRepo,
+		userRepo,
+		transactionPasswordHasher,
+		stepUpTokenRepo,
+		stepUpTokenSigner,
+		securityDomain.NewDefaultStepUpPublicOperationResolver(),
+	)
+	enforceStepUpUC := securityApplication.NewEnforceStepUpUseCase(stepUpTokenVerifier, stepUpTokenRepo)
+	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
+
+	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
+	checkCPFUC := customerApplication.NewCheckCPFUseCase(customerRepo)
+
+	// ======================
+	// Handlers
+	// ======================
+	accountHandler := accountDelivery.New(listAccountsUC, createAccountUC, balanceUC, lookupInternalTransferRecipientsUC)
+	statementHandler := statementDelivery.New(statementUC)
+	transactionHandler := transactionDelivery.New(depositUC, withdrawUC, transferUC, transferReceiptUC, enforceStepUpUC)
+	authHandler := authDelivery.New(
+		registerUserUC,
+		loginUserUC,
+		getCurrentUserUC,
+		refreshAccessTokenUC,
+		requestContactVerificationUC,
+		confirmContactVerificationUC,
+		getSessionUC,
+	)
+	adminHandler := adminDelivery.New(approveUserUC)
+	customerHandler := customerDelivery.New(nil, getCustomerMeUC, checkCPFUC)
+	securityHandler := securityDelivery.New(createTransactionPasswordUC, authorizeStepUpUC)
+
+	// ======================
+	// Middlewares
+	// ======================
+	appTokenMiddleware := sharedhttpmiddleware.AppToken(config.AppToken)
+	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
+
+	withAuth := authMiddleware.RequireAuth
+
+	// ======================
+	// Routers
+	// ======================
+
+	// --- Auth Router ---
+	authRouter := newAuthRouter(authHandler, customerHandler, appTokenMiddleware, withAuth)
+
+	// --- API Router ---
+	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler, securityHandler)
+
+	// ======================
+	// Main Router
+	// ======================
+	mainRouter := http.NewServeMux()
+
+	mainRouter.Handle("/auth/", authRouter)
+	mainRouter.Handle("/", apiRouter)
+
+	urlHost := fmt.Sprintf(":%s", config.Port)
+
+	log.Printf("Server running in http://localhost:%s", config.Port)
+
+	if err := http.ListenAndServe(urlHost, mainRouter); err != nil {
+		log.Fatal("failed to start server:", err)
+	}
 }

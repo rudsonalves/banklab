@@ -655,7 +655,7 @@ A primeira etapa é o `HTTP Request`.
 
  -  o mobile app, 
  -  um frontend web, 
- -  uma ferramenta como Postman ou 
+ -  uma ferramenta como Bruno ou
  -  outro sistema. 
  
 Essa requisição contém método HTTP, path, headers, query params e, quando aplicável, body JSON.

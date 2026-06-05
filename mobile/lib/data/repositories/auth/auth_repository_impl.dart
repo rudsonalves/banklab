@@ -7,8 +7,8 @@ import '/data/services/apis/auth/auth_api.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/data/services/cache/last_login/last_login_cache_service.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
+import '/domain/common/auth/models/auth_session/auth_session.dart';
 import '/domain/common/auth/models/auth_user.dart';
-import '/domain/common/auth/models/user_profile.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApi _api;
@@ -24,7 +24,7 @@ class AuthRepositoryImpl implements AuthRepository {
        _lastLoginCacheService = lastLoginCacheService;
 
   AuthUser _currentUser = NotLoggedUser();
-  UserProfile? _userProfile;
+  AuthSession? _authSession;
 
   final _log = ConsoleLog('AuthRepositoryImpl');
 
@@ -32,7 +32,7 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthUser get currentUser => _currentUser;
 
   @override
-  UserProfile? get userProfile => _userProfile;
+  AuthSession? get userProfile => _authSession;
 
   @override
   bool get isLoggedIn => _currentUser is LoggedUser;
@@ -57,11 +57,11 @@ class AuthRepositoryImpl implements AuthRepository {
       return Result.failure(profileResult.error!);
     }
 
-    _userProfile = profileResult.value!;
+    _authSession = profileResult.value!;
     final saveResult = await _lastLoginCacheService.save(
       LastLoginIdentity(
-        name: _userProfile!.name,
-        identifier: _userProfile!.email,
+        name: _authSession!.customer?.name ?? '***',
+        identifier: _authSession!.customer?.cpf ?? '***',
       ),
     );
 
@@ -86,7 +86,7 @@ class AuthRepositoryImpl implements AuthRepository {
     if (!isLoggedIn) return Success(unit);
 
     _currentUser = NotLoggedUser();
-    _userProfile = null;
+    _authSession = null;
 
     await _storage.delete(StorageKeys.accessToken);
     await _storage.delete(StorageKeys.refreshToken);
@@ -95,7 +95,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  AsyncResult<UserProfile> profile() async {
+  AsyncResult<AuthSession> profile() async {
     if (!isLoggedIn) {
       return Failure(
         AppError(
@@ -105,13 +105,13 @@ class AuthRepositoryImpl implements AuthRepository {
       );
     }
 
-    if (_userProfile != null) return Success(_userProfile!);
+    if (_authSession != null) return Success(_authSession!);
 
-    final result = await _api.getProfile();
+    final result = await _api.getAuthSession();
     if (result.isFailure) return Result.failure(result.error!);
 
-    _userProfile = result.value!;
+    _authSession = result.value!;
 
-    return Success(_userProfile!);
+    return Success(_authSession!);
   }
 }

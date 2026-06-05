@@ -7,6 +7,7 @@ import 'apis/auth/auth_api.dart';
 import 'apis/contact_verification/contact_verification_api.dart';
 import 'apis/receipt/api_receipt.dart';
 import 'apis/registration/registration_api.dart';
+import 'apis/transaction_password/transaction_password_api.dart';
 import 'apis/transfer/api_transfer.dart';
 import 'cache/last_login/last_login_cache_service.dart';
 import 'cache/last_login/last_login_cache_service_impl.dart';
@@ -24,6 +25,7 @@ class Services {
       ..addSingleton<ApiTransfer>(ApiTransfer.new)
       ..addSingleton<ApiReceipt>(ApiReceipt.new)
       ..add<LastLoginCacheService>(LastLoginCacheServiceImpl.new)
-      ..addLazySingleton<RegisterDraftStore>(RegisterDraftStore.new);
+      ..addLazySingleton<RegisterDraftStore>(RegisterDraftStore.new)
+      ..add<TransactionPasswordApi>(TransactionPasswordApi.new);
   }
 }
