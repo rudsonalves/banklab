@@ -59,7 +59,7 @@ class _RegisterTokenPageState extends State<RegisterTokenPage> {
               TextHeader(_headerText),
               OtpInput(
                 onChanged: _tokenChanged,
-                // onCompleted: _tokenCompleted,
+                onCompleted: _tokenCompleted,
               ),
             ],
           ),
@@ -126,9 +126,9 @@ class _RegisterTokenPageState extends State<RegisterTokenPage> {
     }
   }
 
-  // void _tokenCompleted(String value) {
-  //   _tokenChanged(value);
-  // }
+  void _tokenCompleted(String value) {
+    _tokenChanged(value);
+  }
 
   Future<void> _submitToken() async {
     final token = _token.trim();

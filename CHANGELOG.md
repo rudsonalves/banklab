@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026/06/02 - mobile/create_transaction_password-06
+
+Implemented the transaction password registration flow completion and finalized the related backlog items.
+
+### Changes
+
+#### 1. Backlog Organization
+
+**docs/backlogs/mobile/done/011 - cadastro-senha-transacional.md**
+
+* Moved the transaction password registration backlog to the `done` directory.
+* Marked the feature backlog as completed.
+
+**docs/backlogs/mobile/done/011 - cadastro-senha-transacional_tasks.md**
+
+* Moved the associated task list to the `done` directory.
+* Consolidated completion status for all tasks related to the transaction password registration feature.
+
+#### 2. OTP Registration Flow Improvement
+
+**mobile/lib/ui/pages/register/register_token_page.dart**
+
+* Enabled automatic token submission behavior when the OTP input is fully completed.
+* Connected the `OtpInput.onCompleted` callback to the page logic.
+* Restored the `_tokenCompleted` method implementation.
+* Reused the existing `_tokenChanged` flow to avoid duplication and maintain a single source of token validation logic.
+* Improved the registration experience by eliminating the need for additional user interaction after entering the final verification digit.
+
+#### 3. Bruno Environment Update
+
+**tools/bruno/banklab/collections/BankLab API/environments/BankLab Env.yml**
+
+* Updated the default test identifier used in the Bruno environment configuration.
+* Replaced the previous UUID with a new reference value for API testing scenarios.
+
+### Conclusion
+
+This commit completes the transaction password registration backlog, improves the OTP verification user experience through automatic completion handling, and updates the Bruno testing environment to align with the current development workflow.
+
+
 ## 2026/06/05 - mobile/create_transaction_password-05
 
 Refactor environment configuration and migrate API testing assets from Postman to Bruno while introducing configurable JWT lifetimes and database connectivity settings.
