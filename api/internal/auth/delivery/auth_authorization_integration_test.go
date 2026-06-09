@@ -304,7 +304,11 @@ func newIntegrationServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, f
 	approveUserUC := adminapplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 	listAccountsUC := accountapplication.NewListAccounts(accountRepo)
 	transactionRepo := transactioninfrastructure.New(pool)
-	requestContactVerificationUC := authapplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
+	requestContactVerificationUC := authapplication.NewRequestContactVerificationUseCase(
+		contactVerificationRepo,
+		userRepo,
+		true,
+	)
 	confirmContactVerificationUC := authapplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
 	authHandler := authdelivery.New(
 		registerUserUC,

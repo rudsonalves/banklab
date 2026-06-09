@@ -1,6 +1,116 @@
 # Changelog
 
-## 2026/06/02 - mobile/create_transaction_password-06
+## 2026/06/09 - banklab/docker-environment-isolation-01
+
+This commit introduces Docker-based API execution with explicit environment isolation for development, staging, and production.
+
+1. `.dockerignore`
+
+   * Added Docker build exclusions for Git metadata, generated Flutter artifacts, local environment files, documentation, templates, and tools.
+   * Reduced Docker build context size and avoided leaking local configuration files into images.
+
+2. `.gitignore`
+
+   * Added `api/*.env` to prevent API environment files from being committed.
+   * Preserved the existing `.pdf` ignore rule with a proper trailing newline.
+
+3. `Makefile`
+
+   * Replaced the single `api/.env` flow with environment-specific files selected through `API_ENV`.
+   * Added support for `dev`, `staging`, and `prod` targets.
+   * Updated Docker Compose project names to isolate containers by environment.
+   * Added `docker-db-up` to start only PostgreSQL.
+   * Changed `api-run` to build and run the API as a Docker container.
+   * Added `api-run-dev`, `api-run-staging`, and `api-run-prod`.
+   * Updated setup, run, reset, and bootstrap flows to use the Dockerized API and selected database environment.
+   * Limited mobile IP synchronization to the development environment.
+
+4. `api/.gitignore`
+
+   * Ignored `dev.env`, `staging.env`, and `prod.env`.
+
+5. `api/README.md`
+
+   * Updated execution instructions for Dockerized API containers.
+   * Documented explicit environment selection through `ENV_FILE`.
+   * Added development and staging URLs.
+   * Added staging execution notes for Cloudflare Tunnel.
+
+6. `api/cmd/api/main.go`
+
+   * Passed the debug verification token exposure flag into the contact verification use case.
+   * Updated server binding to use both `SERVER_HOST` and `SERVER_PORT`.
+   * Improved startup logging to show the resolved server address.
+
+7. `api/docs/00-getting_started.md`
+
+   * Replaced the legacy single API `.env` documentation with isolated `dev`, `staging`, and `prod` environment files.
+   * Documented Docker networking, published ports, environment-specific databases, and Cloudflare Tunnel usage.
+   * Added documentation for `APP_ENV`, `PUBLIC_BASE_URL`, `EXPOSE_DEBUG_VERIFICATION_TOKEN`, `API_PUBLISHED_HOST`, and `API_PUBLISHED_PORT`.
+
+8. API test setup files
+
+   * Replaced full bootstrap initialization with `bootstrap.RegisterErrors()` in delivery tests.
+   * Avoided requiring runtime environment files for tests that only need error registration.
+
+9. `api/internal/auth/application/contact_verification.go`
+
+   * Added configurable exposure of debug verification tokens.
+   * Kept verification tokens available internally while omitting them from responses when disabled.
+
+10. `api/internal/auth/application/contact_verification_test.go`
+
+    * Updated tests for the new constructor signature.
+    * Added coverage to ensure debug verification tokens are hidden when exposure is disabled.
+
+11. `api/internal/auth/delivery/auth_authorization_integration_test.go`
+
+    * Updated integration test wiring to pass the debug token exposure flag explicitly.
+
+12. `api/internal/bootstrap/bootstrap.go`
+
+    * Added explicit environment loading through `ENV_FILE`.
+    * Removed implicit `.env` discovery to prevent accidental cross-environment configuration.
+    * Added `APP_ENV`, `PUBLIC_BASE_URL`, `SERVER_HOST`, and debug token exposure configuration.
+    * Added validation for accepted environments.
+    * Added production safety validation to reject `EXPOSE_DEBUG_VERIFICATION_TOKEN=true`.
+
+13. `api/internal/bootstrap/bootstrap_test.go`
+
+    * Added tests for environment parsing.
+    * Added tests for production debug token exposure validation.
+
+14. `docker-compose.yml`
+
+    * Added environment-specific Compose support for PostgreSQL and API services.
+    * Added PostgreSQL health checks.
+    * Published PostgreSQL only on loopback.
+    * Added the Dockerized API service with explicit runtime env file mounting.
+    * Used environment-specific published API host and port configuration.
+
+15. `infra/docker/api/Dockerfile`
+
+    * Added a multi-stage Docker build for the Go API.
+    * Built a stripped Linux binary.
+    * Added a minimal Alpine runtime image with certificates, timezone data, and a non-root user.
+
+16. `infra/scripts/ensure-env-files.sh`
+
+    * Reworked environment generation to create isolated API files for development, staging, and production.
+    * Preserved existing secrets and appended only missing values.
+    * Migrated legacy `api/.env` values into `api/dev.env` when available.
+    * Added environment-specific database names, ports, public base URLs, and API publication settings.
+    * Generated mobile environment files using the corresponding API application token.
+
+17. `infra/scripts/update-mobile-env-ip.sh`
+
+    * Restricted host LAN IP synchronization to `mobile/dev.env`.
+    * Prevented staging and production mobile environments from being overwritten with local development URLs.
+
+This commit establishes a safer and more reproducible runtime model by isolating development, staging, and production configuration, containerizing the API execution flow, and preventing accidental exposure of development-only verification tokens in production.
+
+
+## 2026/06/08 - mobile/create_transaction_password-06
 
 Implemented the transaction password registration flow completion and finalized the related backlog items.
 

@@ -47,56 +47,83 @@ Before running the API, initialize environment files with:
 make env-init
 ```
 
-This command creates the files below only if they do not exist (existing files are preserved):
+This command creates independent API and mobile environment files:
 
 ```bash
-./api/.env
+./api/dev.env
+./api/staging.env
+./api/prod.env
 ./mobile/dev.env
 ./mobile/staging.env
 ./mobile/prod.env
 ```
 
-If you prefer manual setup, create the API environment file:
+Existing files and secrets are preserved. Newly created mobile files receive the
+endpoint, mode, and application token from the corresponding API environment.
 
-```bash
-touch api/.env
-```
+The API never discovers an environment file implicitly. `ENV_FILE` selects one
+file explicitly, while the Make targets perform that selection for you.
 
-`api/.env` is the source of truth for API runtime configuration and local database
-settings. Make targets that start Docker Compose or run migrations read this file
-explicitly; a repository-root `.env` file is not required.
-
-Add the following variables:
+Each API environment contains:
 
 ```env
+APP_ENV=dev
+PUBLIC_BASE_URL=http://localhost:8080
+EXPOSE_DEBUG_VERIFICATION_TOKEN=true
+
 APP_TOKEN=your_app_token_here
 JWT_SECRET=your_jwt_secret_here
 JWT_ACCESS_TOKEN_DURATION=15m
 JWT_REFRESH_TOKEN_DURATION=168h
 TRANSACTION_PASSWORD_PEPPER=your_transaction_password_pepper_here
+
+SERVER_HOST=0.0.0.0
 SERVER_PORT=8080
-DB_HOST=localhost
+API_PUBLISHED_HOST=0.0.0.0
+API_PUBLISHED_PORT=8080
+
+DB_HOST=postgres
 DB_PORT=5432
+DB_PUBLISHED_PORT=5432
 DB_NAME=bank
 DB_USER=postgres
 DB_PASSWORD=postgres
 ```
 
-Example:
+Generated defaults use separate databases and Compose projects:
 
-```env
-APP_TOKEN=a3f5905dc26977e9408b3eca832869c2d49e4f7cf6d2026cff234075fd703ad5
-JWT_SECRET=b03ff724fc843ace8ea69f2e00bdb6192e342f90038a8532d55bae3d42427d2d
-JWT_ACCESS_TOKEN_DURATION=15m
-JWT_REFRESH_TOKEN_DURATION=168h
-TRANSACTION_PASSWORD_PEPPER=Q3xZW9o7K5f7M2x8d6Vf2f4i1xP7X2zVj7jv4C7mK2Y=
-SERVER_PORT=8080
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=bank
-DB_USER=postgres
-DB_PASSWORD=postgres
+- development: `bank`, port `5432`, project `banklab-dev`
+- staging: `bank_staging`, port `5433`, project `banklab-staging`
+- production: `bank_production`, port `5434`, project `banklab-prod`
+
+`DB_HOST` and `DB_PORT` describe the internal Docker connection. Host-side
+migrations connect through `DB_PUBLISHED_PORT`. The API listens on
+`0.0.0.0:8080` inside its container. Development publishes it on the host LAN
+for physical devices; staging and production publish it only on
+`127.0.0.1:8080` for Cloudflare Tunnel.
+
+`APP_ENV` accepts `dev`, `staging`, or `production`. Production startup fails
+when `EXPOSE_DEBUG_VERIFICATION_TOKEN=true`.
+
+Build and start only the selected API service (and its PostgreSQL dependency):
+
+```bash
+make api-run-dev
+make api-run-staging
+make api-run-prod
 ```
+
+Start PostgreSQL, apply migrations, and run the selected API:
+
+```bash
+make dev
+make staging
+make prod
+```
+
+For the staging tunnel, run `cloudflared tunnel run banklab` in a separate
+terminal after `make staging`. The tunnel ingress should point to
+`http://localhost:8080`.
 
 To generate a strong pepper value:
 
@@ -134,10 +161,21 @@ Requirements:
   - Is never stored in the database
   - Rotating this value invalidates existing transaction password hashes unless a migration strategy is implemented
 
+- **EXPOSE_DEBUG_VERIFICATION_TOKEN**
+  - Includes the contact verification code in API responses for controlled development/staging use
+  - Must be `false` when `APP_ENV=production`
+
 - **DB_HOST**, **DB_PORT**, **DB_NAME**, **DB_USER**, **DB_PASSWORD**
-  - Configure the local PostgreSQL connection
+  - Configure the API-to-PostgreSQL connection inside Docker
   - Are also used by Make targets for Docker Compose, migrations, reset, readiness checks, and schema export
-  - Use `DB_HOST=localhost` when the API runs on the host machine
+  - Use `DB_HOST=postgres` and `DB_PORT=5432`
+
+- **DB_PUBLISHED_PORT**
+  - Publishes PostgreSQL only on the loopback interface for host-side migrations
+
+- **API_PUBLISHED_HOST**, **API_PUBLISHED_PORT**
+  - Control where Docker publishes the API on the host
+  - Staging and production use `127.0.0.1:8080` for Cloudflare Tunnel
 
 ---
 

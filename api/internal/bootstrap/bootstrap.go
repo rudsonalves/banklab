@@ -1,22 +1,28 @@
 package bootstrap
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	AppToken                  string
-	JWTSecret                 string
-	JWTAccessTokenDuration    time.Duration
-	JWTRefreshTokenDuration   time.Duration
-	TransactionPasswordPepper string
-	Port                      string
-	Database                  DatabaseConfig
+	Environment                  string
+	PublicBaseURL                string
+	AppToken                     string
+	JWTSecret                    string
+	JWTAccessTokenDuration       time.Duration
+	JWTRefreshTokenDuration      time.Duration
+	TransactionPasswordPepper    string
+	ExposeDebugVerificationToken bool
+	Host                         string
+	Port                         string
+	Database                     DatabaseConfig
 }
 
 type DatabaseConfig struct {
@@ -32,8 +38,14 @@ const (
 	defaultJWTRefreshTokenDuration = 7 * 24 * time.Hour
 )
 
-// Init initializes the application by loading environment variables
-// and registering errors.
+const (
+	EnvironmentDev        = "dev"
+	EnvironmentStaging    = "staging"
+	EnvironmentProduction = "production"
+)
+
+// Init initializes the application from the explicitly selected environment
+// file and registers application errors.
 func Init() {
 	loadEnv()
 	RegisterErrors()
@@ -42,6 +54,13 @@ func Init() {
 // LoadConfig reads configuration from environment variables and returns a Config struct.
 // It performs fail-fast checks to ensure required variables are set, logging a fatal error if any are missing.
 func LoadConfig() Config {
+	environment, err := parseEnvironment(requiredEnv("APP_ENV"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicBaseURL := requiredEnv("PUBLIC_BASE_URL")
+
 	appToken := os.Getenv("APP_TOKEN")
 	if appToken == "" {
 		log.Fatal("APP_TOKEN environment variable is required")
@@ -74,9 +93,12 @@ func LoadConfig() Config {
 		log.Fatal("TRANSACTION_PASSWORD_PEPPER must not match JWT_SECRET")
 	}
 
-	protocol := os.Getenv("SERVER_PROTOCOL")
-	if protocol == "" {
-		protocol = "http"
+	exposeDebugVerificationToken, err := parseRequiredBoolEnv("EXPOSE_DEBUG_VERIFICATION_TOKEN")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := validateDebugTokenExposure(environment, exposeDebugVerificationToken); err != nil {
+		log.Fatal(err)
 	}
 
 	port := os.Getenv("SERVER_PORT")
@@ -97,16 +119,20 @@ func LoadConfig() Config {
 		Password: requiredEnv("DB_PASSWORD"),
 	}
 
-	log.Printf("URL to access the server, defaulting to %s://%s:%s", protocol, host, port)
+	log.Printf("environment=%s server_address=%s:%s", environment, host, port)
 
 	return Config{
-		AppToken:                  appToken,
-		JWTSecret:                 jwtSecret,
-		JWTAccessTokenDuration:    jwtAccessTokenDuration,
-		JWTRefreshTokenDuration:   jwtRefreshTokenDuration,
-		TransactionPasswordPepper: transactionPasswordPepper,
-		Port:                      port,
-		Database:                  databaseConfig,
+		Environment:                  environment,
+		PublicBaseURL:                publicBaseURL,
+		AppToken:                     appToken,
+		JWTSecret:                    jwtSecret,
+		JWTAccessTokenDuration:       jwtAccessTokenDuration,
+		JWTRefreshTokenDuration:      jwtRefreshTokenDuration,
+		TransactionPasswordPepper:    transactionPasswordPepper,
+		ExposeDebugVerificationToken: exposeDebugVerificationToken,
+		Host:                         host,
+		Port:                         port,
+		Database:                     databaseConfig,
 	}
 }
 
@@ -140,29 +166,52 @@ func parseDurationEnv(name string, value string) time.Duration {
 	return duration
 }
 
-// loadEnv attempts to load environment variables from .env files
-// in multiple locations.
-// It checks the current directory, the executable's directory,
-// and the parent of the executable's directory.
-// If no .env file is found in these locations, it falls back to
-// loading from the default location.
-func loadEnv() {
-	candidates := []string{".env", filepath.Join("api", ".env")}
-
-	if executablePath, err := os.Executable(); err == nil {
-		executableDir := filepath.Dir(executablePath)
-		candidates = append(candidates,
-			filepath.Join(executableDir, ".env"),
-			filepath.Join(filepath.Dir(executableDir), ".env"),
+func parseEnvironment(value string) (string, error) {
+	environment := strings.ToLower(strings.TrimSpace(value))
+	switch environment {
+	case EnvironmentDev, EnvironmentStaging, EnvironmentProduction:
+		return environment, nil
+	default:
+		return "", fmt.Errorf(
+			"APP_ENV must be one of %q, %q, or %q",
+			EnvironmentDev,
+			EnvironmentStaging,
+			EnvironmentProduction,
 		)
 	}
+}
 
-	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
-			_ = godotenv.Load(candidate)
-			return
-		}
+func parseRequiredBoolEnv(name string) (bool, error) {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return false, fmt.Errorf("%s environment variable is required", name)
 	}
 
-	_ = godotenv.Load()
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("%s environment variable must be true or false", name)
+	}
+
+	return parsed, nil
+}
+
+func validateDebugTokenExposure(environment string, expose bool) error {
+	if environment == EnvironmentProduction && expose {
+		return fmt.Errorf("EXPOSE_DEBUG_VERIFICATION_TOKEN must be false in production")
+	}
+
+	return nil
+}
+
+// loadEnv loads exactly the file selected through ENV_FILE. It deliberately
+// avoids fallback discovery so one environment cannot silently use another.
+func loadEnv() {
+	envFile := strings.TrimSpace(os.Getenv("ENV_FILE"))
+	if envFile == "" {
+		log.Fatal("ENV_FILE environment variable is required")
+	}
+
+	if err := godotenv.Load(envFile); err != nil {
+		log.Fatalf("failed to load ENV_FILE %q: %v", envFile, err)
+	}
 }

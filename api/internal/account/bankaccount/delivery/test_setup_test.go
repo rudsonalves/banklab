@@ -8,6 +8,6 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	bootstrap.Init()
+	bootstrap.RegisterErrors()
 	os.Exit(m.Run())
 }
