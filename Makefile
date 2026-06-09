@@ -1,10 +1,9 @@
 .PHONY: help \
 	build test \
-	api-build api-migrate-up api-migrate-down api-test api-stop api-kill-local \
-	api-run api-run-dev api-run-staging api-run-prod env-init bootstrap \
-	dev staging prod \
+	api-build api-migrate-up api-migrate-down api-test api-stop \
+	api-run api-run-dev api-run-staging env-init bootstrap \
+	dev staging \
 	cloudflared-tunnel \
-	docker-db-up \
 	mobile-test mobile-test-unit mobile-sync-ip \
 	commit diff push pull gitlog
 
@@ -15,19 +14,17 @@ API_ENV ?= dev
 API_ENV_FILE=api/$(API_ENV).env
 -include $(API_ENV_FILE)
 
-DB_HOST ?= postgres
+DB_HOST ?= 127.0.0.1
 DB_PORT ?= 5432
-DB_PUBLISHED_HOST ?= 127.0.0.1
-DB_PUBLISHED_PORT ?= 5432
 DB_NAME ?= bank
 DB_USER ?= postgres
 DB_PASSWORD ?= postgres
 
-DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_PUBLISHED_HOST):$(DB_PUBLISHED_PORT)/$(DB_NAME)?sslmode=disable
+DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 MIGRATIONS_PATH=api/migrations
 BOOK_PT_DIR=api/docs/visao_geral
 TEMPLATE=templates/eisvogel.latex
-DOCKER_COMPOSE=API_ENV_FILE=$(API_ENV_FILE) docker compose --env-file $(API_ENV_FILE) -f docker-compose.yml -p banklab-$(API_ENV)
+DOCKER_COMPOSE=docker compose --env-file $(API_ENV_FILE) -f docker-compose.yml -p banklab-$(API_ENV)
 
 # =========================
 # Help
@@ -43,11 +40,8 @@ help: ## List available commands
 # =========================
 # Docker
 # =========================
-docker-up: env-init ## Start Docker containers in detached mode
-	$(DOCKER_COMPOSE) up -d --build
-
-docker-db-up: env-init ## Start only the selected PostgreSQL container
-	$(DOCKER_COMPOSE) up -d postgres
+docker-up: env-init ## Start the selected PostgreSQL container
+	$(DOCKER_COMPOSE) up -d --build postgres
 
 docker-down: env-init ## Stop and remove Docker containers
 	$(DOCKER_COMPOSE) down
@@ -71,11 +65,11 @@ cloudflared-tunnel: ## Run the banklab Cloudflare tunnel
 # =========================
 # Bootstrap and Reset
 # =========================
-setup: env-init docker-check docker-db-up db-wait migrate-up api-run ## Full setup from scratch
+setup: env-init docker-check docker-up db-wait migrate-up api-run ## Full setup from scratch
 
-run: env-init mobile-sync-ip docker-check docker-db-up db-wait migrate-up api-run ## Start full development system
+run: env-init mobile-sync-ip docker-check docker-up db-wait migrate-up api-run ## Start full development system
 
-reset: env-init docker-check docker-clean docker-db-up db-wait db-reset migrate-up api-run ## Hard reset environment
+reset: env-init docker-check docker-clean docker-up db-wait db-reset migrate-up api-run ## Hard reset environment
 
 db-reset: env-init ## Reset only the database
 	$(DOCKER_COMPOSE) exec -T postgres psql -v ON_ERROR_STOP=1 -U $(DB_USER) -d postgres -c "DROP DATABASE IF EXISTS $(DB_NAME) WITH (FORCE);"
@@ -98,17 +92,10 @@ dev: run ## Alias para desenvolvimento
 
 staging: ## Start the full staging environment
 	$(MAKE) API_ENV=staging docker-check
-	$(MAKE) API_ENV=staging docker-db-up
+	$(MAKE) API_ENV=staging docker-up
 	$(MAKE) API_ENV=staging db-wait
 	$(MAKE) API_ENV=staging migrate-up
 	$(MAKE) API_ENV=staging api-run
-
-prod: ## Start the full production environment
-	$(MAKE) API_ENV=prod docker-check
-	$(MAKE) API_ENV=prod docker-db-up
-	$(MAKE) API_ENV=prod db-wait
-	$(MAKE) API_ENV=prod migrate-up
-	$(MAKE) API_ENV=prod api-run
 
 env-init: ## Create API and Mobile .env files if they do not exist
 	bash infra/scripts/ensure-env-files.sh
@@ -127,16 +114,8 @@ api-build: ## Build API binary into api/build/
 api-tests: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
-api-kill-local: ## Stop any running local bank-api process
-	@current_uid=$$(id -u); \
-	pids=$$(ps -u "$$current_uid" -o pid= -o comm= | awk '$$2 == "bank-api" {print $$1}'); \
-	if [ -n "$$pids" ]; then \
-		echo "Stopping local bank-api process(es): $$pids"; \
-		kill $$pids > /dev/null 2>&1 || true; \
-	fi
-
-api-run: env-init api-kill-local ## Build and run the selected API in Docker
-	$(DOCKER_COMPOSE) up -d --build api
+api-run: env-init ## Run the selected API on the host
+	cd api && ENV_FILE=$(API_ENV).env go run ./cmd/api
 
 api-run-dev: ## Run API with api/dev.env
 	$(MAKE) mobile-sync-ip
@@ -145,11 +124,16 @@ api-run-dev: ## Run API with api/dev.env
 api-run-staging: ## Run API with api/staging.env
 	$(MAKE) API_ENV=staging api-run
 
-api-run-prod: ## Run API with api/prod.env
-	$(MAKE) API_ENV=prod api-run
-
-api-stop: env-init ## Stop the selected API container
-	$(DOCKER_COMPOSE) stop api
+api-stop: ## Stop the API listening on port 8080
+	@if command -v fuser > /dev/null 2>&1; then \
+		fuser -k 8080/tcp; \
+	elif command -v lsof > /dev/null 2>&1; then \
+		pid=$$(lsof -ti tcp:8080); \
+		[ -z "$$pid" ] || kill $$pid; \
+	else \
+		echo "Install psmisc (fuser) or lsof to use api-stop"; \
+		exit 1; \
+	fi
 
 # =========================
 # Database Migrations

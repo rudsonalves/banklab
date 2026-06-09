@@ -1,5 +1,65 @@
 # Changelog
 
+Segue o texto do commit:
+
+## 2026/06/09 - banklab/docker-environment-isolation-02
+
+This update simplifies the BankLab runtime environment by isolating PostgreSQL in Docker while running the Go API directly on the host.
+
+1. `Makefile`
+
+   * Removed API container execution from the main workflow.
+   * Changed `docker-up` to start only the selected PostgreSQL container.
+   * Updated `setup`, `run`, `reset`, and `staging` to use the PostgreSQL-only Docker flow.
+   * Removed production-related Make targets.
+   * Changed `api-run` to execute the Go API directly on the host using the selected environment file.
+   * Replaced API container stopping with a port-based `api-stop` command for port `8080`.
+   * Simplified database connection variables by using `DB_HOST` and `DB_PORT` directly.
+
+2. `docker-compose.yml`
+
+   * Removed the API service definition.
+   * Kept only the PostgreSQL service.
+   * Changed PostgreSQL port publishing to use `DB_PORT` directly.
+
+3. `infra/docker/api/Dockerfile`
+
+   * Removed the obsolete API Dockerfile, since the API is no longer built or executed as a Docker container.
+
+4. `infra/scripts/ensure-env-files.sh`
+
+   * Removed production environment generation.
+   * Updated API environment defaults for host-based execution.
+   * Set `DB_HOST=127.0.0.1` and environment-specific `DB_PORT` values.
+   * Removed obsolete Docker publishing variables from generated environment files.
+   * Added `sha256sum` fallbacks for random value generation on Linux environments.
+
+5. `infra/scripts/update-mobile-env-ip.sh`
+
+   * Added Linux-compatible IP detection using the `ip` command.
+   * Preserved macOS fallback behavior through `route` and `ifconfig`.
+
+6. `README.md`
+
+   * Updated setup documentation to describe the new `dev.env` and `staging.env` environment model.
+   * Clarified that PostgreSQL runs in Docker and the API runs on the host.
+
+7. `api/README.md`
+
+   * Updated local setup instructions to remove API container references.
+   * Removed production startup references.
+   * Clarified the staging flow using the Linux Mint host and Cloudflare Tunnel.
+
+8. `api/docs/00-getting_started.md`
+
+   * Updated environment documentation to reflect the PostgreSQL-only Docker setup.
+   * Removed production environment references.
+   * Replaced Docker-network database settings with host-based PostgreSQL connection settings.
+   * Updated development and staging instructions for the current host API workflow.
+
+This commit consolidates the environment strategy around a simpler and more predictable development/staging model: PostgreSQL remains isolated in Docker, while the API runs directly on the host for easier debugging, tunnel exposure, and operational control.
+
+
 ## 2026/06/09 - banklab/docker-environment-isolation-01
 
 This commit introduces Docker-based API execution with explicit environment isolation for development, staging, and production.

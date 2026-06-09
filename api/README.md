@@ -73,9 +73,9 @@ real terminal channel is outside the project scope.
 ## Local setup
 
 The recommended flow is from repository root.
-The API runtime environment lives in `api/.env`. Local Make targets use that same
-file for Docker Compose, migrations, database reset, readiness checks, and API
-startup.
+The API runtime environments live in `api/dev.env` and `api/staging.env`.
+Local Make targets use the selected file for Docker Compose, migrations,
+database reset, readiness checks, and API startup.
 
 Initialize missing environment files:
 
@@ -108,12 +108,11 @@ make migrate-up
 make api-build
 ```
 
-4. Build and run the API container in the selected environment:
+4. Run the API on the host in the selected environment:
 
 ```bash
 make api-run-dev
 make api-run-staging
-make api-run-prod
 ```
 
 Use a dedicated random value for `TRANSACTION_PASSWORD_PEPPER` (for example `openssl rand -base64 32`) and do not reuse `APP_TOKEN` or `JWT_SECRET`.
@@ -121,13 +120,13 @@ JWT token lifetimes can be configured with `JWT_ACCESS_TOKEN_DURATION` and
 `JWT_REFRESH_TOKEN_DURATION`; when omitted, they default to `15m` and `168h`.
 
 The API loads only the file explicitly selected through `ENV_FILE`. The Make
-targets select `api/dev.env`, `api/staging.env`, or `api/prod.env`.
+targets select `api/dev.env` or `api/staging.env`.
 
 Development URL: http://localhost:8080
 Staging public URL: https://api.rralves.dev.br
 
 For staging, `make staging` starts PostgreSQL, applies migrations, and starts the
-API container. Then run `cloudflared tunnel run banklab` on the Docker host. The
+API on the Linux Mint host. Then run `cloudflared tunnel run banklab`. The
 tunnel should forward `api.rralves.dev.br` to `http://localhost:8080`.
 
 ## Tests
