@@ -3,6 +3,7 @@
 	api-build api-migrate-up api-migrate-down api-test api-stop \
 	api-run api-run-dev api-run-staging api-run-prod env-init bootstrap \
 	dev staging prod \
+	cloudflared-tunnel \
 	docker-db-up \
 	mobile-test mobile-test-unit mobile-sync-ip \
 	commit diff push pull gitlog
@@ -35,7 +36,7 @@ help: ## List available commands
 	@echo ""
 	@echo "Available commands:"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
+	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 	@echo ""
 
@@ -63,6 +64,9 @@ docker-check: ## Check if Docker is running
 		colima start; \
 	fi
 	@docker info > /dev/null 2>&1 || (echo "Docker is not running" && exit 1)
+
+cloudflared-tunnel: ## Run the banklab Cloudflare tunnel
+	cloudflared tunnel run banklab
 
 # =========================
 # Bootstrap and Reset
