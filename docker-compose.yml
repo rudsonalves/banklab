@@ -22,26 +22,9 @@ services:
       timeout: 5s
       retries: 10
     ports:
-      - "127.0.0.1:${DB_PUBLISHED_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-
-  api:
-    build:
-      context: .
-      dockerfile: infra/docker/api/Dockerfile
-    restart: unless-stopped
-    env_file:
-      - ${API_ENV_FILE:-api/dev.env}
-    environment:
-      ENV_FILE: /app/config/runtime.env
-    volumes:
-      - ./${API_ENV_FILE:-api/dev.env}:/app/config/runtime.env:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "${API_PUBLISHED_HOST:-127.0.0.1}:${API_PUBLISHED_PORT:-8080}:8080"
 
 volumes:
   pgdata:

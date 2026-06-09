@@ -10,10 +10,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 API_LEGACY_ENV="$REPO_ROOT/api/.env"
 API_DEV_ENV="$REPO_ROOT/api/dev.env"
 API_STAGING_ENV="$REPO_ROOT/api/staging.env"
-API_PROD_ENV="$REPO_ROOT/api/prod.env"
 MOBILE_DEV_ENV="$REPO_ROOT/mobile/dev.env"
 MOBILE_STAGING_ENV="$REPO_ROOT/mobile/staging.env"
-MOBILE_PROD_ENV="$REPO_ROOT/mobile/prod.env"
 
 random_hex_64() {
   if command -v openssl >/dev/null 2>&1; then
@@ -23,6 +21,11 @@ random_hex_64() {
 
   if command -v xxd >/dev/null 2>&1; then
     xxd -l 32 -p /dev/urandom
+    return 0
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    date +%s%N | sha256sum | awk '{print $1}'
     return 0
   fi
 
@@ -37,6 +40,11 @@ random_base64_32() {
 
   if command -v xxd >/dev/null 2>&1; then
     xxd -l 32 -p /dev/urandom | xxd -r -p | base64
+    return 0
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    date +%s%N | sha256sum | awk '{print $1}'
     return 0
   fi
 
@@ -108,6 +116,21 @@ set_env_value() {
   echo "Updated: $key in $file"
 }
 
+remove_env_value() {
+  local file="$1"
+  local key="$2"
+  local tmp
+
+  if ! grep -q "^$key=" "$file"; then
+    return 0
+  fi
+
+  tmp="$(mktemp)"
+  awk -v key="$key" 'index($0, key "=") != 1 { print }' "$file" > "$tmp"
+  mv "$tmp" "$file"
+  echo "Removed: $key from $file"
+}
+
 create_api_env() {
   local file="$1"
   local app_env="$2"
@@ -116,7 +139,7 @@ create_api_env() {
   local expose_debug_token="$5"
   local seed_file="${6:-}"
   local public_base_url="${7:-http://localhost:8080}"
-  local api_published_host="${8:-127.0.0.1}"
+  local server_host="${8:-127.0.0.1}"
 
   local app_token
   local jwt_secret
@@ -161,25 +184,22 @@ create_api_env() {
   append_missing_env_value "$file" "JWT_ACCESS_TOKEN_DURATION" "15m"
   append_missing_env_value "$file" "JWT_REFRESH_TOKEN_DURATION" "168h"
   append_missing_env_value "$file" "TRANSACTION_PASSWORD_PEPPER" "$pepper"
-  append_missing_env_value "$file" "SERVER_HOST" "0.0.0.0"
+  append_missing_env_value "$file" "SERVER_HOST" "$server_host"
   append_missing_env_value "$file" "SERVER_PORT" "8080"
-  append_missing_env_value "$file" "API_PUBLISHED_HOST" "$api_published_host"
-  append_missing_env_value "$file" "API_PUBLISHED_PORT" "8080"
-  append_missing_env_value "$file" "DB_HOST" "postgres"
-  append_missing_env_value "$file" "DB_PORT" "5432"
-  append_missing_env_value "$file" "DB_PUBLISHED_PORT" "$db_port"
+  append_missing_env_value "$file" "DB_HOST" "127.0.0.1"
+  append_missing_env_value "$file" "DB_PORT" "$db_port"
   append_missing_env_value "$file" "DB_NAME" "$db_name"
   append_missing_env_value "$file" "DB_USER" "postgres"
   append_missing_env_value "$file" "DB_PASSWORD" "$db_password"
 
-  # These values describe the Docker network and must remain consistent.
-  set_env_value "$file" "SERVER_HOST" "0.0.0.0"
+  # The API runs on the host and reaches PostgreSQL through its published port.
+  set_env_value "$file" "SERVER_HOST" "$server_host"
   set_env_value "$file" "SERVER_PORT" "8080"
-  set_env_value "$file" "API_PUBLISHED_HOST" "$api_published_host"
-  set_env_value "$file" "API_PUBLISHED_PORT" "8080"
-  set_env_value "$file" "DB_HOST" "postgres"
-  set_env_value "$file" "DB_PORT" "5432"
-  set_env_value "$file" "DB_PUBLISHED_PORT" "$db_port"
+  set_env_value "$file" "DB_HOST" "127.0.0.1"
+  set_env_value "$file" "DB_PORT" "$db_port"
+  remove_env_value "$file" "API_PUBLISHED_HOST"
+  remove_env_value "$file" "API_PUBLISHED_PORT"
+  remove_env_value "$file" "DB_PUBLISHED_PORT"
 }
 
 create_mobile_env() {
@@ -210,8 +230,6 @@ EOF
 
 create_api_env "$API_DEV_ENV" "dev" "5432" "bank" "true" "$API_LEGACY_ENV" "http://localhost:8080" "0.0.0.0"
 create_api_env "$API_STAGING_ENV" "staging" "5433" "bank_staging" "true" "" "https://api.rralves.dev.br" "127.0.0.1"
-create_api_env "$API_PROD_ENV" "production" "5434" "bank_production" "false" "" "https://api.rralves.dev.br" "127.0.0.1"
 
 create_mobile_env "$MOBILE_DEV_ENV" "http://localhost:8080" "dev" "$API_DEV_ENV"
 create_mobile_env "$MOBILE_STAGING_ENV" "https://api.rralves.dev.br" "staging" "$API_STAGING_ENV"
-create_mobile_env "$MOBILE_PROD_ENV" "https://api.rralves.dev.br" "prod" "$API_PROD_ENV"

@@ -31,10 +31,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 get_default_interface() {
+  if command -v ip >/dev/null 2>&1; then
+    ip route show default 2>/dev/null | awk '{print $5; exit}'
+    return 0
+  fi
+
   route get default 2>/dev/null | awk '/interface:/{print $2; exit}'
 }
 
 get_lan_ip() {
+  if command -v ip >/dev/null 2>&1; then
+    ip -4 route get 1.1.1.1 2>/dev/null |
+      awk '{for (i = 1; i <= NF; i++) if ($i == "src") {print $(i + 1); exit}}'
+    return 0
+  fi
+
   local iface
   iface="$(get_default_interface)"
 
@@ -47,8 +58,9 @@ get_lan_ip() {
     fi
   fi
 
-  # Fallback for uncommon network setups.
-  ifconfig | awk '/inet / && $2 != "127.0.0.1" {print $2; exit}'
+  if command -v ifconfig >/dev/null 2>&1; then
+    ifconfig | awk '/inet / && $2 != "127.0.0.1" {print $2; exit}'
+  fi
 }
 
 HOST_IP="$CUSTOM_IP"

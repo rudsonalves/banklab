@@ -159,9 +159,9 @@ make run
 
 Esse comando valida o Docker, sobe o PostgreSQL, aguarda o banco ficar pronto, aplica as migrations e inicia a API.
 
-O arquivo `api/.env` é a fonte de verdade da API. Os comandos do Make usam esse
-mesmo arquivo para configurar Docker Compose, migrations, reset do banco e
-startup da API.
+Os arquivos `api/dev.env` e `api/staging.env` configuram os ambientes da API.
+Os comandos do Make selecionam o arquivo correspondente para o PostgreSQL em
+Docker, migrations e inicialização da API no host.
 
 As durações de token podem ser configuradas com `JWT_ACCESS_TOKEN_DURATION` e
 `JWT_REFRESH_TOKEN_DURATION`; quando omitidas, a API usa `15m` e `168h`.
