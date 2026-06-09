@@ -128,10 +128,11 @@ api-tests: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
 api-kill-local: ## Stop any running local bank-api process
-	@pids=$$(pgrep -f '(^|/)bank-api( |$$)|api/build/bank-api' || true); \
+	@current_uid=$$(id -u); \
+	pids=$$(ps -u "$$current_uid" -o pid= -o comm= | awk '$$2 == "bank-api" {print $$1}'); \
 	if [ -n "$$pids" ]; then \
 		echo "Stopping local bank-api process(es): $$pids"; \
-		kill $$pids; \
+		kill $$pids > /dev/null 2>&1 || true; \
 	fi
 
 api-run: env-init api-kill-local ## Build and run the selected API in Docker
