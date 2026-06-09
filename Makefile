@@ -1,6 +1,6 @@
 .PHONY: help \
 	build test \
-	api-build api-migrate-up api-migrate-down api-test api-stop \
+	api-build api-migrate-up api-migrate-down api-test api-stop api-kill-local \
 	api-run api-run-dev api-run-staging api-run-prod env-init bootstrap \
 	dev staging prod \
 	cloudflared-tunnel \
@@ -127,7 +127,14 @@ api-build: ## Build API binary into api/build/
 api-tests: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
-api-run: env-init ## Build and run the selected API in Docker
+api-kill-local: ## Stop any running local bank-api process
+	@pids=$$(pgrep -f '(^|/)bank-api( |$$)|api/build/bank-api' || true); \
+	if [ -n "$$pids" ]; then \
+		echo "Stopping local bank-api process(es): $$pids"; \
+		kill $$pids; \
+	fi
+
+api-run: env-init api-kill-local ## Build and run the selected API in Docker
 	$(DOCKER_COMPOSE) up -d --build api
 
 api-run-dev: ## Run API with api/dev.env
