@@ -15,19 +15,22 @@ import (
 const contactVerificationTTL = 10 * time.Minute
 
 type RequestContactVerificationUseCase struct {
-	repo     domain.ContactVerificationRepository
-	userRepo domain.UserRepository
-	now      func() time.Time
+	repo                         domain.ContactVerificationRepository
+	userRepo                     domain.UserRepository
+	exposeDebugVerificationToken bool
+	now                          func() time.Time
 }
 
 func NewRequestContactVerificationUseCase(
 	repo domain.ContactVerificationRepository,
 	userRepo domain.UserRepository,
+	exposeDebugVerificationToken bool,
 ) *RequestContactVerificationUseCase {
 	return &RequestContactVerificationUseCase{
-		repo:     repo,
-		userRepo: userRepo,
-		now:      func() time.Time { return time.Now().UTC() },
+		repo:                         repo,
+		userRepo:                     userRepo,
+		exposeDebugVerificationToken: exposeDebugVerificationToken,
+		now:                          func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -96,13 +99,17 @@ func (uc *RequestContactVerificationUseCase) Execute(
 		return nil, fmt.Errorf("create contact verification: %w", err)
 	}
 
-	return &RequestContactVerificationOutput{
+	output := &RequestContactVerificationOutput{
 		VerificationID: verification.ID,
 		Channel:        string(verification.Channel),
 		Target:         verification.Target,
-		DebugToken:     &verification.Token,
 		ExpiresAt:      verification.ExpiresAt,
-	}, nil
+	}
+	if uc.exposeDebugVerificationToken {
+		output.DebugToken = &verification.Token
+	}
+
+	return output, nil
 }
 
 func normalizeContactVerificationTarget(

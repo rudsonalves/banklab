@@ -108,17 +108,27 @@ make migrate-up
 make api-build
 ```
 
-4. Run API:
+4. Build and run the API container in the selected environment:
 
 ```bash
-make api-run
+make api-run-dev
+make api-run-staging
+make api-run-prod
 ```
 
 Use a dedicated random value for `TRANSACTION_PASSWORD_PEPPER` (for example `openssl rand -base64 32`) and do not reuse `APP_TOKEN` or `JWT_SECRET`.
 JWT token lifetimes can be configured with `JWT_ACCESS_TOKEN_DURATION` and
 `JWT_REFRESH_TOKEN_DURATION`; when omitted, they default to `15m` and `168h`.
 
-Default URL: http://localhost:8080
+The API loads only the file explicitly selected through `ENV_FILE`. The Make
+targets select `api/dev.env`, `api/staging.env`, or `api/prod.env`.
+
+Development URL: http://localhost:8080
+Staging public URL: https://api.rralves.dev.br
+
+For staging, `make staging` starts PostgreSQL, applies migrations, and starts the
+API container. Then run `cloudflared tunnel run banklab` on the Docker host. The
+tunnel should forward `api.rralves.dev.br` to `http://localhost:8080`.
 
 ## Tests
 

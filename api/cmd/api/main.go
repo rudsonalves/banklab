@@ -159,7 +159,11 @@ func main() {
 		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
 	getSessionUC := authApplication.NewGetSessionUseCase(userRepo, customerRepo, accountRepo, transactionPasswordRepo)
-	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(contactVerificationRepo, userRepo)
+	requestContactVerificationUC := authApplication.NewRequestContactVerificationUseCase(
+		contactVerificationRepo,
+		userRepo,
+		config.ExposeDebugVerificationToken,
+	)
 	confirmContactVerificationUC := authApplication.NewConfirmContactVerificationUseCase(contactVerificationRepo)
 	createTransactionPasswordUC := securityApplication.NewCreateTransactionPasswordUseCase(transactionPasswordRepo, userRepo, transactionPasswordHasher)
 	authorizeStepUpUC := securityApplication.NewAuthorizeStepUpUseCase(
@@ -221,11 +225,11 @@ func main() {
 	mainRouter.Handle("/auth/", authRouter)
 	mainRouter.Handle("/", apiRouter)
 
-	urlHost := fmt.Sprintf(":%s", config.Port)
+	serverAddress := fmt.Sprintf("%s:%s", config.Host, config.Port)
 
-	log.Printf("Server running in http://localhost:%s", config.Port)
+	log.Printf("Server running at http://%s", serverAddress)
 
-	if err := http.ListenAndServe(urlHost, mainRouter); err != nil {
+	if err := http.ListenAndServe(serverAddress, mainRouter); err != nil {
 		log.Fatal("failed to start server:", err)
 	}
 }

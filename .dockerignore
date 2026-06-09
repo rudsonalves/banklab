@@ -1,0 +1,14 @@
+.git
+.codex
+.agents
+.github
+.DS_Store
+**/.DS_Store
+**/.dart_tool
+**/build
+**/.env
+api/*.env
+mobile/*.env
+docs
+templates
+tools

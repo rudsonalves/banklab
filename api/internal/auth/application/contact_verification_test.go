@@ -108,7 +108,7 @@ func (m *contactVerificationRepositoryMock) ConfirmContactVerification(
 func TestRequestContactVerificationUseCase_Execute_Success(t *testing.T) {
 	repo := &contactVerificationRepositoryMock{}
 	userRepo := &contactVerificationUserRepositoryMock{}
-	uc := NewRequestContactVerificationUseCase(repo, userRepo)
+	uc := NewRequestContactVerificationUseCase(repo, userRepo, true)
 	now := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	uc.now = func() time.Time { return now }
 
@@ -145,10 +145,30 @@ func TestRequestContactVerificationUseCase_Execute_Success(t *testing.T) {
 	}
 }
 
+func TestRequestContactVerificationUseCase_Execute_HidesDebugToken(t *testing.T) {
+	repo := &contactVerificationRepositoryMock{}
+	userRepo := &contactVerificationUserRepositoryMock{}
+	uc := NewRequestContactVerificationUseCase(repo, userRepo, false)
+
+	output, err := uc.Execute(context.Background(), RequestContactVerificationInput{
+		Channel: "email",
+		Target:  "user@example.com",
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if output.DebugToken != nil {
+		t.Fatalf("expected debug token to be omitted, got %q", *output.DebugToken)
+	}
+	if repo.createdVerification == nil || repo.createdVerification.Token == "" {
+		t.Fatal("expected verification token to remain available internally")
+	}
+}
+
 func TestRequestContactVerificationUseCase_Execute_InvalidInput(t *testing.T) {
 	repo := &contactVerificationRepositoryMock{}
 	userRepo := &contactVerificationUserRepositoryMock{}
-	uc := NewRequestContactVerificationUseCase(repo, userRepo)
+	uc := NewRequestContactVerificationUseCase(repo, userRepo, true)
 
 	output, err := uc.Execute(context.Background(), RequestContactVerificationInput{
 		Channel: "fax",
@@ -171,7 +191,7 @@ func TestRequestContactVerificationUseCase_Execute_InvalidInput(t *testing.T) {
 func TestRequestContactVerificationUseCase_Execute_DuplicateEmail(t *testing.T) {
 	repo := &contactVerificationRepositoryMock{}
 	userRepo := &contactVerificationUserRepositoryMock{existsByEmail: true}
-	uc := NewRequestContactVerificationUseCase(repo, userRepo)
+	uc := NewRequestContactVerificationUseCase(repo, userRepo, true)
 
 	output, err := uc.Execute(context.Background(), RequestContactVerificationInput{
 		Channel: "email",
@@ -197,7 +217,7 @@ func TestRequestContactVerificationUseCase_Execute_DuplicateEmail(t *testing.T) 
 func TestRequestContactVerificationUseCase_Execute_DuplicatePhone(t *testing.T) {
 	repo := &contactVerificationRepositoryMock{}
 	userRepo := &contactVerificationUserRepositoryMock{existsByPhone: true}
-	uc := NewRequestContactVerificationUseCase(repo, userRepo)
+	uc := NewRequestContactVerificationUseCase(repo, userRepo, true)
 
 	output, err := uc.Execute(context.Background(), RequestContactVerificationInput{
 		Channel: "phone",

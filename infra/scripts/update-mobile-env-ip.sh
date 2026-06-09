@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Updates BASE_URL in mobile .env files with the current host LAN IP.
+# Updates BASE_URL in mobile/dev.env with the current host LAN IP.
 # Usage:
 #   ./infra/scripts/update-mobile-env-ip.sh
 #   ./infra/scripts/update-mobile-env-ip.sh --ip 192.168.0.19 --port 8080
@@ -98,5 +98,3 @@ update_env_file() {
 }
 
 update_env_file "$MOBILE_DIR/dev.env"
-update_env_file "$MOBILE_DIR/staging.env"
-update_env_file "$MOBILE_DIR/prod.env"
