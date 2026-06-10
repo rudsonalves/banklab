@@ -208,9 +208,7 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req TransferRequest
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&req); err != nil {
+	if err := sharedhttp.DecodeJSON(r.Body, &req); err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}

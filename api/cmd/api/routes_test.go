@@ -157,7 +157,7 @@ func TestAPIRouter_StepUpAuthorizeRouteRequiresAuth(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/security/step-up/authorize",
-		strings.NewReader(`{"endpoint_key":"internal_transfer.create","transaction_password":"123456"}`),
+		strings.NewReader(`{"method":"POST","path":"/accounts/internal-transfers","transaction_password":"123456"}`),
 	)
 	rec := httptest.NewRecorder()
 

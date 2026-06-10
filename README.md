@@ -166,7 +166,7 @@ Docker, migrations e inicialização da API no host.
 As durações de token podem ser configuradas com `JWT_ACCESS_TOKEN_DURATION` e
 `JWT_REFRESH_TOKEN_DURATION`; quando omitidas, a API usa `15m` e `168h`.
 
-O banco local é criado a partir de uma imagem customizada baseada em PostgreSQL 17 com `pg_cron`. A extensão é usada para rotinas agendadas de manutenção do banco, como a limpeza diária de verificações temporárias de contato.
+O banco local é criado a partir de uma imagem customizada baseada em PostgreSQL 17 com `pg_cron`. A extensão é usada para rotinas agendadas de manutenção do banco, como a limpeza diária de verificações temporárias de contato e de tokens de step-up após a janela operacional de retenção.
 
 URL padrão da API:
 

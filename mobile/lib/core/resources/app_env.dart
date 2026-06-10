@@ -2,15 +2,19 @@ enum AppMode { dev, staging, prod }
 
 class AppEnv {
   static const _baseUrl = String.fromEnvironment('BASE_URL');
+
   static const _appToken = String.fromEnvironment('APP_ACCESS_TOKEN');
+
   static const _connectTimeout = int.fromEnvironment(
     'CONNECT_TIMEOUT',
     defaultValue: 10000,
   );
+
   static const _receiveTimeout = int.fromEnvironment(
     'RECEIVE_TIMEOUT',
     defaultValue: 10000,
   );
+
   static const _appMode = String.fromEnvironment(
     'APP_MODE',
     defaultValue: 'dev',
@@ -51,4 +55,8 @@ class AppEnv {
   static int get receiveTimeout => _receiveTimeout;
 
   static bool get isProd => _mode == AppMode.prod;
+
+  static bool get isStaging => _mode == AppMode.staging;
+
+  static bool get isDev => _mode == AppMode.dev;
 }

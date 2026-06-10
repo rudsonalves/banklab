@@ -22,7 +22,9 @@ type authorizeStepUpUseCase interface {
 	Execute(ctx context.Context, input application.AuthorizeStepUpInput) (*application.AuthorizeStepUpOutput, error)
 }
 
+// Handler exposes the HTTP endpoints for the security module.
 type Handler struct {
+	// createTransactionPassword handles the creation of transaction passwords.
 	createTransactionPassword createTransactionPasswordUseCase
 	authorizeStepUp           authorizeStepUpUseCase
 }
@@ -49,6 +51,10 @@ type stepUpAuthorizationData struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
+// New creates a Handler with the use cases required by security endpoints.
+//
+// The step-up authorization use case is optional to support gradual module
+// composition in scenarios where only transaction password creation is enabled.
 func New(
 	createTransactionPassword createTransactionPasswordUseCase,
 	authorizeStepUp ...authorizeStepUpUseCase,
@@ -61,6 +67,12 @@ func New(
 	return handler
 }
 
+// CreateTransactionPassword creates or updates the authenticated user's
+// transaction password.
+//
+// The handler validates authentication, decodes a strict JSON payload, and
+// delegates business rules to the corresponding use case. On success, it
+// returns HTTP 201 with transaction password metadata.
 func (h *Handler) CreateTransactionPassword(w http.ResponseWriter, r *http.Request) {
 	if h.createTransactionPassword == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -104,6 +116,12 @@ func (h *Handler) CreateTransactionPassword(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+// AuthorizeStepUp authorizes a sensitive operation through step-up
+// authentication.
+//
+// The handler requires an authenticated user, validates the request body,
+// and delegates transaction password validation to the use case. On success,
+// it returns HTTP 200 with a step-up token and expiration time in seconds.
 func (h *Handler) AuthorizeStepUp(w http.ResponseWriter, r *http.Request) {
 	if h.authorizeStepUp == nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(nil))
@@ -117,9 +135,7 @@ func (h *Handler) AuthorizeStepUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req authorizeStepUpRequest
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&req); err != nil {
+	if err := sharedhttp.DecodeJSON(r.Body, &req); err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
 	}

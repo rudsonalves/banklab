@@ -590,6 +590,51 @@ func TestHandler_Transfer_InvalidJSON(t *testing.T) {
 	}
 }
 
+func TestHandler_Transfer_RejectsSecondJSONValue(t *testing.T) {
+	customerID := uuid.New()
+	fromAccountID := uuid.New()
+	toAccountID := uuid.New()
+	transferUC := &transferUseCaseMock{}
+	enforceUC := &enforceStepUpUseCaseMock{}
+	h := &Handler{transfer: transferUC, enforceStepUp: enforceUC}
+
+	body := `{"from_account_id":"` + fromAccountID.String() +
+		`","to_account_id":"` + toAccountID.String() +
+		`","amount":100,"idempotency_key":"second-json-value"}{}`
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/accounts/internal-transfers",
+		strings.NewReader(body),
+	)
+	req = testAuthenticatedRequest(req, customerID)
+	req = withStepUpToken(req, "signed-step-up-token")
+	rec := httptest.NewRecorder()
+
+	h.Transfer(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Error.Code != "INVALID_REQUEST" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_REQUEST", got.Error.Code)
+	}
+	if enforceUC.executeCalls != 0 {
+		t.Fatalf("expected enforcement not to be called, got %d calls", enforceUC.executeCalls)
+	}
+	if transferUC.executeCalls != 0 {
+		t.Fatalf("expected transfer not to be called, got %d calls", transferUC.executeCalls)
+	}
+}
+
 func TestHandler_Transfer_InvalidAmount(t *testing.T) {
 	customerID := uuid.New()
 	fromAccountID := uuid.New()

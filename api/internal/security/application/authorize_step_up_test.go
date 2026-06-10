@@ -140,10 +140,10 @@ func TestAuthorizeStepUpUseCase_Execute_Success(t *testing.T) {
 		t.Fatalf("expected signer once, got %d", signer.signCalls)
 	}
 	if signer.token != tokenRepo.created {
-		t.Fatal("expected signer to receive the persisted step-up token instance")
+		t.Fatal("expected signer and repository to receive the same step-up token instance")
 	}
-	if got := events; len(got) != 2 || got[0] != "create-step-up-token" || got[1] != "sign-step-up-token" {
-		t.Fatalf("expected token persistence before signing, got events %v", got)
+	if got := events; len(got) != 2 || got[0] != "sign-step-up-token" || got[1] != "create-step-up-token" {
+		t.Fatalf("expected token signing before persistence, got events %v", got)
 	}
 }
 
@@ -536,7 +536,45 @@ func TestAuthorizeStepUpUseCase_Execute_ExpiredLockIsNormalizedBeforeValidation(
 	}
 }
 
-func TestAuthorizeStepUpUseCase_Execute_TokenPersistenceFailureDoesNotSign(t *testing.T) {
+func TestAuthorizeStepUpUseCase_Execute_TokenSigningFailureDoesNotPersist(t *testing.T) {
+	userID := uuid.New()
+	now := time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC)
+	expectedErr := errors.New("sign step-up token failed")
+	password := activeTransactionPassword(t, userID, "hashed-pin", now)
+	tokenRepo := &stepUpTokenRepositoryMock{}
+	signer := &stepUpTokenSignerMock{signErr: expectedErr}
+	uc := NewAuthorizeStepUpUseCase(
+		&transactionPasswordRepositoryMock{findByUserID: password},
+		&transactionPasswordUserRepositoryMock{findByIDValue: activeUser(userID)},
+		&transactionPasswordHasherMock{compareSet: true, compareMatches: true},
+		tokenRepo,
+		signer,
+		domain.NewDefaultStepUpPublicOperationResolver(),
+	)
+	uc.now = func() time.Time { return now }
+
+	output, err := uc.Execute(context.Background(), AuthorizeStepUpInput{
+		User:                authenticatedUser(userID),
+		Method:              "POST",
+		Path:                "/accounts/internal-transfers",
+		TransactionPassword: "123456",
+	})
+
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected error to wrap %v, got %v", expectedErr, err)
+	}
+	if output != nil {
+		t.Fatalf("expected nil output, got %+v", output)
+	}
+	if signer.signCalls != 1 {
+		t.Fatalf("expected signer once, got %d", signer.signCalls)
+	}
+	if tokenRepo.createCalls != 0 {
+		t.Fatalf("expected token Create not to be called, got %d", tokenRepo.createCalls)
+	}
+}
+
+func TestAuthorizeStepUpUseCase_Execute_TokenPersistenceFailureDoesNotReturnToken(t *testing.T) {
 	userID := uuid.New()
 	now := time.Date(2026, 5, 29, 10, 0, 0, 0, time.UTC)
 	expectedErr := errors.New("insert step-up token failed")
@@ -569,8 +607,8 @@ func TestAuthorizeStepUpUseCase_Execute_TokenPersistenceFailureDoesNotSign(t *te
 	if tokenRepo.createCalls != 1 {
 		t.Fatalf("expected token Create once, got %d", tokenRepo.createCalls)
 	}
-	if signer.signCalls != 0 {
-		t.Fatalf("expected signer not to be called, got %d", signer.signCalls)
+	if signer.signCalls != 1 {
+		t.Fatalf("expected signer once, got %d", signer.signCalls)
 	}
 }
 
