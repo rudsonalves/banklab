@@ -1,4 +1,5 @@
 import 'package:bankflow/core/result/result.dart';
+import 'package:bankflow/core/services/app_section/app_section.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
 import 'package:bankflow/data/repositories/transaction_password/transaction_password_repository_impl.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
@@ -14,7 +15,10 @@ void main() {
       final api = _FakeTransactionPasswordApi(
         result: Success(response),
       );
-      final repository = TransactionPasswordRepositoryImpl(api: api);
+      final repository = TransactionPasswordRepositoryImpl(
+        api: api,
+        appSection: AppSection(),
+      );
       final request = _request();
 
       final result = await repository.create(request);
@@ -36,6 +40,7 @@ void main() {
             ),
           ),
         ),
+        appSection: AppSection(),
       );
 
       final result = await repository.create(_request());
@@ -58,6 +63,7 @@ void main() {
             ),
           ),
         ),
+        appSection: AppSection(),
       );
 
       final result = await repository.create(_request());
@@ -77,6 +83,7 @@ void main() {
             ),
           ),
         ),
+        appSection: AppSection(),
       );
 
       final result = await repository.create(_request());
@@ -95,6 +102,7 @@ void main() {
             ),
           ),
         ),
+        appSection: AppSection(),
       );
 
       final result = await repository.create(_request());

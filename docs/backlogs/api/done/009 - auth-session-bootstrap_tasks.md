@@ -1,5 +1,9 @@
 # Tasks do endpoint de sessão pós-login
 
+> Decisão superveniente: `can_access_home` foi removido do contrato de
+> `GET /auth/session`. As menções abaixo registram a implementação histórica;
+> o contrato vigente expõe somente os estados objetivos de readiness.
+
 Backlog pai:
 
 - `009 - auth-session-bootstrap.md`

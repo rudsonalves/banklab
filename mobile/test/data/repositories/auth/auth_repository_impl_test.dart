@@ -1,5 +1,6 @@
 import 'package:bankflow/core/resources/storage_keys.dart';
 import 'package:bankflow/core/result/result.dart';
+import 'package:bankflow/core/services/app_section/app_section.dart';
 import 'package:bankflow/core/services/client_http/client/rest_client.dart';
 import 'package:bankflow/core/services/client_http/client/rest_client_request.dart';
 import 'package:bankflow/core/services/client_http/client/rest_client_response.dart';
@@ -31,11 +32,13 @@ void main() {
         );
         final storage = _FakeLocalSecureStorage();
         final cache = _FakeLastLoginCacheService();
+        final appSection = AppSection();
 
         final repository = AuthRepositoryImpl(
           api: api,
           storage: storage,
           lastLoginCacheService: cache,
+          appSection: appSection,
         );
 
         final result = await repository.login(
@@ -50,7 +53,7 @@ void main() {
         expect(storage.writesByKey, isEmpty);
         expect(cache.saveCalls, 0);
         expect(repository.isLoggedIn, isFalse);
-        expect(repository.userProfile, isNull);
+        expect(appSection.currentSession, isNull);
       },
     );
 
@@ -63,11 +66,13 @@ void main() {
         );
         final storage = _FakeLocalSecureStorage();
         final cache = _FakeLastLoginCacheService();
+        final appSection = AppSection();
 
         final repository = AuthRepositoryImpl(
           api: api,
           storage: storage,
           lastLoginCacheService: cache,
+          appSection: appSection,
         );
 
         final result = await repository.login(
@@ -84,7 +89,7 @@ void main() {
         expect(cache.lastSavedIdentity?.name, 'Maria Silva');
         expect(cache.lastSavedIdentity?.identifier, '12345678901');
         expect(repository.isLoggedIn, isTrue);
-        expect(repository.userProfile?.customer?.name, 'Maria Silva');
+        expect(appSection.currentSession?.customer?.name, 'Maria Silva');
       },
     );
   });
@@ -108,7 +113,7 @@ AuthSession _profile() {
       email: 'customer@example.com',
       role: UserRole.customer,
     ),
-    customer: CustommerSession(
+    customer: CustomerSession(
       id: 'customer-1',
       name: 'Maria Silva',
       cpf: '12345678901',
@@ -120,7 +125,6 @@ AuthSession _profile() {
       approved: true,
       hasOperationalAccount: true,
       transactionPasswordStatus: TransactionPasswordStatus.active,
-      canAccessHome: true,
     ),
   );
 }

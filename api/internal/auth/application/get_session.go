@@ -66,7 +66,6 @@ type GetSessionReadinessOutput struct {
 	Approved                  bool
 	HasOperationalAccount     bool
 	TransactionPasswordStatus string
-	CanAccessHome             bool
 }
 
 func (uc *GetSessionUseCase) Execute(ctx context.Context) (*GetSessionOutput, error) {
@@ -116,12 +115,6 @@ func (uc *GetSessionUseCase) Execute(ctx context.Context) (*GetSessionOutput, er
 		return nil, err
 	}
 
-	onboardingCompleted := true
-	canAccessHome := onboardingCompleted &&
-		approved &&
-		hasOperationalAccount &&
-		transactionPasswordStatus == TransactionPasswordSessionStatusActive
-
 	return &GetSessionOutput{
 		User: GetSessionUserOutput{
 			ID:    user.ID,
@@ -141,7 +134,6 @@ func (uc *GetSessionUseCase) Execute(ctx context.Context) (*GetSessionOutput, er
 			Approved:                  approved,
 			HasOperationalAccount:     hasOperationalAccount,
 			TransactionPasswordStatus: transactionPasswordStatus,
-			CanAccessHome:             canAccessHome,
 		},
 	}, nil
 }

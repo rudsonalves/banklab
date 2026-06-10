@@ -90,7 +90,6 @@ Map<String, dynamic> _authSessionDataJson() => {
     'approved': true,
     'has_operational_account': true,
     'transaction_password_status': 'active',
-    'can_access_home': true,
   },
 };
 

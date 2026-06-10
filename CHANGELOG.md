@@ -1,5 +1,82 @@
 # Changelog
 
+## 2026/06/10 - refactor/centralize-auth-session
+
+Refactor authentication session handling by centralizing session state in `AppSection`, removing API-driven home access decisions, and aligning mobile navigation with readiness-derived rules.
+
+### API
+
+* Removed `can_access_home` from `GET /auth/session` contract.
+* Simplified session readiness payload to expose only objective readiness state.
+* Moved responsibility for post-login navigation decisions to clients.
+* Updated session use case, handlers, DTO mappings, and tests accordingly.
+* Clarified API documentation to state that authorization remains enforced by protected endpoints independently of client navigation.
+
+### Mobile
+
+#### Session Centralization
+
+* Introduced `AppSection` as the single source of truth for the authenticated session.
+* Registered `AppSection` as an application singleton.
+* Moved cached session ownership from `AuthRepositoryImpl` to `AppSection`.
+* Updated login flow to populate `AppSection` after loading the authenticated session.
+* Updated logout flow to clear centralized session state.
+* Renamed `profile()` to `getAuthSession()` to better reflect behavior.
+* Removed repository-level `userProfile` cache access.
+
+#### Readiness Model
+
+* Removed persisted `canAccessHome` field from `ReadinessSession`.
+* Added derived readiness rules inside the domain model:
+
+  * `hasActiveTransactionPassword`
+  * `canAccessHome`
+* Added `copyWith()` support for:
+
+  * `AuthSession`
+  * `ReadinessSession`
+* Corrected naming typo:
+
+  * `CustommerSession` → `CustomerSession`
+
+#### Transaction Password Synchronization
+
+* Added local session synchronization after successful transaction password creation.
+* Implemented `AppSection.markTransactionPasswordAsActive()`.
+* Updated `TransactionPasswordRepositoryImpl` to immediately reflect active status in memory without reloading the session.
+* Updated transaction password screens and view models to rely on centralized session readiness.
+
+#### Login and Navigation
+
+* Updated login and short-login view models to resolve destinations using `AppSection`.
+* Removed dependency on repository-cached session state.
+* Changed transaction password confirmation flow to validate readiness through the centralized session before navigating home.
+* Prevented automatic navigation when transaction password creation succeeds but readiness does not allow home access.
+
+### Documentation
+
+* Documented removal of `can_access_home` from the API contract.
+* Added migration notes to completed auth-session and transaction-password backlogs.
+* Expanded internal-transfer step-up backlog with:
+
+  * session centralization strategy;
+  * transfer-entry readiness checks;
+  * transaction password reuse flow;
+  * AppSection synchronization rules;
+  * step-up retry behavior;
+  * interceptor requirements;
+  * logging and security constraints;
+  * acceptance criteria and implementation tasks.
+* Added a complete execution task breakdown for internal transfer step-up implementation.
+
+### Tests
+
+* Updated API session handler and use case tests for the new contract.
+* Added validation that `can_access_home` is no longer present in responses.
+* Updated repository, view model, and destination resolution tests to use `AppSection`.
+* Updated session fixtures and readiness builders to rely on computed readiness behavior instead of serialized API fields.
+
+
 ## 2026/06/10 - api/zta-mvp-transactional-password-16
 
 This update completes the transactional password step-up flow by strengthening token lifecycle management, hardening request validation, expanding integration coverage, and consolidating the public API contract around operation-based authorization.

@@ -9,7 +9,7 @@ export 'user_session.dart';
 
 class AuthSession {
   final UserSession user;
-  final CustommerSession? customer;
+  final CustomerSession? customer;
   final ReadinessSession readiness;
 
   AuthSession({
@@ -30,9 +30,21 @@ class AuthSession {
     return AuthSession(
       user: UserSession.fromApi(userMap),
       customer: customerMap != null
-          ? CustommerSession.fromApi(customerMap)
+          ? CustomerSession.fromApi(customerMap)
           : null,
       readiness: ReadinessSession.fromApi(readinessMap),
+    );
+  }
+
+  AuthSession copyWith({
+    UserSession? user,
+    CustomerSession? customer,
+    ReadinessSession? readiness,
+  }) {
+    return AuthSession(
+      user: user ?? this.user,
+      customer: customer ?? this.customer,
+      readiness: readiness ?? this.readiness,
     );
   }
 }

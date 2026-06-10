@@ -1,5 +1,6 @@
 import '/core/resources/storage_keys.dart';
 import '/core/result/result.dart';
+import '/core/services/app_section/app_section.dart';
 import '/core/services/logging/console_log.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
 import '/data/repositories/auth/auth_repository.dart';
@@ -14,25 +15,24 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthApi _api;
   final LocalSecureStorage _storage;
   final LastLoginCacheService _lastLoginCacheService;
+  final AppSection _appSection;
 
   AuthRepositoryImpl({
     required AuthApi api,
     required LocalSecureStorage storage,
     required LastLoginCacheService lastLoginCacheService,
+    required AppSection appSection,
   }) : _api = api,
        _storage = storage,
-       _lastLoginCacheService = lastLoginCacheService;
+       _lastLoginCacheService = lastLoginCacheService,
+       _appSection = appSection;
 
   AuthUser _currentUser = NotLoggedUser();
-  AuthSession? _authSession;
 
   final _log = ConsoleLog('AuthRepositoryImpl');
 
   @override
   AuthUser get currentUser => _currentUser;
-
-  @override
-  AuthSession? get userProfile => _authSession;
 
   @override
   bool get isLoggedIn => _currentUser is LoggedUser;
@@ -50,18 +50,18 @@ class AuthRepositoryImpl implements AuthRepository {
     await _storage.write(StorageKeys.accessToken, user.accessToken);
     await _storage.write(StorageKeys.refreshToken, user.refreshToken);
 
-    final profileResult = await profile();
+    final profileResult = await getAuthSession();
     if (profileResult.isFailure) {
       // If fetching the profile fails, we should log out to clear any partial state.
       await logout();
       return Result.failure(profileResult.error!);
     }
 
-    _authSession = profileResult.value!;
+    _appSection.setAuthSession(profileResult.value!);
     final saveResult = await _lastLoginCacheService.save(
       LastLoginIdentity(
-        name: _authSession!.customer?.name ?? '***',
-        identifier: _authSession!.customer?.cpf ?? '***',
+        name: _appSection.customer?.name ?? '***',
+        identifier: _appSection.customer?.cpf ?? '***',
       ),
     );
 
@@ -86,7 +86,7 @@ class AuthRepositoryImpl implements AuthRepository {
     if (!isLoggedIn) return Success(unit);
 
     _currentUser = NotLoggedUser();
-    _authSession = null;
+    _appSection.clear();
 
     await _storage.delete(StorageKeys.accessToken);
     await _storage.delete(StorageKeys.refreshToken);
@@ -95,7 +95,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  AsyncResult<AuthSession> profile() async {
+  AsyncResult<AuthSession> getAuthSession() async {
     if (!isLoggedIn) {
       return Failure(
         AppError(
@@ -105,13 +105,13 @@ class AuthRepositoryImpl implements AuthRepository {
       );
     }
 
-    if (_authSession != null) return Success(_authSession!);
+    if (_appSection.isNotNull) return Success(_appSection.currentSession!);
 
     final result = await _api.getAuthSession();
     if (result.isFailure) return Result.failure(result.error!);
 
-    _authSession = result.value!;
+    _appSection.setAuthSession(result.value!);
 
-    return Success(_authSession!);
+    return Success(_appSection.currentSession!);
   }
 }

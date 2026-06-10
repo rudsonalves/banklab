@@ -6,6 +6,7 @@ import '/core/services/client_http/client/rest_client.dart';
 import '/core/services/client_http/dio/dio_factory.dart';
 import '/core/services/client_http/interceptors/interceptors.dart';
 import '../resources/app_env.dart';
+import 'app_section/app_section.dart';
 import 'client_http/dio/dio_rest_client.dart';
 import 'secure_storage/flutter_secure_storage_local_storage.dart';
 import 'secure_storage/local_secure_storage.dart';
@@ -36,6 +37,7 @@ class CoreServices {
         final dio = injector.get<Dio>();
         dio.interceptors.add(injector.get<AuthInterceptor>());
         return DioRestClient(dio: dio);
-      });
+      })
+      ..addSingleton<AppSection>(AppSection.new);
   }
 }

@@ -697,7 +697,6 @@ func TestHandler_Session_Success(t *testing.T) {
 				Approved:                  true,
 				HasOperationalAccount:     true,
 				TransactionPasswordStatus: "active",
-				CanAccessHome:             true,
 			},
 		},
 	}
@@ -723,12 +722,12 @@ func TestHandler_Session_Success(t *testing.T) {
 				Approved                  bool   `json:"approved"`
 				HasOperationalAccount     bool   `json:"has_operational_account"`
 				TransactionPasswordStatus string `json:"transaction_password_status"`
-				CanAccessHome             bool   `json:"can_access_home"`
 			} `json:"readiness"`
 		} `json:"data"`
 		Error any `json:"error"`
 	}
-	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+	rawBody := rec.Body.String()
+	if err := json.Unmarshal([]byte(rawBody), &got); err != nil {
 		t.Fatalf("failed to decode response body: %v", err)
 	}
 
@@ -750,8 +749,8 @@ func TestHandler_Session_Success(t *testing.T) {
 	if got.Data.Readiness.TransactionPasswordStatus != "active" {
 		t.Fatalf("expected transaction_password_status active, got %q", got.Data.Readiness.TransactionPasswordStatus)
 	}
-	if !got.Data.Readiness.CanAccessHome {
-		t.Fatal("expected can_access_home true")
+	if strings.Contains(rawBody, `"can_access_home"`) {
+		t.Fatal("expected can_access_home to be absent")
 	}
 }
 

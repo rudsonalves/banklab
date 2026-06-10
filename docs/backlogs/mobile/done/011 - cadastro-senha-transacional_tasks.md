@@ -1,5 +1,9 @@
 # Tasks: Cadastro de senha transacional no mobile
 
+> Decisão superveniente: `can_access_home` foi removido de
+> `GET /auth/session`. As menções abaixo registram a implementação histórica;
+> o mobile agora deriva a navegação dos estados objetivos de readiness.
+
 Estas tasks dividem o backlog mobile de cadastro de senha transacional em
 passos executáveis.
 

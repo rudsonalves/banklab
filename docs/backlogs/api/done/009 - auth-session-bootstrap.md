@@ -1,5 +1,11 @@
 # Backlog: endpoint de sessão pós-login
 
+> Decisão superveniente: `can_access_home` foi removido do contrato de
+> `GET /auth/session`. A API fornece estados objetivos de readiness, enquanto
+> cada cliente decide sua navegação. Os endpoints protegidos continuam
+> responsáveis por autenticação, autorização e regras de negócio. As menções
+> abaixo a `can_access_home` registram a decisão original deste backlog.
+
 ## 1. Contexto
 
 O mobile hoje monta o perfil do usuário após login combinando duas chamadas:

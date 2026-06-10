@@ -1,4 +1,5 @@
 import 'package:bankflow/core/result/result.dart';
+import 'package:bankflow/core/services/app_section/app_section.dart';
 import 'package:bankflow/data/repositories/transaction_password/transaction_password_repository.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/transaction_password_status_response_dto.dart';
@@ -17,7 +18,10 @@ void main() {
       final repository = _FakeTransactionPasswordRepository(
         result: Success(response),
       );
-      final viewModel = TransactionPasswordViewModel(repository: repository);
+      final viewModel = TransactionPasswordViewModel(
+        repository: repository,
+        appSection: AppSection(),
+      );
       final request = CreateTransactionPasswordRequestDto(
         password: '123456',
         confirmation: '123456',
@@ -41,7 +45,10 @@ void main() {
           ),
         ),
       );
-      final viewModel = TransactionPasswordViewModel(repository: repository);
+      final viewModel = TransactionPasswordViewModel(
+        repository: repository,
+        appSection: AppSection(),
+      );
 
       await viewModel.create.execute(
         CreateTransactionPasswordRequestDto(

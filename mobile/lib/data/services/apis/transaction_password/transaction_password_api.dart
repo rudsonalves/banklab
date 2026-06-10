@@ -71,7 +71,9 @@ class TransactionPasswordApi {
         );
       }
 
-      return Success(envelope.data!);
+      final transPasswdResp = envelope.data!;
+
+      return Success(transPasswdResp);
     } catch (err, stack) {
       _log.error('Error parsing response: $err', error: err, stack: stack);
       return Failure(
@@ -83,6 +85,8 @@ class TransactionPasswordApi {
     }
   }
 
+  // Additional methods for updating and deleting transaction password
+  // can be added here
   AppErrorCode _mapBackendErrorCode(String code) {
     if (code == _transactionPasswordAlreadySetBackendCode) {
       return AppErrorCode.transactionPasswordAlreadySet;
