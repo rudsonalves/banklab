@@ -8,10 +8,6 @@ abstract class AuthRepository {
   /// Returns the current authentication state for the app session.
   AuthUser get currentUser;
 
-  /// Returns the cached user profile for the logged-in user, if one has already
-  /// been loaded.
-  AuthSession? get userProfile;
-
   /// Indicates whether the current user is authenticated.
   bool get isLoggedIn;
 
@@ -31,7 +27,7 @@ abstract class AuthRepository {
   /// If the user is not logged in, it returns an unauthenticated failure.
   /// When available, the cached profile is returned instead of fetching it
   /// again.
-  AsyncResult<AuthSession> profile();
+  AsyncResult<AuthSession> getAuthSession();
 
   /// Retrieves the last login identity (name and identifier) from cache.
   /// Returns a failure if there is an error accessing the cache or if the

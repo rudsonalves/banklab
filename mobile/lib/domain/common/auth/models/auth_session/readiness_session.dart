@@ -5,14 +5,21 @@ class ReadinessSession {
   final bool approved;
   final bool hasOperationalAccount;
   final TransactionPasswordStatus transactionPasswordStatus;
-  final bool canAccessHome;
+
+  bool get hasActiveTransactionPassword =>
+      transactionPasswordStatus == TransactionPasswordStatus.active;
+
+  bool get canAccessHome =>
+      onboardingCompleted &&
+      approved &&
+      hasOperationalAccount &&
+      hasActiveTransactionPassword;
 
   ReadinessSession({
     required this.onboardingCompleted,
     required this.approved,
     required this.hasOperationalAccount,
     required this.transactionPasswordStatus,
-    required this.canAccessHome,
   });
 
   factory ReadinessSession.fromApi(Map<String, dynamic> map) {
@@ -23,7 +30,22 @@ class ReadinessSession {
       transactionPasswordStatus: TransactionPasswordStatus.byName(
         map['transaction_password_status'] as String,
       ),
-      canAccessHome: map['can_access_home'] as bool,
+    );
+  }
+
+  ReadinessSession copyWith({
+    bool? onboardingCompleted,
+    bool? approved,
+    bool? hasOperationalAccount,
+    TransactionPasswordStatus? transactionPasswordStatus,
+  }) {
+    return ReadinessSession(
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      approved: approved ?? this.approved,
+      hasOperationalAccount:
+          hasOperationalAccount ?? this.hasOperationalAccount,
+      transactionPasswordStatus:
+          transactionPasswordStatus ?? this.transactionPasswordStatus,
     );
   }
 }

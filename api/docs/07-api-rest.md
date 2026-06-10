@@ -465,8 +465,7 @@ Success response (200):
       "onboarding_completed": true,
       "approved": true,
       "has_operational_account": true,
-      "transaction_password_status": "active",
-      "can_access_home": true
+      "transaction_password_status": "active"
     }
   },
   "error": null
@@ -481,7 +480,11 @@ Readiness fields:
   account.
 - `transaction_password_status`: one of `active`, `not_set`, `locked`, or
   `unknown`.
-- `can_access_home`: decision calculated by the API for post-login routing.
+
+The API returns objective readiness state and does not decide whether a client
+should display or navigate to its Home screen. Clients may derive presentation
+and navigation decisions from these fields. Authorization remains enforced by
+each protected API endpoint independently of client navigation.
 
 The response intentionally does not include `user.customer_id` or
 `customer.email`. The customer identifier is represented by `customer.id`, and

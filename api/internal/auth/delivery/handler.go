@@ -124,7 +124,6 @@ type sessionReadinessData struct {
 	Approved                  bool   `json:"approved"`
 	HasOperationalAccount     bool   `json:"has_operational_account"`
 	TransactionPasswordStatus string `json:"transaction_password_status"`
-	CanAccessHome             bool   `json:"can_access_home"`
 }
 
 type refreshAccessTokenData struct {
@@ -414,7 +413,6 @@ func (h *Handler) Session(w http.ResponseWriter, r *http.Request) {
 			Approved:                  output.Readiness.Approved,
 			HasOperationalAccount:     output.Readiness.HasOperationalAccount,
 			TransactionPasswordStatus: output.Readiness.TransactionPasswordStatus,
-			CanAccessHome:             output.Readiness.CanAccessHome,
 		},
 	})
 }

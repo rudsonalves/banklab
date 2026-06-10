@@ -1,5 +1,10 @@
 # Backlog: cadastro de senha transacional no mobile
 
+> Decisão superveniente: `can_access_home` foi removido de
+> `GET /auth/session`. O mobile deriva essa decisão dos estados objetivos de
+> readiness. As menções abaixo registram o contrato existente quando este
+> backlog foi implementado.
+
 ## 1. Contexto
 
 O backlog `api/006` fechou o contrato do MVP ZTA na API para criação da senha

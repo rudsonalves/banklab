@@ -121,23 +121,35 @@ class _ConfirmTransactionPasswordPageState
       return;
     }
 
-    await _viewModel.create.execute(
-      CreateTransactionPasswordRequestDto(
-        password: widget.pin,
-        confirmation: _confirmation,
-      ),
+    final transPasswdRequest = CreateTransactionPasswordRequestDto(
+      password: widget.pin,
+      confirmation: _confirmation,
     );
+    await _viewModel.create.execute(transPasswdRequest);
 
     final result = _viewModel.create.result;
     if (result == null || !mounted) return;
 
-    if (result.isSuccess) {
-      _clearSensitiveState();
-      context.goNamed(BaseRoutes.home.name);
+    if (result.isFailure) {
+      _errorSession(result.error!);
       return;
     }
 
-    final error = result.error!;
+    if (!_viewModel.canAccessHome) {
+      AppSnackbar.show(
+        context,
+        type: SnackbarType.error,
+        message: 'Não foi possível ativar a senha transacional.',
+      );
+      return;
+    }
+
+    _clearSensitiveState();
+    context.goNamed(BaseRoutes.home.name);
+    return;
+  }
+
+  void _errorSession(AppError error) {
     if (error.code == AppErrorCode.transactionPasswordAlreadySet) {
       _clearSensitiveState();
       AppSnackbar.show(
@@ -145,7 +157,6 @@ class _ConfirmTransactionPasswordPageState
         type: SnackbarType.info,
         message: _alreadySetMessage,
       );
-      context.goNamed(BaseRoutes.home.name);
       return;
     }
 

@@ -207,9 +207,6 @@ func TestGetSessionUseCase_Execute_ActiveReadySession(t *testing.T) {
 	if output.Readiness.TransactionPasswordStatus != TransactionPasswordSessionStatusActive {
 		t.Fatalf("expected transaction password status active, got %q", output.Readiness.TransactionPasswordStatus)
 	}
-	if !output.Readiness.CanAccessHome {
-		t.Fatal("expected can_access_home true")
-	}
 }
 
 func TestGetSessionUseCase_Execute_WithoutTransactionPassword(t *testing.T) {
@@ -249,9 +246,6 @@ func TestGetSessionUseCase_Execute_WithoutTransactionPassword(t *testing.T) {
 	}
 	if output.Readiness.TransactionPasswordStatus != TransactionPasswordSessionStatusNotSet {
 		t.Fatalf("expected transaction password status not_set, got %q", output.Readiness.TransactionPasswordStatus)
-	}
-	if output.Readiness.CanAccessHome {
-		t.Fatal("expected can_access_home false")
 	}
 }
 

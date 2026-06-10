@@ -1,4 +1,5 @@
 import 'package:bankflow/core/result/result.dart';
+import 'package:bankflow/core/services/app_section/app_section.dart';
 import 'package:bankflow/data/repositories/auth/auth_repository.dart';
 import 'package:bankflow/data/services/apis/auth/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/cache/last_login/models/last_login_identity.dart';
@@ -15,6 +16,7 @@ void main() {
     test('returns sessionError when userProfile is missing', () {
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        appSection: AppSection(),
       );
 
       expect(
@@ -24,8 +26,10 @@ void main() {
     });
 
     test('returns home for active transaction password and home readiness', () {
+      final appSection = AppSection()..setAuthSession(_session());
       final viewModel = LoginViewModel(
-        authRepository: _FakeAuthRepository(userProfile: _session()),
+        authRepository: _FakeAuthRepository(),
+        appSection: appSection,
       );
 
       expect(
@@ -35,10 +39,11 @@ void main() {
     });
 
     test('blocks active transaction password when home is not allowed', () {
+      final appSection = AppSection()
+        ..setAuthSession(_session(hasOperationalAccount: false));
       final viewModel = LoginViewModel(
-        authRepository: _FakeAuthRepository(
-          userProfile: _session(canAccessHome: false),
-        ),
+        authRepository: _FakeAuthRepository(),
+        appSection: appSection,
       );
 
       expect(
@@ -48,10 +53,11 @@ void main() {
     });
 
     test('returns transactionPassword for notSet status', () {
+      final appSection = AppSection()
+        ..setAuthSession(_session(status: TransactionPasswordStatus.notSet));
       final viewModel = LoginViewModel(
-        authRepository: _FakeAuthRepository(
-          userProfile: _session(status: TransactionPasswordStatus.notSet),
-        ),
+        authRepository: _FakeAuthRepository(),
+        appSection: appSection,
       );
 
       expect(
@@ -61,10 +67,11 @@ void main() {
     });
 
     test('blocks locked status', () {
+      final appSection = AppSection()
+        ..setAuthSession(_session(status: TransactionPasswordStatus.locked));
       final viewModel = LoginViewModel(
-        authRepository: _FakeAuthRepository(
-          userProfile: _session(status: TransactionPasswordStatus.locked),
-        ),
+        authRepository: _FakeAuthRepository(),
+        appSection: appSection,
       );
 
       expect(
@@ -74,10 +81,11 @@ void main() {
     });
 
     test('blocks unknown status', () {
+      final appSection = AppSection()
+        ..setAuthSession(_session(status: TransactionPasswordStatus.unknown));
       final viewModel = LoginViewModel(
-        authRepository: _FakeAuthRepository(
-          userProfile: _session(status: TransactionPasswordStatus.unknown),
-        ),
+        authRepository: _FakeAuthRepository(),
+        appSection: appSection,
       );
 
       expect(
@@ -89,10 +97,11 @@ void main() {
 
   group('ShortLoginViewModel.resolvePostLoginDestination', () {
     test('uses the same post-login destination rules', () {
+      final appSection = AppSection()
+        ..setAuthSession(_session(status: TransactionPasswordStatus.notSet));
       final viewModel = ShortLoginViewModel(
-        authRepository: _FakeAuthRepository(
-          userProfile: _session(status: TransactionPasswordStatus.notSet),
-        ),
+        authRepository: _FakeAuthRepository(),
+        appSection: appSection,
       );
 
       expect(
@@ -105,7 +114,7 @@ void main() {
 
 AuthSession _session({
   TransactionPasswordStatus status = TransactionPasswordStatus.active,
-  bool canAccessHome = true,
+  bool hasOperationalAccount = true,
 }) {
   return AuthSession(
     user: UserSession(
@@ -113,7 +122,7 @@ AuthSession _session({
       email: 'customer@example.com',
       role: UserRole.customer,
     ),
-    customer: CustommerSession(
+    customer: CustomerSession(
       id: 'customer-1',
       name: 'Maria Silva',
       cpf: '12345678901',
@@ -123,20 +132,17 @@ AuthSession _session({
     readiness: ReadinessSession(
       onboardingCompleted: true,
       approved: true,
-      hasOperationalAccount: true,
+      hasOperationalAccount: hasOperationalAccount,
       transactionPasswordStatus: status,
-      canAccessHome: canAccessHome,
     ),
   );
 }
 
 class _FakeAuthRepository implements AuthRepository {
-  _FakeAuthRepository({
-    this.userProfile,
-  });
+  _FakeAuthRepository();
 
   @override
-  final AuthSession? userProfile;
+  AuthSession? get userProfile => null;
 
   @override
   AuthUser get currentUser => NotLoggedUser();
@@ -156,5 +162,5 @@ class _FakeAuthRepository implements AuthRepository {
   AsyncResult<Unit> logout() async => throw UnimplementedError();
 
   @override
-  AsyncResult<AuthSession> profile() async => throw UnimplementedError();
+  AsyncResult<AuthSession> getAuthSession() async => throw UnimplementedError();
 }
