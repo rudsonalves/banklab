@@ -694,6 +694,12 @@ The client must send only the public HTTP operation (`method` + `path`).
 Internal policy keys (for example `internal_transfer.create`) are resolved by
 the backend and are not part of the public request contract.
 
+The canonical client representation uses an uppercase HTTP method, such as
+`POST`. For input tolerance, the API trims surrounding whitespace and
+normalizes `method` to uppercase before resolving the operation allowlist.
+The API only trims surrounding whitespace from `path`; it does not normalize
+or rewrite the path itself.
+
 Request body:
 
 ```json
@@ -1035,7 +1041,6 @@ Possible errors:
 - 400 SAME_ACCOUNT_TRANSFER: source and destination are equal
 - 403 FORBIDDEN: authenticated user cannot operate the source account
 - 403 STEP_UP_ENDPOINT_MISMATCH: step-up token operation does not match
-- 403 TRANSACTION_PASSWORD_REQUIRED: endpoint requires step-up authorization
 - 404 ACCOUNT_NOT_FOUND: source or destination account not found
 - 422 INSUFFICIENT_FUNDS: source account has insufficient funds
 - 422 ACCOUNT_INACTIVE: one account is inactive
@@ -1304,7 +1309,9 @@ validation attempt receives an incorrect PIN.
 password is temporarily locked after repeated invalid attempts.
 
 `TRANSACTION_PASSWORD_REQUIRED` (HTTP 403) is reserved for challenge/policy
-flows that require step-up before a sensitive operation can proceed.
+flows that require step-up before a sensitive operation can proceed. It is not
+returned by `POST /accounts/internal-transfers`; that endpoint returns
+`STEP_UP_TOKEN_REQUIRED` when `X-Step-Up-Token` is missing.
 
 `STEP_UP_TOKEN_REQUIRED` (HTTP 401) is returned by protected endpoints when
 header `X-Step-Up-Token` is missing.

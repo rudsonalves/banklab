@@ -182,7 +182,33 @@ Fields:
 
 ---
 
-## 4.4 accounts
+## 4.5 step_up_tokens
+
+Represents short-lived, single-use step-up authorizations.
+
+Fields:
+
+* `id` (UUID, PK)
+* `jti` (unique JWT identifier)
+* `user_id` (FK → users)
+* `endpoint_key`
+* `status` (`active` or `consumed`)
+* `expires_at`
+* `consumed_at`
+* `created_at`
+
+Notes:
+
+* active tokens are rejected after `expires_at`
+* successful enforcement atomically changes the token to `consumed`
+* active tokens expired for more than 24 hours are removed
+* consumed tokens are retained for 24 hours after `consumed_at`
+* cleanup is performed daily at 03:15 by `pg_cron` through
+  `cleanup_step_up_tokens()`
+
+---
+
+## 4.6 accounts
 
 Represents a financial account.
 
@@ -204,7 +230,7 @@ Notes:
 
 ---
 
-## 4.5 transactions
+## 4.7 transactions
 
 Represents the **financial ledger**.
 
@@ -224,7 +250,7 @@ Fields:
 
 ---
 
-## 4.6 contact_verifications
+## 4.8 contact_verifications
 
 Represents temporary onboarding verifications for e-mail and phone.
 

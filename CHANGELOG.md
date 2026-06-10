@@ -1,6 +1,92 @@
 # Changelog
 
-Segue o texto do commit:
+## 2026/06/10 - api/zta-mvp-transactional-password-16
+
+This update completes the transactional password step-up flow by strengthening token lifecycle management, hardening request validation, expanding integration coverage, and consolidating the public API contract around operation-based authorization.
+
+1. `step-up token lifecycle`
+
+   * Added migration `000012_step_up_tokens_cleanup`.
+   * Introduced `cleanup_step_up_tokens()` database function.
+   * Added dedicated indexes for active and consumed token cleanup paths.
+   * Configured a daily `pg_cron` job to remove expired operational records.
+   * Implemented a 24-hour retention window for both expired and consumed tokens.
+   * Preserved short-term auditability while preventing indefinite growth of the `step_up_tokens` table.
+
+2. `step-up authorization flow`
+
+   * Changed token generation flow to sign the JWT before persisting the authorization record.
+   * Prevented persistence of unusable step-up authorizations when token signing fails.
+   * Added explicit tests covering signing failures and persistence failures.
+   * Preserved the guarantee that only valid signed tokens can be stored for future enforcement.
+
+3. `strict JSON request validation`
+
+   * Introduced shared `DecodeJSON()` helper under `internal/shared/http`.
+
+   * Centralized strict request decoding logic.
+
+   * Continued rejecting unknown fields.
+
+   * Added rejection of multiple JSON values in a single request body.
+
+   * Prevented payloads such as:
+
+     ```json
+     {"field":"value"}{"extra":"payload"}
+     ```
+
+   * Applied the shared decoder to:
+
+     * transaction password creation
+     * step-up authorization
+     * internal transfer requests
+
+4. `internal transfer protection`
+
+   * Added integration coverage for the complete protected transfer flow.
+   * Validated transaction password creation.
+   * Validated step-up authorization issuance.
+   * Validated protected transfer execution using `X-Step-Up-Token`.
+   * Verified single-use token consumption behavior.
+   * Verified rejection of reused step-up tokens.
+   * Verified compatibility with transfer idempotency semantics.
+
+5. `public step-up contract`
+
+   * Standardized authorization requests around:
+
+     * HTTP method
+     * HTTP path
+   * Removed public exposure of internal endpoint policy identifiers.
+   * Documented canonical uppercase method usage.
+   * Added normalization rules for method handling.
+   * Clarified that paths are trimmed but never rewritten or normalized by the API.
+   * Reinforced the separation between public operation contracts and internal policy resolution.
+
+6. `API documentation`
+
+   * Documented step-up token retention and cleanup behavior.
+   * Added `step_up_tokens` table to database documentation.
+   * Updated implementation documentation to include operational retention rules.
+   * Clarified authorization error behavior for protected transfers.
+   * Documented that internal transfers return `STEP_UP_TOKEN_REQUIRED` when the authorization header is missing.
+   * Expanded step-up implementation notes to reflect the final operational model.
+
+7. `security delivery layer`
+
+   * Added handler documentation and constructor documentation.
+   * Improved endpoint self-documentation around transaction password creation and step-up authorization responsibilities.
+   * Increased maintainability of the security module entry points.
+
+8. `mobile and tooling`
+
+   * Added `AppEnv.isDev` and `AppEnv.isStaging`.
+   * Enabled contact verification debug token handling in staging environments.
+   * Updated the Bruno environment to target the public staging endpoint.
+
+This commit finalizes the operational foundations of transactional-password-based step-up authentication. Authorization tokens are now single-use, retention-managed, strictly validated at the HTTP boundary, and fully covered by end-to-end transfer integration tests, providing a safer and more predictable security model for sensitive banking operations.
+
 
 ## 2026/06/09 - banklab/docker-environment-isolation-02
 

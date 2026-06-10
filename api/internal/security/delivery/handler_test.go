@@ -160,6 +160,18 @@ func TestHandler_CreateTransactionPassword_InvalidPayload(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
 	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Error.Code != "INVALID_REQUEST" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_REQUEST", got.Error.Code)
+	}
 	if useCase.calls != 0 {
 		t.Fatalf("expected Execute not to be called, got %d", useCase.calls)
 	}
@@ -342,6 +354,45 @@ func TestHandler_AuthorizeStepUp_InvalidPayload(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+	if useCase.calls != 0 {
+		t.Fatalf("expected Execute not to be called, got %d", useCase.calls)
+	}
+}
+
+func TestHandler_AuthorizeStepUp_RejectsSecondJSONValue(t *testing.T) {
+	userID := uuid.New()
+	useCase := &authorizeStepUpUseCaseMock{}
+	handler := New(nil, useCase)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/security/step-up/authorize",
+		strings.NewReader(
+			`{"method":"POST","path":"/accounts/internal-transfers","transaction_password":"123456"}{"extra":true}`,
+		),
+	)
+	req = req.WithContext(sharedauthctx.WithAuthenticatedUser(req.Context(), sharedauthctx.AuthenticatedUser{
+		UserID: userID,
+		Role:   authdomain.RoleCustomer,
+	}))
+	rec := httptest.NewRecorder()
+
+	handler.AuthorizeStepUp(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var got struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if got.Error.Code != "INVALID_REQUEST" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_REQUEST", got.Error.Code)
 	}
 	if useCase.calls != 0 {
 		t.Fatalf("expected Execute not to be called, got %d", useCase.calls)

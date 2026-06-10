@@ -480,11 +480,15 @@ Applied migration files include:
 - ledger persistence centered on `transactions`
 - transfer pair integrity indexes (`reference_id`, `reference_id+type` unique per transfer leg)
 - contact verification cleanup using `pg_cron`
+- step-up token cleanup using `pg_cron`, with 24-hour retention after
+  expiration or consumption
 
 Important implementation detail:
 - account operations persist ledger entries exclusively in `transactions`.
 - idempotent transfer replay is reconstructed from ledger rows (`transfer_out` + paired `transfer_in`) using `reference_id`.
 - contact verification requests are unique by `(target, channel)`; requesting a new code for the same contact replaces the previous pending attempt.
+- expired and consumed step-up token records are cleaned daily after their
+  24-hour operational retention window.
 
 ## 9. Consistency and Concurrency Strategy (Implemented)
 

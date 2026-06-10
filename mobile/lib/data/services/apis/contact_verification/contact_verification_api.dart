@@ -85,8 +85,7 @@ class ContactVerificationApi {
         );
       }
 
-      const appMode = String.fromEnvironment('APP_MODE', defaultValue: 'dev');
-      if (appMode.toLowerCase() == 'dev') {
+      if (AppEnv.isDev || AppEnv.isStaging) {
         final token =
             (resp.data as Map<String, dynamic>)['data']['debug_token']
                 as String?;

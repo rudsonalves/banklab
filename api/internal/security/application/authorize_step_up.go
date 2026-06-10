@@ -126,12 +126,12 @@ func (uc *AuthorizeStepUpUseCase) Execute(
 		return nil, err
 	}
 
-	if err := uc.tokenRepo.Create(ctx, stepUpToken); err != nil {
+	signedToken, err := uc.tokenSigner.Sign(stepUpToken)
+	if err != nil {
 		return nil, err
 	}
 
-	signedToken, err := uc.tokenSigner.Sign(stepUpToken)
-	if err != nil {
+	if err := uc.tokenRepo.Create(ctx, stepUpToken); err != nil {
 		return nil, err
 	}
 

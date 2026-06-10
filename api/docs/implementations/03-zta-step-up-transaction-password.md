@@ -178,6 +178,11 @@ O contrato publico de autorizacao nao recebe `endpoint_key`. Essa chave pode
 continuar existindo apenas internamente no backend e no JWT assinado para
 enforcement.
 
+O cliente deve enviar `method` na forma canonica em maiusculas, como `POST`.
+Como tolerancia de entrada, a API remove espacos externos e normaliza `method`
+para maiusculas antes de consultar a whitelist. Para `path`, a API remove apenas
+espacos externos; nao altera nem reescreve o caminho informado.
+
 Resposta definida, seguindo o envelope de resposta da API:
 
 ```json
@@ -342,6 +347,11 @@ step_up_tokens
 
 Mesmo que o token seja JWT, o backend precisa rastrear um identificador para
 garantir uso único.
+
+Tokens `active` expirados são mantidos por 24 horas após `expires_at`. Tokens
+`consumed` são mantidos por 24 horas após `consumed_at`. Depois desse período,
+`cleanup_step_up_tokens()` remove os registros diariamente por meio de
+`pg_cron`, às 03:15 no timezone configurado para o banco.
 
 ## Resultado esperado
 
