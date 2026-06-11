@@ -8,6 +8,11 @@ import '/core/services/secure_storage/local_secure_storage.dart';
 
 class AuthInterceptor extends Interceptor {
   static const _refreshPath = '/auth/refresh';
+  static const _refreshRetryKey = 'auth_refresh_retry';
+  static const _refreshableErrorCodes = {
+    'UNAUTHORIZED',
+    'INVALID_TOKEN',
+  };
 
   final Dio _authDio;
   final Dio _refreshDio;
@@ -78,8 +83,14 @@ class AuthInterceptor extends Interceptor {
       );
     }
 
-    // only attempt refresh if 401 from non-refresh endpoint
-    if (statusCode != 401 || path.endsWith(_refreshPath)) {
+    final backendErrorCode = _backendErrorCode(err.response?.data);
+    final canRefresh =
+        statusCode == 401 &&
+        !path.endsWith(_refreshPath) &&
+        err.requestOptions.extra[_refreshRetryKey] != true &&
+        _refreshableErrorCodes.contains(backendErrorCode);
+
+    if (!canRefresh) {
       if (statusCode != null && statusCode >= 500) {
         _log.error(
           '[AuthInterceptor] HTTP $statusCode → '
@@ -90,7 +101,8 @@ class AuthInterceptor extends Interceptor {
       } else if (statusCode != null) {
         _log.warn(
           '[AuthInterceptor] HTTP $statusCode → '
-          '${err.requestOptions.method} $path',
+          '${err.requestOptions.method} $path'
+          '${backendErrorCode == null ? '' : ' ($backendErrorCode)'}',
         );
       }
 
@@ -213,7 +225,10 @@ class AuthInterceptor extends Interceptor {
           },
           responseType: request.responseType,
           contentType: request.contentType,
-          extra: request.extra,
+          extra: {
+            ...request.extra,
+            _refreshRetryKey: true,
+          },
           followRedirects: request.followRedirects,
           validateStatus: request.validateStatus,
         ).compose(
@@ -262,5 +277,19 @@ class AuthInterceptor extends Interceptor {
     }
 
     return parts.last;
+  }
+
+  String? _backendErrorCode(Object? data) {
+    if (data is! Map) {
+      return null;
+    }
+
+    final error = data['error'];
+    if (error is! Map) {
+      return null;
+    }
+
+    final code = error['code'];
+    return code is String ? code : null;
   }
 }

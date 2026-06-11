@@ -38,13 +38,14 @@ class _CreateTransactionPasswordPageState
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
           child: Column(
             spacing: 20,
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TextHeader('Crie sua senha transacional'),
+              const TextHeader('Escolha uma sequência de 6 dígitos'),
               Center(
                 child: TokenInput(
                   visible: true,
@@ -62,7 +63,7 @@ class _CreateTransactionPasswordPageState
           return DoubleBottomButton(
             leftButtonLabel: 'Voltar',
             rightButtonLabel: 'Continuar',
-            leftOnPressed: _navBack,
+            leftOnPressed: _navIntroduction,
             rightOnPressed: isDisabled ? null : _navToConfirmation,
             isRightEnabled: !isDisabled,
             rightButtonIcon: const Icon(Icons.arrow_forward_ios),
@@ -82,7 +83,8 @@ class _CreateTransactionPasswordPageState
     FocusScope.of(context).unfocus();
   }
 
-  void _navBack() => context.pop();
+  void _navIntroduction() =>
+      context.goNamed(TransactionPasswordRoutes.introduction.name);
 
   void _navToConfirmation() {
     if (_pin.length != 6) return;

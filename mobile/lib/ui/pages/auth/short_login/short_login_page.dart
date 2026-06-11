@@ -227,7 +227,7 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
         return;
 
       case PostLoginDestination.transactionPassword:
-        context.goNamed(TransactionPasswordRoutes.create.name);
+        context.goNamed(TransactionPasswordRoutes.introduction.name);
         return;
 
       case PostLoginDestination.blocked:

@@ -38,7 +38,7 @@ void main() {
           }
 
           return _jsonResponse(401, {
-            'error': {'code': 'INVALID_TOKEN'},
+            'error': {'code': 'UNAUTHORIZED'},
           });
         });
 
@@ -78,6 +78,128 @@ void main() {
         expect(storage.values[StorageKeys.accessToken], 'new-access');
         expect(storage.values[StorageKeys.refreshToken], 'new-refresh');
         expect(storage.deleteCalls, isEmpty);
+      },
+    );
+
+    for (final errorCode in [
+      'INVALID_APP_TOKEN',
+      'INVALID_CREDENTIALS',
+      'TRANSACTION_PASSWORD_INVALID',
+      'STEP_UP_TOKEN_REQUIRED',
+      'STEP_UP_TOKEN_INVALID',
+      'STEP_UP_TOKEN_EXPIRED',
+      'STEP_UP_TOKEN_CONSUMED',
+      'UNKNOWN_ERROR',
+    ]) {
+      test('does not refresh a 401 with $errorCode', () async {
+        final storage = _MemorySecureStorage({
+          StorageKeys.accessToken: 'old-access',
+          StorageKeys.refreshToken: 'old-refresh',
+        });
+        var refreshCalls = 0;
+
+        final authDio = Dio(BaseOptions(baseUrl: 'https://api.test'));
+        final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'));
+
+        authDio.httpClientAdapter = _FakeHttpClientAdapter((
+          options,
+          _,
+          _,
+        ) async {
+          return _jsonResponse(401, {
+            'error': {'code': errorCode},
+          });
+        });
+        refreshDio.httpClientAdapter = _FakeHttpClientAdapter((
+          options,
+          _,
+          _,
+        ) async {
+          refreshCalls++;
+          return _jsonResponse(200, {
+            'data': {'access_token': 'new-access'},
+          });
+        });
+
+        authDio.interceptors.add(
+          AuthInterceptor(
+            authDio: authDio,
+            refreshDio: refreshDio,
+            secureStorage: storage,
+            baseUrl: 'https://api.test',
+          ),
+        );
+
+        await expectLater(
+          authDio.post('/auth/login'),
+          throwsA(
+            isA<DioException>().having(
+              (error) => error.response?.data,
+              'response body',
+              {
+                'error': {'code': errorCode},
+              },
+            ),
+          ),
+        );
+
+        expect(refreshCalls, 0);
+        expect(storage.values[StorageKeys.accessToken], 'old-access');
+        expect(storage.values[StorageKeys.refreshToken], 'old-refresh');
+        expect(storage.deleteCalls, isEmpty);
+      });
+    }
+
+    test(
+      'does not refresh again when the retried request returns 401',
+      () async {
+        final storage = _MemorySecureStorage({
+          StorageKeys.accessToken: 'old-access',
+          StorageKeys.refreshToken: 'old-refresh',
+        });
+        var refreshCalls = 0;
+        var protectedCalls = 0;
+
+        final authDio = Dio(BaseOptions(baseUrl: 'https://api.test'));
+        final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'));
+
+        authDio.httpClientAdapter = _FakeHttpClientAdapter((
+          options,
+          _,
+          _,
+        ) async {
+          protectedCalls++;
+          return _jsonResponse(401, {
+            'error': {'code': 'INVALID_TOKEN'},
+          });
+        });
+        refreshDio.httpClientAdapter = _FakeHttpClientAdapter((
+          options,
+          _,
+          _,
+        ) async {
+          refreshCalls++;
+          return _jsonResponse(200, {
+            'data': {'access_token': 'new-access'},
+          });
+        });
+
+        authDio.interceptors.add(
+          AuthInterceptor(
+            authDio: authDio,
+            refreshDio: refreshDio,
+            secureStorage: storage,
+            baseUrl: 'https://api.test',
+          ),
+        );
+
+        await expectLater(
+          authDio.get('/protected'),
+          throwsA(isA<DioException>()),
+        );
+
+        expect(refreshCalls, 1);
+        expect(protectedCalls, 2);
       },
     );
   });

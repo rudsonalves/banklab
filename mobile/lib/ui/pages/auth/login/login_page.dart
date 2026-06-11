@@ -237,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
 
       case PostLoginDestination.transactionPassword:
-        context.goNamed(TransactionPasswordRoutes.create.name);
+        context.goNamed(TransactionPasswordRoutes.introduction.name);
         return;
 
       case PostLoginDestination.blocked:

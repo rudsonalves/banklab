@@ -87,7 +87,10 @@ void main() {
         expect(storage.writesByKey[StorageKeys.refreshToken], 'refresh-token');
         expect(cache.saveCalls, 1);
         expect(cache.lastSavedIdentity?.name, 'Maria Silva');
-        expect(cache.lastSavedIdentity?.identifier, '12345678901');
+        expect(
+          cache.lastSavedIdentity?.identifier,
+          'customer@example.com',
+        );
         expect(repository.isLoggedIn, isTrue);
         expect(appSection.currentSession?.customer?.name, 'Maria Silva');
       },

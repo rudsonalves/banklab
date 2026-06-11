@@ -10,6 +10,7 @@ enum AuthRoutes {
 }
 
 enum TransactionPasswordRoutes {
+  introduction('/transaction-password'),
   create('/transaction-password/create'),
   confirm('/transaction-password/confirm');
 
