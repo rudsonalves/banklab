@@ -105,7 +105,7 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
 
     if (!mounted) return;
     if (widget.viewModel.transfer.isFailure) {
-      context.pushNamed(TransferRoutes.statusFailure.name);
+      context.pushNamed(TransferRoutes.statusFailure.routeName);
     } else {
       final transferResponse = widget.viewModel.transfer.result?.value;
       if (transferResponse == null) {

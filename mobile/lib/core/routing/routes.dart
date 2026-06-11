@@ -1,27 +1,38 @@
-enum AuthRoutes {
-  login('/login'),
-  shortLogin('/short-login'),
-  // register('/register')
-  ;
-
-  const AuthRoutes(this.path);
-
-  final String path;
+abstract interface class AppRoute {
+  String get routePath;
+  String get routeName;
 }
 
-enum TransactionPasswordRoutes {
+enum AuthRoutes implements AppRoute {
+  login('/login'),
+  shortLogin('/short-login');
+
+  const AuthRoutes(this.routePath);
+
+  @override
+  final String routePath;
+
+  @override
+  String get routeName => name;
+}
+
+enum TransactionPasswordRoutes implements AppRoute {
   introduction('/transaction-password'),
   create('/transaction-password/create'),
   confirm('/transaction-password/confirm');
 
-  const TransactionPasswordRoutes(this.path);
+  const TransactionPasswordRoutes(this.routePath);
 
-  final String path;
+  @override
+  final String routePath;
+
+  @override
+  String get routeName => name;
 }
 
-enum RegisterRoutes {
+enum RegisterRoutes implements AppRoute {
   cpf('/register/cpf'),
-  name('/register/name'),
+  fullName('/register/name'),
   birthDate('/register/birth-date'),
   email('/register/email'),
   emailToken('/register/email-token'),
@@ -31,46 +42,67 @@ enum RegisterRoutes {
   success('/register/success'),
   failure('/register/failure');
 
-  const RegisterRoutes(this.path);
+  const RegisterRoutes(this.routePath);
 
-  final String path;
+  @override
+  final String routePath;
+
+  @override
+  String get routeName => name;
 }
 
-enum BaseRoutes {
+enum BaseRoutes implements AppRoute {
   home('/home'),
   splash('/splash'),
   statement('/statement');
 
-  const BaseRoutes(this.path);
+  const BaseRoutes(this.routePath);
 
-  final String path;
+  @override
+  final String routePath;
+
+  @override
+  String get routeName => name;
 }
 
-enum GeneralRoutes {
+enum GeneralRoutes implements AppRoute {
   splash('/splash'),
   receipt('/receipt');
 
-  const GeneralRoutes(this.path);
+  const GeneralRoutes(this.routePath);
 
-  final String path;
+  @override
+  final String routePath;
+
+  @override
+  String get routeName => name;
 }
 
-enum TransferRoutes {
+enum TransferRoutes implements AppRoute {
   recipient('/recipient'),
   payment('/payment'),
   confirmation('/confirmation'),
+  verifyTransactionPassword('/verify-transaction-password'),
   statusSuccess('/status/success'),
   statusFailure('/status/failure');
 
-  const TransferRoutes(this.path);
+  const TransferRoutes(this.routePath);
 
-  final String path;
+  @override
+  final String routePath;
+
+  @override
+  String get routeName => name;
 }
 
-enum SharedRoutes {
+enum SharedRoutes implements AppRoute {
   details('/details');
 
-  const SharedRoutes(this.path);
+  const SharedRoutes(this.routePath);
 
-  final String path;
+  @override
+  final String routePath;
+
+  @override
+  String get routeName => name;
 }

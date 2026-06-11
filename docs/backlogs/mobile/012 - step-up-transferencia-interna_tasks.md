@@ -34,11 +34,10 @@ localmente o estado da senha transacional após sua criação.
 - Tratar `TRANSACTION_PASSWORD_ALREADY_SET` como inconsistência defensiva:
   permanecer no cadastro, sem navegar e sem atualizar o snapshot
   otimisticamente.
-- Disponibilizar atualização remota explícita que ignore o snapshot atual
-  somente para a inconsistência defensiva `TRANSACTION_PASSWORD_NOT_SET`
-  recebida durante o step-up.
-- Na atualização remota explícita, substituir o snapshot apenas após resposta
-  válida e preservar o anterior em caso de falha.
+- Ao receber `TRANSACTION_PASSWORD_NOT_SET` durante o step-up, atualizar
+  localmente o `transactionPasswordStatus` do `AppSection` para `not_set`.
+- Usar o erro retornado pelo backend como informação autoritativa, sem consultar
+  novamente `GET /auth/session`.
 - Não consultar novamente `GET /auth/session` na entrada normal da
   transferência.
 
@@ -52,12 +51,12 @@ localmente o estado da senha transacional após sua criação.
   de sessão.
 - `TRANSACTION_PASSWORD_ALREADY_SET` não libera Home ou transferência e não
   altera o snapshot.
-- A atualização remota defensiva consulta `GET /auth/session`, substitui o
-  snapshot somente em sucesso e mantém a falha identificável por `AppError`.
+- `TRANSACTION_PASSWORD_NOT_SET` atualiza localmente o snapshot para `not_set`
+  sem nova consulta de sessão.
 - A entrada normal da transferência não provoca nova consulta de sessão.
 - Testes cobrem ciclo do `AppSection`, atualização local após criação,
-  atualização remota defensiva e ausência de refresh na entrada da
-  transferência.
+  atualização local após `TRANSACTION_PASSWORD_NOT_SET` e ausência de refresh
+  na entrada da transferência.
 
 ### Depende de
 

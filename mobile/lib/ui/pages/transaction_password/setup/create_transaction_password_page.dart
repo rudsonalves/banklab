@@ -84,7 +84,7 @@ class _CreateTransactionPasswordPageState
   }
 
   void _navIntroduction() =>
-      context.goNamed(TransactionPasswordRoutes.introduction.name);
+      context.goNamed(TransactionPasswordRoutes.introduction.routeName);
 
   void _navToConfirmation() {
     if (_pin.length != 6) return;

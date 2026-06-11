@@ -3,9 +3,15 @@ import 'package:bankflow/core/services/app_section/app_section.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
 import 'package:bankflow/data/repositories/transaction_password/transaction_password_repository_impl.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/dtos/set_up_authorize_request_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/dtos/set_up_authorize_response_dto.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/transaction_password_status_response_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import 'package:bankflow/data/services/apis/transaction_password/enums/transaction_password_status.dart';
 import 'package:bankflow/data/services/apis/transaction_password/transaction_password_api.dart';
+import 'package:bankflow/domain/common/auth/models/auth_session/auth_session.dart'
+    as auth;
+import 'package:bankflow/domain/common/user/enums/user_role.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -29,7 +35,32 @@ void main() {
       expect(api.lastRequest, same(request));
     });
 
+    test('updates transaction password status from notSet to active', () async {
+      final appSection = AppSection()
+        ..setAuthSession(
+          _authSession(auth.TransactionPasswordStatus.notSet),
+        );
+      final repository = TransactionPasswordRepositoryImpl(
+        api: _FakeTransactionPasswordApi(
+          result: Success(_response()),
+        ),
+        appSection: appSection,
+      );
+
+      final result = await repository.create(_request());
+
+      expect(result, isA<Success<TransactionPasswordStatusResponseDto>>());
+      expect(
+        appSection.readiness?.transactionPasswordStatus,
+        auth.TransactionPasswordStatus.active,
+      );
+    });
+
     test('preserves TRANSACTION_PASSWORD_ALREADY_SET backend code', () async {
+      final appSection = AppSection()
+        ..setAuthSession(
+          _authSession(auth.TransactionPasswordStatus.notSet),
+        );
       final repository = TransactionPasswordRepositoryImpl(
         api: _FakeTransactionPasswordApi(
           result: const Failure(
@@ -40,7 +71,7 @@ void main() {
             ),
           ),
         ),
-        appSection: AppSection(),
+        appSection: appSection,
       );
 
       final result = await repository.create(_request());
@@ -49,6 +80,10 @@ void main() {
       expect(
         backendErrorCode(result.error),
         'TRANSACTION_PASSWORD_ALREADY_SET',
+      );
+      expect(
+        appSection.readiness?.transactionPasswordStatus,
+        auth.TransactionPasswordStatus.notSet,
       );
     });
 
@@ -113,6 +148,65 @@ void main() {
       expect(backendErrorCode(result.error), isNull);
     });
   });
+
+  group('TransactionPasswordRepositoryImpl.stepUpAuthorize', () {
+    test(
+      'updates transaction password status from active to notSet when missing',
+      () async {
+        final appSection = AppSection()
+          ..setAuthSession(
+            _authSession(auth.TransactionPasswordStatus.active),
+          );
+        final repository = TransactionPasswordRepositoryImpl(
+          api: _FakeStepUpTransactionPasswordApi(
+            result: const Failure(
+              AppError(
+                code: AppErrorCode.transactionPasswordNotSet,
+                message: 'Transaction password not set',
+                details: {'code': 'TRANSACTION_PASSWORD_NOT_SET'},
+              ),
+            ),
+          ),
+          appSection: appSection,
+        );
+
+        final result = await repository.stepUpAuthorize(_stepUpRequest());
+
+        expect(result, isA<Failure<SetUpAuthorizeResponseDto>>());
+        expect(
+          appSection.readiness?.transactionPasswordStatus,
+          auth.TransactionPasswordStatus.notSet,
+        );
+      },
+    );
+
+    test('preserves active status for failures other than notSet', () async {
+      final appSection = AppSection()
+        ..setAuthSession(
+          _authSession(auth.TransactionPasswordStatus.active),
+        );
+      final repository = TransactionPasswordRepositoryImpl(
+        api: _FakeStepUpTransactionPasswordApi(
+          result: const Failure(
+            AppError(
+              code: AppErrorCode.transactionPasswordLocked,
+              message: 'Transaction password locked',
+              details: {'code': 'TRANSACTION_PASSWORD_LOCKED'},
+            ),
+          ),
+        ),
+        appSection: appSection,
+      );
+
+      final result = await repository.stepUpAuthorize(_stepUpRequest());
+
+      expect(result, isA<Failure<SetUpAuthorizeResponseDto>>());
+      expect(
+        appSection.readiness?.transactionPasswordStatus,
+        auth.TransactionPasswordStatus.active,
+      );
+    });
+  });
 }
 
 CreateTransactionPasswordRequestDto _request() {
@@ -127,6 +221,36 @@ TransactionPasswordStatusResponseDto _response() {
     userId: 'fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b',
     status: TransactionPasswordStatus.active,
     createdAt: DateTime.parse('2026-05-18T12:03:00Z'),
+  );
+}
+
+SetUpAuthorizeRequestDto _stepUpRequest() {
+  return SetUpAuthorizeRequestDto(
+    operation: StepUpOperation.internalTransfer,
+    transactionPassword: '123456',
+  );
+}
+
+auth.AuthSession _authSession(auth.TransactionPasswordStatus status) {
+  return auth.AuthSession(
+    user: auth.UserSession(
+      userId: 'user-1',
+      email: 'customer@example.com',
+      role: UserRole.customer,
+    ),
+    customer: auth.CustomerSession(
+      id: 'customer-1',
+      name: 'Maria Silva',
+      cpf: '12345678901',
+      birthDate: DateTime(1990, 1, 1),
+      createdAt: DateTime(2026, 5, 13),
+    ),
+    readiness: auth.ReadinessSession(
+      onboardingCompleted: true,
+      approved: true,
+      hasOperationalAccount: true,
+      transactionPasswordStatus: status,
+    ),
   );
 }
 
@@ -145,6 +269,21 @@ class _FakeTransactionPasswordApi extends TransactionPasswordApi {
   ) async {
     createCalls++;
     lastRequest = dto;
+    return result;
+  }
+}
+
+class _FakeStepUpTransactionPasswordApi extends TransactionPasswordApi {
+  _FakeStepUpTransactionPasswordApi({
+    required this.result,
+  }) : super(_NoopRestClient());
+
+  final Result<SetUpAuthorizeResponseDto> result;
+
+  @override
+  AsyncResult<SetUpAuthorizeResponseDto> stepUpAuthorize(
+    SetUpAuthorizeRequestDto dto,
+  ) async {
     return result;
   }
 }

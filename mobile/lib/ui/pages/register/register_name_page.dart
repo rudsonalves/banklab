@@ -87,7 +87,8 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
 
   void _navBack() => context.pop();
 
-  void _navToBirthdate() => context.pushNamed(RegisterRoutes.birthDate.name);
+  void _navToBirthdate() =>
+      context.pushNamed(RegisterRoutes.birthDate.routeName);
 
   void _nameChanged(String value) {
     final name = value.trim();

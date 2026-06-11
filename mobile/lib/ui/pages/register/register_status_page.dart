@@ -71,7 +71,7 @@ class RegisterStatusPage extends StatelessWidget {
   }
 
   void _goToLogin(BuildContext context) {
-    context.goNamed(AuthRoutes.login.name);
+    context.goNamed(AuthRoutes.login.routeName);
   }
 
   void _retryPassword(BuildContext context) {

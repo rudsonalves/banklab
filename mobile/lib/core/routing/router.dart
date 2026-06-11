@@ -12,7 +12,7 @@ import 'routes/transaction_password_routes.dart';
 import 'routes/transfer_routes.dart';
 
 GoRouter router() => GoRouter(
-  initialLocation: BaseRoutes.splash.path,
+  initialLocation: BaseRoutes.splash.routePath,
   debugLogDiagnostics: kDebugMode,
   observers: [routeObserver],
   extraCodec: const ExtraCodec(),

@@ -95,7 +95,8 @@ class _RegisterPhonePageState extends State<RegisterPhonePage> {
 
   void _navBack() => context.pop();
 
-  void _navToPhoneToken() => context.pushNamed(RegisterRoutes.phoneToken.name);
+  void _navToPhoneToken() =>
+      context.pushNamed(RegisterRoutes.phoneToken.routeName);
 
   void _phoneChanged(String value) {
     _isDisabled.value = !value.isValidPhone;

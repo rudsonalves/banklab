@@ -96,6 +96,80 @@ void main() {
       },
     );
   });
+
+  group('AuthRepositoryImpl session lifecycle', () {
+    test(
+      'getAuthSession returns the loaded snapshot without calling API again',
+      () async {
+        final api = _FakeAuthApi(
+          loginResult: Success(_loggedUser()),
+          profileResult: Success(_profile()),
+        );
+        final appSection = AppSection();
+        final repository = AuthRepositoryImpl(
+          api: api,
+          storage: _FakeLocalSecureStorage(),
+          lastLoginCacheService: _FakeLastLoginCacheService(),
+          appSection: appSection,
+        );
+
+        await repository.login(
+          LoginRequestDto(email: 'customer@example.com', password: '123456'),
+        );
+        final result = await repository.getAuthSession();
+
+        expect(result, isA<Success<AuthSession>>());
+        expect(result.value, same(appSection.currentSession));
+        expect(api.getProfileCalls, 1);
+      },
+    );
+
+    test('logout clears the loaded AppSection snapshot', () async {
+      final api = _FakeAuthApi(
+        loginResult: Success(_loggedUser()),
+        profileResult: Success(_profile()),
+      );
+      final appSection = AppSection();
+      final repository = AuthRepositoryImpl(
+        api: api,
+        storage: _FakeLocalSecureStorage(),
+        lastLoginCacheService: _FakeLastLoginCacheService(),
+        appSection: appSection,
+      );
+
+      await repository.login(
+        LoginRequestDto(email: 'customer@example.com', password: '123456'),
+      );
+      expect(appSection.currentSession, isNotNull);
+
+      final result = await repository.logout();
+
+      expect(result, isA<Success<Unit>>());
+      expect(appSection.currentSession, isNull);
+      expect(repository.isLoggedIn, isFalse);
+    });
+
+    test(
+      'logout clears AppSection even when repository is not logged in',
+      () async {
+        final appSection = AppSection()..setAuthSession(_profile());
+        final repository = AuthRepositoryImpl(
+          api: _FakeAuthApi(
+            loginResult: Success(_loggedUser()),
+            profileResult: Success(_profile()),
+          ),
+          storage: _FakeLocalSecureStorage(),
+          lastLoginCacheService: _FakeLastLoginCacheService(),
+          appSection: appSection,
+        );
+
+        final result = await repository.logout();
+
+        expect(result, isA<Success<Unit>>());
+        expect(appSection.currentSession, isNull);
+      },
+    );
+  });
 }
 
 LoggedUser _loggedUser() {

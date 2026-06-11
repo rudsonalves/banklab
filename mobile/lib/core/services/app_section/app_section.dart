@@ -31,4 +31,16 @@ class AppSection {
       readiness: readiness,
     );
   }
+
+  void markTransactionPasswordAsNotSet() {
+    final session = _current;
+    if (session == null) return;
+
+    final readiness = session.readiness.copyWith(
+      transactionPasswordStatus: TransactionPasswordStatus.notSet,
+    );
+    _current = session.copyWith(
+      readiness: readiness,
+    );
+  }
 }

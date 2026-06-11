@@ -11,8 +11,8 @@ import '../animations_page/app_custom_transaction.dart';
 
 List<RouteBase> authRoutes() => [
   GoRoute(
-    path: AuthRoutes.login.path,
-    name: AuthRoutes.login.name,
+    path: AuthRoutes.login.routePath,
+    name: AuthRoutes.login.routeName,
     pageBuilder: (context, state) => AppCustomTransactionPage(
       key: state.pageKey,
       child: LoginPage(viewModel: injector.get<LoginViewModel>()),
@@ -20,8 +20,8 @@ List<RouteBase> authRoutes() => [
   ),
 
   GoRoute(
-    path: AuthRoutes.shortLogin.path,
-    name: AuthRoutes.shortLogin.name,
+    path: AuthRoutes.shortLogin.routePath,
+    name: AuthRoutes.shortLogin.routeName,
     pageBuilder: (context, state) {
       final identity = state.extra;
       if (identity is! LastLoginIdentity) {

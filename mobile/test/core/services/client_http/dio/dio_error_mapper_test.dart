@@ -6,6 +6,34 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('mapHttpError', () {
     test(
+      'maps TRANSACTION_PASSWORD_LOCKED to transactionPasswordLocked',
+      () {
+        final error = mapHttpError(
+          DioException(
+            requestOptions: RequestOptions(path: '/security/step-up/authorize'),
+            type: DioExceptionType.badResponse,
+            response: Response(
+              requestOptions: RequestOptions(
+                path: '/security/step-up/authorize',
+              ),
+              statusCode: 403,
+              data: {
+                'error': {
+                  'code': 'TRANSACTION_PASSWORD_LOCKED',
+                  'message': 'Transaction password is locked',
+                },
+              },
+            ),
+          ),
+        );
+
+        expect(error.code, AppErrorCode.transactionPasswordLocked);
+        expect(error.statusCode, 403);
+        expect(error.message, 'Transaction password is locked');
+      },
+    );
+
+    test(
       'maps ACCOUNT_APPROVAL_REQUIRED to accountApprovalRequired with approved message',
       () {
         final error = mapHttpError(

@@ -15,40 +15,40 @@ import '/ui/pages/register/viewmodel/register_viewmodel.dart';
 
 List<RouteBase> registerRoutes() => [
   GoRoute(
-    path: RegisterRoutes.cpf.path,
-    name: RegisterRoutes.cpf.name,
+    path: RegisterRoutes.cpf.routePath,
+    name: RegisterRoutes.cpf.routeName,
     builder: (context, state) => RegisterCpfPage(
       viewmodel: injector.get<RegisterViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: RegisterRoutes.name.path,
-    name: RegisterRoutes.name.name,
+    path: RegisterRoutes.fullName.routePath,
+    name: RegisterRoutes.fullName.routeName,
     builder: (context, state) => RegisterNamePage(
       viewmodel: injector.get<RegisterViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: RegisterRoutes.birthDate.path,
-    name: RegisterRoutes.birthDate.name,
+    path: RegisterRoutes.birthDate.routePath,
+    name: RegisterRoutes.birthDate.routeName,
     builder: (context, state) => RegisterBirthdatePage(
       viewmodel: injector.get<RegisterViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: RegisterRoutes.email.path,
-    name: RegisterRoutes.email.name,
+    path: RegisterRoutes.email.routePath,
+    name: RegisterRoutes.email.routeName,
     builder: (context, state) => RegisterEmailPage(
       viewmodel: injector.get<RegisterViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: RegisterRoutes.emailToken.path,
-    name: RegisterRoutes.emailToken.name,
+    path: RegisterRoutes.emailToken.routePath,
+    name: RegisterRoutes.emailToken.routeName,
     builder: (context, state) => RegisterTokenPage(
       viewmodel: injector.get<RegisterViewmodel>(),
       channel: ContactVerificationChannel.email,
@@ -56,16 +56,16 @@ List<RouteBase> registerRoutes() => [
   ),
 
   GoRoute(
-    path: RegisterRoutes.phone.path,
-    name: RegisterRoutes.phone.name,
+    path: RegisterRoutes.phone.routePath,
+    name: RegisterRoutes.phone.routeName,
     builder: (context, state) => RegisterPhonePage(
       viewmodel: injector.get<RegisterViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: RegisterRoutes.phoneToken.path,
-    name: RegisterRoutes.phoneToken.name,
+    path: RegisterRoutes.phoneToken.routePath,
+    name: RegisterRoutes.phoneToken.routeName,
     builder: (context, state) => RegisterTokenPage(
       viewmodel: injector.get<RegisterViewmodel>(),
       channel: ContactVerificationChannel.phone,
@@ -73,24 +73,24 @@ List<RouteBase> registerRoutes() => [
   ),
 
   GoRoute(
-    path: RegisterRoutes.password.path,
-    name: RegisterRoutes.password.name,
+    path: RegisterRoutes.password.routePath,
+    name: RegisterRoutes.password.routeName,
     builder: (context, state) => RegisterPasswordPage(
       viewmodel: injector.get<RegisterViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: RegisterRoutes.success.path,
-    name: RegisterRoutes.success.name,
+    path: RegisterRoutes.success.routePath,
+    name: RegisterRoutes.success.routeName,
     builder: (context, state) => const RegisterStatusPage(
       isSuccess: true,
     ),
   ),
 
   GoRoute(
-    path: RegisterRoutes.failure.path,
-    name: RegisterRoutes.failure.name,
+    path: RegisterRoutes.failure.routePath,
+    name: RegisterRoutes.failure.routeName,
     builder: (context, state) => const RegisterStatusPage(
       isSuccess: false,
     ),

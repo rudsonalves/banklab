@@ -181,7 +181,7 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
   }
 
   void _navToLogin() {
-    context.goNamed(AuthRoutes.login.name);
+    context.goNamed(AuthRoutes.login.routeName);
   }
 
   void _obscurePasswordListener() {
@@ -223,11 +223,11 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
     switch (destination) {
       case PostLoginDestination.home:
-        context.goNamed(BaseRoutes.home.name);
+        context.goNamed(BaseRoutes.home.routeName);
         return;
 
       case PostLoginDestination.transactionPassword:
-        context.goNamed(TransactionPasswordRoutes.introduction.name);
+        context.goNamed(TransactionPasswordRoutes.introduction.routeName);
         return;
 
       case PostLoginDestination.blocked:

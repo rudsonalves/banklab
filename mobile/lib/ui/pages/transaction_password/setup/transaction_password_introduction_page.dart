@@ -78,9 +78,9 @@ class TransactionPasswordIntroductionPage extends StatelessWidget {
       bottomNavigationBar: DoubleBottomButton(
         leftButtonLabel: 'Agora não',
         rightButtonLabel: 'Criar senha',
-        leftOnPressed: () => context.goNamed(AuthRoutes.login.name),
+        leftOnPressed: () => context.goNamed(AuthRoutes.login.routeName),
         rightOnPressed: () =>
-            context.pushNamed(TransactionPasswordRoutes.create.name),
+            context.pushNamed(TransactionPasswordRoutes.create.routeName),
         isRightEnabled: true,
         rightButtonIcon: const Icon(Icons.arrow_forward_ios),
       ),

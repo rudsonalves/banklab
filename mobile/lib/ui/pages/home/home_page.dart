@@ -131,10 +131,10 @@ class _HomePageState extends State<HomePage> with RouteAware {
   }
 
   void _navToStatement() {
-    context.pushNamed(BaseRoutes.statement.name);
+    context.pushNamed(BaseRoutes.statement.routeName);
   }
 
   void _navToTransferRecipient() {
-    context.pushNamed(TransferRoutes.recipient.name);
+    context.pushNamed(TransferRoutes.recipient.routeName);
   }
 }

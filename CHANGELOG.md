@@ -1,5 +1,119 @@
 # Changelog
 
+Segui o formato do `Commit_Prompt.md`. 
+
+## 2026/06/11 - mobile/transactional-password-02
+
+Implements the mobile step-up authorization flow for internal transfers using the transactional password. The change adds the authorization API contract, repository integration, verification screen, route registration, error mapping, and local session snapshot updates based on backend responses.
+
+It also refactors route enums to expose explicit `routePath` and `routeName` properties, reducing ambiguity between enum names and URL paths across navigation calls.
+
+1. **mobile/lib/core/routing/routes.dart**
+
+   * Added the `AppRoute` interface with `routePath` and `routeName`.
+   * Updated route enums to implement `AppRoute`.
+   * Replaced the generic `path` field with `routePath`.
+   * Added `TransferRoutes.verifyTransactionPassword`.
+   * Renamed `RegisterRoutes.name` to `RegisterRoutes.fullName` to avoid semantic ambiguity.
+
+2. **mobile/lib/core/routing/**
+
+   * Updated router initialization and route declarations to use `routePath` and `routeName`.
+   * Registered the transactional password verification route in the transfer flow.
+   * Updated auth, base, register, shared, transfer, and transactional password route files.
+
+3. **mobile/lib/ui/pages/transaction_password/setup/**
+
+   * Renamed the previous `creation_flow` folder to `setup`.
+   * Updated imports and navigation calls to match the new route contract.
+   * Preserved the existing transactional password creation behavior.
+
+4. **mobile/lib/ui/pages/transaction_password/verification/**
+
+   * Added `VerifyTansactionPasswordPage` for step-up password confirmation.
+   * Added `VerifyTansactionPasswordViewmodel`.
+   * Integrated `TokenInput`, loading state, cancel behavior, success pop with response, and error handling.
+   * Handles locked transactional password and missing transactional password scenarios.
+
+5. **mobile/lib/data/services/apis/transaction_password/**
+
+   * Added step-up authorization request and response DTOs.
+   * Added `HttpMethod` and `StepUpOperation` enums.
+   * Implemented `TransactionPasswordApi.stepUpAuthorize()`.
+   * Added structured logging for create and step-up authorization failures.
+
+6. **mobile/lib/data/repositories/transaction_password/**
+
+   * Extended `TransactionPasswordRepository` with `stepUpAuthorize`.
+   * Implemented repository forwarding to the API.
+   * Updates `AppSection` locally to `notSet` when the backend returns `TRANSACTION_PASSWORD_NOT_SET`.
+
+7. **mobile/lib/core/services/app_section/app_section.dart**
+
+   * Added `markTransactionPasswordAsNotSet()`.
+   * Allows the mobile snapshot to be corrected locally without calling `GET /auth/session` again.
+
+8. **mobile/lib/core/services/client_http/dio/dio_error_mapper.dart**
+
+   * Added mapping for `TRANSACTION_PASSWORD_LOCKED`.
+   * Added mapping for `TRANSACTION_PASSWORD_NOT_SET`.
+   * Exposes these backend errors as typed `AppErrorCode` values.
+
+9. **mobile/lib/core/result/errors/app_error_code.dart**
+
+   * Added `transactionPasswordLocked`.
+   * Added `transactionPasswordNotSet`.
+
+10. **mobile/lib/data/repositories/auth/auth_repository_impl.dart**
+
+   * Renamed local session-loading variables for clarity.
+   * Changed logout to clear `AppSection` before checking login state.
+   * Ensures stale session snapshots are removed even when the repository is already not logged in.
+
+11. **mobile/lib/ui/pages/auth, home, register, splash, transfer**
+
+   * Updated navigation calls to use `routeName`.
+   * Replaced direct enum `name` usage in `goNamed` and `pushNamed`.
+   * Updated registration navigation to use `RegisterRoutes.fullName`.
+
+12. **mobile/lib/ui/viewmodels.dart**
+
+   * Updated transactional password setup import path.
+   * Registered `VerifyTansactionPasswordViewmodel` in dependency injection.
+
+13. **docs/backlogs/mobile/012 - step-up-transferencia-interna_tasks.md**
+
+   * Updated the step-up consistency strategy.
+   * Replaced the defensive remote refresh approach with local snapshot correction on `TRANSACTION_PASSWORD_NOT_SET`.
+   * Clarified that the backend error is treated as authoritative.
+
+14. **CHANGELOG.md**
+
+   * Corrected login navigation documentation from `HomeRoutes.home.name` to `HomeRoutes.home.routeName`.
+
+15. **mobile/test/**
+
+   * Added error mapper coverage for `TRANSACTION_PASSWORD_LOCKED`.
+   * Added auth repository tests for cached session retrieval and logout snapshot clearing.
+   * Added transaction password repository tests for local status updates after creation and after step-up failures.
+   * Updated transactional password setup tests to use the renamed folder and new route path API.
+
+16. **mobile/android/build.gradle.kts**
+
+   * Updated subproject build directory resolution from `project.name` to `project.routeName`.
+   * Aligns the Gradle configuration with the route naming refactor introduced in the mobile code.
+
+### Conclusion
+
+This update completes the client-side foundation for transactional password step-up authorization in internal transfers.
+
+The implementation introduces a dedicated authorization flow, typed backend error handling, local session snapshot reconciliation, and a reusable verification screen integrated into the routing system. The application now reacts immediately to authoritative backend responses such as `TRANSACTION_PASSWORD_NOT_SET` and `TRANSACTION_PASSWORD_LOCKED`, avoiding unnecessary session refreshes and keeping the local authentication state consistent.
+
+Additionally, the routing layer was standardized through the introduction of `AppRoute`, improving navigation consistency and reducing coupling to enum implementation details. The transactional password creation flow was reorganized under the new `setup` structure, and the dependency injection, tests, and documentation were updated accordingly.
+
+Overall, this change strengthens transfer security, improves session state reliability, and prepares the mobile application for the next phase of protected financial operations based on step-up authentication.
+
+
 ## 2026/06/11 - mobile/transactional-password-01
 
 Implementa fluxo guiado de criação de senha transacional e reforça política de renovação de sessão
@@ -10790,7 +10904,7 @@ Refines the mobile balance flow by introducing typed money handling, centralized
 ### 6. Login flow adjustment
 
 * Updated login result handling to use `AppSnackbar`
-* Moved navigation to `context.goNamed(HomeRoutes.home.name)` after successful command completion handling
+* Moved navigation to `context.goNamed(HomeRoutes.home.routeName)` after successful command completion handling
 * Changed `_submit()` to trigger the command without duplicating result processing logic afterward
 * Added mounted checks before navigation
 

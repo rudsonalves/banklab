@@ -182,7 +182,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _navToRegister() {
-    context.goNamed(RegisterRoutes.cpf.name);
+    context.goNamed(RegisterRoutes.cpf.routeName);
   }
 
   void _obscurePasswordListener() {
@@ -233,11 +233,11 @@ class _LoginPageState extends State<LoginPage> {
 
     switch (destination) {
       case PostLoginDestination.home:
-        context.goNamed(BaseRoutes.home.name);
+        context.goNamed(BaseRoutes.home.routeName);
         return;
 
       case PostLoginDestination.transactionPassword:
-        context.goNamed(TransactionPasswordRoutes.introduction.name);
+        context.goNamed(TransactionPasswordRoutes.introduction.routeName);
         return;
 
       case PostLoginDestination.blocked:

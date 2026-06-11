@@ -77,7 +77,7 @@ class TransferStatusPage extends StatelessWidget {
   }
 
   void _navBack(BuildContext context) {
-    context.goNamed(BaseRoutes.home.name);
+    context.goNamed(BaseRoutes.home.routeName);
   }
 
   void _showReceipt(BuildContext context) {

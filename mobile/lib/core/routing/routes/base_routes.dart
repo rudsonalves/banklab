@@ -11,24 +11,24 @@ import '/ui/pages/statement/viewmodel/statement_viewmodel.dart';
 
 List<RouteBase> baseRoutes() => [
   GoRoute(
-    path: BaseRoutes.home.path,
-    name: BaseRoutes.home.name,
+    path: BaseRoutes.home.routePath,
+    name: BaseRoutes.home.routeName,
     builder: (context, state) => HomePage(
       viewModel: injector.get<HomeViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: BaseRoutes.splash.path,
-    name: BaseRoutes.splash.name,
+    path: BaseRoutes.splash.routePath,
+    name: BaseRoutes.splash.routeName,
     builder: (context, state) => SplashPage(
       viewModel: injector.get<SplashViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: BaseRoutes.statement.path,
-    name: BaseRoutes.statement.name,
+    path: BaseRoutes.statement.routePath,
+    name: BaseRoutes.statement.routeName,
     builder: (context, state) =>
         StatementPage(viewModel: injector.get<StatementViewmodel>()),
   ),

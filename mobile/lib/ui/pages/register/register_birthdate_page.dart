@@ -122,7 +122,7 @@ class _RegisterBirthdatePageState extends State<RegisterBirthdatePage> {
 
   void _navBack() => context.pop();
 
-  void _navToEmail() => context.pushNamed(RegisterRoutes.email.name);
+  void _navToEmail() => context.pushNamed(RegisterRoutes.email.routeName);
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(

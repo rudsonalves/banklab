@@ -191,9 +191,11 @@ class _RegisterPasswordPageState extends State<RegisterPasswordPage> {
 
   void _navBack() => context.pop();
 
-  void _navToSuccessStatus() => context.pushNamed(RegisterRoutes.success.name);
+  void _navToSuccessStatus() =>
+      context.pushNamed(RegisterRoutes.success.routeName);
 
-  void _navToFailureStatus() => context.pushNamed(RegisterRoutes.failure.name);
+  void _navToFailureStatus() =>
+      context.pushNamed(RegisterRoutes.failure.routeName);
 
   void _togglePasswordVisibility() {
     _isPasswordObscured.value = !_isPasswordObscured.value;

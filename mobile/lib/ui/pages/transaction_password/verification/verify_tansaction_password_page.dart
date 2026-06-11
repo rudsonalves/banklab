@@ -1,44 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '/core/result/result.dart';
-import '/core/routing/routes.dart';
-import '/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
+import '/core/result/errors/app_error.dart';
+import '/data/services/apis/transaction_password/dtos/set_up_authorize_request_dto.dart';
+import '/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/input_text/token_input.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
-import 'viewmodel/transaction_password_viewmodel.dart';
+import '../../../../core/routing/routes.dart';
+import 'viewmodel/verify_tansaction_password_viewmodel.dart';
 
-const _pinMismatchMessage = 'A confirmação deve ser igual à senha criada.';
-const _alreadySetMessage = 'Sua senha transacional já está cadastrada.';
+class VerifyTansactionPasswordPage extends StatefulWidget {
+  final VerifyTansactionPasswordViewmodel viewModel;
 
-class ConfirmTransactionPasswordPage extends StatefulWidget {
-  final TransactionPasswordViewModel viewModel;
-  final String pin;
-
-  const ConfirmTransactionPasswordPage({
+  const VerifyTansactionPasswordPage({
     super.key,
     required this.viewModel,
-    required this.pin,
   });
 
   @override
-  State<ConfirmTransactionPasswordPage> createState() =>
-      _ConfirmTransactionPasswordPageState();
+  State<VerifyTansactionPasswordPage> createState() =>
+      _VerifyTansactionPasswordPageState();
 }
 
-class _ConfirmTransactionPasswordPageState
-    extends State<ConfirmTransactionPasswordPage> {
-  TransactionPasswordViewModel get _viewModel => widget.viewModel;
+class _VerifyTansactionPasswordPageState
+    extends State<VerifyTansactionPasswordPage> {
+  VerifyTansactionPasswordViewmodel get _viewModel => widget.viewModel;
 
   final ValueNotifier<bool> _isDisabled = ValueNotifier(true);
-  String _confirmation = '';
+  String _transPasswd = '';
 
   @override
   void dispose() {
-    _confirmation = '';
+    _transPasswd = '';
     _isDisabled.dispose();
 
     super.dispose();
@@ -58,12 +54,14 @@ class _ConfirmTransactionPasswordPageState
             spacing: 20,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const TextHeader('Confirme sua senha transacional'),
+              const TextHeader(
+                'Confirme a operação com sua senha transacional',
+              ),
               Center(
                 child: TokenInput(
                   visible: false,
-                  onChanged: _onConfirmationChanged,
-                  onCompleted: _onConfirmationCompleted,
+                  onChanged: _onTokenChanged,
+                  onCompleted: _onTokenCompleted,
                 ),
               ),
             ],
@@ -73,13 +71,13 @@ class _ConfirmTransactionPasswordPageState
       bottomNavigationBar: ListenableBuilder(
         listenable: Listenable.merge([
           _isDisabled,
-          _viewModel.create,
+          _viewModel.stepUpAuthorize,
         ]),
         builder: (context, _) {
-          final isRunning = _viewModel.create.isRunning;
+          final isRunning = _viewModel.stepUpAuthorize.isRunning;
 
           return DoubleBottomButton(
-            leftButtonLabel: 'Voltar',
+            leftButtonLabel: 'Cancelar',
             rightButtonLabel: isRunning ? 'Criando...' : 'Concluir',
             leftOnPressed: isRunning ? null : _navBack,
             rightOnPressed: _isDisabled.value || isRunning ? null : _submit,
@@ -97,37 +95,28 @@ class _ConfirmTransactionPasswordPageState
     );
   }
 
-  void _onConfirmationChanged(String value) {
-    _confirmation = value.trim();
-    _isDisabled.value = _confirmation.length != 6;
+  void _onTokenChanged(String value) {
+    _transPasswd = value.trim();
+    _isDisabled.value = _transPasswd.length != 6;
   }
 
-  void _onConfirmationCompleted(String value) {
-    _onConfirmationChanged(value);
+  void _onTokenCompleted(String value) {
+    _onTokenChanged(value);
     FocusScope.of(context).unfocus();
   }
 
-  void _navBack() => context.pop();
+  void _navBack() => context.pop(null);
 
   Future<void> _submit() async {
-    if (_confirmation.length != 6) return;
+    if (_transPasswd.length != 6) return;
 
-    if (_confirmation != widget.pin) {
-      AppSnackbar.show(
-        context,
-        type: SnackbarType.error,
-        message: _pinMismatchMessage,
-      );
-      return;
-    }
-
-    final transPasswdRequest = CreateTransactionPasswordRequestDto(
-      password: widget.pin,
-      confirmation: _confirmation,
+    final transPasswdRequest = SetUpAuthorizeRequestDto(
+      operation: StepUpOperation.internalTransfer,
+      transactionPassword: _transPasswd,
     );
-    await _viewModel.create.execute(transPasswdRequest);
+    await _viewModel.stepUpAuthorize.execute(transPasswdRequest);
 
-    final result = _viewModel.create.result;
+    final result = _viewModel.stepUpAuthorize.result;
     if (result == null || !mounted) return;
 
     if (result.isFailure) {
@@ -135,39 +124,40 @@ class _ConfirmTransactionPasswordPageState
       return;
     }
 
-    if (!_viewModel.canAccessHome) {
-      AppSnackbar.show(
-        context,
-        type: SnackbarType.error,
-        message: 'Não foi possível ativar a senha transacional.',
-      );
-      return;
-    }
-
     _clearSensitiveState();
-    context.goNamed(BaseRoutes.home.name);
+    final response = result.value!;
+    if (!mounted) return;
+    context.pop(response);
     return;
   }
 
   void _errorSession(AppError error) {
-    if (error.code == AppErrorCode.transactionPasswordAlreadySet) {
+    if (error.code == AppErrorCode.transactionPasswordLocked) {
+      _clearSensitiveState();
+      context.pop(null);
+      return;
+    }
+
+    if (error.code == AppErrorCode.transactionPasswordNotSet) {
       _clearSensitiveState();
       AppSnackbar.show(
         context,
-        type: SnackbarType.info,
-        message: _alreadySetMessage,
+        type: SnackbarType.error,
+        message:
+            'Você precisa configurar uma senha transacional para realizar esta operação.',
       );
+      context.goNamed(BaseRoutes.home.routeName);
       return;
     }
 
     AppSnackbar.show(
       context,
       type: SnackbarType.error,
-      message: error.message,
+      message: 'Falha ao autorizar a operação. Tente novamente.',
     );
   }
 
   void _clearSensitiveState() {
-    _confirmation = '';
+    _transPasswd = '';
   }
 }

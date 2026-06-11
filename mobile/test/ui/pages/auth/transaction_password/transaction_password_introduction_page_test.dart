@@ -1,5 +1,5 @@
 import 'package:bankflow/core/routing/routes.dart';
-import 'package:bankflow/ui/pages/transaction_password/creation_flow/transaction_password_introduction_page.dart';
+import 'package:bankflow/ui/pages/transaction_password/setup/transaction_password_introduction_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -9,22 +9,22 @@ void main() {
     tester,
   ) async {
     final router = GoRouter(
-      initialLocation: TransactionPasswordRoutes.introduction.path,
+      initialLocation: TransactionPasswordRoutes.introduction.routePath,
       routes: [
         GoRoute(
-          path: TransactionPasswordRoutes.introduction.path,
+          path: TransactionPasswordRoutes.introduction.routePath,
           name: TransactionPasswordRoutes.introduction.name,
           builder: (context, state) =>
               const TransactionPasswordIntroductionPage(),
         ),
         GoRoute(
-          path: TransactionPasswordRoutes.create.path,
+          path: TransactionPasswordRoutes.create.routePath,
           name: TransactionPasswordRoutes.create.name,
           builder: (context, state) =>
               const Scaffold(body: Text('Create password page')),
         ),
         GoRoute(
-          path: AuthRoutes.login.path,
+          path: AuthRoutes.login.routePath,
           name: AuthRoutes.login.name,
           builder: (context, state) => const Scaffold(body: Text('Login page')),
         ),

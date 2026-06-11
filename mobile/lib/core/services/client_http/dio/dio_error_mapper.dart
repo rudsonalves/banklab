@@ -6,6 +6,8 @@ const _accountApprovalRequiredBackendCode = 'ACCOUNT_APPROVAL_REQUIRED';
 const _accountApprovalRequiredMessage =
     'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar o app.';
 const _contactNotVerifiedBackendCode = 'CONTACT_NOT_VERIFIED';
+const _transactionPasswordLockedBackendCode = 'TRANSACTION_PASSWORD_LOCKED';
+const _transactionPasswordNotSetBackendCode = 'TRANSACTION_PASSWORD_NOT_SET';
 const _contactNotVerifiedGenericMessage =
     'Confirme seu e-mail e telefone antes de entrar.';
 const _contactNotVerifiedEmailOnlyMessage =
@@ -68,6 +70,24 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
             code: AppErrorCode.contactNotVerified,
             message: _contactNotVerifiedMessage(details),
             details: details,
+          );
+        }
+
+        if (backendCode == _transactionPasswordLockedBackendCode) {
+          return AppError(
+            statusCode: response?.statusCode,
+            code: AppErrorCode.transactionPasswordLocked,
+            message: error['message'] ?? 'Senha transacional bloqueada.',
+            details: details ?? error,
+          );
+        }
+
+        if (backendCode == _transactionPasswordNotSetBackendCode) {
+          return AppError(
+            statusCode: response?.statusCode,
+            code: AppErrorCode.transactionPasswordNotSet,
+            message: error['message'] ?? 'Senha transacional não configurada.',
+            details: details ?? error,
           );
         }
 
