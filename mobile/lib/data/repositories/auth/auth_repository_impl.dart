@@ -58,12 +58,11 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     _appSection.setAuthSession(profileResult.value!);
-    final saveResult = await _lastLoginCacheService.save(
-      LastLoginIdentity(
-        name: _appSection.customer?.name ?? '***',
-        identifier: _appSection.customer?.cpf ?? '***',
-      ),
+    final lastLoginIdentity = LastLoginIdentity(
+      name: _appSection.customer?.name ?? '***',
+      identifier: _appSection.user?.email ?? user.email,
     );
+    final saveResult = await _lastLoginCacheService.save(lastLoginIdentity);
 
     if (saveResult.isFailure) {
       // TODO: Log the error but don't fail the login process since it's not

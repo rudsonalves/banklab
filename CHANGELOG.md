@@ -1,5 +1,63 @@
 # Changelog
 
+## 2026/06/11 - mobile/transactional-password-01
+
+Implementa fluxo guiado de criação de senha transacional e reforça política de renovação de sessão
+
+### Senha transacional
+
+Foi adicionada uma etapa introdutória antes da criação da senha transacional, explicando ao usuário:
+
+* o propósito da senha transacional;
+* a diferença entre senha de acesso e senha transacional;
+* os cenários em que ela será utilizada;
+* recomendações de segurança para definição do código.
+
+O fluxo de navegação pós-login foi atualizado para direcionar usuários sem senha transacional para esta nova etapa de apresentação.
+
+Também foram realizados ajustes na UX do processo de criação:
+
+* alteração dos textos orientativos;
+* centralização visual da etapa de definição do PIN;
+* revisão da navegação de retorno para evitar saídas inesperadas do fluxo;
+* proteção da rota de confirmação, redirecionando para a introdução quando o PIN informado estiver ausente ou inválido.
+
+Além disso, os arquivos relacionados ao processo de criação da senha transacional foram reorganizados em uma estrutura própria de `creation_flow`.
+
+### Renovação de token
+
+O `AuthInterceptor` passou a renovar sessões apenas para erros de autenticação relacionados à expiração ou invalidação do token de acesso.
+
+Foram adicionadas validações para impedir tentativas de refresh em erros de negócio que também retornam HTTP 401, como:
+
+* credenciais inválidas;
+* senha transacional inválida;
+* erros de step-up authentication;
+* token de aplicação inválido.
+
+Também foi implementada uma proteção contra ciclos de renovação infinitos, garantindo que uma requisição já reprocessada não tente executar novo refresh caso continue recebendo erro de autenticação.
+
+### Cache de último acesso
+
+O cache de último login foi ajustado para armazenar o e-mail utilizado na autenticação em vez do CPF.
+
+Com isso:
+
+* o short login passa a reutilizar um identificador compatível com a API atual;
+* registros legados contendo CPF são rejeitados automaticamente;
+* foi adicionada validação explícita de e-mail durante a recuperação dos dados armazenados.
+
+### Testes
+
+Foram adicionados testes cobrindo:
+
+* exibição e navegação da tela introdutória da senha transacional;
+* regras de renovação seletiva de tokens;
+* prevenção de múltiplos refreshes consecutivos;
+* validação do cache de último login utilizando e-mail;
+* rejeição de identificadores legados baseados em CPF.
+
+
 ## 2026/06/10 - refactor/centralize-auth-session
 
 Refactor authentication session handling by centralizing session state in `AppSection`, removing API-driven home access decisions, and aligning mobile navigation with readiness-derived rules.

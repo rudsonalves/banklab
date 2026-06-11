@@ -1,5 +1,6 @@
 import '/core/resources/storage_keys.dart';
 import '/core/result/result.dart';
+import '/core/extensions/string.dart';
 import '/core/services/logging/console_log.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
 import 'last_login_cache_service.dart';
@@ -35,7 +36,8 @@ class LastLoginCacheServiceImpl implements LastLoginCacheService {
     if (name == null ||
         name.isEmpty ||
         identifier == null ||
-        identifier.isEmpty) {
+        identifier.isEmpty ||
+        !identifier.isValidEmail) {
       _log.info('No valid last login identity found');
       return Failure(
         AppError(

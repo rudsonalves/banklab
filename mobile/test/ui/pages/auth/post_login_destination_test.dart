@@ -142,13 +142,10 @@ class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository();
 
   @override
-  AuthSession? get userProfile => null;
-
-  @override
   AuthUser get currentUser => NotLoggedUser();
 
   @override
-  bool get isLoggedIn => userProfile != null;
+  bool get isLoggedIn => currentUser is LoggedUser;
 
   @override
   AsyncResult<LastLoginIdentity> getLastLoginIdentity() async =>
