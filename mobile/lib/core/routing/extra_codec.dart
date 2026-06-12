@@ -1,8 +1,9 @@
 import 'dart:convert';
 
-import '../../data/services/apis/transfer/dtos/recipient_info_dto.dart';
-import '../../data/services/cache/last_login/models/last_login_identity.dart';
-import '../../ui/pages/home/transfer/models/transfer_confirmation_data.dart';
+import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '/data/services/cache/last_login/models/last_login_identity.dart';
+import '/ui/pages/home/transfer/models/transfer_confirmation_data.dart';
+import '/core/routing/models/transaction_password_setup_origin.dart';
 
 class ExtraCodec extends Codec<Object?, String> {
   const ExtraCodec();
@@ -68,6 +69,13 @@ class _ExtraEncoder extends Converter<Object?, String> {
       });
     }
 
+    if (extra is TransactionPasswordSetupOrigin) {
+      return jsonEncode({
+        'type': 'transaction_password_setup_origin',
+        'data': extra.name,
+      });
+    }
+
     throw UnsupportedError('Unsupported type: ${extra.runtimeType}');
   }
 }
@@ -104,6 +112,10 @@ class _ExtraDecoder extends Converter<String, Object?> {
         return LastLoginIdentity.fromMap(
           decoded['data'] as Map<String, dynamic>,
         );
+
+      case 'transaction_password_setup_origin':
+        final originName = decoded['data'] as String;
+        return TransactionPasswordSetupOrigin.fromName(originName);
 
       default:
         throw UnsupportedError('Unsupported type: $type');

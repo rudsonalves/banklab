@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '/core/extensions/string.dart';
 import '/core/result/result.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
+import '/ui/components/input_text/basic_input_text.dart';
 import '/ui/components/messages/app_snackbar.dart';
-import '../../../../core/extensions/string.dart';
-import '../../../components/input_text/basic_input_text.dart';
+import '/core/routing/models/transaction_password_setup_origin.dart';
 import '../models/post_login_destination.dart';
 import 'viewmodel/login_viewmodel.dart';
 
@@ -237,7 +238,10 @@ class _LoginPageState extends State<LoginPage> {
         return;
 
       case PostLoginDestination.transactionPassword:
-        context.goNamed(TransactionPasswordRoutes.introduction.routeName);
+        context.goNamed(
+          TransactionPasswordRoutes.introduction.routeName,
+          extra: TransactionPasswordSetupOrigin.postLogin,
+        );
         return;
 
       case PostLoginDestination.blocked:

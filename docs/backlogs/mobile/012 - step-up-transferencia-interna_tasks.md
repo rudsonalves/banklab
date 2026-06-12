@@ -87,7 +87,6 @@ conforme sua origem.
   status no `AppSection` for `active`.
 - Em falha de criação, permanecer no cadastro.
 - Em cancelamento iniciado pela Home, retornar à Home.
-- Limpar PIN e confirmação ao concluir, cancelar ou falhar uma tentativa.
 
 ### Critérios de aceite
 

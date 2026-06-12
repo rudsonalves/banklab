@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '/core/result/errors/app_error.dart';
+import '/core/routing/routes.dart';
 import '/data/services/apis/transaction_password/dtos/set_up_authorize_request_dto.dart';
 import '/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import '/ui/components/base/safe_scaffold.dart';
@@ -9,7 +10,6 @@ import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/input_text/token_input.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
-import '../../../../core/routing/routes.dart';
 import 'viewmodel/verify_tansaction_password_viewmodel.dart';
 
 class VerifyTansactionPasswordPage extends StatefulWidget {

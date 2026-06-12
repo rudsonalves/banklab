@@ -4,9 +4,16 @@ import 'package:go_router/go_router.dart';
 import '/core/routing/routes.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
+import '/core/routing/models/transaction_password_setup_origin.dart';
+import 'widgets/information_item.dart';
 
-class TransactionPasswordIntroductionPage extends StatelessWidget {
-  const TransactionPasswordIntroductionPage({super.key});
+class IntroductionTransactionPasswordPage extends StatelessWidget {
+  final TransactionPasswordSetupOrigin origin;
+
+  const IntroductionTransactionPasswordPage({
+    super.key,
+    required this.origin,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +56,7 @@ class TransactionPasswordIntroductionPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            const _InformationItem(
+            const InformationItem(
               icon: Icons.lock_outline,
               title: 'É diferente da senha de acesso',
               description:
@@ -57,7 +64,7 @@ class TransactionPasswordIntroductionPage extends StatelessWidget {
                   'transacional autoriza movimentações na sua conta.',
             ),
             const SizedBox(height: 20),
-            const _InformationItem(
+            const InformationItem(
               icon: Icons.payments_outlined,
               title: 'Confirma operações financeiras',
               description:
@@ -65,7 +72,7 @@ class TransactionPasswordIntroductionPage extends StatelessWidget {
                   'outras transações que exigem confirmação.',
             ),
             const SizedBox(height: 20),
-            const _InformationItem(
+            const InformationItem(
               icon: Icons.visibility_off_outlined,
               title: 'É pessoal e intransferível',
               description:
@@ -78,70 +85,25 @@ class TransactionPasswordIntroductionPage extends StatelessWidget {
       bottomNavigationBar: DoubleBottomButton(
         leftButtonLabel: 'Agora não',
         rightButtonLabel: 'Criar senha',
-        leftOnPressed: () => context.goNamed(AuthRoutes.login.routeName),
-        rightOnPressed: () =>
-            context.pushNamed(TransactionPasswordRoutes.create.routeName),
+        leftOnPressed: () => _navBack(context),
+        rightOnPressed: () => _navNext(context),
         isRightEnabled: true,
         rightButtonIcon: const Icon(Icons.arrow_forward_ios),
       ),
     );
   }
-}
 
-class _InformationItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
+  void _navBack(BuildContext context) {
+    context.pop();
+  }
 
-  const _InformationItem({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: colorScheme.secondaryContainer,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Icon(
-              icon,
-              color: colorScheme.onSecondaryContainer,
-            ),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+  Future<void> _navNext(BuildContext context) async {
+    final result = await context.pushNamed(
+      TransactionPasswordRoutes.create.routeName,
+      extra: origin,
     );
+
+    if (!context.mounted) return;
+    if (result == null) context.pop(result);
   }
 }

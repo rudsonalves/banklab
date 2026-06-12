@@ -1,6 +1,102 @@
 # Changelog
 
-Segui o formato do `Commit_Prompt.md`. 
+## 2026/06/12 - mobile/transactional-password-03
+
+Implemented origin-aware transaction password setup navigation, allowing the same setup flow to be reused after login and during internal transfer step-up requirements.
+
+This change updates routing extras, setup pages, confirmation behavior, and tests so the transaction password flow can return to the correct destination after completion or cancellation.
+
+1. **docs/backlogs/mobile/012 - step-up-transferencia-interna_tasks.md**
+
+   * Removed the acceptance note requiring PIN and confirmation cleanup on completion, cancellation, or failure.
+   * Aligned the backlog with the updated setup behavior covered by the implementation and tests.
+
+2. **mobile/lib/core/routing/extra_codec.dart**
+
+   * Added serialization and deserialization support for `TransactionPasswordSetupOrigin`.
+   * Updated imports to use project-root absolute paths.
+   * Enabled setup origin data to survive route extra encoding.
+
+3. **mobile/lib/core/routing/models/transaction_password_setup_origin.dart**
+
+   * Added `TransactionPasswordSetupOrigin` with `postLogin` and `transfer` origins.
+   * Added `fromName` factory validation for restoring origins from route extras.
+
+4. **mobile/lib/core/routing/routes/transaction_password_routes.dart**
+
+   * Updated transaction password routes to require and propagate setup origin.
+   * Renamed the introduction page import to `IntroductionTransactionPasswordPage`.
+   * Changed confirmation route extra handling from a raw PIN string to a map containing token and origin.
+   * Added fallback behavior to return to the introduction page when confirmation route data is invalid.
+
+5. **mobile/lib/ui/pages/auth/login/login_page.dart**
+
+   * Passed `TransactionPasswordSetupOrigin.postLogin` when navigating to transaction password setup after login.
+   * Normalized imports to project-root absolute paths.
+
+6. **mobile/lib/ui/pages/auth/short_login/short_login_page.dart**
+
+   * Passed `TransactionPasswordSetupOrigin.postLogin` when short login requires transaction password setup.
+   * Normalized input component imports.
+
+7. **mobile/lib/ui/pages/transaction_password/setup/confirm_transaction_password_page.dart**
+
+   * Replaced `pin` with `token` and added setup `origin`.
+   * Used the origin to decide the destination after successful creation.
+   * Navigates to Home for post-login setup and to transfer recipient flow for transfer setup.
+   * Preserved failure behavior by keeping the setup screen open when creation fails.
+
+8. **mobile/lib/ui/pages/transaction_password/setup/create_transaction_password_page.dart**
+
+   * Added setup origin as a required page parameter.
+   * Propagated both token and origin to the confirmation route.
+   * Replaced introduction navigation with stack pop behavior for the back action.
+   * Renamed internal PIN state to token.
+
+9. **mobile/lib/ui/pages/transaction_password/setup/introduction_transaction_password_page.dart**
+
+   * Renamed the introduction page class and file.
+   * Added setup origin as a required constructor parameter.
+   * Updated navigation so cancellation pops back to the caller.
+   * Propagated origin when opening the create password page.
+   * Extracted the information item widget from the page.
+
+10. **mobile/lib/ui/pages/transaction_password/setup/widgets/information_item.dart**
+
+* Added reusable `InformationItem` widget for transaction password setup guidance.
+* Moved presentation details out of the introduction page.
+
+11. **mobile/lib/ui/pages/transaction_password/verification/verify_tansaction_password_page.dart**
+
+* Normalized routing imports to project-root absolute paths.
+
+12. **mobile/test/ui/pages/auth/transaction_password/transaction_password_introduction_page_test.dart**
+
+* Updated tests for the renamed introduction page.
+* Added origin propagation validation when starting password creation.
+* Added cancellation behavior coverage to ensure the flow returns to the caller.
+* Added validation for unsupported setup origins.
+
+13. **mobile/test/ui/pages/transaction_password/setup/create_transaction_password_page_test.dart**
+
+* Added test coverage confirming that the create page forwards both token and origin to confirmation.
+
+14. **mobile/test/ui/pages/transaction_password/setup/confirm_transaction_password_page_test.dart**
+
+* Added tests for successful post-login setup navigation to Home.
+* Added tests for transfer setup navigation to the recipient flow.
+* Added coverage for inactive local status after creation.
+* Added failure retry behavior validation.
+* Added handling validation for the transaction password already set error.
+
+## Conclusion
+
+The transaction password setup flow is now reusable across post-login onboarding and transfer step-up scenarios.
+
+Routing now carries an explicit setup origin, allowing each entry point to complete or cancel back to the correct destination while preserving validation and failure behavior.
+
+The added tests strengthen confidence around origin propagation, navigation outcomes, retry behavior, and setup error handling.
+
 
 ## 2026/06/11 - mobile/transactional-password-02
 
