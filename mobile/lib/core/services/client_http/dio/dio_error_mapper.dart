@@ -54,13 +54,14 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
       if (error is Map<String, dynamic>) {
         final backendCode = error['code'];
         final details = error['details'];
+        final appErrorDetails = _appErrorDetails(error);
 
         if (backendCode == _accountApprovalRequiredBackendCode) {
           return AppError(
             statusCode: response?.statusCode,
             code: AppErrorCode.accountApprovalRequired,
             message: _accountApprovalRequiredMessage,
-            details: error,
+            details: appErrorDetails,
           );
         }
 
@@ -69,7 +70,7 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
             statusCode: response?.statusCode,
             code: AppErrorCode.contactNotVerified,
             message: _contactNotVerifiedMessage(details),
-            details: details,
+            details: appErrorDetails,
           );
         }
 
@@ -78,7 +79,7 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
             statusCode: response?.statusCode,
             code: AppErrorCode.transactionPasswordLocked,
             message: error['message'] ?? 'Senha transacional bloqueada.',
-            details: details ?? error,
+            details: appErrorDetails,
           );
         }
 
@@ -87,7 +88,7 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
             statusCode: response?.statusCode,
             code: AppErrorCode.transactionPasswordNotSet,
             message: error['message'] ?? 'Senha transacional não configurada.',
-            details: details ?? error,
+            details: appErrorDetails,
           );
         }
 
@@ -95,7 +96,7 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
           statusCode: response?.statusCode,
           code: AppErrorCode.httpError,
           message: error['message'] ?? err.message ?? 'Request error',
-          details: details ?? error,
+          details: appErrorDetails,
         );
       }
 
@@ -124,6 +125,20 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
     message: err.toString(),
     details: err,
   );
+}
+
+Map<String, dynamic> _appErrorDetails(Map<String, dynamic> error) {
+  final rawDetails = error['details'];
+  if (rawDetails is Map) {
+    return {
+      ...rawDetails.map(
+        (key, value) => MapEntry(key.toString(), value),
+      ),
+      if (error['code'] case final String code) 'code': code,
+    };
+  }
+
+  return Map<String, dynamic>.from(error);
 }
 
 String _contactNotVerifiedMessage(Object? details) {

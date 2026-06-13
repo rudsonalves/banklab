@@ -1,10 +1,10 @@
 import '../enums/step_up_operation.dart';
 
-class SetUpAuthorizeRequestDto {
+class StepUpAuthorizeRequestDto {
   final StepUpOperation operation;
   final String transactionPassword;
 
-  SetUpAuthorizeRequestDto({
+  StepUpAuthorizeRequestDto({
     required this.operation,
     required this.transactionPassword,
   });

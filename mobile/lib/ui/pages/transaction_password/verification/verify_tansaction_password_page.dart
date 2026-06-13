@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '/core/result/errors/app_error.dart';
 import '/core/routing/routes.dart';
-import '/data/services/apis/transaction_password/dtos/set_up_authorize_request_dto.dart';
+import '/data/services/apis/transaction_password/dtos/step_up_authorize_request_dto.dart';
 import '/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
@@ -110,11 +110,12 @@ class _VerifyTansactionPasswordPageState
   Future<void> _submit() async {
     if (_transPasswd.length != 6) return;
 
-    final transPasswdRequest = SetUpAuthorizeRequestDto(
-      operation: StepUpOperation.internalTransfer,
-      transactionPassword: _transPasswd,
+    await _viewModel.stepUpAuthorize.execute(
+      StepUpAuthorizeRequestDto(
+        operation: StepUpOperation.internalTransfer,
+        transactionPassword: _transPasswd,
+      ),
     );
-    await _viewModel.stepUpAuthorize.execute(transPasswdRequest);
 
     final result = _viewModel.stepUpAuthorize.result;
     if (result == null || !mounted) return;

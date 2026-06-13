@@ -111,6 +111,7 @@ void main() {
       expect(result, isA<Failure<TransferResponseDto>>());
       expect(result.error?.code, AppErrorCode.httpError);
       expect(result.error?.message, 'source account has insufficient funds');
+      expect(backendErrorCode(result.error), 'INSUFFICIENT_FUNDS');
     });
 
     test('maps unknown HTTP failure to generic HTTP error behavior', () async {
@@ -344,6 +345,7 @@ void main() {
       expect(result, isA<Failure<List<RecipientInfoDto>>>());
       expect(result.error?.code, AppErrorCode.httpError);
       expect(result.error?.message, 'Account not found');
+      expect(backendErrorCode(result.error), 'ACCOUNT_NOT_FOUND');
     });
 
     test('returns failure for INVALID_DATA backend code', () async {
@@ -375,6 +377,7 @@ void main() {
         result.error?.message,
         'invalid or unsupported query parameter combination',
       );
+      expect(backendErrorCode(result.error), 'INVALID_DATA');
     });
 
     test('returns failure for FORBIDDEN backend code', () async {
@@ -402,6 +405,7 @@ void main() {
       expect(result, isA<Failure<List<RecipientInfoDto>>>());
       expect(result.error?.code, AppErrorCode.httpError);
       expect(result.error?.message, 'access denied');
+      expect(backendErrorCode(result.error), 'FORBIDDEN');
     });
 
     test('returns failure for UNAUTHORIZED backend code', () async {
@@ -429,6 +433,7 @@ void main() {
       expect(result, isA<Failure<List<RecipientInfoDto>>>());
       expect(result.error?.code, AppErrorCode.httpError);
       expect(result.error?.message, 'authentication required');
+      expect(backendErrorCode(result.error), 'UNAUTHORIZED');
     });
 
     test('returns failure for generic backend error code', () async {

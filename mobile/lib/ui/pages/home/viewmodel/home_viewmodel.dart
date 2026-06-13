@@ -1,16 +1,21 @@
 import 'dart:async';
 
 import '/core/result/command.dart';
+import '/core/services/app_section/app_section.dart';
 import '/data/repositories/account/account_repository.dart';
-import '../../../../data/services/apis/account/dtos/account_summary_response_dto.dart';
-import '../../../../data/services/apis/account/dtos/balance_response_dto.dart';
+import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
+import '/data/services/apis/account/dtos/balance_response_dto.dart';
+import '/data/services/apis/transaction_password/enums/transaction_password_status.dart';
 
 class HomeViewmodel {
   final AccountRepository _accountRepository;
+  final AppSection _appSection;
 
   HomeViewmodel({
     required AccountRepository accountRepository,
-  }) : _accountRepository = accountRepository {
+    required AppSection appSection,
+  }) : _accountRepository = accountRepository,
+       _appSection = appSection {
     balance = _accountRepository.balance();
 
     initialize = Command0(_initialize);
@@ -20,6 +25,9 @@ class HomeViewmodel {
   late final Command0<Unit> refreshBalance;
 
   late final Stream<BalanceResponseDto> balance;
+
+  TransactionPasswordStatus get transactionPasswordStatus =>
+      _appSection.transactionPasswordStatus;
 
   BalanceResponseDto? get lastBalance => _accountRepository.lastBalance;
 

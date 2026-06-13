@@ -10,6 +10,7 @@ import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/input_text/token_input.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
+import '../../../../core/routing/extensions/context_extencions.dart';
 import 'viewmodel/transaction_password_viewmodel.dart';
 
 const _pinMismatchMessage = 'A confirmação deve ser igual à senha criada.';
@@ -156,7 +157,9 @@ class _ConfirmTransactionPasswordPageState
         context.goNamed(BaseRoutes.home.routeName);
         break;
       case TransactionPasswordSetupOrigin.transfer:
-        context.goNamed(TransferRoutes.recipient.routeName);
+        final router = GoRouter.of(context);
+        context.popUntil(BaseRoutes.home.routeName);
+        router.pushNamed(TransferRoutes.recipient.routeName);
         break;
     }
   }

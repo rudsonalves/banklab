@@ -3,13 +3,13 @@ import '/core/services/app_section/app_section.dart';
 import '/data/repositories/auth/auth_repository.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/domain/common/auth/models/auth_user.dart';
-import '../../models/post_login_destination.dart';
+import '../models/post_login_destination.dart';
 
-class ShortLoginViewModel {
+class LoginViewModel {
   final AuthRepository _authRepository;
   final AppSection _appSection;
 
-  ShortLoginViewModel({
+  LoginViewModel({
     required AuthRepository authRepository,
     required AppSection appSection,
   }) : _authRepository = authRepository,

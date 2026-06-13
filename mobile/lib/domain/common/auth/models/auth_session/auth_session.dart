@@ -2,8 +2,8 @@ import 'customer_session.dart';
 import 'readiness_session.dart';
 import 'user_session.dart';
 
+export '../../../../../data/services/apis/transaction_password/enums/transaction_password_status.dart';
 export 'customer_session.dart';
-export 'enums/transaction_password_status.dart';
 export 'readiness_session.dart';
 export 'user_session.dart';
 

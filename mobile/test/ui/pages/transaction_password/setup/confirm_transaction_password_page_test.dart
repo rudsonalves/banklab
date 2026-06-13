@@ -4,8 +4,8 @@ import 'package:bankflow/core/routing/routes.dart';
 import 'package:bankflow/core/services/app_section/app_section.dart';
 import 'package:bankflow/data/repositories/transaction_password/transaction_password_repository.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
-import 'package:bankflow/data/services/apis/transaction_password/dtos/set_up_authorize_request_dto.dart';
-import 'package:bankflow/data/services/apis/transaction_password/dtos/set_up_authorize_response_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/dtos/step_up_authorize_request_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/dtos/step_up_authorize_response_dto.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/transaction_password_status_response_dto.dart';
 import 'package:bankflow/data/services/apis/transaction_password/enums/transaction_password_status.dart'
     as api;
@@ -260,8 +260,8 @@ class _FakeTransactionPasswordRepository
   }
 
   @override
-  AsyncResult<SetUpAuthorizeResponseDto> stepUpAuthorize(
-    SetUpAuthorizeRequestDto dto,
+  AsyncResult<StepUpAuthorizeResponseDto> stepUpAuthorize(
+    StepUpAuthorizeRequestDto dto,
   ) {
     throw UnimplementedError();
   }

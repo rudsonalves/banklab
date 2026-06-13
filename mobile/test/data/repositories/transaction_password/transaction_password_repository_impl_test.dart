@@ -3,8 +3,8 @@ import 'package:bankflow/core/services/app_section/app_section.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
 import 'package:bankflow/data/repositories/transaction_password/transaction_password_repository_impl.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
-import 'package:bankflow/data/services/apis/transaction_password/dtos/set_up_authorize_request_dto.dart';
-import 'package:bankflow/data/services/apis/transaction_password/dtos/set_up_authorize_response_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/dtos/step_up_authorize_request_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/dtos/step_up_authorize_response_dto.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/transaction_password_status_response_dto.dart';
 import 'package:bankflow/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import 'package:bankflow/data/services/apis/transaction_password/enums/transaction_password_status.dart';
@@ -150,6 +150,30 @@ void main() {
   });
 
   group('TransactionPasswordRepositoryImpl.stepUpAuthorize', () {
+    test('delegates to API and returns its authorization response', () async {
+      final api = _FakeStepUpTransactionPasswordApi(
+        result: Success(
+          StepUpAuthorizeResponseDto(
+            stepUpToken: 'opaque-step-up-token',
+            expiresIn: 120,
+          ),
+        ),
+      );
+      final repository = TransactionPasswordRepositoryImpl(
+        api: api,
+        appSection: AppSection(),
+      );
+      final request = _stepUpRequest();
+
+      final result = await repository.stepUpAuthorize(request);
+
+      expect(result, isA<Success<StepUpAuthorizeResponseDto>>());
+      expect(result.value?.stepUpToken, 'opaque-step-up-token');
+      expect(result.value?.expiresIn, 120);
+      expect(api.calls, 1);
+      expect(api.lastRequest, same(request));
+    });
+
     test(
       'updates transaction password status from active to notSet when missing',
       () async {
@@ -172,7 +196,11 @@ void main() {
 
         final result = await repository.stepUpAuthorize(_stepUpRequest());
 
-        expect(result, isA<Failure<SetUpAuthorizeResponseDto>>());
+        expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
+        expect(
+          backendErrorCode(result.error),
+          'TRANSACTION_PASSWORD_NOT_SET',
+        );
         expect(
           appSection.readiness?.transactionPasswordStatus,
           auth.TransactionPasswordStatus.notSet,
@@ -200,12 +228,42 @@ void main() {
 
       final result = await repository.stepUpAuthorize(_stepUpRequest());
 
-      expect(result, isA<Failure<SetUpAuthorizeResponseDto>>());
+      expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
+      expect(
+        backendErrorCode(result.error),
+        'TRANSACTION_PASSWORD_LOCKED',
+      );
       expect(
         appSection.readiness?.transactionPasswordStatus,
         auth.TransactionPasswordStatus.active,
       );
     });
+
+    for (final errorCode in [
+      'TRANSACTION_PASSWORD_INVALID',
+      'INVALID_TOKEN',
+      'STEP_UP_POLICY_DENIED',
+    ]) {
+      test('preserves $errorCode', () async {
+        final repository = TransactionPasswordRepositoryImpl(
+          api: _FakeStepUpTransactionPasswordApi(
+            result: Failure(
+              AppError(
+                code: AppErrorCode.httpError,
+                message: 'Authorization failed',
+                details: {'code': errorCode},
+              ),
+            ),
+          ),
+          appSection: AppSection(),
+        );
+
+        final result = await repository.stepUpAuthorize(_stepUpRequest());
+
+        expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
+        expect(backendErrorCode(result.error), errorCode);
+      });
+    }
   });
 }
 
@@ -224,8 +282,8 @@ TransactionPasswordStatusResponseDto _response() {
   );
 }
 
-SetUpAuthorizeRequestDto _stepUpRequest() {
-  return SetUpAuthorizeRequestDto(
+StepUpAuthorizeRequestDto _stepUpRequest() {
+  return StepUpAuthorizeRequestDto(
     operation: StepUpOperation.internalTransfer,
     transactionPassword: '123456',
   );
@@ -278,12 +336,16 @@ class _FakeStepUpTransactionPasswordApi extends TransactionPasswordApi {
     required this.result,
   }) : super(_NoopRestClient());
 
-  final Result<SetUpAuthorizeResponseDto> result;
+  final Result<StepUpAuthorizeResponseDto> result;
+  StepUpAuthorizeRequestDto? lastRequest;
+  int calls = 0;
 
   @override
-  AsyncResult<SetUpAuthorizeResponseDto> stepUpAuthorize(
-    SetUpAuthorizeRequestDto dto,
+  AsyncResult<StepUpAuthorizeResponseDto> stepUpAuthorize(
+    StepUpAuthorizeRequestDto dto,
   ) async {
+    calls++;
+    lastRequest = dto;
     return result;
   }
 }

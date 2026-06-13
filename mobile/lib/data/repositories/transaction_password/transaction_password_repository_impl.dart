@@ -1,8 +1,8 @@
 import '/core/result/result.dart';
 import '/core/services/app_section/app_section.dart';
 import '/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
-import '/data/services/apis/transaction_password/dtos/set_up_authorize_request_dto.dart';
-import '/data/services/apis/transaction_password/dtos/set_up_authorize_response_dto.dart';
+import '/data/services/apis/transaction_password/dtos/step_up_authorize_request_dto.dart';
+import '/data/services/apis/transaction_password/dtos/step_up_authorize_response_dto.dart';
 import '/data/services/apis/transaction_password/dtos/transaction_password_status_response_dto.dart';
 import '/data/services/apis/transaction_password/enums/transaction_password_status.dart';
 import '/data/services/apis/transaction_password/transaction_password_api.dart';
@@ -35,8 +35,8 @@ class TransactionPasswordRepositoryImpl
   }
 
   @override
-  AsyncResult<SetUpAuthorizeResponseDto> stepUpAuthorize(
-    SetUpAuthorizeRequestDto dto,
+  AsyncResult<StepUpAuthorizeResponseDto> stepUpAuthorize(
+    StepUpAuthorizeRequestDto dto,
   ) async {
     final result = await _api.stepUpAuthorize(dto);
 
@@ -45,8 +45,9 @@ class TransactionPasswordRepositoryImpl
       if (error.code == AppErrorCode.transactionPasswordNotSet) {
         _appSection.markTransactionPasswordAsNotSet();
       }
+      return Failure(error);
     }
 
-    return result;
+    return Success(result.value!);
   }
 }

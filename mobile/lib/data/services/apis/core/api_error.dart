@@ -9,6 +9,11 @@ class ApiError {
     this.details,
   });
 
+  Map<String, dynamic> toAppErrorDetails() => {
+    'code': code,
+    if (details != null) 'details': details,
+  };
+
   factory ApiError.fromMap(Map<String, dynamic> map) {
     final rawDetails = map['details'];
 

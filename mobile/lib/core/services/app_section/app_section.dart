@@ -11,6 +11,13 @@ class AppSection {
 
   ReadinessSession? get readiness => _current?.readiness;
 
+  bool get hasActiveTransactionPassword =>
+      _current?.readiness.hasActiveTransactionPassword ?? false;
+
+  TransactionPasswordStatus get transactionPasswordStatus =>
+      _current?.readiness.transactionPasswordStatus ??
+      TransactionPasswordStatus.notSet;
+
   bool get canAccessHome =>
       _current != null && _current!.readiness.canAccessHome;
 

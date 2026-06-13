@@ -44,6 +44,19 @@ void main() {
       expect(backendErrorCode(error), 'INVALID_TOKEN');
     });
 
+    test('extracts code merged with backend detail fields', () {
+      const error = AppError(
+        code: AppErrorCode.httpError,
+        message: 'Step-up token expired',
+        details: {
+          'code': 'STEP_UP_TOKEN_EXPIRED',
+          'expired_at': '2026-06-12T12:00:00Z',
+        },
+      );
+
+      expect(backendErrorCode(error), 'STEP_UP_TOKEN_EXPIRED');
+    });
+
     test('returns null when details has no backend code', () {
       const error = AppError(
         code: AppErrorCode.httpError,

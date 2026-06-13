@@ -5,8 +5,8 @@ import '/core/services/client_http/client/rest_client_response.dart';
 import '/core/services/logging/console_log.dart';
 import '../core/api_envelope.dart';
 import 'dtos/create_transaction_password_request_dto.dart';
-import 'dtos/set_up_authorize_request_dto.dart';
-import 'dtos/set_up_authorize_response_dto.dart';
+import 'dtos/step_up_authorize_request_dto.dart';
+import 'dtos/step_up_authorize_response_dto.dart';
 import 'dtos/transaction_password_status_response_dto.dart';
 
 const _transactionPasswordAlreadySetBackendCode =
@@ -71,10 +71,7 @@ class TransactionPasswordApi {
           AppError(
             code: _mapBackendErrorCode(error.code),
             message: error.message,
-            details: {
-              'code': error.code,
-              if (error.details != null) 'details': error.details,
-            },
+            details: error.toAppErrorDetails(),
           ),
         );
       }
@@ -111,8 +108,8 @@ class TransactionPasswordApi {
     }
   }
 
-  AsyncResult<SetUpAuthorizeResponseDto> stepUpAuthorize(
-    SetUpAuthorizeRequestDto dto,
+  AsyncResult<StepUpAuthorizeResponseDto> stepUpAuthorize(
+    StepUpAuthorizeRequestDto dto,
   ) async {
     final result = await _client.post(
       RestClientRequest(
@@ -148,10 +145,20 @@ class TransactionPasswordApi {
         );
       }
 
-      final apiEnv = ApiEnvelope<SetUpAuthorizeResponseDto>.fromMap(
+      final apiEnv = ApiEnvelope<StepUpAuthorizeResponseDto>.fromMap(
         response.data as Map<String, dynamic>,
-        SetUpAuthorizeResponseDto.fromApi,
+        StepUpAuthorizeResponseDto.fromApi,
       );
+
+      if (apiEnv.error case final error?) {
+        return Failure(
+          AppError(
+            code: AppErrorCode.httpError,
+            message: error.message,
+            details: error.toAppErrorDetails(),
+          ),
+        );
+      }
 
       final setUpAuthResp = apiEnv.data;
       if (setUpAuthResp == null) {

@@ -43,11 +43,12 @@ class ApiTransfer {
         TransferResponseDto.fromMap,
       );
 
-      if (envelope.error != null) {
+      if (envelope.error case final error?) {
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
-            message: envelope.error!.message,
+            message: error.message,
+            details: error.toAppErrorDetails(),
           ),
         );
       }
@@ -103,11 +104,12 @@ class ApiTransfer {
         RecipientResponseDto.fromMap,
       );
 
-      if (envelope.error != null) {
+      if (envelope.error case final error?) {
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
-            message: envelope.error!.message,
+            message: error.message,
+            details: error.toAppErrorDetails(),
           ),
         );
       }

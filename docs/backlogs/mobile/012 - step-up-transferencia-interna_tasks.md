@@ -112,18 +112,13 @@ Decidir o destino correto quando o usuário tocar em **Transferir**.
 
 ### Escopo
 
-- Criar operação no `HomeViewmodel` ou use case dedicado para preparar a
-  entrada da transferência.
-- Consultar `AppSection.currentSession`, carregado durante o login.
-- Retornar estado tipado para:
+- Expor no `HomeViewmodel` o `TransactionPasswordStatus` armazenado no
+  `AppSection`, carregado durante o login.
+- Atualizar o botão **Transferir** para tratar o status na UI:
   - abrir transferência quando `active`;
   - abrir cadastro quando `not_set`;
-  - bloquear quando `locked`;
-  - bloquear quando `unknown`;
-  - apresentar erro quando o snapshot estiver ausente.
-- Atualizar o botão **Transferir** para executar essa operação.
-- Bloquear toques concorrentes enquanto a verificação estiver em andamento.
-- Manter o usuário na Home em falha ou estado bloqueado.
+  - permanecer na Home e informar o bloqueio quando `locked`;
+  - permanecer na Home e apresentar erro quando `unknown`.
 - Não fazer a `HomePage` interpretar diretamente o snapshot da sessão.
 
 ### Critérios de aceite
@@ -131,9 +126,6 @@ Decidir o destino correto quando o usuário tocar em **Transferir**.
 - `active` abre `TransferRoutes.recipient`.
 - `not_set` abre o cadastro com destino `internalTransfer`.
 - `locked` e `unknown` não abrem cadastro nem transferência.
-- Snapshot ausente mantém o usuário na Home.
-- A decisão não chama novamente `GET /auth/session`.
-- Múltiplos toques não iniciam verificações ou navegações concorrentes.
 - Testes cobrem todos os estados.
 
 ### Depende de

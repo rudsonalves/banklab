@@ -1,7 +1,10 @@
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/dtos/step_up_authorize_request_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/dtos/step_up_authorize_response_dto.dart';
 import 'package:bankflow/data/services/apis/transaction_password/dtos/transaction_password_status_response_dto.dart';
+import 'package:bankflow/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import 'package:bankflow/data/services/apis/transaction_password/enums/transaction_password_status.dart';
 import 'package:bankflow/data/services/apis/transaction_password/transaction_password_api.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -160,6 +163,163 @@ void main() {
       expect(result.error?.message, 'Network timeout');
     });
   });
+
+  group('TransactionPasswordApi.stepUpAuthorize', () {
+    test('calls the endpoint and parses token and expiration', () async {
+      final client = _FakeRestClient(
+        postResult: const Result.success(
+          RestClientResponse(
+            statusCode: 200,
+            data: {
+              'data': {
+                'step_up_token': 'opaque-step-up-token',
+                'expires_in': 120,
+              },
+              'error': null,
+            },
+          ),
+        ),
+      );
+      final api = TransactionPasswordApi(client);
+
+      final result = await api.stepUpAuthorize(_stepUpRequest());
+
+      expect(result, isA<Success<StepUpAuthorizeResponseDto>>());
+      expect(client.postCalls, 1);
+      expect(client.lastPostRequest?.path, '/security/step-up/authorize');
+      expect(client.lastPostRequest?.headers, isNull);
+      expect(client.lastPostRequest?.body, {
+        'method': 'POST',
+        'path': '/accounts/internal-transfers',
+        'transaction_password': '123456',
+      });
+      expect(result.value?.stepUpToken, 'opaque-step-up-token');
+      expect(result.value?.expiresIn, 120);
+    });
+
+    test('preserves backend code from an error envelope', () async {
+      final api = TransactionPasswordApi(
+        _FakeRestClient(
+          postResult: const Result.success(
+            RestClientResponse(
+              statusCode: 200,
+              data: {
+                'data': null,
+                'error': {
+                  'code': 'TRANSACTION_PASSWORD_INVALID',
+                  'message': 'invalid transaction password',
+                  'details': {'remaining_attempts': 2},
+                },
+              },
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.stepUpAuthorize(_stepUpRequest());
+
+      expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
+      expect(result.error?.message, 'invalid transaction password');
+      expect(
+        backendErrorCode(result.error),
+        'TRANSACTION_PASSWORD_INVALID',
+      );
+    });
+
+    for (final errorCode in ['INVALID_TOKEN', 'STEP_UP_POLICY_DENIED']) {
+      test('preserves $errorCode from an error envelope', () async {
+        final api = TransactionPasswordApi(
+          _FakeRestClient(
+            postResult: Result.success(
+              RestClientResponse(
+                statusCode: 200,
+                data: {
+                  'data': null,
+                  'error': {
+                    'code': errorCode,
+                    'message': 'authorization denied',
+                  },
+                },
+              ),
+            ),
+          ),
+        );
+
+        final result = await api.stepUpAuthorize(_stepUpRequest());
+
+        expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
+        expect(backendErrorCode(result.error), errorCode);
+      });
+    }
+
+    test('returns failure when the success envelope has no data', () async {
+      final api = TransactionPasswordApi(
+        _FakeRestClient(
+          postResult: const Result.success(
+            RestClientResponse(
+              statusCode: 200,
+              data: {'data': null, 'error': null},
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.stepUpAuthorize(_stepUpRequest());
+
+      expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
+      expect(result.error?.code, AppErrorCode.httpError);
+      expect(result.error?.message, 'No data received from the server.');
+    });
+
+    test('returns parsing failure for malformed success data', () async {
+      final api = TransactionPasswordApi(
+        _FakeRestClient(
+          postResult: const Result.success(
+            RestClientResponse(
+              statusCode: 200,
+              data: {
+                'data': {'step_up_token': 'opaque-step-up-token'},
+                'error': null,
+              },
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.stepUpAuthorize(_stepUpRequest());
+
+      expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
+      expect(result.error?.code, AppErrorCode.parsingError);
+    });
+
+    test('propagates RestClient failure with backend code', () async {
+      final api = TransactionPasswordApi(
+        _FakeRestClient(
+          postResult: const Result.failure(
+            AppError(
+              statusCode: 401,
+              code: AppErrorCode.httpError,
+              message: 'invalid session',
+              details: {'code': 'INVALID_TOKEN'},
+            ),
+          ),
+        ),
+      );
+
+      final result = await api.stepUpAuthorize(_stepUpRequest());
+
+      expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
+      expect(result.error?.statusCode, 401);
+      expect(backendErrorCode(result.error), 'INVALID_TOKEN');
+    });
+  });
+}
+
+StepUpAuthorizeRequestDto _stepUpRequest() {
+  return StepUpAuthorizeRequestDto(
+    operation: StepUpOperation.internalTransfer,
+    transactionPassword: '123456',
+  );
 }
 
 Map<String, dynamic> _successEnvelope() => {

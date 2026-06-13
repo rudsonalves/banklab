@@ -1,5 +1,151 @@
 # Changelog
 
+## 2026/06/12 - mobile/transactional-password-04
+
+This change consolidates the mobile step-up flow for internal transfers by making the Home screen route users according to the transaction password status already stored in the authenticated session.
+
+It also improves step-up authorization handling, preserves backend error codes across API layers, redacts sensitive HTTP headers in logs, and simplifies authentication view model reuse between full login and short login.
+
+1. **docs/backlogs/mobile/012 - step-up-transferencia-interna_tasks.md**
+
+   * Updated the task scope for transfer step-up navigation.
+   * Replaced the previous verification-operation approach with direct exposure of `TransactionPasswordStatus` through `HomeViewmodel`.
+   * Adjusted acceptance criteria to focus on UI routing behavior for `active`, `not_set`, `locked`, and `unknown`.
+
+2. **mobile/lib/core/services/app_section/app_section.dart**
+
+   * Added accessors for `hasActiveTransactionPassword` and `transactionPasswordStatus`.
+   * Centralized transaction password readiness lookup from the current authenticated session.
+   * Defaulted missing session status to `TransactionPasswordStatus.notSet`.
+
+3. **mobile/lib/ui/pages/home/home_page.dart** and **mobile/lib/ui/pages/home/viewmodel/home_viewmodel.dart**
+
+   * Exposed `transactionPasswordStatus` from `HomeViewmodel`.
+   * Updated the **Transferir** action to:
+
+     * open recipient selection when the status is `active`;
+     * open transaction password setup with transfer origin when the status is `notSet`;
+     * keep the user on Home and show an error message when the status is `locked` or `unknown`.
+   * Kept session interpretation outside the Home page by delegating status access to the view model.
+
+4. **mobile/lib/core/routing/extensions/context_extencions.dart**
+
+   * Replaced the commented routing helper with a concrete `BuildContext.popUntil(String routeName)` extension.
+   * Added support for popping the navigation stack until a named route is reached, preserving the first route when the target is not found.
+
+5. **mobile/lib/ui/pages/transaction_password/setup/confirm_transaction_password_page.dart**
+
+   * Updated the post-setup transfer flow.
+   * After creating a transaction password from the transfer origin, the app now returns to Home and then pushes the transfer recipient route.
+
+6. **mobile/lib/data/services/apis/transaction_password/enums/transaction_password_status.dart**
+
+   * Expanded transaction password statuses to `active`, `notSet`, `locked`, and `unknown`.
+   * Changed unsupported backend status values to map to `unknown` instead of throwing.
+   * Removed the duplicated domain enum and re-exported the API enum through the auth session model.
+
+7. **mobile/lib/domain/common/auth/models/auth_session/**
+
+   * Removed the duplicated `TransactionPasswordStatus` enum from the domain auth session folder.
+   * Updated `ReadinessSession` and auth session exports to use the shared transaction password status enum from the API layer.
+
+8. **mobile/lib/data/services/apis/transaction_password/dtos/**
+
+   * Renamed `SetUpAuthorizeRequestDto` to `StepUpAuthorizeRequestDto`.
+   * Renamed `SetUpAuthorizeResponseDto` to `StepUpAuthorizeResponseDto`.
+   * Updated request and response usage across repositories, APIs, view models, pages, and tests.
+
+9. **mobile/lib/data/services/apis/transaction_password/transaction_password_api.dart**
+
+   * Updated step-up authorization to use the renamed DTOs.
+   * Added error-envelope handling for step-up authorization responses.
+   * Preserved backend error details through `ApiError.toAppErrorDetails()`.
+   * Kept parsing and missing-data failures explicit for malformed or incomplete success envelopes.
+
+10. **mobile/lib/data/repositories/transaction_password/transaction_password_repository.dart** and **mobile/lib/data/repositories/transaction_password/transaction_password_repository_impl.dart**
+
+* Updated repository contracts to use the renamed step-up DTOs.
+* Ensured step-up authorization failures are returned explicitly.
+* Preserved backend error codes while still updating `AppSection` when the backend reports that the transaction password is not set.
+
+11. **mobile/lib/data/services/apis/core/api_error.dart**
+
+* Added `toAppErrorDetails()` to normalize backend error codes and details into `AppError.details`.
+* Reused this mapping from transaction password and transfer API flows.
+
+12. **mobile/lib/core/services/client_http/dio/dio_error_mapper.dart**
+
+* Normalized backend error details so backend error codes remain available even when the backend also sends nested details.
+* Updated mappings for account approval, contact verification, transaction password locked, transaction password not set, and generic HTTP errors.
+
+13. **mobile/lib/core/services/client_http/dio/dio_rest_client.dart**
+
+* Added request logging for all HTTP methods.
+* Redacted sensitive headers, including `Authorization`, `X-App-Token`, and `X-Step-Up-Token`.
+* Avoided logging request bodies, preventing transaction passwords and step-up credentials from appearing in logs.
+
+14. **mobile/lib/data/services/apis/transfer/api_transfer.dart**
+
+* Preserved backend error codes and details for transfer and recipient API error envelopes.
+* Replaced direct envelope error access with safer pattern matching.
+
+15. **mobile/lib/ui/pages/auth/** and **mobile/lib/ui/viewmodels.dart**
+
+* Moved `LoginViewModel` to a shared auth view model folder.
+* Reused `LoginViewModel` for both login and short-login flows.
+* Removed the dedicated `ShortLoginViewModel`.
+* Updated route registration and dependency injection accordingly.
+
+16. **mobile/lib/ui/pages/transaction_password/verification/**
+
+* Updated transaction password verification to use `StepUpAuthorizeRequestDto` and `StepUpAuthorizeResponseDto`.
+* Simplified request creation during verification submit.
+
+17. **mobile/test/core/routing/context_extensions_test.dart**
+
+* Added widget tests for `popUntil`.
+* Covered route removal up to a named route and fallback behavior when the route name is not found.
+
+18. **mobile/test/ui/pages/home/home_transaction_password_navigation_test.dart**
+
+* Added Home navigation tests for all transaction password statuses.
+* Verified recipient navigation, setup navigation with transfer origin, locked state messaging, and unknown state error handling.
+
+19. **mobile/test/core/services/client_http/dio/**
+
+* Added coverage for backend code preservation in mapped HTTP errors.
+* Added tests ensuring sensitive headers and transaction password bodies are not exposed in logs.
+
+20. **mobile/test/data/services/apis/transaction_password/**
+
+* Added step-up authorization API tests for successful token parsing, backend error envelopes, missing data, malformed data, and propagated RestClient failures.
+* Added DTO tests for step-up request serialization and response parsing.
+* Updated status parsing tests to validate fallback to `unknown`.
+
+21. **mobile/test/data/repositories/transaction_password/transaction_password_repository_impl_test.dart**
+
+* Added success-path coverage for step-up authorization.
+* Updated failure tests to use renamed DTOs.
+* Verified backend code preservation for transaction password and step-up authorization errors.
+
+22. **mobile/test/data/services/apis/transfer/api_transfer_test.dart**
+
+* Added assertions to ensure transfer and recipient backend error codes remain available through `backendErrorCode`.
+
+23. **mobile/test/ui/pages/auth/post_login_destination_test.dart** and **mobile/test/ui/pages/transaction_password/setup/confirm_transaction_password_page_test.dart**
+
+* Updated tests to use the shared `LoginViewModel`.
+* Updated transaction password test doubles to use the renamed step-up DTOs.
+
+### Conclusion
+
+This change completes the Home-driven decision flow for internal transfer access based on the transaction password status already loaded in the session.
+
+It also strengthens the step-up authorization path by preserving backend error codes, improving API error normalization, and protecting sensitive credentials from logs.
+
+The refactor reduces duplicated authentication view model code, removes duplicated transaction password status definitions, and adds test coverage for routing, error handling, DTOs, repositories, APIs, and logging behavior.
+
+
 ## 2026/06/12 - mobile/transactional-password-03
 
 Implemented origin-aware transaction password setup navigation, allowing the same setup flow to be reused after login and during internal transfer step-up requirements.
@@ -89,7 +235,7 @@ This change updates routing extras, setup pages, confirmation behavior, and test
 * Added failure retry behavior validation.
 * Added handling validation for the transaction password already set error.
 
-## Conclusion
+### Conclusion
 
 The transaction password setup flow is now reusable across post-login onboarding and transfer step-up scenarios.
 
