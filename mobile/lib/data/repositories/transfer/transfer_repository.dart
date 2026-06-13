@@ -17,7 +17,10 @@ abstract class TransferRepository {
   /// Returns a failure when the origin account data is missing, when the
   /// destination account data is missing, or when the transfer amount is not
   /// greater than zero.
-  AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto);
+  AsyncResult<TransferResponseDto> transfer({
+    required String token,
+    required TransferRequestDto dto,
+  });
 
   /// Fetches the receipt for a transfer identified by its transaction
   /// reference.

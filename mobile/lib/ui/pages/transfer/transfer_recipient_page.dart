@@ -37,7 +37,6 @@ class _TransferRecipientPageState extends State<TransferRecipientPage> {
     _branchController.dispose();
     _accountController.dispose();
     _selectedRecipient.dispose();
-    _viewModel.dispose();
 
     super.dispose();
   }

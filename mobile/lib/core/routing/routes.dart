@@ -19,7 +19,9 @@ enum AuthRoutes implements AppRoute {
 enum TransactionPasswordRoutes implements AppRoute {
   introduction('/transaction-password'),
   create('/transaction-password/create'),
-  confirm('/transaction-password/confirm');
+  confirm('/transaction-password/confirm'),
+
+  transactionPassword('/transaction-password/verify');
 
   const TransactionPasswordRoutes(this.routePath);
 

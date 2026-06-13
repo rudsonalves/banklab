@@ -28,7 +28,19 @@ class TransferRepositoryImpl implements TransferRepository {
   TransferResponseDto? get lastTransfer => _lastTransfer;
 
   @override
-  AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto) async {
+  AsyncResult<TransferResponseDto> transfer({
+    required String token,
+    required TransferRequestDto dto,
+  }) async {
+    if (token.trim().isEmpty) {
+      return const Failure(
+        AppError(
+          code: AppErrorCode.invalidData,
+          message: 'Step-up token is required.',
+        ),
+      );
+    }
+
     if (dto.fromAccountId.trim().isEmpty) {
       return const Failure(
         AppError(
@@ -56,7 +68,10 @@ class TransferRepositoryImpl implements TransferRepository {
       );
     }
 
-    final result = await _apiTransfer.transfer(dto);
+    final result = await _apiTransfer.transfer(
+      token: token,
+      dto: dto,
+    );
 
     _lastTransfer = result.isSuccess ? result.value : null;
 

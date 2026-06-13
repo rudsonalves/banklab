@@ -1,5 +1,148 @@
 # Changelog
 
+## 2026/06/13 - mobile/transactional-password-07
+
+This change integrates the transactional password step-up flow into the internal transfer execution path. The transfer confirmation flow now collects the transactional PIN, delegates authorization to the transfer use case, and sends the resulting step-up token through the transfer API header.
+
+The implementation also simplifies the transactional password verification page, moves authorization responsibility out of the UI layer, strengthens idempotency handling, and expands tests around protected transfers, step-up token propagation, and retry behavior.
+
+1. **mobile/lib/core/routing/routes.dart**
+
+   * Added a dedicated transactional password verification route at `/transaction-password/verify`.
+   * Exposed the route through `TransactionPasswordRoutes.transactionPassword`.
+
+2. **mobile/lib/core/routing/routes/transfer_routes.dart**
+
+   * Replaced the old `VerifyTansactionPasswordPage` route target with `TransactionPasswordInputPage`.
+   * Removed the direct dependency on `VerifyTansactionPasswordViewmodel`.
+   * Kept the transfer verification route responsible only for collecting the PIN and returning it to the caller.
+
+3. **mobile/lib/data/repositories/transfer/transfer_repository.dart**
+
+   * Updated the transfer contract to require both a step-up token and a transfer request DTO.
+   * Made token usage explicit at repository boundary.
+
+4. **mobile/lib/data/repositories/transfer/transfer_repository_impl.dart**
+
+   * Added validation for blank step-up tokens before calling the API.
+   * Forwarded the token and DTO to `ApiTransfer.transfer`.
+   * Preserved the existing `lastTransfer` cache behavior for success and failure responses.
+
+5. **mobile/lib/data/services/apis/transfer/api_transfer.dart**
+
+   * Updated the internal transfer request to send the step-up token in the `X-Step-Up-Token` header.
+   * Kept transfer payload data restricted to transfer fields, avoiding sensitive authorization data in the request body.
+
+6. **mobile/lib/data/services/apis/transfer/dtos/transfer_request_dto.dart**
+
+   * Added `TransferRequestDto.fromTransferDraft`.
+   * Centralized conversion from domain transfer draft to API transfer request.
+   * Prevented invalid DTO creation when the destination account is empty or equal to the source account.
+
+7. **mobile/lib/domain/usecases/transfer/inputs/protected_transfer_input.dart**
+
+   * Added `ProtectedTransferInput` to group the transfer draft and transactional PIN.
+   * Introduced a domain input model for protected transfer execution.
+
+8. **mobile/lib/domain/usecases/transfer/inputs/transfer_draft.dart**
+
+   * Made `idempotencyKey` required.
+   * Removed the empty default value to force explicit idempotency handling by the caller.
+
+9. **mobile/lib/domain/usecases/transfer/transfer_usecase.dart**
+
+   * Injected `TransactionPasswordRepository`.
+   * Changed `transfer` to receive `ProtectedTransferInput`.
+   * Validated selected account, idempotency key, and destination account before authorization.
+   * Authorized the transactional password before executing the transfer.
+   * Passed the returned step-up token to the transfer repository.
+   * Returned authorization failures without attempting the transfer.
+
+10. **mobile/lib/ui/pages/transaction_password/verification/transaction_password_input_page.dart**
+
+* Added a lightweight transactional password input page.
+* Used `TokenInput` to collect a six-digit hidden PIN.
+* Returned the entered PIN through navigation instead of authorizing directly.
+* Supported cancel and submit actions through the bottom button layout.
+
+11. **mobile/lib/ui/pages/transaction_password/verification/verify_tansaction_password_page.dart**
+
+* Removed the previous verification page implementation.
+* Eliminated UI-level step-up authorization and related error handling from this screen.
+
+12. **mobile/lib/ui/pages/transaction_password/verification/viewmodel/verify_tansaction_password_viewmodel.dart**
+
+* Removed the verification view model.
+* Moved transactional password authorization responsibility into the transfer use case.
+
+13. **mobile/lib/ui/pages/transfer/transfer_confirmation_page.dart**
+
+* Added UUID v7 idempotency key generation per confirmation page instance.
+* Collected the transactional PIN before submitting the transfer.
+* Built `ProtectedTransferInput` with transfer draft and PIN.
+* Displayed an informational snackbar when the operation is cancelled.
+* Fixed success navigation to use `TransferRoutes.statusSuccess.routeName`.
+
+14. **mobile/lib/ui/pages/transfer/transfer_payment_page.dart**
+
+* Removed direct disposal of the shared transfer view model.
+
+15. **mobile/lib/ui/pages/transfer/transfer_recipient_page.dart**
+
+* Removed direct disposal of the shared transfer view model.
+
+16. **mobile/lib/ui/pages/transfer/viewmodel/transfer_viewmodel.dart**
+
+* Changed the transfer command input from `TransferDraft` to `ProtectedTransferInput`.
+* Delegated transfer execution directly to `TransferUsecase.transfer`.
+* Removed view-model-level UUID generation and unused disposal logic.
+* Cleaned up commented recipient selection state.
+
+17. **mobile/lib/ui/viewmodels.dart**
+
+* Removed registration of `VerifyTansactionPasswordViewmodel`.
+* Kept transactional password setup and transfer view models registered.
+
+18. **mobile/test/data/repositories/transaction/transaction_repository_impl_test.dart**
+
+* Updated transfer repository tests to pass step-up tokens.
+* Added assertion that the token reaches the fake API.
+* Added validation coverage for blank step-up tokens.
+* Updated fake API transfer implementation to capture token and DTO separately.
+
+19. **mobile/test/data/services/apis/transfer/api_transfer_test.dart**
+
+* Updated transfer API tests to pass the step-up token.
+* Added assertions for the `X-Step-Up-Token` request header.
+* Verified that step-up token and transactional password are not sent in the request body.
+* Added coverage for preserved backend step-up error codes.
+* Confirmed recipient lookup requests do not send headers.
+
+20. **mobile/test/domain/usecases/transfer/transfer_usecase_test.dart**
+
+* Added fake transactional password repository support.
+* Updated transfer use case tests to use `ProtectedTransferInput`.
+* Verified authorization happens before transfer execution.
+* Added coverage for failed authorization without transfer execution.
+* Tested one-token-per-transfer-attempt behavior.
+* Tested retry behavior with the same idempotency key and a new PIN/token.
+* Tested distinct idempotency keys across distinct transfer attempts.
+* Verified validation failures avoid unnecessary authorization and transfer calls.
+
+21. **mobile/test/ui/pages/transaction_password/verification/viewmodel/verify_tansaction_password_viewmodel_test.dart**
+
+* Removed tests for the deleted verification view model.
+* Authorization behavior is now covered through transfer use case tests.
+
+### Conclusion
+
+This change completes the protected internal transfer flow by moving transactional password authorization into the domain use case and sending the resulting step-up token through the transfer API header.
+
+The UI now only collects the transactional PIN, while the use case coordinates validation, authorization, idempotency, and transfer execution. This improves separation of concerns and makes protected transfer behavior easier to test.
+
+The test suite was expanded to cover token propagation, authorization failures, retry behavior, idempotency preservation, and API request structure.
+
+
 ## 2026/06/13 - mobile/transactional-password-06
 
 This change refactors the mobile transfer module to use clearer domain naming and a flatter UI page structure. The previous `transaction` repository naming was replaced by `transfer`, aligning the repository contract, implementation, dependency injection, use cases, and tests with the actual transfer flow.

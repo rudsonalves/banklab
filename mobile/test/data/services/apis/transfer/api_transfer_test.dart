@@ -28,7 +28,8 @@ void main() {
         final api = ApiTransfer(client);
 
         final result = await api.transfer(
-          TransferRequestDto(
+          token: 'step-up-token',
+          dto: TransferRequestDto(
             fromAccountId: 'acc-src-001',
             toAccountId: 'acc-dst-001',
             amount: brl(2500),
@@ -40,6 +41,10 @@ void main() {
         expect(result, isA<Success<TransferResponseDto>>());
         expect(client.postCalls, 1);
         expect(client.lastPostRequest?.path, '/accounts/internal-transfers');
+        expect(client.lastPostRequest?.headers, {
+          'X-Step-Up-Token': 'step-up-token',
+        });
+        expect(client.lastPostRequest?.queryParameters, isNull);
         expect(client.lastPostRequest?.body, {
           'from_account_id': 'acc-src-001',
           'to_account_id': 'acc-dst-001',
@@ -47,8 +52,51 @@ void main() {
           'idempotency_key': 'client-key',
           'description': 'Aluguel de maio',
         });
+        expect(
+          client.lastPostRequest?.body,
+          isNot(contains('step_up_token')),
+        );
+        expect(
+          client.lastPostRequest?.body,
+          isNot(contains('transaction_password')),
+        );
       },
     );
+
+    for (final errorCode in [
+      'STEP_UP_TOKEN_REQUIRED',
+      'STEP_UP_TOKEN_INVALID',
+      'STEP_UP_TOKEN_EXPIRED',
+      'STEP_UP_TOKEN_CONSUMED',
+    ]) {
+      test('preserves $errorCode from RestClient failure', () async {
+        final api = ApiTransfer(
+          _FakeRestClient(
+            postResult: Result.failure(
+              AppError(
+                statusCode: 401,
+                code: AppErrorCode.httpError,
+                message: 'Step-up authorization failed',
+                details: {'code': errorCode},
+              ),
+            ),
+          ),
+        );
+
+        final result = await api.transfer(
+          token: 'step-up-token',
+          dto: TransferRequestDto(
+            fromAccountId: 'acc-src-001',
+            toAccountId: 'acc-dst-001',
+            amount: brl(2500),
+            idempotencyKey: 'client-key',
+          ),
+        );
+
+        expect(result, isA<Failure<TransferResponseDto>>());
+        expect(backendErrorCode(result.error), errorCode);
+      });
+    }
 
     test('parses representative success envelope', () async {
       final api = ApiTransfer(
@@ -63,7 +111,8 @@ void main() {
       );
 
       final result = await api.transfer(
-        TransferRequestDto(
+        token: 'step-up-token',
+        dto: TransferRequestDto(
           fromAccountId: 'acc-src-001',
           toAccountId: 'acc-dst-001',
           amount: brl(2500),
@@ -100,7 +149,8 @@ void main() {
       );
 
       final result = await api.transfer(
-        TransferRequestDto(
+        token: 'step-up-token',
+        dto: TransferRequestDto(
           fromAccountId: 'acc-src-001',
           toAccountId: 'acc-dst-001',
           amount: brl(2500),
@@ -128,7 +178,8 @@ void main() {
       );
 
       final result = await api.transfer(
-        TransferRequestDto(
+        token: 'step-up-token',
+        dto: TransferRequestDto(
           fromAccountId: 'acc-src-001',
           toAccountId: 'acc-dst-001',
           amount: brl(2500),
@@ -154,7 +205,8 @@ void main() {
       );
 
       final result = await api.transfer(
-        TransferRequestDto(
+        token: 'step-up-token',
+        dto: TransferRequestDto(
           fromAccountId: 'acc-src-001',
           toAccountId: 'acc-dst-001',
           amount: brl(2500),
@@ -185,7 +237,8 @@ void main() {
       );
 
       final result = await api.transfer(
-        TransferRequestDto(
+        token: 'step-up-token',
+        dto: TransferRequestDto(
           fromAccountId: 'acc-src-001',
           toAccountId: 'acc-dst-001',
           amount: brl(2500),
@@ -225,6 +278,7 @@ void main() {
         expect(client.lastGetRequest?.queryParameters, {
           'document': '12345678901',
         });
+        expect(client.lastGetRequest?.headers, isNull);
       },
     );
 

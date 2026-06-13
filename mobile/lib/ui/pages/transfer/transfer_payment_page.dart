@@ -42,7 +42,6 @@ class _TransferPaymentPageState extends State<TransferPaymentPage> {
     _amountController.dispose();
     _descriptionController.dispose();
     _amountIsValid.dispose();
-    _viewModel.dispose();
 
     super.dispose();
   }

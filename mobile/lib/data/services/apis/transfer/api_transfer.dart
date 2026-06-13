@@ -15,10 +15,14 @@ class ApiTransfer {
 
   final _log = ConsoleLog('ApiTransfer');
 
-  AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto) async {
+  AsyncResult<TransferResponseDto> transfer({
+    required String token,
+    required TransferRequestDto dto,
+  }) async {
     final response = await _client.post(
       RestClientRequest(
         path: '/accounts/internal-transfers',
+        headers: {'X-Step-Up-Token': token},
         body: dto.toMap(),
       ),
     );

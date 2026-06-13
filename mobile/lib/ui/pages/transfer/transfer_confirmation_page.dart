@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 
 import '/core/routing/routes.dart';
+import '/domain/usecases/transfer/inputs/protected_transfer_input.dart';
 import '/domain/usecases/transfer/transfer_usecase.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
@@ -28,6 +30,17 @@ class TransferConfirmationPage extends StatefulWidget {
 }
 
 class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
+  TransferViewmodel get _viewModel => widget.viewModel;
+  TransferConfirmationData get _transferData => widget.transferData;
+
+  late final String _idempotencyKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _idempotencyKey = const Uuid().v7();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeScaffold(
@@ -40,9 +53,9 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             BalanceCard(
-              balance: widget.viewModel.balance,
+              balance: _viewModel.balance,
               isVisible: true,
-              selectedAccount: widget.viewModel.selectedAccount,
+              selectedAccount: _viewModel.selectedAccount,
             ),
 
             SizedBox(height: 16),
@@ -58,21 +71,21 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
                   children: [
                     CardTextRow(
                       label: 'Destinatário',
-                      value: widget.transferData.toHolderName,
+                      value: _transferData.toHolderName,
                     ),
                     // CardTextRow(label: 'Banco:', value: transferData.toBankName),
                     CardTextRow(
                       label: 'Conta',
-                      value: '0001 - ${widget.transferData.toNumber}',
+                      value: '0001 - ${_transferData.toNumber}',
                     ),
                     CardTextRow(
                       label: 'Valor',
-                      value: widget.transferData.amount.format(),
+                      value: _transferData.amount.format(),
                     ),
-                    if (widget.transferData.description.isNotEmpty)
+                    if (_transferData.description.isNotEmpty)
                       CardTextRow(
                         label: 'Descrição',
-                        value: widget.transferData.description,
+                        value: _transferData.description,
                       ),
                   ],
                 ),
@@ -86,7 +99,7 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: BigButton(
           label: 'Transferir',
-          onPressed: _onConfirmTransfer,
+          onPressed: _submit,
           leftIcon: Icon(Icons.check_rounded, size: 24),
           enabled: true,
         ),
@@ -94,20 +107,38 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
     );
   }
 
-  Future<void> _onConfirmTransfer() async {
-    final transfer = TransferDraft(
-      toAccountId: widget.transferData.toAccountId,
-      description: widget.transferData.description,
-      amount: widget.transferData.amount,
+  Future<void> _submit() async {
+    final pin = await context.pushNamed<String?>(
+      TransactionPasswordRoutes.transactionPassword.routeName,
     );
 
-    await widget.viewModel.transfer.execute(transfer);
+    if (pin == null) {
+      if (!mounted) return;
+      AppSnackbar.show(
+        context,
+        message: 'Operação cancelada.',
+        type: SnackbarType.info,
+      );
+      return;
+    }
+
+    final transfer = ProtectedTransferInput(
+      draft: TransferDraft(
+        toAccountId: _transferData.toAccountId,
+        description: _transferData.description,
+        amount: _transferData.amount,
+        idempotencyKey: _idempotencyKey,
+      ),
+      pin: pin,
+    );
+
+    await _viewModel.transfer.execute(transfer);
 
     if (!mounted) return;
-    if (widget.viewModel.transfer.isFailure) {
+    if (_viewModel.transfer.isFailure) {
       context.pushNamed(TransferRoutes.statusFailure.routeName);
     } else {
-      final transferResponse = widget.viewModel.transfer.result?.value;
+      final transferResponse = _viewModel.transfer.result?.value;
       if (transferResponse == null) {
         AppSnackbar.show(
           context,
@@ -118,7 +149,7 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
       }
 
       context.pushNamed(
-        TransferRoutes.statusSuccess.name,
+        TransferRoutes.statusSuccess.routeName,
         extra: transferResponse.transactionReference,
       );
     }

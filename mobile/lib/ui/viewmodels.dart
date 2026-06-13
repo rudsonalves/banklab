@@ -7,7 +7,6 @@ import 'pages/shared/details/viewmodel/details_viewmodel.dart';
 import 'pages/splash/viewmodel/splash_viewmodel.dart';
 import 'pages/statement/viewmodel/statement_viewmodel.dart';
 import 'pages/transaction_password/setup/viewmodel/transaction_password_viewmodel.dart';
-import 'pages/transaction_password/verification/viewmodel/verify_tansaction_password_viewmodel.dart';
 import 'pages/transfer/viewmodel/transfer_viewmodel.dart';
 
 class Viewmodels {
@@ -20,9 +19,6 @@ class Viewmodels {
       ..add<DetailsViewmodel>(DetailsViewmodel.new)
       ..add<SplashViewmodel>(SplashViewmodel.new)
       ..add<TransactionPasswordViewModel>(TransactionPasswordViewModel.new)
-      ..add<StatementViewmodel>(StatementViewmodel.new)
-      ..add<VerifyTansactionPasswordViewmodel>(
-        VerifyTansactionPasswordViewmodel.new,
-      );
+      ..add<StatementViewmodel>(StatementViewmodel.new);
   }
 }

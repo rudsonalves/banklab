@@ -1,5 +1,6 @@
 import '/core/result/command.dart';
 import '/data/repositories/account/account_repository.dart';
+import '/data/repositories/transaction_password/transaction_password_repository.dart';
 import '/data/repositories/transfer/transfer_repository.dart';
 import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
 import '/data/services/apis/account/dtos/balance_response_dto.dart';
@@ -8,19 +9,22 @@ import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
-import 'inputs/transfer_draft.dart';
+import 'inputs/protected_transfer_input.dart';
 
 export 'inputs/transfer_draft.dart';
 
 class TransferUsecase {
   final AccountRepository _accountRepo;
   final TransferRepository _transferRepo;
+  final TransactionPasswordRepository _transactionPasswordRepo;
 
   TransferUsecase({
     required AccountRepository accountRepo,
     required TransferRepository transferRepo,
+    required TransactionPasswordRepository transactionPasswordRepo,
   }) : _accountRepo = accountRepo,
-       _transferRepo = transferRepo;
+       _transferRepo = transferRepo,
+       _transactionPasswordRepo = transactionPasswordRepo;
 
   Stream<BalanceResponseDto> balance() => _accountRepo.balance();
 
@@ -28,7 +32,9 @@ class TransferUsecase {
   AccountSummaryResponseDto? get selectedAccount =>
       _accountRepo.selectedAccount;
 
-  AsyncResult<TransferResponseDto> transfer(TransferDraft transfer) async {
+  AsyncResult<TransferResponseDto> transfer(
+    ProtectedTransferInput input,
+  ) async {
     final account = selectedAccount;
     if (account == null) {
       return const Failure<TransferResponseDto>(
@@ -39,7 +45,7 @@ class TransferUsecase {
       );
     }
 
-    if (transfer.idempotencyKey.isEmpty) {
+    if (input.draft.idempotencyKey.trim().isEmpty) {
       return const Failure<TransferResponseDto>(
         AppError(
           code: AppErrorCode.invalidData,
@@ -48,7 +54,7 @@ class TransferUsecase {
       );
     }
 
-    final toAccountId = transfer.toAccountId.trim();
+    final toAccountId = input.draft.toAccountId.trim();
     if (toAccountId.isEmpty || toAccountId == account.id) {
       return const Failure<TransferResponseDto>(
         AppError(
@@ -60,15 +66,35 @@ class TransferUsecase {
       );
     }
 
-    final dto = TransferRequestDto(
+    final dto = TransferRequestDto.fromTransferDraft(
       fromAccountId: account.id,
-      toAccountId: toAccountId,
-      amount: transfer.amount,
-      description: transfer.description,
-      idempotencyKey: transfer.idempotencyKey,
+      draft: input.draft,
     );
 
-    return _transferRepo.transfer(dto);
+    if (dto == null) {
+      return Result.failure(
+        AppError(
+          code: AppErrorCode.unexpected,
+          message: 'Failed to create transfer request.',
+        ),
+      );
+    }
+
+    final stepUpResult = await _transactionPasswordRepo
+        .authorizeInternalTransfer(
+          input.pin,
+        );
+
+    if (stepUpResult.isFailure) {
+      return Failure(stepUpResult.error!);
+    }
+
+    final stepUpData = stepUpResult.value!;
+
+    return _transferRepo.transfer(
+      token: stepUpData.stepUpToken,
+      dto: dto,
+    );
   }
 
   AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
