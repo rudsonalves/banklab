@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
+import '/core/result/errors/backend_error_code.dart';
 import '/core/routing/routes.dart';
 import '/domain/usecases/transfer/inputs/protected_transfer_input.dart';
 import '/domain/usecases/transfer/transfer_usecase.dart';
@@ -126,38 +127,38 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
     if (_hasSubmitted.value) return;
     _hasSubmitted.value = true;
 
+    final draft = TransferDraft(
+      toAccountId: _transferData.toAccountId,
+      description: _transferData.description,
+      amount: _transferData.amount,
+      idempotencyKey: _idempotencyKey,
+    );
+
+    await _executeProtectedTransfer(draft);
+  }
+
+  Future<void> _executeProtectedTransfer(TransferDraft draft) async {
     final pin = await context.pushNamed<String?>(
       TransactionPasswordRoutes.transactionPassword.routeName,
     );
 
+    if (!mounted) return;
     if (pin == null) {
-      if (!mounted) return;
       AppSnackbar.show(
         context,
         message: 'Operação cancelada. Senha de transação não fornecida.',
         type: SnackbarType.info,
       );
-
-      _hasSubmitted.value = false;
+      _finishSubmit();
       return;
     }
 
-    final transfer = ProtectedTransferInput(
-      draft: TransferDraft(
-        toAccountId: _transferData.toAccountId,
-        description: _transferData.description,
-        amount: _transferData.amount,
-        idempotencyKey: _idempotencyKey,
-      ),
-      pin: pin,
+    await _viewModel.transfer.execute(
+      ProtectedTransferInput(draft: draft, pin: pin),
     );
 
-    await _viewModel.transfer.execute(transfer);
-
     if (!mounted) return;
-    if (_viewModel.transfer.isFailure) {
-      context.pushNamed(TransferRoutes.statusFailure.routeName);
-    } else {
+    if (_viewModel.transfer.isSuccess) {
       final transferResponse = _viewModel.transfer.result?.value;
       if (transferResponse == null) {
         AppSnackbar.show(
@@ -165,8 +166,7 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
           message: 'Erro desconhecido. Por favor, tente novamente mais tarde.',
           type: SnackbarType.error,
         );
-
-        _hasSubmitted.value = false;
+        _finishSubmit();
         return;
       }
 
@@ -174,8 +174,54 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
         TransferRoutes.statusSuccess.routeName,
         extra: transferResponse.transactionReference,
       );
+      _finishSubmit();
+      return;
     }
 
+    final errorCode = backendErrorCode(_viewModel.transfer.error);
+
+    switch (errorCode) {
+      case 'TRANSACTION_PASSWORD_INVALID':
+        _showError('Senha de transação inválida. Tente novamente.');
+        return _executeProtectedTransfer(draft);
+      case 'STEP_UP_TOKEN_EXPIRED':
+      case 'STEP_UP_TOKEN_CONSUMED':
+        AppSnackbar.show(
+          context,
+          message:
+              'A autorização expirou. Informe novamente sua senha de transação.',
+          type: SnackbarType.info,
+        );
+        return _executeProtectedTransfer(draft);
+      case 'TRANSACTION_PASSWORD_LOCKED':
+        _showError(
+          'Senha de transação bloqueada. Tente novamente mais tarde.',
+        );
+        return;
+      case 'TRANSACTION_PASSWORD_NOT_SET':
+        _showError(
+          'Sua senha de transação precisa ser configurada novamente.',
+        );
+        context.goNamed(BaseRoutes.home.routeName);
+        _finishSubmit();
+        return;
+      default:
+        context.pushNamed(TransferRoutes.statusFailure.routeName);
+        _finishSubmit();
+        return;
+    }
+  }
+
+  void _finishSubmit() {
+    if (!mounted) return;
     _hasSubmitted.value = false;
+  }
+
+  void _showError(String message) {
+    AppSnackbar.show(
+      context,
+      message: message,
+      type: SnackbarType.error,
+    );
   }
 }

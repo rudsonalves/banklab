@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '/core/routing/routes.dart';
+import '/core/routing/models/transaction_password_setup_origin.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/input_text/token_input.dart';
 import '/ui/components/text/text_header.dart';
-import '/core/routing/models/transaction_password_setup_origin.dart';
+import 'confirm_transaction_password_page.dart';
+import 'viewmodel/transaction_password_viewmodel.dart';
 
 class CreateTransactionPasswordPage extends StatefulWidget {
   final TransactionPasswordSetupOrigin origin;
+  final TransactionPasswordViewModel viewModel;
 
   const CreateTransactionPasswordPage({
     super.key,
     required this.origin,
+    required this.viewModel,
   });
 
   @override
@@ -25,6 +28,7 @@ class _CreateTransactionPasswordPageState
     extends State<CreateTransactionPasswordPage> {
   final ValueNotifier<bool> _isDisabled = ValueNotifier(true);
   TransactionPasswordSetupOrigin get _origin => widget.origin;
+  TransactionPasswordViewModel get _viewModel => widget.viewModel;
 
   String _token = '';
 
@@ -94,16 +98,16 @@ class _CreateTransactionPasswordPageState
   Future<void> _navToConfirmation() async {
     if (_token.length != 6) return;
 
-    final result = await context.pushNamed(
-      TransactionPasswordRoutes.confirm.name,
-      extra: {
-        'token': _token,
-        'origin': _origin.name,
-      },
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => ConfirmTransactionPasswordPage(
+          token: _token,
+          origin: _origin,
+          viewModel: _viewModel,
+        ),
+      ),
     );
 
-    if (result != null) {
-      if (!mounted) return;
-    }
+    if (!mounted) return;
   }
 }

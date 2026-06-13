@@ -398,9 +398,9 @@ Tratar erros ZTA por código e preservar a tentativa correta.
 - Para token expirado ou consumido, manter o draft e a `idempotency_key`.
 - Não navegar para a tela genérica de falha antes de oferecer novo step-up para
   token expirado ou consumido.
-- Para `TRANSACTION_PASSWORD_NOT_SET`, descartar a tentativa, executar a
-  atualização remota explícita da sessão, retornar à Home e exigir nova
-  verificação no botão **Transferir**.
+- Para `TRANSACTION_PASSWORD_NOT_SET`, descartar a tentativa, manter a
+  atualização local do `AppSection`, retornar à Home e exigir nova verificação
+  no botão **Transferir**.
 - Preservar tratamento dos erros de negócio já existentes.
 
 ### Critérios de aceite
@@ -411,7 +411,7 @@ Tratar erros ZTA por código e preservar a tentativa correta.
 - Token expirado ou consumido reabre o step-up com a mesma idempotência.
 - Token anterior nunca é reutilizado.
 - `TRANSACTION_PASSWORD_NOT_SET` não abre cadastro diretamente da confirmação.
-- `TRANSACTION_PASSWORD_NOT_SET` tenta atualizar remotamente o `AppSection`
+- `TRANSACTION_PASSWORD_NOT_SET` mantém o `AppSection` local como `not_set`
   antes do retorno à Home.
 - Erros de negócio continuam chegando ao fluxo de status existente.
 - Testes cobrem todos os códigos ZTA listados.
@@ -473,8 +473,8 @@ coerente.
 - Completar testes de repositories e use cases.
 - Completar testes de view models.
 - Cobrir atualização local do `AppSection` após criação.
-- Cobrir atualização remota da sessão após
-  `TRANSACTION_PASSWORD_NOT_SET` defensivo.
+- Cobrir atualização local do `AppSection` após
+  `TRANSACTION_PASSWORD_NOT_SET` defensivo, sem nova consulta de sessão.
 - Cobrir uso do snapshot já carregado na entrada da transferência, sem nova
   chamada de sessão.
 - Cobrir destinos `postLogin` e `internalTransfer`.

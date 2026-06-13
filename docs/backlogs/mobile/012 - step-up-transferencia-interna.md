@@ -252,7 +252,8 @@ Se, defensivamente, a autorização retornar
 
 - interromper a transferência sem chamar o endpoint protegido;
 - descartar PIN, token, draft e `idempotency_key`;
-- executar a atualização remota explícita da sessão, ignorando o snapshot atual;
+- atualizar localmente o `AppSection` para `not_set`, usando o erro do backend
+  como informação autoritativa;
 - retornar à Home;
 - permitir que um novo toque em **Transferir** encaminhe ao cadastro caso o
   estado atualizado seja `not_set`;
@@ -333,8 +334,8 @@ O snapshot autenticado deve ficar centralizado no `AppSection`:
   `AppSection`, sem nova chamada a `GET /auth/session`;
 - `TRANSACTION_PASSWORD_ALREADY_SET` não atualiza o snapshot nem libera
   navegação;
-- uma operação remota explícita que ignore o snapshot atual deve ser usada
-  somente após `TRANSACTION_PASSWORD_NOT_SET` defensivo durante o step-up;
+- `TRANSACTION_PASSWORD_NOT_SET` durante o step-up atualiza localmente o
+  `AppSection` para `not_set`, sem nova chamada de sessão;
 - a entrada normal da transferência não chama novamente `GET /auth/session`.
 
 ### 5.4 Domain/use case layer
@@ -420,7 +421,7 @@ Autorização de step-up:
 Inconsistência defensiva:
 
 - `TRANSACTION_PASSWORD_NOT_SET`: interromper a transferência, executar a
-  atualização remota explícita da sessão e retornar à Home; o próximo acesso à
+  atualização local do `AppSection` e retornar à Home; o próximo acesso à
   transferência pode iniciar o cadastro a partir da verificação de entrada.
 
 Transferência protegida:
@@ -445,8 +446,8 @@ Transferência protegida:
   novamente a senha transacional.
 - Não exibir a tela genérica de falha antes de oferecer o novo step-up nesses
   dois casos.
-- Em `TRANSACTION_PASSWORD_NOT_SET`, encerrar a tentativa, atualizar remotamente
-  a sessão e retornar à Home. O cadastro só pode ser aberto por uma nova
+- Em `TRANSACTION_PASSWORD_NOT_SET`, encerrar a tentativa, atualizar localmente
+  o `AppSection` e retornar à Home. O cadastro só pode ser aberto por uma nova
   verificação no botão **Transferir**.
 
 ## 8. Segurança e privacidade
@@ -500,7 +501,7 @@ Transferência protegida:
   fizer sentido para a mesma tentativa lógica.
 - `TRANSACTION_PASSWORD_NOT_SET` durante step-up abandona a tentativa e retorna
   à Home; somente um novo toque em **Transferir** pode iniciar o cadastro após
-  atualizar a sessão.
+  a atualização local do `AppSection`.
 - Erros ZTA são tratados por `error.code`.
 - `AuthInterceptor` não tenta refresh para erros funcionais de step-up com HTTP
   401.

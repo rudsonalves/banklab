@@ -152,6 +152,185 @@ void main() {
     expect(harness.passwordRepository.authorizeCalls, 1);
     expect(harness.transferRepository.transferCalls, 1);
   });
+
+  testWidgets('invalid password requests a new PIN without transferring', (
+    tester,
+  ) async {
+    final harness = await _pumpConfirmation(
+      tester,
+      authorizationResults: [
+        _failure('TRANSACTION_PASSWORD_INVALID'),
+        Success(
+          StepUpAuthorizeResponseDto(
+            stepUpToken: 'second-token',
+            expiresIn: 120,
+          ),
+        ),
+      ],
+    );
+
+    await _startAndSubmitPin(tester, '111111');
+    expect(find.byType(TransactionPasswordInputPage), findsOneWidget);
+    expect(harness.transferRepository.transferCalls, 0);
+
+    await _submitVisiblePin(tester, '222222');
+
+    expect(find.text('Success destination'), findsOneWidget);
+    expect(harness.passwordRepository.pins, ['111111', '222222']);
+    expect(harness.transferRepository.transferTokens, ['second-token']);
+  });
+
+  for (final errorCode in const [
+    'STEP_UP_TOKEN_EXPIRED',
+    'STEP_UP_TOKEN_CONSUMED',
+  ]) {
+    testWidgets(
+      '$errorCode requests a new token with the same idempotency key',
+      (
+        tester,
+      ) async {
+        final harness = await _pumpConfirmation(
+          tester,
+          authorizationResults: [
+            Success(
+              StepUpAuthorizeResponseDto(
+                stepUpToken: 'expired-token',
+                expiresIn: 120,
+              ),
+            ),
+            Success(
+              StepUpAuthorizeResponseDto(
+                stepUpToken: 'fresh-token',
+                expiresIn: 120,
+              ),
+            ),
+          ],
+          transferResults: [
+            _failure(errorCode),
+            Success(_transferResponse()),
+          ],
+        );
+
+        await _startAndSubmitPin(tester, '111111');
+        expect(find.byType(TransactionPasswordInputPage), findsOneWidget);
+
+        await _submitVisiblePin(tester, '222222');
+
+        expect(find.text('Success destination'), findsOneWidget);
+        expect(
+          harness.transferRepository.transferTokens,
+          ['expired-token', 'fresh-token'],
+        );
+        expect(
+          harness.transferRepository.transferRequests
+              .map((request) => request.idempotencyKey)
+              .toSet(),
+          hasLength(1),
+        );
+      },
+    );
+  }
+
+  testWidgets('locked password blocks another immediate attempt', (
+    tester,
+  ) async {
+    final harness = await _pumpConfirmation(
+      tester,
+      authorizationResult: _failure('TRANSACTION_PASSWORD_LOCKED'),
+    );
+
+    await _startAndSubmitPin(tester, '111111');
+
+    expect(find.text('Confirmação'), findsOneWidget);
+    expect(harness.transferRepository.transferCalls, 0);
+    final button = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, 'Transferir'),
+    );
+    expect(button.onPressed, isNull);
+  });
+
+  testWidgets('password not set returns home without transferring', (
+    tester,
+  ) async {
+    final harness = await _pumpConfirmation(
+      tester,
+      authorizationResult: _failure('TRANSACTION_PASSWORD_NOT_SET'),
+    );
+
+    await _startAndSubmitPin(tester, '111111');
+
+    expect(harness.transferRepository.transferCalls, 0);
+    expect(find.text('Home destination'), findsOneWidget);
+  });
+
+  for (final errorCode in const [
+    'STEP_UP_ENDPOINT_NOT_ALLOWED',
+    'UNAUTHORIZED',
+    'INVALID_TOKEN',
+    'FORBIDDEN',
+    'INVALID_DATA',
+    'INVALID_REQUEST',
+  ]) {
+    testWidgets('$errorCode ends authorization through the failure flow', (
+      tester,
+    ) async {
+      final harness = await _pumpConfirmation(
+        tester,
+        authorizationResult: _failure(errorCode),
+      );
+
+      await _startAndSubmitPin(tester, '111111');
+
+      expect(find.text('Failure destination'), findsOneWidget);
+      expect(harness.transferRepository.transferCalls, 0);
+    });
+  }
+
+  for (final errorCode in const [
+    'STEP_UP_TOKEN_REQUIRED',
+    'STEP_UP_TOKEN_INVALID',
+    'STEP_UP_ENDPOINT_MISMATCH',
+  ]) {
+    testWidgets('$errorCode does not reuse the rejected token', (tester) async {
+      final harness = await _pumpConfirmation(
+        tester,
+        transferResult: _failure(errorCode),
+      );
+
+      await _startAndSubmitPin(tester, '111111');
+
+      expect(find.text('Failure destination'), findsOneWidget);
+      expect(harness.passwordRepository.authorizeCalls, 1);
+      expect(harness.transferRepository.transferCalls, 1);
+      expect(harness.transferRepository.transferTokens, ['single-use-token']);
+    });
+  }
+}
+
+Future<void> _startAndSubmitPin(WidgetTester tester, String pin) async {
+  await tester.tap(find.text('Transferir'));
+  await tester.pumpAndSettle();
+  await _submitVisiblePin(tester, pin);
+}
+
+Future<void> _submitVisiblePin(WidgetTester tester, String pin) async {
+  await tester.enterText(
+    find.byType(TextField, skipOffstage: false),
+    pin,
+  );
+  await tester.pump();
+  await tester.tap(find.text('Concluir'));
+  await tester.pumpAndSettle();
+}
+
+Failure<T> _failure<T extends Object>(String code) {
+  return Failure(
+    AppError(
+      code: AppErrorCode.httpError,
+      message: code,
+      details: {'code': code},
+    ),
+  );
 }
 
 Future<_Harness> _pumpConfirmation(
@@ -159,7 +338,9 @@ Future<_Harness> _pumpConfirmation(
   Completer<Result<StepUpAuthorizeResponseDto>>? authorization,
   Completer<Result<TransferResponseDto>>? transfer,
   Result<StepUpAuthorizeResponseDto>? authorizationResult,
+  List<Result<StepUpAuthorizeResponseDto>>? authorizationResults,
   Result<TransferResponseDto>? transferResult,
+  List<Result<TransferResponseDto>>? transferResults,
 }) async {
   final accountRepository = _FakeAccountRepository();
   final passwordRepository = _FakeTransactionPasswordRepository(
@@ -172,10 +353,12 @@ Future<_Harness> _pumpConfirmation(
             expiresIn: 120,
           ),
         ),
+    results: authorizationResults,
   );
   final transferRepository = _FakeTransferRepository(
     completer: transfer,
     result: transferResult ?? Success(_transferResponse()),
+    results: transferResults,
   );
   final viewModel = TransferViewmodel(
     TransferUsecase(
@@ -194,6 +377,12 @@ Future<_Harness> _pumpConfirmation(
           viewModel: viewModel,
           transferData: _confirmationData(),
         ),
+      ),
+      GoRoute(
+        path: BaseRoutes.home.routePath,
+        name: BaseRoutes.home.routeName,
+        builder: (context, state) =>
+            const Scaffold(body: Text('Home destination')),
       ),
       GoRoute(
         path: TransactionPasswordRoutes.transactionPassword.routePath,
@@ -309,12 +498,15 @@ class _FakeTransactionPasswordRepository
   _FakeTransactionPasswordRepository({
     required this.result,
     this.completer,
+    this.results,
   });
 
   final Result<StepUpAuthorizeResponseDto> result;
   final Completer<Result<StepUpAuthorizeResponseDto>>? completer;
+  final List<Result<StepUpAuthorizeResponseDto>>? results;
   int authorizeCalls = 0;
   String? lastPin;
+  final pins = <String>[];
 
   @override
   AsyncResult<StepUpAuthorizeResponseDto> authorizeInternalTransfer(
@@ -322,7 +514,14 @@ class _FakeTransactionPasswordRepository
   ) async {
     authorizeCalls++;
     lastPin = transactionPassword;
-    return completer?.future ?? result;
+    pins.add(transactionPassword);
+    if (completer != null) return completer!.future;
+    final configuredResults = results;
+    if (configuredResults == null || configuredResults.isEmpty) return result;
+    final index = authorizeCalls - 1;
+    return configuredResults[index < configuredResults.length
+        ? index
+        : configuredResults.length - 1];
   }
 
   @override
@@ -337,12 +536,16 @@ class _FakeTransferRepository implements TransferRepository {
   _FakeTransferRepository({
     required this.result,
     this.completer,
+    this.results,
   });
 
   final Result<TransferResponseDto> result;
   final Completer<Result<TransferResponseDto>>? completer;
+  final List<Result<TransferResponseDto>>? results;
   int transferCalls = 0;
   String? lastToken;
+  final transferTokens = <String>[];
+  final transferRequests = <TransferRequestDto>[];
 
   @override
   TransferReceiptResponseDto? get lastReceipt => null;
@@ -371,6 +574,14 @@ class _FakeTransferRepository implements TransferRepository {
   }) async {
     transferCalls++;
     lastToken = token;
-    return completer?.future ?? result;
+    transferTokens.add(token);
+    transferRequests.add(dto);
+    if (completer != null) return completer!.future;
+    final configuredResults = results;
+    if (configuredResults == null || configuredResults.isEmpty) return result;
+    final index = transferCalls - 1;
+    return configuredResults[index < configuredResults.length
+        ? index
+        : configuredResults.length - 1];
   }
 }

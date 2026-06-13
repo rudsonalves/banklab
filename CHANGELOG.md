@@ -2,6 +2,146 @@
 
 ## 2026/06/13 - mobile/transactional-password-08
 
+Implements the guarded step-up behavior for internal transfers, refining how transactional password errors are handled after confirmation and strengthening route safety for sensitive transfer and password setup screens.
+
+This change also updates project documentation, mobile guidance, and tests to align the implemented behavior with the intended security model: credentials and setup data must stay typed, local, and transient.
+
+1. **docs/backlogs/mobile/012 - step-up-transferencia-interna.md**
+
+   * Updated the defensive `TRANSACTION_PASSWORD_NOT_SET` behavior during step-up.
+   * Replaced the previous remote session refresh expectation with a local `AppSection` update to `not_set`.
+   * Clarified that no new session call is required after this backend-authoritative error.
+   * Preserved the rule that password setup must only be reached through a new transfer entry check.
+
+2. **docs/backlogs/mobile/012 - step-up-transferencia-interna_tasks.md**
+
+   * Updated task descriptions and acceptance criteria for `TRANSACTION_PASSWORD_NOT_SET`.
+   * Replaced remote session refresh coverage with local `AppSection` update coverage.
+   * Clarified that the defensive state change must happen without a new session query.
+
+3. **mobile/AGENT.md**
+
+   * Updated architectural guidance for use case orchestration.
+   * Clarified that workflows spanning multiple repositories should remain in `lib/domain/usecases`.
+   * Updated dependency registration order to include repositories, use cases, and view models explicitly.
+   * Documented the correct module entrypoints for new repositories, use cases, and view models.
+
+4. **mobile/Changelog.md**
+
+   * Added the 2026/06/13 changelog entry for step-up internal transfer.
+   * Documented transaction password authorization, protected transfer execution, use case orchestration, UI PIN input, and security constraints.
+   * Recorded the test coverage status for the feature.
+
+5. **mobile/README.md**
+
+   * Expanded the transfer feature description to document step-up authorization.
+   * Clarified the flow from transfer confirmation to PIN collection, step-up authorization, protected transfer execution, and retry behavior.
+   * Documented that the step-up token is single-use and never persisted.
+
+6. **mobile/docs/01-implemented-features.md**
+
+   * Updated implemented transfer documentation to include step-up authorization.
+   * Corrected relevant transfer file references to the current folder structure.
+   * Added `TransferUsecase`, `TransactionPasswordRepository`, `TransactionPasswordApi`, and `TransactionPasswordInputPage` to the documented implementation surface.
+   * Clarified token lifecycle, idempotency behavior, and backend error-code preservation.
+
+7. **mobile/lib/core/routing/extra_codec.dart**
+
+   * Removed support for serializing arbitrary maps and lists through route extras.
+   * Preserved primitive, typed DTO, and typed origin serialization.
+   * Added safe fallback decoding for unknown `TransactionPasswordSetupOrigin` values, defaulting to `postLogin`.
+   * Reduced the risk of passing credentials or sensitive setup payloads through encoded route extras.
+
+8. **mobile/lib/core/routing/routes/transaction_password_routes.dart**
+
+   * Added defensive redirects for transaction password introduction and creation routes when the required typed origin is missing.
+   * Redirected direct access to the confirm route back to Home.
+   * Injected `TransactionPasswordViewModel` directly into the creation page.
+   * Removed routed confirmation page construction based on map extras.
+
+9. **mobile/lib/core/routing/routes/transfer_routes.dart**
+
+   * Added route guards for payment and confirmation routes.
+   * Redirected missing or invalid extras to Home.
+   * Prevented direct navigation into transfer steps without the required typed data.
+
+10. **mobile/lib/data/services/apis/contact_verification/enums/contact_verification_channel.dart**
+
+* Normalized enum formatting for `ContactVerificationChannel`.
+
+11. **mobile/lib/domain/common/receipt/enums/transfer_receipt_status.dart**
+
+* Normalized enum formatting for `TransferReceiptStatus`.
+
+12. **mobile/lib/domain/common/user/enums/user_role.dart**
+
+* Normalized enum formatting for `UserRole`.
+
+13. **mobile/lib/ui/pages/transaction_password/setup/create_transaction_password_page.dart**
+
+* Added direct `TransactionPasswordViewModel` injection.
+* Replaced route-extra based confirmation navigation with in-memory `MaterialPageRoute` navigation.
+* Passed the created PIN and setup origin directly to `ConfirmTransactionPasswordPage`.
+* Avoided serializing the PIN through router extras.
+
+14. **mobile/lib/ui/pages/transaction_password/setup/confirm_transaction_password_page.dart**
+
+* Simplified post-setup navigation for the transfer origin.
+* Replaced manual stack manipulation with direct navigation to the transfer recipient route.
+* Removed the no longer needed context extension import.
+
+15. **mobile/lib/ui/pages/transfer/transfer_confirmation_page.dart**
+
+* Refactored transfer submission to build a stable `TransferDraft` before step-up.
+* Added protected transfer execution with PIN collection through the transaction password route.
+* Preserved the same `idempotency_key` across retryable step-up attempts.
+* Added explicit handling for step-up backend error codes:
+
+  * invalid transaction password requests a new PIN before transfer execution;
+  * expired or consumed step-up token requests a new PIN and retries with the same draft;
+  * locked transaction password blocks the current attempt;
+  * missing transaction password returns the user to Home;
+  * unknown or non-retryable authorization failures go to the failure flow.
+* Ensured the transfer failure screen is not shown before offering retry for retryable step-up errors.
+
+16. **mobile/test/core/routing/extra_codec_test.dart**
+
+* Added coverage to reject arbitrary map serialization.
+* Added coverage for typed transaction password setup origin serialization.
+* Added coverage for safe fallback decoding of unknown setup origins.
+
+17. **mobile/test/core/routing/protected_route_fallback_test.dart**
+
+* Added route fallback tests for transaction password and transfer routes.
+* Verified that sensitive routes redirect to Home when required extras are missing.
+
+18. **mobile/test/ui/pages/transaction_password/setup/create_transaction_password_page_test.dart**
+
+* Updated the creation page test to use a real `TransactionPasswordViewModel`.
+* Verified that PIN and origin are propagated only in memory to the confirmation page.
+* Added a fake transaction password repository for the test boundary.
+
+19. **mobile/test/ui/pages/transfer/transfer_confirmation_page_test.dart**
+
+* Added coverage for invalid transaction password retry without transfer execution.
+* Added coverage for expired and consumed step-up tokens using a stable idempotency key.
+* Added coverage for locked transaction password behavior.
+* Added coverage for `TRANSACTION_PASSWORD_NOT_SET` returning to Home without transfer execution.
+* Added coverage for non-retryable authorization failures reaching the failure flow.
+* Added coverage to ensure rejected transfer tokens are not reused.
+* Extended test fakes to record PINs, transfer tokens, requests, and sequential configured results.
+
+### Conclusion
+
+This change set tightens the internal transfer step-up flow by keeping sensitive PIN data out of router serialization, protecting direct access to sensitive routes, and handling backend step-up error codes with explicit user-flow decisions.
+
+The resulting behavior is more secure and predictable: retryable step-up failures request a new PIN while preserving transfer idempotency, non-retryable failures terminate correctly, and `TRANSACTION_PASSWORD_NOT_SET` now updates local application state before returning to Home.
+
+Documentation, architectural guidance, changelog entries, and tests were updated to keep the implemented behavior aligned with the BankLab mobile security model.
+
+
+## 2026/06/13 - mobile/transactional-password-08
+
 This change refines the transactional password flow used during internal transfers, consolidating route usage, improving submit-state handling, and adding widget coverage for the PIN prompt and transfer confirmation behavior.
 
 The update also introduces a reusable loading state for `BigButton`, preventing duplicate transfer submissions while the protected operation is running.

@@ -20,20 +20,6 @@ class _ExtraEncoder extends Converter<Object?, String> {
 
   @override
   String convert(Object? extra) {
-    if (extra is Map<String, Object?>) {
-      return jsonEncode({
-        'type': 'map',
-        'data': extra,
-      });
-    }
-
-    if (extra is List<Object?>) {
-      return jsonEncode({
-        'type': 'list',
-        'data': extra,
-      });
-    }
-
     if (extra is String || extra is num || extra is bool) {
       return jsonEncode({
         'type': 'primitive',
@@ -89,12 +75,6 @@ class _ExtraDecoder extends Converter<String, Object?> {
     final type = decoded['type'] as String;
 
     switch (type) {
-      case 'map':
-        return decoded['data'] as Map<String, Object?>;
-
-      case 'list':
-        return decoded['data'] as List<Object?>;
-
       case 'primitive':
         return decoded['data'];
 
@@ -115,7 +95,11 @@ class _ExtraDecoder extends Converter<String, Object?> {
 
       case 'transaction_password_setup_origin':
         final originName = decoded['data'] as String;
-        return TransactionPasswordSetupOrigin.fromName(originName);
+        try {
+          return TransactionPasswordSetupOrigin.fromName(originName);
+        } on UnsupportedError {
+          return TransactionPasswordSetupOrigin.postLogin;
+        }
 
       default:
         throw UnsupportedError('Unsupported type: $type');

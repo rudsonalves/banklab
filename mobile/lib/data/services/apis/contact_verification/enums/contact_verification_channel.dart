@@ -1,7 +1,6 @@
 enum ContactVerificationChannel {
   email,
-  phone
-  ;
+  phone;
 
   factory ContactVerificationChannel.fromString(String value) {
     switch (value.trim().toLowerCase()) {

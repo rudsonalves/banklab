@@ -23,6 +23,8 @@ List<RouteBase> transferRoutes() => [
   GoRoute(
     path: TransferRoutes.payment.routePath,
     name: TransferRoutes.payment.routeName,
+    redirect: (context, state) =>
+        state.extra is RecipientInfoDto ? null : BaseRoutes.home.routePath,
     builder: (context, state) => TransferPaymentPage(
       viewModel: injector.get<TransferViewmodel>(),
       recipientInfo: state.extra as RecipientInfoDto,
@@ -32,6 +34,9 @@ List<RouteBase> transferRoutes() => [
   GoRoute(
     path: TransferRoutes.confirmation.routePath,
     name: TransferRoutes.confirmation.routeName,
+    redirect: (context, state) => state.extra is TransferConfirmationData
+        ? null
+        : BaseRoutes.home.routePath,
     builder: (context, state) => TransferConfirmationPage(
       viewModel: injector.get<TransferViewmodel>(),
       transferData: state.extra as TransferConfirmationData,
