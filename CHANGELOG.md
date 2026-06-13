@@ -1,5 +1,65 @@
 # Changelog
 
+## 2026/06/13 - mobile/transactional-password-05
+
+This change refactors the transaction password verification flow by moving the internal transfer authorization context into the repository layer. The UI and ViewModel now work with a simplified contract that only requires the transaction password, while the repository becomes responsible for building the step-up authorization request.
+
+The update reduces coupling between presentation and API-specific details, centralizing the internal transfer operation mapping within the transaction password repository implementation. The affected areas include repository contracts, ViewModel commands, verification UI, and automated tests.
+
+1. **mobile/lib/data/repositories/transaction_password**
+
+   * Refactored the repository contract by replacing `stepUpAuthorize(StepUpAuthorizeRequestDto)` with `authorizeInternalTransfer(String transactionPassword)`.
+   * Removed the need for callers to construct step-up authorization request DTOs.
+   * Centralized internal transfer authorization as an explicit repository operation.
+
+2. **mobile/lib/data/repositories/transaction_password/transaction_password_repository_impl.dart**
+
+   * Added responsibility for creating `StepUpAuthorizeRequestDto` inside the repository implementation.
+   * Automatically maps internal transfer authorization requests to `StepUpOperation.internalTransfer`.
+   * Encapsulated API-specific request construction details within the data layer.
+   * Preserved existing API integration and error propagation behavior.
+
+3. **mobile/lib/ui/pages/transaction_password/verification**
+
+   * Simplified the verification page by removing direct dependencies on step-up authorization DTOs and operation enums.
+   * Updated command execution to submit only the transaction password.
+   * Renamed command references from `stepUpAuthorize` to `authorizeInternalTransfer`.
+   * Kept existing success, failure, and navigation behavior unchanged.
+
+4. **mobile/lib/ui/pages/transaction_password/verification/viewmodel**
+
+   * Updated the ViewModel command definition to use `String` as input instead of `StepUpAuthorizeRequestDto`.
+   * Renamed the exposed command to better represent the business action being performed.
+   * Reduced presentation-layer knowledge of backend authorization request structures.
+
+5. **mobile/test/data/repositories/transaction_password**
+
+   * Updated repository tests to validate automatic request creation inside the repository.
+   * Added assertions verifying the generated operation, transaction password, and serialized request payload.
+   * Adjusted backend error validation to cover updated authorization error codes.
+   * Removed helper methods that are no longer required by the new contract.
+
+6. **mobile/test/ui/pages/auth/transaction_password and mobile/test/ui/pages/transaction_password/setup**
+
+   * Updated repository test doubles to match the new repository interface.
+   * Replaced DTO-based authorization methods with transaction-password-based authorization methods.
+
+7. **mobile/test/ui/pages/transaction_password/verification/viewmodel**
+
+   * Added dedicated ViewModel tests for `authorizeInternalTransfer`.
+   * Verified delegation of the transaction password to the repository.
+   * Verified successful result propagation.
+   * Verified backend errors are exposed unchanged to the presentation layer.
+
+### Conclusion
+
+This refactoring simplifies the transaction password verification flow by removing API request construction responsibilities from the UI and ViewModel layers.
+
+The repository now acts as the boundary responsible for translating business actions into step-up authorization requests, improving encapsulation and reducing coupling with API-specific DTOs and operation identifiers.
+
+The accompanying test updates ensure the new contract is validated across repository and presentation layers while preserving existing authorization behavior.
+
+
 ## 2026/06/12 - mobile/transactional-password-04
 
 This change consolidates the mobile step-up flow for internal transfers by making the Home screen route users according to the transaction password status already stored in the authenticated session.

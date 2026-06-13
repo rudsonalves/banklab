@@ -4,6 +4,7 @@ import '/data/services/apis/transaction_password/dtos/create_transaction_passwor
 import '/data/services/apis/transaction_password/dtos/step_up_authorize_request_dto.dart';
 import '/data/services/apis/transaction_password/dtos/step_up_authorize_response_dto.dart';
 import '/data/services/apis/transaction_password/dtos/transaction_password_status_response_dto.dart';
+import '/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import '/data/services/apis/transaction_password/enums/transaction_password_status.dart';
 import '/data/services/apis/transaction_password/transaction_password_api.dart';
 import 'transaction_password_repository.dart';
@@ -35,9 +36,13 @@ class TransactionPasswordRepositoryImpl
   }
 
   @override
-  AsyncResult<StepUpAuthorizeResponseDto> stepUpAuthorize(
-    StepUpAuthorizeRequestDto dto,
+  AsyncResult<StepUpAuthorizeResponseDto> authorizeInternalTransfer(
+    String transactionPassword,
   ) async {
+    final dto = StepUpAuthorizeRequestDto(
+      operation: StepUpOperation.internalTransfer,
+      transactionPassword: transactionPassword,
+    );
     final result = await _api.stepUpAuthorize(dto);
 
     if (result.isFailure) {

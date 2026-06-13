@@ -149,7 +149,7 @@ void main() {
     });
   });
 
-  group('TransactionPasswordRepositoryImpl.stepUpAuthorize', () {
+  group('TransactionPasswordRepositoryImpl.authorizeInternalTransfer', () {
     test('delegates to API and returns its authorization response', () async {
       final api = _FakeStepUpTransactionPasswordApi(
         result: Success(
@@ -163,15 +163,23 @@ void main() {
         api: api,
         appSection: AppSection(),
       );
-      final request = _stepUpRequest();
+      const transactionPassword = '123456';
 
-      final result = await repository.stepUpAuthorize(request);
+      final result = await repository.authorizeInternalTransfer(
+        transactionPassword,
+      );
 
       expect(result, isA<Success<StepUpAuthorizeResponseDto>>());
       expect(result.value?.stepUpToken, 'opaque-step-up-token');
       expect(result.value?.expiresIn, 120);
       expect(api.calls, 1);
-      expect(api.lastRequest, same(request));
+      expect(api.lastRequest?.operation, StepUpOperation.internalTransfer);
+      expect(api.lastRequest?.transactionPassword, transactionPassword);
+      expect(api.lastRequest?.toMap(), {
+        'method': 'POST',
+        'path': '/accounts/internal-transfers',
+        'transaction_password': transactionPassword,
+      });
     });
 
     test(
@@ -194,7 +202,7 @@ void main() {
           appSection: appSection,
         );
 
-        final result = await repository.stepUpAuthorize(_stepUpRequest());
+        final result = await repository.authorizeInternalTransfer('123456');
 
         expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
         expect(
@@ -226,7 +234,7 @@ void main() {
         appSection: appSection,
       );
 
-      final result = await repository.stepUpAuthorize(_stepUpRequest());
+      final result = await repository.authorizeInternalTransfer('123456');
 
       expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
       expect(
@@ -241,8 +249,9 @@ void main() {
 
     for (final errorCode in [
       'TRANSACTION_PASSWORD_INVALID',
+      'UNAUTHORIZED',
       'INVALID_TOKEN',
-      'STEP_UP_POLICY_DENIED',
+      'STEP_UP_ENDPOINT_NOT_ALLOWED',
     ]) {
       test('preserves $errorCode', () async {
         final repository = TransactionPasswordRepositoryImpl(
@@ -258,7 +267,7 @@ void main() {
           appSection: AppSection(),
         );
 
-        final result = await repository.stepUpAuthorize(_stepUpRequest());
+        final result = await repository.authorizeInternalTransfer('123456');
 
         expect(result, isA<Failure<StepUpAuthorizeResponseDto>>());
         expect(backendErrorCode(result.error), errorCode);
@@ -279,13 +288,6 @@ TransactionPasswordStatusResponseDto _response() {
     userId: 'fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b',
     status: TransactionPasswordStatus.active,
     createdAt: DateTime.parse('2026-05-18T12:03:00Z'),
-  );
-}
-
-StepUpAuthorizeRequestDto _stepUpRequest() {
-  return StepUpAuthorizeRequestDto(
-    operation: StepUpOperation.internalTransfer,
-    transactionPassword: '123456',
   );
 }
 

@@ -3,8 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '/core/result/errors/app_error.dart';
 import '/core/routing/routes.dart';
-import '/data/services/apis/transaction_password/dtos/step_up_authorize_request_dto.dart';
-import '/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/input_text/token_input.dart';
@@ -71,10 +69,10 @@ class _VerifyTansactionPasswordPageState
       bottomNavigationBar: ListenableBuilder(
         listenable: Listenable.merge([
           _isDisabled,
-          _viewModel.stepUpAuthorize,
+          _viewModel.authorizeInternalTransfer,
         ]),
         builder: (context, _) {
-          final isRunning = _viewModel.stepUpAuthorize.isRunning;
+          final isRunning = _viewModel.authorizeInternalTransfer.isRunning;
 
           return DoubleBottomButton(
             leftButtonLabel: 'Cancelar',
@@ -110,14 +108,9 @@ class _VerifyTansactionPasswordPageState
   Future<void> _submit() async {
     if (_transPasswd.length != 6) return;
 
-    await _viewModel.stepUpAuthorize.execute(
-      StepUpAuthorizeRequestDto(
-        operation: StepUpOperation.internalTransfer,
-        transactionPassword: _transPasswd,
-      ),
-    );
+    await _viewModel.authorizeInternalTransfer.execute(_transPasswd);
 
-    final result = _viewModel.stepUpAuthorize.result;
+    final result = _viewModel.authorizeInternalTransfer.result;
     if (result == null || !mounted) return;
 
     if (result.isFailure) {
