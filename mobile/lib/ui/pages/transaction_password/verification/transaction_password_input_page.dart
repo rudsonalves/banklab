@@ -63,13 +63,7 @@ class _TransactionPasswordInputPageState
           leftOnPressed: _navBack,
           rightOnPressed: _isDisabled.value ? null : _submit,
           isRightEnabled: !_isDisabled.value,
-          rightButtonIcon: _isDisabled.value
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.check),
+          rightButtonIcon: const Icon(Icons.check),
         ),
       ),
     );

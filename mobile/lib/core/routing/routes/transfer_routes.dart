@@ -39,8 +39,8 @@ List<RouteBase> transferRoutes() => [
   ),
 
   GoRoute(
-    path: TransferRoutes.verifyTransactionPassword.routePath,
-    name: TransferRoutes.verifyTransactionPassword.routeName,
+    path: TransactionPasswordRoutes.transactionPassword.routePath,
+    name: TransactionPasswordRoutes.transactionPassword.routeName,
     builder: (context, state) => const TransactionPasswordInputPage(),
   ),
 

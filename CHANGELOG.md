@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026/06/13 - mobile/transactional-password-08
+
+This change refines the transactional password flow used during internal transfers, consolidating route usage, improving submit-state handling, and adding widget coverage for the PIN prompt and transfer confirmation behavior.
+
+The update also introduces a reusable loading state for `BigButton`, preventing duplicate transfer submissions while the protected operation is running.
+
+1. **mobile/lib/core/routing/routes.dart**
+
+   * Removed the transfer-specific `verifyTransactionPassword` route entry.
+   * Kept transactional password verification under the dedicated transaction password route module.
+
+2. **mobile/lib/core/routing/routes/transfer_routes.dart**
+
+   * Updated the transfer flow to open `TransactionPasswordRoutes.transactionPassword`.
+   * Reused the centralized transaction password route name and path instead of defining the verification route inside `TransferRoutes`.
+
+3. **mobile/lib/ui/components/buttons/big_button.dart**
+
+   * Added the `isRunning` property to represent an in-progress button action.
+   * Disabled button presses while `isRunning` is active.
+   * Rendered a compact `CircularProgressIndicator` in place of the configured left or right icon during loading.
+
+4. **mobile/lib/ui/pages/transaction_password/verification/transaction_password_input_page.dart**
+
+   * Simplified the right action icon to always show the confirmation icon.
+   * Removed the local loading indicator logic from the transaction password prompt button.
+
+5. **mobile/lib/ui/pages/transfer/transfer_confirmation_page.dart**
+
+   * Added `_hasSubmitted` state tracking to prevent duplicate submissions.
+   * Disabled the transfer button after the first submit attempt until the flow completes or is canceled.
+   * Connected the button loading state to the transfer command execution state.
+   * Reset the submission guard when the PIN prompt is canceled or when an unknown authorization error occurs.
+   * Updated the cancellation feedback message to clarify that the transaction password was not provided.
+
+6. **mobile/test/ui/pages/transaction_password/verification/transaction_password_input_page_test.dart**
+
+   * Added widget tests for the transactional password input page.
+   * Verified that submission remains disabled until all six digits are entered.
+   * Verified that the PIN is masked in the UI while the original six-digit value is returned to the caller.
+   * Verified that canceling returns `null` and that reopening the prompt starts with an empty field.
+
+7. **mobile/test/ui/pages/transfer/transfer_confirmation_page_test.dart**
+
+   * Added widget tests for the transfer confirmation page.
+   * Verified that the PIN input page opens before authorization or transfer execution.
+   * Verified that canceling the PIN prompt does not call authorization or transfer and allows reopening the flow.
+   * Verified duplicate-tap protection, loading feedback, authorization token usage, and success navigation.
+   * Verified that transfer failure navigates to the existing failure status flow.
+
+### Conclusion
+
+The transfer confirmation flow now uses the centralized transactional password route and has stronger protection against duplicate submissions.
+
+The UI behavior is more consistent through `BigButton.isRunning`, and the new widget tests cover the critical PIN, authorization, transfer, cancelation, success, and failure paths.
+
+
 ## 2026/06/13 - mobile/transactional-password-07
 
 This change integrates the transactional password step-up flow into the internal transfer execution path. The transfer confirmation flow now collects the transactional PIN, delegates authorization to the transfer use case, and sends the resulting step-up token through the transfer API header.

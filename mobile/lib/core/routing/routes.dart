@@ -84,7 +84,6 @@ enum TransferRoutes implements AppRoute {
   recipient('/recipient'),
   payment('/payment'),
   confirmation('/confirmation'),
-  verifyTransactionPassword('/verify-transaction-password'),
   statusSuccess('/status/success'),
   statusFailure('/status/failure');
 

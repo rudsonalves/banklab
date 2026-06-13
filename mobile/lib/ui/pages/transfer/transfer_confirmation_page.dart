@@ -34,11 +34,19 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
   TransferConfirmationData get _transferData => widget.transferData;
 
   late final String _idempotencyKey;
+  final _hasSubmitted = ValueNotifier<bool>(false);
 
   @override
   void initState() {
     super.initState();
     _idempotencyKey = const Uuid().v7();
+  }
+
+  @override
+  void dispose() {
+    _hasSubmitted.dispose();
+
+    super.dispose();
   }
 
   @override
@@ -97,17 +105,27 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
 
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        child: BigButton(
-          label: 'Transferir',
-          onPressed: _submit,
-          leftIcon: Icon(Icons.check_rounded, size: 24),
-          enabled: true,
+        child: ListenableBuilder(
+          listenable: Listenable.merge([
+            _viewModel.transfer,
+            _hasSubmitted,
+          ]),
+          builder: (context, _) => BigButton(
+            label: 'Transferir',
+            onPressed: _submit,
+            leftIcon: Icon(Icons.check_rounded, size: 24),
+            enabled: !_hasSubmitted.value,
+            isRunning: _viewModel.transfer.isRunning,
+          ),
         ),
       ),
     );
   }
 
   Future<void> _submit() async {
+    if (_hasSubmitted.value) return;
+    _hasSubmitted.value = true;
+
     final pin = await context.pushNamed<String?>(
       TransactionPasswordRoutes.transactionPassword.routeName,
     );
@@ -116,9 +134,11 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
       if (!mounted) return;
       AppSnackbar.show(
         context,
-        message: 'Operação cancelada.',
+        message: 'Operação cancelada. Senha de transação não fornecida.',
         type: SnackbarType.info,
       );
+
+      _hasSubmitted.value = false;
       return;
     }
 
@@ -145,6 +165,8 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
           message: 'Erro desconhecido. Por favor, tente novamente mais tarde.',
           type: SnackbarType.error,
         );
+
+        _hasSubmitted.value = false;
         return;
       }
 
@@ -153,5 +175,7 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
         extra: transferResponse.transactionReference,
       );
     }
+
+    _hasSubmitted.value = false;
   }
 }
