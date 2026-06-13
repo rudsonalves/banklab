@@ -1,7 +1,7 @@
 import 'package:bankflow/core/resources/app_currencies.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
-import 'package:bankflow/data/repositories/transaction/transaction_repository_impl.dart';
+import 'package:bankflow/data/repositories/transfer/transfer_repository_impl.dart';
 import 'package:bankflow/data/services/apis/receipt/api_receipt.dart';
 import 'package:bankflow/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import 'package:bankflow/data/services/apis/transfer/api_transfer.dart';
@@ -22,7 +22,7 @@ void main() {
       final transferApi = _FakeApiTransfer(
         transferResult: Success(_transferResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
@@ -43,7 +43,7 @@ void main() {
       final transferApi = _FakeApiTransfer(
         transferResult: Success(_transferResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
@@ -76,7 +76,7 @@ void main() {
         final transferApi = _FakeApiTransfer(
           transferResult: Success(_transferResponse()),
         );
-        final repository = TransactionRepositoryImpl(
+        final repository = TransferRepositoryImpl(
           apiTransfer: transferApi,
           apiReceipt: _FakeApiReceipt(
             receiptResult: Success(_receiptResponse()),
@@ -104,7 +104,7 @@ void main() {
       final transferApi = _FakeApiTransfer(
         transferResult: Success(_transferResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
@@ -131,7 +131,7 @@ void main() {
       final transferApi = _FakeApiTransfer(
         transferResult: Success(_transferResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
@@ -160,7 +160,7 @@ void main() {
       final receiptApi = _FakeApiReceipt(
         receiptResult: Success(_receiptResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: _FakeApiTransfer(
           transferResult: Success(_transferResponse()),
         ),
@@ -181,7 +181,7 @@ void main() {
         final receiptApi = _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
         );
-        final repository = TransactionRepositoryImpl(
+        final repository = TransferRepositoryImpl(
           apiTransfer: _FakeApiTransfer(
             transferResult: Success(_transferResponse()),
           ),
@@ -225,7 +225,7 @@ void main() {
           ),
         ),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: _FakeApiTransfer(
           transferResult: Success(_transferResponse()),
         ),
@@ -257,7 +257,7 @@ void main() {
           ),
         ),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: _FakeApiTransfer(
           transferResult: Success(_transferResponse()),
         ),
@@ -282,7 +282,7 @@ void main() {
         transferResult: Success(_transferResponse()),
         recipientResult: Success([_recipientInfo()]),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -306,7 +306,7 @@ void main() {
           _recipientInfo(accountId: 'acc-recipient-002'),
         ]),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -327,7 +327,7 @@ void main() {
         transferResult: Success(_transferResponse()),
         recipientResult: const Success(<RecipientInfoDto>[]),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -346,7 +346,7 @@ void main() {
         transferResult: Success(_transferResponse()),
         recipientResult: Success([_recipientInfo()]),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -396,7 +396,7 @@ void main() {
             transferResult: Success(_transferResponse()),
             recipientResult: Failure(testCase.error),
           );
-          final repository = TransactionRepositoryImpl(
+          final repository = TransferRepositoryImpl(
             apiTransfer: transferApi,
             apiReceipt: _FakeApiReceipt(
               receiptResult: Success(_receiptResponse()),
@@ -428,7 +428,7 @@ void main() {
           ),
         ),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );

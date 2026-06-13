@@ -1,9 +1,9 @@
 import 'dart:convert';
 
+import '/core/routing/models/transaction_password_setup_origin.dart';
 import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
-import '/ui/pages/home/transfer/models/transfer_confirmation_data.dart';
-import '/core/routing/models/transaction_password_setup_origin.dart';
+import '/ui/pages/transfer/models/transfer_confirmation_data.dart';
 
 class ExtraCodec extends Codec<Object?, String> {
   const ExtraCodec();

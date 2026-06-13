@@ -6,13 +6,13 @@ import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
-import 'transaction_repository.dart';
+import 'transfer_repository.dart';
 
-class TransactionRepositoryImpl implements TransactionRepository {
+class TransferRepositoryImpl implements TransferRepository {
   final ApiTransfer _apiTransfer;
   final ApiReceipt _apiReceipt;
 
-  TransactionRepositoryImpl({
+  TransferRepositoryImpl({
     required ApiTransfer apiTransfer,
     required ApiReceipt apiReceipt,
   }) : _apiTransfer = apiTransfer,

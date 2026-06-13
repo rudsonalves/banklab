@@ -10,17 +10,17 @@ import 'repositories/contact_verification/contact_verification_repository.dart';
 import 'repositories/contact_verification/contact_verification_repository_impl.dart';
 import 'repositories/registration/registration_repository.dart';
 import 'repositories/registration/registration_repository_impl.dart';
-import 'repositories/transaction/transaction_repository.dart';
-import 'repositories/transaction/transaction_repository_impl.dart';
 import 'repositories/transaction_password/transaction_password_repository.dart';
 import 'repositories/transaction_password/transaction_password_repository_impl.dart';
+import 'repositories/transfer/transfer_repository.dart';
+import 'repositories/transfer/transfer_repository_impl.dart';
 
 class Repositories {
   static void add(AutoInjector injector) {
     injector
       ..addSingleton<AuthRepository>(AuthRepositoryImpl.new)
       ..addSingleton<AccountRepository>(AccountRepositoryImpl.new)
-      ..addSingleton<TransactionRepository>(TransactionRepositoryImpl.new)
+      ..addSingleton<TransferRepository>(TransferRepositoryImpl.new)
       ..addLazySingleton<RegisterDraftRepository>(
         RegisterDraftRepositoryImpl.new,
       )

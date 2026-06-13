@@ -1,5 +1,75 @@
 # Changelog
 
+## 2026/06/13 - mobile/transactional-password-06
+
+This change refactors the mobile transfer module to use clearer domain naming and a flatter UI page structure. The previous `transaction` repository naming was replaced by `transfer`, aligning the repository contract, implementation, dependency injection, use cases, and tests with the actual transfer flow.
+
+It also moves transfer UI pages out of the `home/transfer` subtree into a dedicated `transfer` page module, updating routing, codec imports, view model registration, and page documentation accordingly.
+
+1. **mobile/lib/data/repositories/transfer**
+
+   * Renamed `TransactionRepository` to `TransferRepository`.
+   * Renamed `TransactionRepositoryImpl` to `TransferRepositoryImpl`.
+   * Moved the repository files from `data/repositories/transaction` to `data/repositories/transfer`.
+   * Updated the implementation import to reference the new repository contract.
+
+2. **mobile/lib/data/repositories.dart**
+
+   * Replaced the transaction repository registration with `TransferRepository`.
+   * Updated dependency injection to bind `TransferRepository` to `TransferRepositoryImpl`.
+
+3. **mobile/lib/domain/usecases/transfer/transfer_usecase.dart**
+
+   * Updated the use case dependency from `TransactionRepository` to `TransferRepository`.
+   * Renamed the injected field and constructor parameter from transaction-oriented naming to transfer-oriented naming.
+   * Updated transfer, receipt, and recipient lookup calls to use the new repository dependency.
+
+4. **mobile/lib/domain/usecases/details/details_usecase.dart**
+
+   * Replaced the transaction repository dependency with `TransferRepository`.
+   * Updated the receipt retrieval flow to use the renamed transfer repository.
+   * Normalized the account summary DTO import path.
+
+5. **mobile/lib/ui/pages/transfer**
+
+   * Moved transfer pages, models, view model, and widgets from `ui/pages/home/transfer` to `ui/pages/transfer`.
+   * Preserved the existing transfer page implementations while promoting the transfer flow to its own page module.
+
+6. **mobile/lib/core/routing**
+
+   * Updated transfer route imports to point to the new `ui/pages/transfer` module.
+   * Updated `ExtraCodec` to import `TransferConfirmationData` from the new transfer page path.
+   * Kept transaction password verification routing integrated with the transfer route flow.
+
+7. **mobile/lib/ui/viewmodels.dart**
+
+   * Updated the transfer view model import to use the new `pages/transfer/viewmodel` location.
+   * Preserved the existing view model registration behavior.
+
+8. **mobile/lib/ui/pages/AGENT.md**
+
+   * Updated page layout documentation to reflect the new `transfer/models` location.
+   * Updated the current example for `transfer_confirmation_data.dart` to match the new module structure.
+
+9. **mobile/test/data/repositories/transaction/transaction_repository_impl_test.dart**
+
+   * Updated repository implementation imports from `transaction` to `transfer`.
+   * Replaced test construction of `TransactionRepositoryImpl` with `TransferRepositoryImpl`.
+   * Preserved the existing transfer, receipt, and recipient lookup test coverage.
+
+10. **mobile/test/domain/usecases/transfer/transfer_usecase_test.dart**
+
+* Updated the fake repository contract from `TransactionRepository` to `TransferRepository`.
+* Renamed the fake test implementation from `_FakeTransactionRepository` to `_FakeTransferRepository`.
+* Updated test variables and expectations to use transfer-oriented naming while preserving existing use case behavior coverage.
+
+### Conclusion
+
+This change consolidates transfer-related naming and structure across the mobile application. The repository layer now reflects the transfer domain explicitly, and the transfer UI flow is organized as its own page module instead of being nested under `home`.
+
+The refactor improves architectural clarity without changing the existing transfer behavior covered by the current tests.
+
+
 ## 2026/06/13 - mobile/transactional-password-05
 
 This change refactors the transaction password verification flow by moving the internal transfer authorization context into the repository layer. The UI and ViewModel now work with a simplified contract that only requires the transaction password, while the repository becomes responsible for building the step-up authorization request.

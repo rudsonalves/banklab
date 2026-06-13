@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:bankflow/core/resources/app_currencies.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/data/repositories/account/account_repository.dart';
-import 'package:bankflow/data/repositories/transaction/transaction_repository.dart';
+import 'package:bankflow/data/repositories/transfer/transfer_repository.dart';
 import 'package:bankflow/data/services/apis/account/dtos/account_summary_response_dto.dart';
 import 'package:bankflow/data/services/apis/account/dtos/balance_response_dto.dart';
 import 'package:bankflow/data/services/apis/account/dtos/statement_query_params_dto.dart';
@@ -23,12 +23,12 @@ Money brl(int cents) =>
 void main() {
   group('TransferUsecase.getInternalRecipient', () {
     test('searches recipients by CPF document through repository', () async {
-      final transactionRepo = _FakeTransactionRepository(
+      final transferRepo = _FakeTransferRepository(
         recipientResult: Success([_recipientInfo()]),
       );
       final usecase = TransferUsecase(
         accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-        transactionRepo: transactionRepo,
+        transferRepo: transferRepo,
       );
 
       const request = RecipientRequestDto(document: '12345678901');
@@ -37,17 +37,17 @@ void main() {
 
       expect(result, isA<Success<List<RecipientInfoDto>>>());
       expect(result.value, hasLength(1));
-      expect(transactionRepo.recipientCalls, 1);
-      expect(transactionRepo.lastRecipientRequest, same(request));
+      expect(transferRepo.recipientCalls, 1);
+      expect(transferRepo.lastRecipientRequest, same(request));
     });
 
     test('searches recipients by branch and account number', () async {
-      final transactionRepo = _FakeTransactionRepository(
+      final transferRepo = _FakeTransferRepository(
         recipientResult: Success([_recipientInfo()]),
       );
       final usecase = TransferUsecase(
         accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-        transactionRepo: transactionRepo,
+        transferRepo: transferRepo,
       );
 
       const request = RecipientRequestDto(
@@ -58,14 +58,14 @@ void main() {
       final result = await usecase.getInternalRecipient(request);
 
       expect(result, isA<Success<List<RecipientInfoDto>>>());
-      expect(transactionRepo.recipientCalls, 1);
-      expect(transactionRepo.lastRecipientRequest, same(request));
+      expect(transferRepo.recipientCalls, 1);
+      expect(transferRepo.lastRecipientRequest, same(request));
     });
 
     test('returns multiple recipient lookup results', () async {
       final usecase = TransferUsecase(
         accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-        transactionRepo: _FakeTransactionRepository(
+        transferRepo: _FakeTransferRepository(
           recipientResult: Success([
             _recipientInfo(accountId: 'acc-recipient-001'),
             _recipientInfo(accountId: 'acc-recipient-002'),
@@ -83,10 +83,10 @@ void main() {
     });
 
     test('fails before repository call when lookup query is empty', () async {
-      final transactionRepo = _FakeTransactionRepository();
+      final transferRepo = _FakeTransferRepository();
       final usecase = TransferUsecase(
         accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-        transactionRepo: transactionRepo,
+        transferRepo: transferRepo,
       );
 
       final result = await usecase.getInternalRecipient(
@@ -96,7 +96,7 @@ void main() {
       expect(result, isA<Failure<List<RecipientInfoDto>>>());
       expect(result.error?.code, AppErrorCode.invalidData);
       expect(result.error?.message, 'Recipient search query cannot be empty.');
-      expect(transactionRepo.recipientCalls, 0);
+      expect(transferRepo.recipientCalls, 0);
     });
   });
 
@@ -104,12 +104,12 @@ void main() {
     test(
       'builds ID-based transfer request from selected account and recipient',
       () async {
-        final transactionRepo = _FakeTransactionRepository(
+        final transferRepo = _FakeTransferRepository(
           transferResult: Success(_transferResponse()),
         );
         final usecase = TransferUsecase(
           accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-          transactionRepo: transactionRepo,
+          transferRepo: transferRepo,
         );
 
         final result = await usecase.transfer(
@@ -122,32 +122,32 @@ void main() {
         );
 
         expect(result, isA<Success<TransferResponseDto>>());
-        expect(transactionRepo.transferCalls, 1);
+        expect(transferRepo.transferCalls, 1);
         expect(
-          transactionRepo.lastTransferRequest?.fromAccountId,
+          transferRepo.lastTransferRequest?.fromAccountId,
           'acc-src-001',
         );
         expect(
-          transactionRepo.lastTransferRequest?.toAccountId,
+          transferRepo.lastTransferRequest?.toAccountId,
           'acc-recipient-001',
         );
-        expect(transactionRepo.lastTransferRequest?.amount, brl(2500));
+        expect(transferRepo.lastTransferRequest?.amount, brl(2500));
         expect(
-          transactionRepo.lastTransferRequest?.idempotencyKey,
+          transferRepo.lastTransferRequest?.idempotencyKey,
           'client-key-001',
         );
         expect(
-          transactionRepo.lastTransferRequest?.description,
+          transferRepo.lastTransferRequest?.description,
           'Aluguel de maio',
         );
       },
     );
 
     test('fails when selected recipient is missing', () async {
-      final transactionRepo = _FakeTransactionRepository();
+      final transferRepo = _FakeTransferRepository();
       final usecase = TransferUsecase(
         accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-        transactionRepo: transactionRepo,
+        transferRepo: transferRepo,
       );
 
       final result = await usecase.transfer(
@@ -164,16 +164,16 @@ void main() {
         result.error?.message,
         'Destination account ID cannot be empty or the same as the source account.',
       );
-      expect(transactionRepo.transferCalls, 0);
+      expect(transferRepo.transferCalls, 0);
     });
 
     test(
       'fails when selected recipient is the selected source account',
       () async {
-        final transactionRepo = _FakeTransactionRepository();
+        final transferRepo = _FakeTransferRepository();
         final usecase = TransferUsecase(
           accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-          transactionRepo: transactionRepo,
+          transferRepo: transferRepo,
         );
 
         final result = await usecase.transfer(
@@ -186,15 +186,15 @@ void main() {
 
         expect(result, isA<Failure<TransferResponseDto>>());
         expect(result.error?.code, AppErrorCode.invalidData);
-        expect(transactionRepo.transferCalls, 0);
+        expect(transferRepo.transferCalls, 0);
       },
     );
 
     test('fails when idempotency key is missing', () async {
-      final transactionRepo = _FakeTransactionRepository();
+      final transferRepo = _FakeTransferRepository();
       final usecase = TransferUsecase(
         accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-        transactionRepo: transactionRepo,
+        transferRepo: transferRepo,
       );
 
       final result = await usecase.transfer(
@@ -207,11 +207,11 @@ void main() {
         result.error?.message,
         'Idempotency key is required for transfer.',
       );
-      expect(transactionRepo.transferCalls, 0);
+      expect(transferRepo.transferCalls, 0);
     });
 
     test('propagates backend transfer failure', () async {
-      final transactionRepo = _FakeTransactionRepository(
+      final transferRepo = _FakeTransferRepository(
         transferResult: const Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -221,7 +221,7 @@ void main() {
       );
       final usecase = TransferUsecase(
         accountRepo: _FakeAccountRepository(selected: _selectedAccount()),
-        transactionRepo: transactionRepo,
+        transferRepo: transferRepo,
       );
 
       final result = await usecase.transfer(
@@ -235,7 +235,7 @@ void main() {
       expect(result, isA<Failure<TransferResponseDto>>());
       expect(result.error?.code, AppErrorCode.httpError);
       expect(result.error?.message, 'source account has insufficient funds');
-      expect(transactionRepo.transferCalls, 1);
+      expect(transferRepo.transferCalls, 1);
     });
   });
 }
@@ -311,8 +311,8 @@ class _FakeAccountRepository implements AccountRepository {
   }
 }
 
-class _FakeTransactionRepository implements TransactionRepository {
-  _FakeTransactionRepository({
+class _FakeTransferRepository implements TransferRepository {
+  _FakeTransferRepository({
     this.transferResult,
     this.recipientResult = const Success(<RecipientInfoDto>[]),
   });

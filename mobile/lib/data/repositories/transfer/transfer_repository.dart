@@ -5,7 +5,7 @@ import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
 
-abstract class TransactionRepository {
+abstract class TransferRepository {
   /// Returns the last transfer receipt successfully fetched in this session.
   TransferReceiptResponseDto? get lastReceipt;
 

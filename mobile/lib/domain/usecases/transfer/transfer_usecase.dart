@@ -1,6 +1,6 @@
 import '/core/result/command.dart';
 import '/data/repositories/account/account_repository.dart';
-import '/data/repositories/transaction/transaction_repository.dart';
+import '/data/repositories/transfer/transfer_repository.dart';
 import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
 import '/data/services/apis/account/dtos/balance_response_dto.dart';
 import '/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
@@ -14,13 +14,13 @@ export 'inputs/transfer_draft.dart';
 
 class TransferUsecase {
   final AccountRepository _accountRepo;
-  final TransactionRepository _transactionRepo;
+  final TransferRepository _transferRepo;
 
   TransferUsecase({
     required AccountRepository accountRepo,
-    required TransactionRepository transactionRepo,
+    required TransferRepository transferRepo,
   }) : _accountRepo = accountRepo,
-       _transactionRepo = transactionRepo;
+       _transferRepo = transferRepo;
 
   Stream<BalanceResponseDto> balance() => _accountRepo.balance();
 
@@ -68,12 +68,12 @@ class TransferUsecase {
       idempotencyKey: transfer.idempotencyKey,
     );
 
-    return _transactionRepo.transfer(dto);
+    return _transferRepo.transfer(dto);
   }
 
   AsyncResult<TransferReceiptResponseDto> getTransferReceipt(
     String reference,
-  ) => _transactionRepo.getTransferReceipt(reference);
+  ) => _transferRepo.getTransferReceipt(reference);
 
   AsyncResult<Unit> selectAccount(String accountId) async {
     _accountRepo.selectAccount(accountId);
@@ -103,6 +103,6 @@ class TransferUsecase {
       );
     }
 
-    return _transactionRepo.getInternalRecipient(recipient);
+    return _transferRepo.getInternalRecipient(recipient);
   }
 }
