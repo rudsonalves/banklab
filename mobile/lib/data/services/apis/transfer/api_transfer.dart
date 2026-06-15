@@ -27,13 +27,18 @@ class ApiTransfer {
       ),
     );
 
-    if (response.isFailure) return Result.failure(response.error!);
+    if (response.isFailure) {
+      final err = response.error!;
+      _log.error('HTTP request failed: ${err.message}', error: err);
+      return Result.failure(err);
+    }
 
     try {
       final resp = response.value as RestClientResponse;
       if (resp.statusCode == null ||
           resp.statusCode! < 200 ||
           resp.statusCode! >= 300) {
+        _log.error('HTTP error: ${resp.statusCode} ${resp.statusMessage}');
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -48,6 +53,7 @@ class ApiTransfer {
       );
 
       if (envelope.error case final error?) {
+        _log.error('API error: ${error.message}', error: error);
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
@@ -58,6 +64,7 @@ class ApiTransfer {
       }
 
       if (envelope.data == null) {
+        _log.error('No data received from the server.');
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
