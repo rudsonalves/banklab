@@ -17,10 +17,13 @@ This is an engineering-oriented app focused on integration quality, predictable 
 
 - authentication with JWT, including approval-pending login states before access is granted
 - multi-step account creation onboarding and account lifecycle interactions
-- transfer between accounts; the current API contract requires
-  `X-Step-Up-Token` from `POST /security/step-up/authorize` for
-  `POST /accounts/internal-transfers` with `method=POST` and
-  `path=/accounts/internal-transfers`
+- transfer between accounts with step-up authorization:
+  - user confirms transfer details
+  - app collects 6-digit transaction password (PIN)
+  - app authorizes transfer via `POST /security/step-up/authorize` with canonical method and path
+  - app sends returned step-up token in `X-Step-Up-Token` header to `POST /accounts/internal-transfers`
+  - step-up token is single-use and never persisted
+  - idempotency_key remains stable across step-up retries
 - transaction history visualization
 
 ## Local setup

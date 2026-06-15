@@ -6,9 +6,8 @@ import 'package:bankflow/data/services/cache/last_login/models/last_login_identi
 import 'package:bankflow/domain/common/auth/models/auth_session/auth_session.dart';
 import 'package:bankflow/domain/common/auth/models/auth_user.dart';
 import 'package:bankflow/domain/common/user/enums/user_role.dart';
-import 'package:bankflow/ui/pages/auth/login/viewmodel/login_viewmodel.dart';
 import 'package:bankflow/ui/pages/auth/models/post_login_destination.dart';
-import 'package:bankflow/ui/pages/auth/short_login/viewmodel/short_login_viewmodel.dart';
+import 'package:bankflow/ui/pages/auth/viewmodel/login_viewmodel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -99,7 +98,7 @@ void main() {
     test('uses the same post-login destination rules', () {
       final appSection = AppSection()
         ..setAuthSession(_session(status: TransactionPasswordStatus.notSet));
-      final viewModel = ShortLoginViewModel(
+      final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
         appSection: appSection,
       );

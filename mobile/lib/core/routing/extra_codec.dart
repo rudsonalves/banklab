@@ -1,8 +1,9 @@
 import 'dart:convert';
 
-import '../../data/services/apis/transfer/dtos/recipient_info_dto.dart';
-import '../../data/services/cache/last_login/models/last_login_identity.dart';
-import '../../ui/pages/home/transfer/models/transfer_confirmation_data.dart';
+import '/core/routing/models/transaction_password_setup_origin.dart';
+import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
+import '/data/services/cache/last_login/models/last_login_identity.dart';
+import '/ui/pages/transfer/models/transfer_confirmation_data.dart';
 
 class ExtraCodec extends Codec<Object?, String> {
   const ExtraCodec();
@@ -19,20 +20,6 @@ class _ExtraEncoder extends Converter<Object?, String> {
 
   @override
   String convert(Object? extra) {
-    if (extra is Map<String, Object?>) {
-      return jsonEncode({
-        'type': 'map',
-        'data': extra,
-      });
-    }
-
-    if (extra is List<Object?>) {
-      return jsonEncode({
-        'type': 'list',
-        'data': extra,
-      });
-    }
-
     if (extra is String || extra is num || extra is bool) {
       return jsonEncode({
         'type': 'primitive',
@@ -68,6 +55,13 @@ class _ExtraEncoder extends Converter<Object?, String> {
       });
     }
 
+    if (extra is TransactionPasswordSetupOrigin) {
+      return jsonEncode({
+        'type': 'transaction_password_setup_origin',
+        'data': extra.name,
+      });
+    }
+
     throw UnsupportedError('Unsupported type: ${extra.runtimeType}');
   }
 }
@@ -81,12 +75,6 @@ class _ExtraDecoder extends Converter<String, Object?> {
     final type = decoded['type'] as String;
 
     switch (type) {
-      case 'map':
-        return decoded['data'] as Map<String, Object?>;
-
-      case 'list':
-        return decoded['data'] as List<Object?>;
-
       case 'primitive':
         return decoded['data'];
 
@@ -104,6 +92,14 @@ class _ExtraDecoder extends Converter<String, Object?> {
         return LastLoginIdentity.fromMap(
           decoded['data'] as Map<String, dynamic>,
         );
+
+      case 'transaction_password_setup_origin':
+        final originName = decoded['data'] as String;
+        try {
+          return TransactionPasswordSetupOrigin.fromName(originName);
+        } on UnsupportedError {
+          return TransactionPasswordSetupOrigin.postLogin;
+        }
 
       default:
         throw UnsupportedError('Unsupported type: $type');

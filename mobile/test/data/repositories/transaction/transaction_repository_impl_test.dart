@@ -1,7 +1,7 @@
 import 'package:bankflow/core/resources/app_currencies.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
-import 'package:bankflow/data/repositories/transaction/transaction_repository_impl.dart';
+import 'package:bankflow/data/repositories/transfer/transfer_repository_impl.dart';
 import 'package:bankflow/data/services/apis/receipt/api_receipt.dart';
 import 'package:bankflow/data/services/apis/receipt/dtos/transfer_receipt_response_dto.dart';
 import 'package:bankflow/data/services/apis/transfer/api_transfer.dart';
@@ -17,12 +17,12 @@ Money brl(int cents) =>
     Money.fromBigIntWithCurrency(BigInt.from(cents), AppCurrencies.brl);
 
 void main() {
-  group('TransactionRepositoryImpl.transfer', () {
+  group('TransferRepositoryImpl.transfer', () {
     test('returns success and caches lastTransfer', () async {
       final transferApi = _FakeApiTransfer(
         transferResult: Success(_transferResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
@@ -31,10 +31,14 @@ void main() {
 
       final request = _validTransferRequest();
 
-      final result = await repository.transfer(request);
+      final result = await repository.transfer(
+        token: 'step-up-token',
+        dto: request,
+      );
 
       expect(result, isA<Success<TransferResponseDto>>());
       expect(transferApi.transferCalls, 1);
+      expect(transferApi.lastTransferToken, 'step-up-token');
       expect(transferApi.lastTransferRequest, same(request));
       expect(repository.lastTransfer?.transactionReference, 'tx-ref-001');
     });
@@ -43,14 +47,17 @@ void main() {
       final transferApi = _FakeApiTransfer(
         transferResult: Success(_transferResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
         ),
       );
 
-      final success = await repository.transfer(_validTransferRequest());
+      final success = await repository.transfer(
+        token: 'step-up-token',
+        dto: _validTransferRequest(),
+      );
       expect(success, isA<Success<TransferResponseDto>>());
       expect(repository.lastTransfer?.transactionReference, 'tx-ref-001');
 
@@ -61,12 +68,38 @@ void main() {
         ),
       );
 
-      final result = await repository.transfer(_validTransferRequest());
+      final result = await repository.transfer(
+        token: 'step-up-token',
+        dto: _validTransferRequest(),
+      );
 
       expect(result, isA<Failure<TransferResponseDto>>());
       expect(result.error?.code, AppErrorCode.httpError);
       expect(result.error?.message, 'source account has insufficient funds');
       expect(transferApi.transferCalls, 2);
+      expect(repository.lastTransfer, isNull);
+    });
+
+    test('fails before API call when step-up token is blank', () async {
+      final transferApi = _FakeApiTransfer(
+        transferResult: Success(_transferResponse()),
+      );
+      final repository = TransferRepositoryImpl(
+        apiTransfer: transferApi,
+        apiReceipt: _FakeApiReceipt(
+          receiptResult: Success(_receiptResponse()),
+        ),
+      );
+
+      final result = await repository.transfer(
+        token: '   ',
+        dto: _validTransferRequest(),
+      );
+
+      expect(result, isA<Failure<TransferResponseDto>>());
+      expect(result.error?.code, AppErrorCode.invalidData);
+      expect(result.error?.message, 'Step-up token is required.');
+      expect(transferApi.transferCalls, 0);
       expect(repository.lastTransfer, isNull);
     });
 
@@ -76,7 +109,7 @@ void main() {
         final transferApi = _FakeApiTransfer(
           transferResult: Success(_transferResponse()),
         );
-        final repository = TransactionRepositoryImpl(
+        final repository = TransferRepositoryImpl(
           apiTransfer: transferApi,
           apiReceipt: _FakeApiReceipt(
             receiptResult: Success(_receiptResponse()),
@@ -84,7 +117,8 @@ void main() {
         );
 
         final result = await repository.transfer(
-          TransferRequestDto(
+          token: 'step-up-token',
+          dto: TransferRequestDto(
             fromAccountId: '',
             toAccountId: 'acc-dst-001',
             amount: brl(2500),
@@ -104,7 +138,7 @@ void main() {
       final transferApi = _FakeApiTransfer(
         transferResult: Success(_transferResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
@@ -112,7 +146,8 @@ void main() {
       );
 
       final result = await repository.transfer(
-        TransferRequestDto(
+        token: 'step-up-token',
+        dto: TransferRequestDto(
           fromAccountId: 'acc-src-001',
           toAccountId: '',
           amount: brl(2500),
@@ -131,7 +166,7 @@ void main() {
       final transferApi = _FakeApiTransfer(
         transferResult: Success(_transferResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
@@ -139,7 +174,8 @@ void main() {
       );
 
       final result = await repository.transfer(
-        TransferRequestDto(
+        token: 'step-up-token',
+        dto: TransferRequestDto(
           fromAccountId: 'acc-src-001',
           toAccountId: 'acc-dst-001',
           amount: brl(0),
@@ -160,7 +196,7 @@ void main() {
       final receiptApi = _FakeApiReceipt(
         receiptResult: Success(_receiptResponse()),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: _FakeApiTransfer(
           transferResult: Success(_transferResponse()),
         ),
@@ -181,7 +217,7 @@ void main() {
         final receiptApi = _FakeApiReceipt(
           receiptResult: Success(_receiptResponse()),
         );
-        final repository = TransactionRepositoryImpl(
+        final repository = TransferRepositoryImpl(
           apiTransfer: _FakeApiTransfer(
             transferResult: Success(_transferResponse()),
           ),
@@ -225,7 +261,7 @@ void main() {
           ),
         ),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: _FakeApiTransfer(
           transferResult: Success(_transferResponse()),
         ),
@@ -257,7 +293,7 @@ void main() {
           ),
         ),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: _FakeApiTransfer(
           transferResult: Success(_transferResponse()),
         ),
@@ -282,7 +318,7 @@ void main() {
         transferResult: Success(_transferResponse()),
         recipientResult: Success([_recipientInfo()]),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -306,7 +342,7 @@ void main() {
           _recipientInfo(accountId: 'acc-recipient-002'),
         ]),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -327,7 +363,7 @@ void main() {
         transferResult: Success(_transferResponse()),
         recipientResult: const Success(<RecipientInfoDto>[]),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -346,7 +382,7 @@ void main() {
         transferResult: Success(_transferResponse()),
         recipientResult: Success([_recipientInfo()]),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -396,7 +432,7 @@ void main() {
             transferResult: Success(_transferResponse()),
             recipientResult: Failure(testCase.error),
           );
-          final repository = TransactionRepositoryImpl(
+          final repository = TransferRepositoryImpl(
             apiTransfer: transferApi,
             apiReceipt: _FakeApiReceipt(
               receiptResult: Success(_receiptResponse()),
@@ -428,7 +464,7 @@ void main() {
           ),
         ),
       );
-      final repository = TransactionRepositoryImpl(
+      final repository = TransferRepositoryImpl(
         apiTransfer: transferApi,
         apiReceipt: _FakeApiReceipt(receiptResult: Success(_receiptResponse())),
       );
@@ -501,12 +537,17 @@ class _FakeApiTransfer extends ApiTransfer {
   Result<List<RecipientInfoDto>> recipientResult;
   int transferCalls = 0;
   int recipientCalls = 0;
+  String? lastTransferToken;
   TransferRequestDto? lastTransferRequest;
   RecipientRequestDto? lastRecipientRequest;
 
   @override
-  AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto) async {
+  AsyncResult<TransferResponseDto> transfer({
+    required String token,
+    required TransferRequestDto dto,
+  }) async {
     transferCalls++;
+    lastTransferToken = token;
     lastTransferRequest = dto;
     return transferResult;
   }

@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '/core/routing/routes.dart';
 import '/ui/components/base/safe_scaffold.dart';
-import '/ui/components/buttons/big_button.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 
 class TransferStatusPage extends StatelessWidget {
@@ -61,23 +60,28 @@ class TransferStatusPage extends StatelessWidget {
       ),
       bottomNavigationBar: isSuccess
           ? DoubleBottomButton(
-              leftButtonLabel: 'Voltar',
+              leftButtonLabel: 'Cancelar',
               rightButtonLabel: 'Comprovante',
-              leftOnPressed: () => _navBack(context),
+              leftOnPressed: () => _navHome(context),
               rightOnPressed: () => _showReceipt(context),
               isRightEnabled: transactionReference != null,
               rightButtonIcon: const Icon(Icons.receipt_long_rounded),
             )
-          : BigButton(
-              label: 'Voltar',
-              onPressed: () => _navBack(context),
-              enabled: true,
+          : DoubleBottomButton(
+              leftButtonLabel: 'Cancelar',
+              rightButtonLabel: 'Novamente',
+              leftOnPressed: () => _navHome(context),
+              rightOnPressed: () => _navBack(context),
+              isRightEnabled: true,
+              rightButtonIcon: const Icon(Icons.refresh_rounded),
             ),
     );
   }
 
-  void _navBack(BuildContext context) {
-    context.goNamed(BaseRoutes.home.name);
+  void _navBack(BuildContext context) => context.pop();
+
+  void _navHome(BuildContext context) {
+    context.goNamed(BaseRoutes.home.routeName);
   }
 
   void _showReceipt(BuildContext context) {

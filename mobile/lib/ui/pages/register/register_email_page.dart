@@ -94,7 +94,8 @@ class _RegisterEmailPageState extends State<RegisterEmailPage> {
 
   void _navBack() => context.pop();
 
-  void _navToEmailToken() => context.pushNamed(RegisterRoutes.emailToken.name);
+  void _navToEmailToken() =>
+      context.pushNamed(RegisterRoutes.emailToken.routeName);
 
   void _emailChanged(String value) {
     _isDisabled.value = !value.isValidEmail;

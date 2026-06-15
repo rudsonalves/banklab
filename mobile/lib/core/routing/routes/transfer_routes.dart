@@ -1,27 +1,30 @@
 import 'package:go_router/go_router.dart';
 
 import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
-import '/ui/pages/home/transfer/models/transfer_confirmation_data.dart';
-import '/ui/pages/home/transfer/transfer_confirmation_page.dart';
-import '/ui/pages/home/transfer/transfer_payment_page.dart';
-import '/ui/pages/home/transfer/transfer_recipient_page.dart';
-import '/ui/pages/home/transfer/transfer_status_page.dart';
-import '/ui/pages/home/transfer/viewmodel/transfer_viewmodel.dart';
+import '/ui/pages/transaction_password/verification/transaction_password_input_page.dart';
+import '/ui/pages/transfer/models/transfer_confirmation_data.dart';
+import '/ui/pages/transfer/transfer_confirmation_page.dart';
+import '/ui/pages/transfer/transfer_payment_page.dart';
+import '/ui/pages/transfer/transfer_recipient_page.dart';
+import '/ui/pages/transfer/transfer_status_page.dart';
+import '/ui/pages/transfer/viewmodel/transfer_viewmodel.dart';
 import '../../config/dependencies.dart';
 import '../routes.dart';
 
 List<RouteBase> transferRoutes() => [
   GoRoute(
-    path: TransferRoutes.recipient.path,
-    name: TransferRoutes.recipient.name,
+    path: TransferRoutes.recipient.routePath,
+    name: TransferRoutes.recipient.routeName,
     builder: (context, state) => TransferRecipientPage(
       viewModel: injector.get<TransferViewmodel>(),
     ),
   ),
 
   GoRoute(
-    path: TransferRoutes.payment.path,
-    name: TransferRoutes.payment.name,
+    path: TransferRoutes.payment.routePath,
+    name: TransferRoutes.payment.routeName,
+    redirect: (context, state) =>
+        state.extra is RecipientInfoDto ? null : BaseRoutes.home.routePath,
     builder: (context, state) => TransferPaymentPage(
       viewModel: injector.get<TransferViewmodel>(),
       recipientInfo: state.extra as RecipientInfoDto,
@@ -29,8 +32,11 @@ List<RouteBase> transferRoutes() => [
   ),
 
   GoRoute(
-    path: TransferRoutes.confirmation.path,
-    name: TransferRoutes.confirmation.name,
+    path: TransferRoutes.confirmation.routePath,
+    name: TransferRoutes.confirmation.routeName,
+    redirect: (context, state) => state.extra is TransferConfirmationData
+        ? null
+        : BaseRoutes.home.routePath,
     builder: (context, state) => TransferConfirmationPage(
       viewModel: injector.get<TransferViewmodel>(),
       transferData: state.extra as TransferConfirmationData,
@@ -38,8 +44,14 @@ List<RouteBase> transferRoutes() => [
   ),
 
   GoRoute(
-    path: TransferRoutes.statusSuccess.path,
-    name: TransferRoutes.statusSuccess.name,
+    path: TransactionPasswordRoutes.transactionPassword.routePath,
+    name: TransactionPasswordRoutes.transactionPassword.routeName,
+    builder: (context, state) => const TransactionPasswordInputPage(),
+  ),
+
+  GoRoute(
+    path: TransferRoutes.statusSuccess.routePath,
+    name: TransferRoutes.statusSuccess.routeName,
     builder: (context, state) => TransferStatusPage(
       isSuccess: true,
       transactionReference: state.extra as String,
@@ -47,8 +59,8 @@ List<RouteBase> transferRoutes() => [
   ),
 
   GoRoute(
-    path: TransferRoutes.statusFailure.path,
-    name: TransferRoutes.statusFailure.name,
+    path: TransferRoutes.statusFailure.routePath,
+    name: TransferRoutes.statusFailure.routeName,
     builder: (context, state) => TransferStatusPage(
       isSuccess: false,
     ),

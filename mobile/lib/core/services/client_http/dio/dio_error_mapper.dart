@@ -6,6 +6,8 @@ const _accountApprovalRequiredBackendCode = 'ACCOUNT_APPROVAL_REQUIRED';
 const _accountApprovalRequiredMessage =
     'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar o app.';
 const _contactNotVerifiedBackendCode = 'CONTACT_NOT_VERIFIED';
+const _transactionPasswordLockedBackendCode = 'TRANSACTION_PASSWORD_LOCKED';
+const _transactionPasswordNotSetBackendCode = 'TRANSACTION_PASSWORD_NOT_SET';
 const _contactNotVerifiedGenericMessage =
     'Confirme seu e-mail e telefone antes de entrar.';
 const _contactNotVerifiedEmailOnlyMessage =
@@ -52,13 +54,14 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
       if (error is Map<String, dynamic>) {
         final backendCode = error['code'];
         final details = error['details'];
+        final appErrorDetails = _appErrorDetails(error);
 
         if (backendCode == _accountApprovalRequiredBackendCode) {
           return AppError(
             statusCode: response?.statusCode,
             code: AppErrorCode.accountApprovalRequired,
             message: _accountApprovalRequiredMessage,
-            details: error,
+            details: appErrorDetails,
           );
         }
 
@@ -67,7 +70,25 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
             statusCode: response?.statusCode,
             code: AppErrorCode.contactNotVerified,
             message: _contactNotVerifiedMessage(details),
-            details: details,
+            details: appErrorDetails,
+          );
+        }
+
+        if (backendCode == _transactionPasswordLockedBackendCode) {
+          return AppError(
+            statusCode: response?.statusCode,
+            code: AppErrorCode.transactionPasswordLocked,
+            message: error['message'] ?? 'Senha transacional bloqueada.',
+            details: appErrorDetails,
+          );
+        }
+
+        if (backendCode == _transactionPasswordNotSetBackendCode) {
+          return AppError(
+            statusCode: response?.statusCode,
+            code: AppErrorCode.transactionPasswordNotSet,
+            message: error['message'] ?? 'Senha transacional não configurada.',
+            details: appErrorDetails,
           );
         }
 
@@ -75,7 +96,7 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
           statusCode: response?.statusCode,
           code: AppErrorCode.httpError,
           message: error['message'] ?? err.message ?? 'Request error',
-          details: details ?? error,
+          details: appErrorDetails,
         );
       }
 
@@ -104,6 +125,20 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
     message: err.toString(),
     details: err,
   );
+}
+
+Map<String, dynamic> _appErrorDetails(Map<String, dynamic> error) {
+  final rawDetails = error['details'];
+  if (rawDetails is Map) {
+    return {
+      ...rawDetails.map(
+        (key, value) => MapEntry(key.toString(), value),
+      ),
+      if (error['code'] case final String code) 'code': code,
+    };
+  }
+
+  return Map<String, dynamic>.from(error);
 }
 
 String _contactNotVerifiedMessage(Object? details) {

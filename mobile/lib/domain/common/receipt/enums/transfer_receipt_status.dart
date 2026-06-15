@@ -26,8 +26,7 @@ enum TransferReceiptStatus {
   /// - Validation failed or business rules prevented execution
   /// - Examples: insufficient funds, account inactive, same account transfer
   /// - No funds were transferred
-  rejected('rejected')
-  ;
+  rejected('rejected');
 
   final String value;
 

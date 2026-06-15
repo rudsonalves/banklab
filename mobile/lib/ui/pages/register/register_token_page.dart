@@ -109,10 +109,10 @@ class _RegisterTokenPageState extends State<RegisterTokenPage> {
   void _navToNext() {
     switch (_tokenType) {
       case ContactVerificationChannel.email:
-        context.pushNamed(RegisterRoutes.phone.name);
+        context.pushNamed(RegisterRoutes.phone.routeName);
         break;
       case ContactVerificationChannel.phone:
-        context.pushNamed(RegisterRoutes.password.name);
+        context.pushNamed(RegisterRoutes.password.routeName);
         break;
     }
   }

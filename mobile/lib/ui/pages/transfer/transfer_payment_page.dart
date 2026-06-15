@@ -8,10 +8,10 @@ import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/cards/balance_card.dart';
 import '/ui/components/cards/recipient_card.dart';
+import '/ui/components/input_formatters/money_input_formatter.dart';
+import '/ui/components/input_text/basic_input_text.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '/ui/components/text/text_header.dart';
-import '../../../components/input_formatters/money_input_formatter.dart';
-import '../../../components/input_text/basic_input_text.dart';
 import 'models/transfer_confirmation_data.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 
@@ -42,7 +42,6 @@ class _TransferPaymentPageState extends State<TransferPaymentPage> {
     _amountController.dispose();
     _descriptionController.dispose();
     _amountIsValid.dispose();
-    _viewModel.dispose();
 
     super.dispose();
   }

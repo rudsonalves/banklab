@@ -6,13 +6,13 @@ import '/data/services/apis/transfer/dtos/recipient_info_dto.dart';
 import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
-import 'transaction_repository.dart';
+import 'transfer_repository.dart';
 
-class TransactionRepositoryImpl implements TransactionRepository {
+class TransferRepositoryImpl implements TransferRepository {
   final ApiTransfer _apiTransfer;
   final ApiReceipt _apiReceipt;
 
-  TransactionRepositoryImpl({
+  TransferRepositoryImpl({
     required ApiTransfer apiTransfer,
     required ApiReceipt apiReceipt,
   }) : _apiTransfer = apiTransfer,
@@ -28,7 +28,19 @@ class TransactionRepositoryImpl implements TransactionRepository {
   TransferResponseDto? get lastTransfer => _lastTransfer;
 
   @override
-  AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto) async {
+  AsyncResult<TransferResponseDto> transfer({
+    required String token,
+    required TransferRequestDto dto,
+  }) async {
+    if (token.trim().isEmpty) {
+      return const Failure(
+        AppError(
+          code: AppErrorCode.invalidData,
+          message: 'Step-up token is required.',
+        ),
+      );
+    }
+
     if (dto.fromAccountId.trim().isEmpty) {
       return const Failure(
         AppError(
@@ -56,7 +68,10 @@ class TransactionRepositoryImpl implements TransactionRepository {
       );
     }
 
-    final result = await _apiTransfer.transfer(dto);
+    final result = await _apiTransfer.transfer(
+      token: token,
+      dto: dto,
+    );
 
     _lastTransfer = result.isSuccess ? result.value : null;
 

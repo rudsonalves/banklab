@@ -1,7 +1,10 @@
 import '/core/result/result.dart';
 import '/core/services/app_section/app_section.dart';
 import '/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
+import '/data/services/apis/transaction_password/dtos/step_up_authorize_request_dto.dart';
+import '/data/services/apis/transaction_password/dtos/step_up_authorize_response_dto.dart';
 import '/data/services/apis/transaction_password/dtos/transaction_password_status_response_dto.dart';
+import '/data/services/apis/transaction_password/enums/step_up_operation.dart';
 import '/data/services/apis/transaction_password/enums/transaction_password_status.dart';
 import '/data/services/apis/transaction_password/transaction_password_api.dart';
 import 'transaction_password_repository.dart';
@@ -30,5 +33,26 @@ class TransactionPasswordRepositoryImpl
     }
 
     return Success(transPasswdResp);
+  }
+
+  @override
+  AsyncResult<StepUpAuthorizeResponseDto> authorizeInternalTransfer(
+    String transactionPassword,
+  ) async {
+    final dto = StepUpAuthorizeRequestDto(
+      operation: StepUpOperation.internalTransfer,
+      transactionPassword: transactionPassword,
+    );
+    final result = await _api.stepUpAuthorize(dto);
+
+    if (result.isFailure) {
+      final error = result.error!;
+      if (error.code == AppErrorCode.transactionPasswordNotSet) {
+        _appSection.markTransactionPasswordAsNotSet();
+      }
+      return Failure(error);
+    }
+
+    return Success(result.value!);
   }
 }

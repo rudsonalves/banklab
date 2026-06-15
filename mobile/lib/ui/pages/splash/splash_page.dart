@@ -130,6 +130,6 @@ class _SplashPageState extends State<SplashPage>
       return;
     }
 
-    context.goNamed(AuthRoutes.login.name);
+    context.goNamed(AuthRoutes.login.routeName);
   }
 }

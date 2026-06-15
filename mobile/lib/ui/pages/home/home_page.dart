@@ -5,6 +5,9 @@ import '/core/routing/route_observer.dart';
 import '/core/routing/routes.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/cards/balance_card.dart';
+import '../../../core/routing/models/transaction_password_setup_origin.dart';
+import '../../../data/services/apis/transaction_password/enums/transaction_password_status.dart';
+import '../../components/messages/app_snackbar.dart';
 import 'viewmodel/home_viewmodel.dart';
 import 'widgets/action_tite.dart';
 
@@ -131,10 +134,44 @@ class _HomePageState extends State<HomePage> with RouteAware {
   }
 
   void _navToStatement() {
-    context.pushNamed(BaseRoutes.statement.name);
+    context.pushNamed(BaseRoutes.statement.routeName);
   }
 
   void _navToTransferRecipient() {
-    context.pushNamed(TransferRoutes.recipient.name);
+    switch (_viewModel.transactionPasswordStatus) {
+      case TransactionPasswordStatus.notSet:
+        context.pushNamed(
+          TransactionPasswordRoutes.introduction.routeName,
+          extra: TransactionPasswordSetupOrigin.transfer,
+        );
+        break;
+
+      case TransactionPasswordStatus.active:
+        context.pushNamed(TransferRoutes.recipient.routeName);
+        break;
+
+      case TransactionPasswordStatus.locked:
+        AppSnackbar.show(
+          context,
+          type: SnackbarType.error,
+          title: 'Acesso bloqueado',
+          message:
+              'Sua senha transacional está bloqueada devido a múltiplas'
+              ' tentativas incorretas. Por favor, entre em contato com o'
+              ' suporte para desbloqueio.',
+        );
+        break;
+
+      case TransactionPasswordStatus.unknown:
+        AppSnackbar.show(
+          context,
+          type: SnackbarType.error,
+          title: 'Erro',
+          message:
+              'Não foi possível verificar o status da sua senha transacional.'
+              ' Por favor, tente novamente mais tarde.',
+        );
+        break;
+    }
   }
 }

@@ -12,7 +12,7 @@ class TransferDraft {
     required this.toAccountId,
     this.description,
     required this.amount,
-    this.idempotencyKey = '',
+    required this.idempotencyKey,
   });
 
   TransferDraft copyWith({

@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '/core/routing/routes.dart';
+import '/core/routing/models/transaction_password_setup_origin.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/input_text/token_input.dart';
 import '/ui/components/text/text_header.dart';
+import 'confirm_transaction_password_page.dart';
+import 'viewmodel/transaction_password_viewmodel.dart';
 
 class CreateTransactionPasswordPage extends StatefulWidget {
+  final TransactionPasswordSetupOrigin origin;
+  final TransactionPasswordViewModel viewModel;
+
   const CreateTransactionPasswordPage({
     super.key,
+    required this.origin,
+    required this.viewModel,
   });
 
   @override
@@ -20,11 +27,14 @@ class CreateTransactionPasswordPage extends StatefulWidget {
 class _CreateTransactionPasswordPageState
     extends State<CreateTransactionPasswordPage> {
   final ValueNotifier<bool> _isDisabled = ValueNotifier(true);
-  String _pin = '';
+  TransactionPasswordSetupOrigin get _origin => widget.origin;
+  TransactionPasswordViewModel get _viewModel => widget.viewModel;
+
+  String _token = '';
 
   @override
   void dispose() {
-    _pin = '';
+    _token = '';
     _isDisabled.dispose();
 
     super.dispose();
@@ -63,7 +73,7 @@ class _CreateTransactionPasswordPageState
           return DoubleBottomButton(
             leftButtonLabel: 'Voltar',
             rightButtonLabel: 'Continuar',
-            leftOnPressed: _navIntroduction,
+            leftOnPressed: _navBack,
             rightOnPressed: isDisabled ? null : _navToConfirmation,
             isRightEnabled: !isDisabled,
             rightButtonIcon: const Icon(Icons.arrow_forward_ios),
@@ -74,8 +84,8 @@ class _CreateTransactionPasswordPageState
   }
 
   void _onPinChanged(String value) {
-    _pin = value.trim();
-    _isDisabled.value = _pin.length != 6;
+    _token = value.trim();
+    _isDisabled.value = _token.length != 6;
   }
 
   void _onPinCompleted(String value) {
@@ -83,15 +93,21 @@ class _CreateTransactionPasswordPageState
     FocusScope.of(context).unfocus();
   }
 
-  void _navIntroduction() =>
-      context.goNamed(TransactionPasswordRoutes.introduction.name);
+  void _navBack() => context.pop();
 
-  void _navToConfirmation() {
-    if (_pin.length != 6) return;
+  Future<void> _navToConfirmation() async {
+    if (_token.length != 6) return;
 
-    context.pushNamed(
-      TransactionPasswordRoutes.confirm.name,
-      extra: _pin,
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => ConfirmTransactionPasswordPage(
+          token: _token,
+          origin: _origin,
+          viewModel: _viewModel,
+        ),
+      ),
     );
+
+    if (!mounted) return;
   }
 }

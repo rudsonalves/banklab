@@ -50,14 +50,14 @@ class AuthRepositoryImpl implements AuthRepository {
     await _storage.write(StorageKeys.accessToken, user.accessToken);
     await _storage.write(StorageKeys.refreshToken, user.refreshToken);
 
-    final profileResult = await getAuthSession();
-    if (profileResult.isFailure) {
+    final authSessionResult = await getAuthSession();
+    if (authSessionResult.isFailure) {
       // If fetching the profile fails, we should log out to clear any partial state.
       await logout();
-      return Result.failure(profileResult.error!);
+      return Result.failure(authSessionResult.error!);
     }
 
-    _appSection.setAuthSession(profileResult.value!);
+    _appSection.setAuthSession(authSessionResult.value!);
     final lastLoginIdentity = LastLoginIdentity(
       name: _appSection.customer?.name ?? '***',
       identifier: _appSection.user?.email ?? user.email,
@@ -82,10 +82,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   AsyncResult<Unit> logout() async {
+    _appSection.clear();
     if (!isLoggedIn) return Success(unit);
 
     _currentUser = NotLoggedUser();
-    _appSection.clear();
 
     await _storage.delete(StorageKeys.accessToken);
     await _storage.delete(StorageKeys.refreshToken);

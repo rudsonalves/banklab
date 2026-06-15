@@ -8,6 +8,13 @@ import '../client/rest_client_response.dart';
 import 'dio_error_mapper.dart';
 
 class DioRestClient implements RestClient {
+  static const _redactedHeaderValue = '<redacted>';
+  static const _sensitiveHeaders = {
+    'authorization',
+    'x-app-token',
+    'x-step-up-token',
+  };
+
   final Dio _dio;
 
   DioRestClient({
@@ -18,6 +25,7 @@ class DioRestClient implements RestClient {
 
   @override
   AsyncResult<RestClientResponse> get(RestClientRequest request) {
+    _logRequest('GET', request);
     return _request(
       () => _dio.get(
         request.path,
@@ -29,7 +37,7 @@ class DioRestClient implements RestClient {
 
   @override
   AsyncResult<RestClientResponse> post(RestClientRequest request) {
-    _log.info('POST ${request.path} - Headers: ${request.headers}');
+    _logRequest('POST', request);
     return _request(
       () => _dio.post(
         request.path,
@@ -42,7 +50,7 @@ class DioRestClient implements RestClient {
 
   @override
   AsyncResult<RestClientResponse> put(RestClientRequest request) {
-    _log.info('PUT ${request.path} - Headers: ${request.headers}');
+    _logRequest('PUT', request);
     return _request(
       () => _dio.put(
         request.path,
@@ -55,6 +63,7 @@ class DioRestClient implements RestClient {
 
   @override
   AsyncResult<RestClientResponse> patch(RestClientRequest request) {
+    _logRequest('PATCH', request);
     return _request(
       () => _dio.patch(
         request.path,
@@ -67,6 +76,7 @@ class DioRestClient implements RestClient {
 
   @override
   AsyncResult<RestClientResponse> delete(RestClientRequest request) {
+    _logRequest('DELETE', request);
     return _request(
       () => _dio.delete(
         request.path,
@@ -77,6 +87,29 @@ class DioRestClient implements RestClient {
     );
   }
 
+  /// Logs the HTTP request method, path, and headers, redacting sensitive
+  /// header values.
+  void _logRequest(String method, RestClientRequest request) {
+    final headers = request.headers;
+    if (headers == null || headers.isEmpty) {
+      _log.info('$method ${request.path}');
+      return;
+    }
+
+    final sanitizedHeaders = headers.map(
+      (name, value) => MapEntry(
+        name,
+        _sensitiveHeaders.contains(name.toLowerCase())
+            ? _redactedHeaderValue
+            : value,
+      ),
+    );
+    _log.info('$method ${request.path} - Headers: $sanitizedHeaders');
+  }
+
+  /// Executes the given HTTP call and maps the response to a [RestClientResponse].
+  /// If an error occurs, it maps the error to an [AppError] and logs
+  /// it appropriately.
   AsyncResult<RestClientResponse> _request(
     Future<Response> Function() call,
   ) async {
@@ -106,6 +139,8 @@ class DioRestClient implements RestClient {
     }
   }
 
+  /// Determines whether the given error should be logged as a technical error
+  /// based on its type and status code.
   bool _shouldLogAsTechnicalError(Object err, AppError error) {
     if (err is DioException) {
       final statusCode = err.response?.statusCode;

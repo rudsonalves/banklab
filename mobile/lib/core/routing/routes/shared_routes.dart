@@ -7,8 +7,8 @@ import '../routes.dart';
 
 List<RouteBase> sharedRoutes() => [
   GoRoute(
-    path: SharedRoutes.details.path,
-    name: SharedRoutes.details.name,
+    path: SharedRoutes.details.routePath,
+    name: SharedRoutes.details.routeName,
     builder: (context, state) => DetailsPage(
       viewModel: injector.get<DetailsViewmodel>(),
       reference: state.extra as String,

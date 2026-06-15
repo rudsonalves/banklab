@@ -138,38 +138,51 @@ Transfer-related functionality is implemented at the client level:
 - transfer payment flow
 - transfer result/status flow
 - receipt visualization after transfer
+- **step-up authorization with transaction password before transfer execution**
 
 Relevant files include:
 
-- [TransactionRepositoryImpl](../lib/data/repositories/transaction/transaction_repository_impl.dart)
+- [TransferRepositoryImpl](../lib/data/repositories/transfer/transfer_repository_impl.dart)
+- [TransferUsecase](../lib/domain/usecases/transfer/transfer_usecase.dart)
+- [TransactionPasswordRepository](../lib/data/repositories/transaction_password/transaction_password_repository.dart)
+- [TransactionPasswordApi](../lib/data/services/apis/transaction_password/transaction_password_api.dart)
 - [ApiTransfer](../lib/data/services/apis/transfer/api_transfer.dart)
 - [ApiReceipt](../lib/data/services/apis/receipt/api_receipt.dart)
-- [TransferPage](../lib/ui/pages/home/transfer/transfer_recipient_page.dart)
-- [TransferConfirmationPage](../lib/ui/pages/home/transfer/transfer_confirmation_page.dart)
-- [TransferPaymentPage](../lib/ui/pages/home/transfer/transfer_payment_page.dart)
-- [TransferStatusPage](../lib/ui/pages/home/transfer/transfer_status_page.dart)
-- [TransferViewModel](../lib/ui/pages/home/transfer/viewmodel/transfer_viewmodel.dart)
+- [TransferPage](../lib/ui/pages/transfer/transfer_recipient_page.dart)
+- [TransferConfirmationPage](../lib/ui/pages/transfer/transfer_confirmation_page.dart)
+- [TransferPaymentPage](../lib/ui/pages/transfer/transfer_payment_page.dart)
+- [TransferStatusPage](../lib/ui/pages/transfer/transfer_status_page.dart)
+- [TransactionPasswordInputPage](../lib/ui/pages/transaction_password/verification/transaction_password_input_page.dart)
+- [TransferViewModel](../lib/ui/pages/transfer/viewmodel/transfer_viewmodel.dart)
 
 Implemented transfer behavior:
 
 - the app can search and select an internal recipient
 - the app can confirm a transfer before submitting it
-- the app can submit the transfer request
+- **the app collects a 6-digit transaction password (PIN) after confirmation**
+- **the app requests step-up authorization with the PIN via POST /security/step-up/authorize**
+- **the app sends the returned step-up token to POST /accounts/internal-transfers**
+- the app can submit the protected transfer request
 - the app can show the final transfer status
 - the app can retrieve and display transfer receipts
 - transfer and receipt flows are coordinated through domain use cases where
   multi-repository orchestration is needed
+- step-up token is single-use and never persisted; retry requires new PIN entry
+- idempotency_key remains stable across step-up authorization retries
 
-API contract note:
+API contract details:
 
-- the backend now requires `POST /accounts/internal-transfers` to include
-  `X-Step-Up-Token`
+- the backend requires `POST /accounts/internal-transfers` to include
+  `X-Step-Up-Token` header
 - the token must be issued by `POST /security/step-up/authorize` for
-  the public operation `method=POST` and
-  `path=/accounts/internal-transfers`
+  the canonical method `POST` and path `/accounts/internal-transfers`
 - the token is single-use; after `STEP_UP_TOKEN_CONSUMED`, the client must
   request a new step-up token before retrying the transfer
 - retrying with the same `idempotency_key` may still require a new step-up token
+- backend error codes for step-up (`TRANSACTION_PASSWORD_INVALID`,
+  `STEP_UP_TOKEN_EXPIRED`, `STEP_UP_TOKEN_CONSUMED`, etc.) are preserved in
+  client errors for flow decisions
+- PIN and step-up token are never logged, cached, or persisted
 
 ## Routing And Navigation
 

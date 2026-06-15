@@ -9,8 +9,8 @@ import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/cards/recipient_card.dart';
 import '/ui/components/input_formatters/cpf_input_formatter.dart';
+import '/ui/components/input_text/basic_input_text.dart';
 import '/ui/components/text/text_header.dart';
-import '../../../components/input_text/basic_input_text.dart';
 import 'viewmodel/transfer_viewmodel.dart';
 import 'widgets/dropdown_recipient.dart';
 
@@ -37,7 +37,6 @@ class _TransferRecipientPageState extends State<TransferRecipientPage> {
     _branchController.dispose();
     _accountController.dispose();
     _selectedRecipient.dispose();
-    _viewModel.dispose();
 
     super.dispose();
   }

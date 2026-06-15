@@ -5,7 +5,7 @@ import '/data/services/apis/transfer/dtos/recipient_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_request_dto.dart';
 import '/data/services/apis/transfer/dtos/transfer_response_dto.dart';
 
-abstract class TransactionRepository {
+abstract class TransferRepository {
   /// Returns the last transfer receipt successfully fetched in this session.
   TransferReceiptResponseDto? get lastReceipt;
 
@@ -17,7 +17,10 @@ abstract class TransactionRepository {
   /// Returns a failure when the origin account data is missing, when the
   /// destination account data is missing, or when the transfer amount is not
   /// greater than zero.
-  AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto);
+  AsyncResult<TransferResponseDto> transfer({
+    required String token,
+    required TransferRequestDto dto,
+  });
 
   /// Fetches the receipt for a transfer identified by its transaction
   /// reference.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../data/services/apis/account/dtos/account_summary_response_dto.dart';
+import '/data/services/apis/account/dtos/account_summary_response_dto.dart';
 
 class AccountDropdown extends StatelessWidget {
   final List<AccountSummaryResponseDto> accounts;

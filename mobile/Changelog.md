@@ -1,5 +1,75 @@
 # Changelog
 
+## 2026/06/13 — step-up/transferencia-interna
+
+Implements complete step-up authorization for internal transfers, securing the `POST /accounts/internal-transfers` endpoint with transaction password verification and step-up token authorization. This ensures sensitive transfer operations require explicit user authentication through a dedicated step-up flow.
+
+### 1. Transaction Password Service Layer
+
+* Extended `TransactionPasswordApi` with `stepUpAuthorize()` method
+  * Calls `POST /security/step-up/authorize` with transaction password
+  * Sends canonical method (`POST`) and path (`/accounts/internal-transfers`)
+  * Returns `step_up_token` and `expires_in` from response
+  * Preserves backend error codes for flow decisions
+* Added `StepUpAuthorizeRequestDto` and `StepUpAuthorizeResponseDto` for serialization
+
+### 2. Repository Authorization Boundary
+
+* Expanded `TransactionPasswordRepository` to expose step-up authorization
+  * Encapsulates API details from domain layer
+  * Returns token and expiration in memory (never persisted)
+  * Preserves backend error codes for policy decisions
+  * Method signature hides internal path/method constants
+
+### 3. Transfer Protection Layer
+
+* Modified `TransferRepository` and `ApiTransfer` to accept step-up token
+  * Renamed method parameter to clarify protected nature
+  * Sends `X-Step-Up-Token` header in `POST /accounts/internal-transfers`
+  * Token flows as runtime parameter, never stored
+* Added `ProtectedTransferInput` domain model
+  * Wraps `TransferDraft` and transaction password (PIN)
+  * Enables use case to coordinate authorization and transfer atomicity
+
+### 4. Use Case Coordination
+
+* Enhanced `TransferUsecase` to orchestrate protected transfer flow
+  * Injects `TransactionPasswordRepository` for authorization
+  * Receives the `idempotency_key` generated once by the confirmation flow
+  * Calls authorization before transfer execution
+  * Discards token after single transfer attempt
+  * Preserves `idempotency_key` across step-up retries
+  * Maintains clear error propagation for both authorization and transfer
+
+### 5. UI Entry Point
+
+* Added `TransactionPasswordInputPage` stateful widget
+  * Replaces ViewModel-based PIN entry with simpler stateful component
+  * Collects 6-digit transaction password securely
+  * Returns PIN via `context.pop()` to parent confirmation flow
+  * No persistence, caching, or state pollution
+* Routes updated in `TransferRoutes` to reference new page location
+
+### 6. Architecture Alignment
+
+* Entire feature respects layered architecture:
+  * UI collects PIN, no storage
+  * Use case handles orchestration and token lifecycle
+  * Repository abstracts API details
+  * API service maintains endpoint contracts
+  * Domain models encapsulate business inputs and outputs
+* Error handling preserved: backend error codes flow unchanged to caller
+* Test coverage: 315 tests passing, including step-up authorization, protected transfer execution, and retry logic
+
+### 7. Known Constraints
+
+* Token expires and is discarded after single transfer attempt
+* Retry of expired/consumed token requires new PIN entry
+* PIN is never logged or persisted, maintaining security boundary
+* Step-up is exclusive to `POST /accounts/internal-transfers`; other endpoints unaffected
+
+---
+
 ## 2026/04/10 — infra/layout-01
 
 Introduces a **UI layout standardization layer** for the Flutter application, centralizing structural concerns and improving consistency across authentication screens, while also refining routing behavior and state handling patterns.

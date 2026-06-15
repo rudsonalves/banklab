@@ -6,6 +6,63 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('mapHttpError', () {
     test(
+      'maps TRANSACTION_PASSWORD_LOCKED to transactionPasswordLocked',
+      () {
+        final error = mapHttpError(
+          DioException(
+            requestOptions: RequestOptions(path: '/security/step-up/authorize'),
+            type: DioExceptionType.badResponse,
+            response: Response(
+              requestOptions: RequestOptions(
+                path: '/security/step-up/authorize',
+              ),
+              statusCode: 403,
+              data: {
+                'error': {
+                  'code': 'TRANSACTION_PASSWORD_LOCKED',
+                  'message': 'Transaction password is locked',
+                },
+              },
+            ),
+          ),
+        );
+
+        expect(error.code, AppErrorCode.transactionPasswordLocked);
+        expect(error.statusCode, 403);
+        expect(error.message, 'Transaction password is locked');
+        expect(
+          backendErrorCode(error),
+          'TRANSACTION_PASSWORD_LOCKED',
+        );
+      },
+    );
+
+    test('preserves backend code when the error contains details', () {
+      final error = mapHttpError(
+        _dioBadResponse(
+          statusCode: 401,
+          data: {
+            'error': {
+              'code': 'STEP_UP_TOKEN_EXPIRED',
+              'message': 'Step-up token expired',
+              'details': {'expired_at': '2026-06-12T12:00:00Z'},
+            },
+          },
+        ),
+      );
+
+      expect(error.code, AppErrorCode.httpError);
+      expect(backendErrorCode(error), 'STEP_UP_TOKEN_EXPIRED');
+      expect(
+        error.details,
+        {
+          'code': 'STEP_UP_TOKEN_EXPIRED',
+          'expired_at': '2026-06-12T12:00:00Z',
+        },
+      );
+    });
+
+    test(
       'maps ACCOUNT_APPROVAL_REQUIRED to accountApprovalRequired with approved message',
       () {
         final error = mapHttpError(
@@ -72,6 +129,7 @@ void main() {
       expect(error.statusCode, 403);
       expect(error.details, isA<Map<String, dynamic>>());
       final details = error.details! as Map<String, dynamic>;
+      expect(details['code'], 'CONTACT_NOT_VERIFIED');
       expect(details['email_verified'], isFalse);
       expect(details['phone_verified'], isFalse);
     });
@@ -139,7 +197,7 @@ void main() {
       expect(error.code, AppErrorCode.contactNotVerified);
       expect(error.message, 'Confirme seu e-mail e telefone antes de entrar.');
       expect(error.statusCode, 403);
-      expect(error.details, isNull);
+      expect(backendErrorCode(error), 'CONTACT_NOT_VERIFIED');
     });
 
     test('keeps generic forbidden as httpError when code is not approval', () {

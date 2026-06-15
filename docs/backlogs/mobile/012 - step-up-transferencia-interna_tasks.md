@@ -34,11 +34,10 @@ localmente o estado da senha transacional após sua criação.
 - Tratar `TRANSACTION_PASSWORD_ALREADY_SET` como inconsistência defensiva:
   permanecer no cadastro, sem navegar e sem atualizar o snapshot
   otimisticamente.
-- Disponibilizar atualização remota explícita que ignore o snapshot atual
-  somente para a inconsistência defensiva `TRANSACTION_PASSWORD_NOT_SET`
-  recebida durante o step-up.
-- Na atualização remota explícita, substituir o snapshot apenas após resposta
-  válida e preservar o anterior em caso de falha.
+- Ao receber `TRANSACTION_PASSWORD_NOT_SET` durante o step-up, atualizar
+  localmente o `transactionPasswordStatus` do `AppSection` para `not_set`.
+- Usar o erro retornado pelo backend como informação autoritativa, sem consultar
+  novamente `GET /auth/session`.
 - Não consultar novamente `GET /auth/session` na entrada normal da
   transferência.
 
@@ -52,12 +51,12 @@ localmente o estado da senha transacional após sua criação.
   de sessão.
 - `TRANSACTION_PASSWORD_ALREADY_SET` não libera Home ou transferência e não
   altera o snapshot.
-- A atualização remota defensiva consulta `GET /auth/session`, substitui o
-  snapshot somente em sucesso e mantém a falha identificável por `AppError`.
+- `TRANSACTION_PASSWORD_NOT_SET` atualiza localmente o snapshot para `not_set`
+  sem nova consulta de sessão.
 - A entrada normal da transferência não provoca nova consulta de sessão.
 - Testes cobrem ciclo do `AppSection`, atualização local após criação,
-  atualização remota defensiva e ausência de refresh na entrada da
-  transferência.
+  atualização local após `TRANSACTION_PASSWORD_NOT_SET` e ausência de refresh
+  na entrada da transferência.
 
 ### Depende de
 
@@ -88,7 +87,6 @@ conforme sua origem.
   status no `AppSection` for `active`.
 - Em falha de criação, permanecer no cadastro.
 - Em cancelamento iniciado pela Home, retornar à Home.
-- Limpar PIN e confirmação ao concluir, cancelar ou falhar uma tentativa.
 
 ### Critérios de aceite
 
@@ -114,18 +112,13 @@ Decidir o destino correto quando o usuário tocar em **Transferir**.
 
 ### Escopo
 
-- Criar operação no `HomeViewmodel` ou use case dedicado para preparar a
-  entrada da transferência.
-- Consultar `AppSection.currentSession`, carregado durante o login.
-- Retornar estado tipado para:
+- Expor no `HomeViewmodel` o `TransactionPasswordStatus` armazenado no
+  `AppSection`, carregado durante o login.
+- Atualizar o botão **Transferir** para tratar o status na UI:
   - abrir transferência quando `active`;
   - abrir cadastro quando `not_set`;
-  - bloquear quando `locked`;
-  - bloquear quando `unknown`;
-  - apresentar erro quando o snapshot estiver ausente.
-- Atualizar o botão **Transferir** para executar essa operação.
-- Bloquear toques concorrentes enquanto a verificação estiver em andamento.
-- Manter o usuário na Home em falha ou estado bloqueado.
+  - permanecer na Home e informar o bloqueio quando `locked`;
+  - permanecer na Home e apresentar erro quando `unknown`.
 - Não fazer a `HomePage` interpretar diretamente o snapshot da sessão.
 
 ### Critérios de aceite
@@ -133,9 +126,6 @@ Decidir o destino correto quando o usuário tocar em **Transferir**.
 - `active` abre `TransferRoutes.recipient`.
 - `not_set` abre o cadastro com destino `internalTransfer`.
 - `locked` e `unknown` não abrem cadastro nem transferência.
-- Snapshot ausente mantém o usuário na Home.
-- A decisão não chama novamente `GET /auth/session`.
-- Múltiplos toques não iniciam verificações ou navegações concorrentes.
 - Testes cobrem todos os estados.
 
 ### Depende de
@@ -408,9 +398,9 @@ Tratar erros ZTA por código e preservar a tentativa correta.
 - Para token expirado ou consumido, manter o draft e a `idempotency_key`.
 - Não navegar para a tela genérica de falha antes de oferecer novo step-up para
   token expirado ou consumido.
-- Para `TRANSACTION_PASSWORD_NOT_SET`, descartar a tentativa, executar a
-  atualização remota explícita da sessão, retornar à Home e exigir nova
-  verificação no botão **Transferir**.
+- Para `TRANSACTION_PASSWORD_NOT_SET`, descartar a tentativa, manter a
+  atualização local do `AppSection`, retornar à Home e exigir nova verificação
+  no botão **Transferir**.
 - Preservar tratamento dos erros de negócio já existentes.
 
 ### Critérios de aceite
@@ -421,7 +411,7 @@ Tratar erros ZTA por código e preservar a tentativa correta.
 - Token expirado ou consumido reabre o step-up com a mesma idempotência.
 - Token anterior nunca é reutilizado.
 - `TRANSACTION_PASSWORD_NOT_SET` não abre cadastro diretamente da confirmação.
-- `TRANSACTION_PASSWORD_NOT_SET` tenta atualizar remotamente o `AppSection`
+- `TRANSACTION_PASSWORD_NOT_SET` mantém o `AppSection` local como `not_set`
   antes do retorno à Home.
 - Erros de negócio continuam chegando ao fluxo de status existente.
 - Testes cobrem todos os códigos ZTA listados.
@@ -483,8 +473,8 @@ coerente.
 - Completar testes de repositories e use cases.
 - Completar testes de view models.
 - Cobrir atualização local do `AppSection` após criação.
-- Cobrir atualização remota da sessão após
-  `TRANSACTION_PASSWORD_NOT_SET` defensivo.
+- Cobrir atualização local do `AppSection` após
+  `TRANSACTION_PASSWORD_NOT_SET` defensivo, sem nova consulta de sessão.
 - Cobrir uso do snapshot já carregado na entrada da transferência, sem nova
   chamada de sessão.
 - Cobrir destinos `postLogin` e `internalTransfer`.

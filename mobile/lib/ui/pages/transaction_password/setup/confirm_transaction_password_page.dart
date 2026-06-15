@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '/core/result/result.dart';
+import '/core/routing/models/transaction_password_setup_origin.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/transaction_password/dtos/create_transaction_password_request_dto.dart';
 import '/ui/components/base/safe_scaffold.dart';
@@ -15,13 +16,15 @@ const _pinMismatchMessage = 'A confirmação deve ser igual à senha criada.';
 const _alreadySetMessage = 'Sua senha transacional já está cadastrada.';
 
 class ConfirmTransactionPasswordPage extends StatefulWidget {
+  final String token;
+  final TransactionPasswordSetupOrigin origin;
   final TransactionPasswordViewModel viewModel;
-  final String pin;
 
   const ConfirmTransactionPasswordPage({
     super.key,
+    required this.token,
+    required this.origin,
     required this.viewModel,
-    required this.pin,
   });
 
   @override
@@ -32,6 +35,8 @@ class ConfirmTransactionPasswordPage extends StatefulWidget {
 class _ConfirmTransactionPasswordPageState
     extends State<ConfirmTransactionPasswordPage> {
   TransactionPasswordViewModel get _viewModel => widget.viewModel;
+  TransactionPasswordSetupOrigin get _origin => widget.origin;
+  String get _token => widget.token;
 
   final ValueNotifier<bool> _isDisabled = ValueNotifier(true);
   String _confirmation = '';
@@ -112,7 +117,7 @@ class _ConfirmTransactionPasswordPageState
   Future<void> _submit() async {
     if (_confirmation.length != 6) return;
 
-    if (_confirmation != widget.pin) {
+    if (_confirmation != _token) {
       AppSnackbar.show(
         context,
         type: SnackbarType.error,
@@ -122,7 +127,7 @@ class _ConfirmTransactionPasswordPageState
     }
 
     final transPasswdRequest = CreateTransactionPasswordRequestDto(
-      password: widget.pin,
+      password: _token,
       confirmation: _confirmation,
     );
     await _viewModel.create.execute(transPasswdRequest);
@@ -145,8 +150,15 @@ class _ConfirmTransactionPasswordPageState
     }
 
     _clearSensitiveState();
-    context.goNamed(BaseRoutes.home.name);
-    return;
+
+    switch (_origin) {
+      case TransactionPasswordSetupOrigin.postLogin:
+        context.goNamed(BaseRoutes.home.routeName);
+        break;
+      case TransactionPasswordSetupOrigin.transfer:
+        context.goNamed(TransferRoutes.recipient.routeName);
+        break;
+    }
   }
 
   void _errorSession(AppError error) {

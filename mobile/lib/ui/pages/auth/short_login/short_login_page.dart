@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '/core/result/result.dart';
+import '/core/routing/models/transaction_password_setup_origin.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
+import '/ui/components/input_text/basic_input_text.dart';
 import '/ui/components/messages/app_snackbar.dart';
-import '../../../components/input_text/basic_input_text.dart';
 import '../models/post_login_destination.dart';
-import 'viewmodel/short_login_viewmodel.dart';
+import '../viewmodel/login_viewmodel.dart';
 
 const _accountApprovalRequiredMessage =
     'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar sua conta.';
@@ -26,7 +27,7 @@ const _postLoginSessionErrorMessage =
     'Não foi possível carregar sua sessão. Entre novamente.';
 
 class ShortLoginPage extends StatefulWidget {
-  final ShortLoginViewModel viewModel;
+  final LoginViewModel viewModel;
   final LastLoginIdentity identity;
 
   const ShortLoginPage({
@@ -40,7 +41,7 @@ class ShortLoginPage extends StatefulWidget {
 }
 
 class _ShortLoginPageState extends State<ShortLoginPage> {
-  late final ShortLoginViewModel _viewModel;
+  late final LoginViewModel _viewModel;
 
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
@@ -181,7 +182,7 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
   }
 
   void _navToLogin() {
-    context.goNamed(AuthRoutes.login.name);
+    context.goNamed(AuthRoutes.login.routeName);
   }
 
   void _obscurePasswordListener() {
@@ -223,11 +224,14 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
     switch (destination) {
       case PostLoginDestination.home:
-        context.goNamed(BaseRoutes.home.name);
+        context.goNamed(BaseRoutes.home.routeName);
         return;
 
       case PostLoginDestination.transactionPassword:
-        context.goNamed(TransactionPasswordRoutes.introduction.name);
+        context.goNamed(
+          TransactionPasswordRoutes.introduction.routeName,
+          extra: TransactionPasswordSetupOrigin.postLogin,
+        );
         return;
 
       case PostLoginDestination.blocked:

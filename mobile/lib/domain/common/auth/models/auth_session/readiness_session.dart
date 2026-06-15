@@ -1,4 +1,4 @@
-import 'enums/transaction_password_status.dart';
+import '../../../../../data/services/apis/transaction_password/enums/transaction_password_status.dart';
 
 class ReadinessSession {
   final bool onboardingCompleted;

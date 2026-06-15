@@ -40,7 +40,7 @@ Current page layout:
 - `home/home_page.dart`
 - `home/viewmodel/home_viewmodel.dart`
 - `home/widgets/...`
-- `home/transfer/models/...`
+- `transfer/models/...`
 
 Prefer this layout for new pages:
 
@@ -126,7 +126,7 @@ Good examples:
 
 Current example:
 
-- `home/transfer/models/transfer_confirmation_data.dart`
+- `transfer/models/transfer_confirmation_data.dart`
 
 Keep these models out of `domain/usecases/inputs` unless they are the actual
 input contract consumed by a use case. For example, `TransferDraft` belongs to

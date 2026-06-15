@@ -27,4 +27,6 @@ enum AppErrorCode {
 
   // Transaction password-specific
   transactionPasswordAlreadySet,
+  transactionPasswordLocked,
+  transactionPasswordNotSet,
 }

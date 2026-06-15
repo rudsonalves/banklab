@@ -1,15 +1,19 @@
 enum TransactionPasswordStatus {
   active,
-  blocked;
+  notSet,
+  locked,
+  unknown;
 
-  factory TransactionPasswordStatus.byName(String value) {
-    switch (value) {
+  factory TransactionPasswordStatus.byName(String name) {
+    switch (name) {
       case 'active':
         return TransactionPasswordStatus.active;
-      case 'blocked':
-        return TransactionPasswordStatus.blocked;
+      case 'not_set':
+        return TransactionPasswordStatus.notSet;
+      case 'locked':
+        return TransactionPasswordStatus.locked;
       default:
-        throw ArgumentError('Unknown transaction password status: $value');
+        return TransactionPasswordStatus.unknown;
     }
   }
 }

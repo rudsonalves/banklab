@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/client/rest_client_request.dart';
 import 'package:bankflow/core/services/client_http/client/rest_client_response.dart';
 import 'package:bankflow/core/services/client_http/dio/dio_rest_client.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -86,6 +86,88 @@ void main() {
       expect(capturedOptions.data, {'name': 'Main account'});
       expect(result.value?.statusCode, 201);
       expect(result.value?.data, {'created': true});
+    });
+
+    test(
+      'redacts credentials and does not log step-up authorization body',
+      () async {
+        final logs = <String>[];
+        final originalDebugPrint = debugPrint;
+        debugPrint = (message, {wrapWidth}) {
+          if (message != null) logs.add(message);
+        };
+        addTearDown(() => debugPrint = originalDebugPrint);
+
+        final dio = Dio();
+        dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, _) async {
+          return ResponseBody.fromString(
+            jsonEncode({'ok': true}),
+            200,
+            headers: {
+              Headers.contentTypeHeader: [Headers.jsonContentType],
+            },
+          );
+        });
+        final client = DioRestClient(dio: dio);
+
+        await client.post(
+          const RestClientRequest(
+            path: '/security/step-up/authorize',
+            headers: {
+              'Authorization': 'Bearer access-secret',
+              'X-Step-Up-Token': 'step-up-secret',
+              'X-App-Token': 'app-secret',
+              'X-Trace-Id': 'trace-123',
+            },
+            body: {'transaction_password': '123456'},
+          ),
+        );
+
+        final output = logs.join('\n');
+        expect(output, contains('POST /security/step-up/authorize'));
+        expect(output, contains('X-Trace-Id: trace-123'));
+        expect(output, contains('Authorization: <redacted>'));
+        expect(output, contains('X-Step-Up-Token: <redacted>'));
+        expect(output, isNot(contains('access-secret')));
+        expect(output, isNot(contains('step-up-secret')));
+        expect(output, isNot(contains('app-secret')));
+        expect(output, isNot(contains('transaction_password')));
+        expect(output, isNot(contains('123456')));
+      },
+    );
+
+    test('does not expose the step-up token in transfer logs', () async {
+      final logs = <String>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (message, {wrapWidth}) {
+        if (message != null) logs.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+
+      final dio = Dio();
+      dio.httpClientAdapter = _FakeHttpClientAdapter((options, _, _) async {
+        return ResponseBody.fromString(
+          jsonEncode({'ok': true}),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      });
+      final client = DioRestClient(dio: dio);
+
+      await client.post(
+        const RestClientRequest(
+          path: '/accounts/internal-transfers',
+          headers: {'X-Step-Up-Token': 'single-use-step-up-secret'},
+          body: {'amount': 2500},
+        ),
+      );
+
+      final output = logs.join('\n');
+      expect(output, contains('POST /accounts/internal-transfers'));
+      expect(output, contains('X-Step-Up-Token: <redacted>'));
+      expect(output, isNot(contains('single-use-step-up-secret')));
     });
 
     test('should use dio baseUrl configuration', () async {

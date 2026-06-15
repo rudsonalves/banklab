@@ -15,10 +15,14 @@ class ApiTransfer {
 
   final _log = ConsoleLog('ApiTransfer');
 
-  AsyncResult<TransferResponseDto> transfer(TransferRequestDto dto) async {
+  AsyncResult<TransferResponseDto> transfer({
+    required String token,
+    required TransferRequestDto dto,
+  }) async {
     final response = await _client.post(
       RestClientRequest(
         path: '/accounts/internal-transfers',
+        headers: {'X-Step-Up-Token': token},
         body: dto.toMap(),
       ),
     );
@@ -43,11 +47,12 @@ class ApiTransfer {
         TransferResponseDto.fromMap,
       );
 
-      if (envelope.error != null) {
+      if (envelope.error case final error?) {
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
-            message: envelope.error!.message,
+            message: error.message,
+            details: error.toAppErrorDetails(),
           ),
         );
       }
@@ -103,11 +108,12 @@ class ApiTransfer {
         RecipientResponseDto.fromMap,
       );
 
-      if (envelope.error != null) {
+      if (envelope.error case final error?) {
         return Failure(
           AppError(
             code: AppErrorCode.httpError,
-            message: envelope.error!.message,
+            message: error.message,
+            details: error.toAppErrorDetails(),
           ),
         );
       }

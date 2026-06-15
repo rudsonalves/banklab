@@ -89,9 +89,9 @@ class _RegisterCpfPageState extends State<RegisterCpfPage> {
     );
   }
 
-  void _navLogin() => context.goNamed(AuthRoutes.login.name);
+  void _navLogin() => context.goNamed(AuthRoutes.login.routeName);
 
-  void _navToName() => context.pushNamed(RegisterRoutes.name.name);
+  void _navToName() => context.pushNamed(RegisterRoutes.fullName.routeName);
 
   void _cpfChanged(String value) {
     _isDisabled.value = !value.isValidCpf;
