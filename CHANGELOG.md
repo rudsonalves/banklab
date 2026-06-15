@@ -1,6 +1,35 @@
 # Changelog
 
-## 2026/06/13 - mobile/transactional-password-08
+## 2026/06/15 - mobile/transactional-password-10
+
+This update refines the transfer completion experience by standardizing the available actions presented after a transaction result. The changes focus on improving navigation consistency and providing users with clearer next steps following successful or failed transfer operations.
+
+The update affects the transfer status screen and its action controls, replacing the previous mixed button layouts with a unified dual-action approach.
+
+1. **mobile/lib/ui/pages/transfer/transfer_status_page.dart**
+
+   * Replaced the single-button failure state with a dual-action button layout.
+   * Standardized successful and failed transfer screens to use the same bottom action component.
+   * Updated success actions to provide direct navigation to the home screen through a "Cancel" option while preserving receipt access.
+   * Added a retry action for failed transfers through a "Again" button with refresh icon support.
+   * Introduced a dedicated home navigation method and separated it from back navigation behavior.
+   * Removed the dependency on the standalone `BigButton` component, simplifying action handling on the page.
+
+2. **api/docs/images/database.png**
+
+   * Updated the database diagram documentation image.
+   * Refreshed visual documentation assets to reflect the current project state.
+
+### Conclusion
+
+This change improves the transfer result workflow by making post-transaction actions more consistent across success and failure scenarios.
+
+Users now have clearer navigation options, including direct access to the home screen and the ability to retry failed transfers without relying on a different interaction pattern.
+
+The update also includes a refreshed database diagram to keep project documentation aligned with the current implementation.
+
+
+## 2026/06/13 - mobile/transactional-password-09
 
 Implements the guarded step-up behavior for internal transfers, refining how transactional password errors are handled after confirmation and strengthening route safety for sensitive transfer and password setup screens.
 
