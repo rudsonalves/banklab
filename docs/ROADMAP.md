@@ -100,13 +100,13 @@ Esse eixo inclui:
 
 Um dos objetivos centrais é estruturar uma abordagem de Zero Trust Architecture para o BankLab.
 
-No contexto do projeto, isso significa que uma requisição autenticada não deve ser automaticamente tratada como confiável. O backend deve avaliar contexto, dispositivo, fator adicional, tipo de operação e sinais de risco antes de permitir ações sensíveis.
+No contexto do projeto, isso significa que uma requisição autenticada não deve ser automaticamente tratada como confiável. O backend deve avaliar contexto, instalação do app, fator adicional, tipo de operação e sinais de risco antes de permitir ações sensíveis.
 
 Esse eixo inclui:
 
 - senha transacional para operações críticas;
-- controle de dispositivo cadastrado;
-- prova de vida para validação de dispositivo ou operação;
+- controle de instalações conhecidas do app;
+- prova de vida para validação de identidade ou operação;
 - TOTP para autenticação forte, especialmente em possível app web;
 - coleta de sinais adicionais para decisão de confiança;
 - políticas backend para decidir quando uma operação pode prosseguir, exigir reforço ou ser bloqueada.
@@ -232,8 +232,10 @@ Prioridades para tornar o BankLab mais completo como laboratório de produto fin
 
 - Modelar senha transacional como credencial separada da senha de login.
 - Definir quais operações exigem senha transacional.
-- Modelar cadastro de dispositivo.
-- Definir cabeçalhos, identificadores e sinais mínimos do dispositivo.
+- Modelar cadastro de instalação do app.
+- Adotar `X-Installation-Id` e definir os sinais mínimos da instalação.
+- Avaliar identificação e confiança do aparelho físico somente em uma evolução
+  futura, caso exista necessidade clara.
 - Criar primeira política backend para avaliar operações sensíveis.
 - Documentar o fluxo antes de implementar etapas mais avançadas.
 
