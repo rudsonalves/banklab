@@ -27,14 +27,18 @@ backlogs/
 
 ### API
 
-- [010 - device-identity-mvp.md](<api/010 - device-identity-mvp.md>): discussão
-  do identificador por instalação, vínculo com sessão, revogação e uso do
-  dispositivo como sinal contextual.
+- [010 - installation-identity-mvp.md](<api/010 - installation-identity-mvp.md>):
+  validação do header, vínculo com usuário e sessão, persistência backend,
+  estados, revogação e rollout.
 
 ### Mobile
 
-Não há backlog mobile ativo neste momento. As tasks mobile de identidade de
-dispositivo serão derivadas após as decisões do backlog API 010.
+- [013 - installation-identity-mvp.md](<mobile/013 - installation-identity-mvp.md>):
+  geração do UUID, persistência local, ciclo de vida da instalação e envio de
+  `X-Installation-Id`.
+
+Os backlogs API 010 e Mobile 013 compartilham o contrato de identidade da
+instalação. Identificação do aparelho físico fica fora deste MVP.
 
 ## Histórico
 

@@ -24,7 +24,7 @@ Instead of trusting all requests equally once a JWT is valid.
 This backlog covers three core capabilities:
 
 1. Transactional Password
-2. Device Registration
+2. Installation Registration
 3. Liveness / Step-up Authentication
 
 These capabilities are not isolated features. They must be treated as **inputs to a unified decision model**.
@@ -55,7 +55,7 @@ Request
 Where **Context Evaluation** may include:
 
 * transactional password validation
-* device validation
+* installation validation
 * liveness validation
 
 ---
@@ -104,26 +104,33 @@ Validation must occur **outside the DB transaction** to avoid:
 
 ---
 
-## 5. Feature 2 — Device Registration
+## 5. Feature 2 — Installation Registration
+
+Esta frente está separada nos backlogs ativos:
+
+* API 010: validação, associação, estados, sessão e revogação;
+* Mobile 013: geração, persistência local e envio de `X-Installation-Id`.
 
 ### Purpose
 
-Bind user sessions to a **known execution environment**.
+Bind user sessions to a **known app installation**.
 
 ### Current Limitation
 
-Sessions (`user_sessions`) are not device-aware 
+Sessions (`user_sessions`) are not installation-aware.
 
 ### Proposed Model
 
 New entity:
 
 ```text
-devices
+app_installations
 - id
 - user_id
-- device_id (client-provided identifier)
-- trusted (bool)
+- installation_id (client-provided UUID)
+- status
+- platform
+- app_version
 - created_at
 - last_seen_at
 ```
@@ -133,19 +140,27 @@ devices
 **Login flow:**
 
 ```text
-login → create session → register/update device
+mobile creates installation_id before login
+  → login sends credentials + X-Installation-Id
+  → known installation: create bound session
+  → new account: silently register first installation and create bound session
+  → existing account on new installation: issue restricted access
+  → transaction password authorizes POST /security/installations through step-up
+  → registration endpoint creates the association and operational session
+  → new installation at limit: reject until one known installation is revoked
 ```
 
 **Request flow:**
 
 ```text
 JWT → extract user
-device_id (header) → validate device
+session + X-Installation-Id → validate bound installation
 ```
 
 ### Important Constraint
 
-Device identification is **not a strong factor**.
+Installation identification is **not device identification or a strong
+factor**.
 
 It must be treated as:
 
@@ -153,18 +168,27 @@ It must be treated as:
 
 ### Required Changes
 
-* Create `devices` table
-* Add endpoints:
+* Create `app_installations` table
+* Bootstrap the first installation atomically during login
+* Issue restricted access for later installations
+* Add `POST /security/installations` to the step-up operation allowlist
+* Limit each user to three `known` installations
+* Preserve revoked installation associations as audit history
+* Validate the session-installation binding on refresh and authenticated calls
+* Add installation endpoints:
 
-  * register device
-  * list devices
-  * revoke device
+  * register installation
+  * list installations
+  * revoke installation
 * Introduce header:
 
-  * `X-Device-Id`
+  * `X-Installation-Id`
 * Application-level validation:
 
-  * sensitive operations require trusted device
+  * installation state may become one contextual input for sensitive operations
+
+Physical device identification, fingerprinting, attestation, and device trust
+are deferred to a separate future discussion.
 
 ---
 
@@ -199,7 +223,7 @@ Start with a **step-up challenge model**:
 Request (transfer)
  → requires step-up
  → client requests challenge
- → user confirms (password / device / biometrics)
+ → user confirms (password / another approved factor / biometrics)
  → operation proceeds
 ```
 
@@ -210,7 +234,7 @@ Request (transfer)
 | Approach               | Complexity | Strength |
 | ---------------------- | ---------- | -------- |
 | Password re-check      | Low        | Medium   |
-| Device confirmation    | Medium     | Good     |
+| Installation context   | Low        | Weak     |
 | Biometric (local)      | Medium     | Good     |
 | Real liveness (camera) | High       | Strong   |
 
@@ -219,7 +243,7 @@ Request (transfer)
 Start with:
 
 * transactional password
-* device confirmation
+* installation context as a weak signal
 
 Defer real liveness detection.
 
@@ -265,7 +289,7 @@ Example:
 | GetBalance | JWT                                                                |
 | Deposit    | JWT                                                                |
 | Withdraw   | JWT + transactional password                                       |
-| Transfer   | JWT + transactional password + trusted device (+ step-up optional) |
+| Transfer   | JWT + transactional password + installation context (+ step-up optional) |
 
 ---
 
@@ -280,7 +304,7 @@ Evaluate(user, operation, context) → allow / deny
 Inputs:
 
 * user (JWT context)
-* device
+* installation
 * operation type
 * optional challenge state
 
@@ -305,7 +329,7 @@ It does **not** change:
 
 * domain invariants
 * transaction model
-* ledger consistency guarantees 
+* ledger consistency guarantees
 
 ---
 

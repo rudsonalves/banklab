@@ -1,5 +1,73 @@
 # Changelog
 
+## 2026/06/15 - api/backlog-device-identity-01
+
+This change refines the BankLab Zero Trust backlog by replacing the previous device-oriented terminology with an installation-oriented model. The update clarifies that the MVP identifies an app installation, not the physical device, and defines `X-Installation-Id` as the shared contract between API and mobile.
+
+The affected areas are the roadmap, backlog index, API research backlog, mobile research backlog, and the broader transactional security discussion.
+
+1. **.gitmodules**
+
+   * Added `templates/pandoc-latex-template` as a Git submodule.
+   * Registered the external Pandoc LaTeX template repository under the `templates` folder.
+
+2. **docs/ROADMAP.md**
+
+   * Replaced device registration terminology with app installation terminology.
+   * Updated the Zero Trust roadmap to focus on known app installations instead of physical device control.
+   * Added `X-Installation-Id` as the planned installation identifier.
+   * Deferred physical device identification and trust evaluation to a future evolution.
+
+3. **docs/backlogs/README.md**
+
+   * Replaced the API backlog reference from `device-identity-mvp` to `installation-identity-mvp`.
+   * Added the new mobile backlog for installation identity.
+   * Documented that API 010 and Mobile 013 share the installation identity contract.
+   * Clarified that physical device identification is outside the MVP.
+
+4. **docs/backlogs/api/010 - device-identity-mvp.md**
+
+   * Removed the previous device identity research backlog.
+   * Replaced the broader device model with a more precise installation identity model.
+
+5. **docs/backlogs/api/010 - installation-identity-mvp.md**
+
+   * Added the API research backlog for Installation Identity MVP.
+   * Defined API responsibilities for validating `X-Installation-Id`, associating installations with users and sessions, listing installations, and revoking associations.
+   * Established UUID v4 canonical format as the accepted installation identifier.
+   * Documented first-installation bootstrap during login.
+   * Added the restricted access flow for registering later installations.
+   * Defined the step-up flow for `POST /security/installations`.
+   * Introduced the maximum limit of three `known` installations per user.
+   * Documented logical revocation, audit preservation, session binding, rollout concerns, and open decisions.
+
+6. **docs/backlogs/mobile/013 - installation-identity-mvp.md**
+
+   * Added the mobile research backlog for Installation Identity MVP.
+   * Defined mobile responsibilities for generating, persisting, and sending a UUID v4 installation identifier.
+   * Documented the installation lifecycle across first execution, app update, logout, user switch, reinstall, and data cleanup.
+   * Introduced proposed mobile components such as `InstallationIdentityService` and `InstallationInterceptor`.
+   * Defined mobile behavior for registration-required, limit-reached, restricted-token, and step-up flows.
+   * Clarified that the identifier is not a secret, authentication factor, physical device ID, or proof of possession.
+
+7. **docs/backlogs/discussion.md**
+
+   * Renamed the second Zero Trust capability from Device Registration to Installation Registration.
+   * Updated the conceptual model from `devices` to `app_installations`.
+   * Reworked login and request flows around `X-Installation-Id`.
+   * Added the restricted registration flow, step-up requirement, installation limit, and session-installation binding.
+   * Reclassified installation context as a weak signal rather than a strong factor.
+   * Deferred physical device identification, fingerprinting, attestation, and device trust to future discussions.
+
+### Conclusion
+
+This change narrows the Zero Trust MVP from device identity to app installation identity, making the security model more precise and less dependent on unreliable physical device assumptions.
+
+The API and mobile responsibilities are now separated into dedicated backlogs while sharing a clear `X-Installation-Id` contract.
+
+The resulting documentation provides a stronger basis for future implementation tasks around installation registration, session binding, revocation, and contextual policy evaluation.
+
+
 ## 2026/06/15 - chore/backlog-ci-transfer-fix
 
 This change introduces a continuous integration workflow for both API and mobile applications, updates project visibility through repository status badges, and reorganizes backlog artifacts to reflect the completion of recent transactional security initiatives.
