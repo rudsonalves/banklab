@@ -1,4 +1,5 @@
 import '/core/result/command.dart';
+import '/core/services/logging/console_log.dart';
 import '/data/repositories/account/account_repository.dart';
 import '/data/repositories/transaction_password/transaction_password_repository.dart';
 import '/data/repositories/transfer/transfer_repository.dart';
@@ -26,6 +27,8 @@ class TransferUsecase {
        _transferRepo = transferRepo,
        _transactionPasswordRepo = transactionPasswordRepo;
 
+  final _log = ConsoleLog('TransferUsecase');
+
   Stream<BalanceResponseDto> balance() => _accountRepo.balance();
 
   List<AccountSummaryResponseDto>? get accounts => _accountRepo.accounts;
@@ -35,8 +38,11 @@ class TransferUsecase {
   AsyncResult<TransferResponseDto> transfer(
     ProtectedTransferInput input,
   ) async {
+    _log.info('Starting transfer use case execution.');
+
     final account = selectedAccount;
     if (account == null) {
+      _log.warn('Transfer aborted: no selected account.');
       return const Failure<TransferResponseDto>(
         AppError(
           code: AppErrorCode.unexpected,
@@ -46,6 +52,7 @@ class TransferUsecase {
     }
 
     if (input.draft.idempotencyKey.trim().isEmpty) {
+      _log.warn('Transfer aborted: missing idempotency key.');
       return const Failure<TransferResponseDto>(
         AppError(
           code: AppErrorCode.invalidData,
@@ -56,6 +63,7 @@ class TransferUsecase {
 
     final toAccountId = input.draft.toAccountId.trim();
     if (toAccountId.isEmpty || toAccountId == account.id) {
+      _log.warn('Transfer aborted: invalid destination account ID.');
       return const Failure<TransferResponseDto>(
         AppError(
           code: AppErrorCode.invalidData,
@@ -72,6 +80,7 @@ class TransferUsecase {
     );
 
     if (dto == null) {
+      _log.warn('Transfer aborted: failed to build transfer DTO.');
       return Result.failure(
         AppError(
           code: AppErrorCode.unexpected,
@@ -86,15 +95,29 @@ class TransferUsecase {
         );
 
     if (stepUpResult.isFailure) {
+      _log.warn(
+        'Step-up authorization failed: ${stepUpResult.error?.message}',
+      );
       return Failure(stepUpResult.error!);
     }
 
     final stepUpData = stepUpResult.value!;
+    _log.info('Step-up authorization succeeded. Executing transfer API call.');
 
-    return _transferRepo.transfer(
+    final transferResult = await _transferRepo.transfer(
       token: stepUpData.stepUpToken,
       dto: dto,
     );
+
+    if (transferResult.isSuccess) {
+      _log.info('Transfer repository returned success.');
+    } else {
+      _log.warn(
+        'Transfer repository returned failure: ${transferResult.error?.message}',
+      );
+    }
+
+    return transferResult;
   }
 
   AsyncResult<TransferReceiptResponseDto> getTransferReceipt(

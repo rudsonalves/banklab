@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '/core/result/errors/backend_error_code.dart';
 import '/core/routing/routes.dart';
+import '/core/services/logging/console_log.dart';
 import '/domain/usecases/transfer/inputs/protected_transfer_input.dart';
 import '/domain/usecases/transfer/transfer_usecase.dart';
 import '/ui/components/base/safe_scaffold.dart';
@@ -34,6 +35,7 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
   TransferViewmodel get _viewModel => widget.viewModel;
   TransferConfirmationData get _transferData => widget.transferData;
 
+  final _log = ConsoleLog('TransferConfirmationPage');
   late final String _idempotencyKey;
   final _hasSubmitted = ValueNotifier<bool>(false);
 
@@ -138,6 +140,8 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
   }
 
   Future<void> _executeProtectedTransfer(TransferDraft draft) async {
+    final transferCommand = _viewModel.transfer;
+
     final pin = await context.pushNamed<String?>(
       TransactionPasswordRoutes.transactionPassword.routeName,
     );
@@ -153,13 +157,26 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
       return;
     }
 
-    await _viewModel.transfer.execute(
+    await transferCommand.execute(
       ProtectedTransferInput(draft: draft, pin: pin),
     );
 
+    final rawError = transferCommand.error;
+    final mappedErrorCode = backendErrorCode(rawError);
+    _log.info(
+      'Transfer command completed: '
+      'state=${transferCommand.state.name}, '
+      'isSuccess=${transferCommand.isSuccess}, '
+      'isFailure=${transferCommand.isFailure}, '
+      'errorCode=${rawError?.code.name}, '
+      'backendErrorCode=$mappedErrorCode, '
+      'errorMessage=${rawError?.message}, '
+      'hasValue=${transferCommand.result?.value != null}',
+    );
+
     if (!mounted) return;
-    if (_viewModel.transfer.isSuccess) {
-      final transferResponse = _viewModel.transfer.result?.value;
+    if (transferCommand.isSuccess) {
+      final transferResponse = transferCommand.result?.value;
       if (transferResponse == null) {
         AppSnackbar.show(
           context,
@@ -178,7 +195,7 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
       return;
     }
 
-    final errorCode = backendErrorCode(_viewModel.transfer.error);
+    final errorCode = mappedErrorCode;
 
     switch (errorCode) {
       case 'TRANSACTION_PASSWORD_INVALID':
@@ -206,6 +223,12 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
         _finishSubmit();
         return;
       default:
+        _log.warn(
+          'Routing to failure status page. '
+          'Unhandled backendErrorCode=$errorCode, '
+          'appErrorCode=${transferCommand.error?.code.name}, '
+          'message=${transferCommand.error?.message}',
+        );
         context.pushNamed(TransferRoutes.statusFailure.routeName);
         _finishSubmit();
         return;

@@ -60,7 +60,7 @@ class TransferStatusPage extends StatelessWidget {
       ),
       bottomNavigationBar: isSuccess
           ? DoubleBottomButton(
-              leftButtonLabel: 'Cancelar',
+              leftButtonLabel: 'Fechar',
               rightButtonLabel: 'Comprovante',
               leftOnPressed: () => _navHome(context),
               rightOnPressed: () => _showReceipt(context),
