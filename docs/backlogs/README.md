@@ -27,18 +27,24 @@ backlogs/
 
 ### API
 
-- [009 - auth-session-bootstrap.md](<api/009 - auth-session-bootstrap.md>): endpoint único de sessão pós-login para perfil e readiness do usuário.
-- [009 - auth-session-bootstrap_tasks.md](<api/009 - auth-session-bootstrap_tasks.md>): tasks do endpoint único de sessão pós-login.
+- [010 - device-identity-mvp.md](<api/010 - device-identity-mvp.md>): discussão
+  do identificador por instalação, vínculo com sessão, revogação e uso do
+  dispositivo como sinal contextual.
 
 ### Mobile
 
-- [011 - cadastro-senha-transacional.md](<mobile/011 - cadastro-senha-transacional.md>): cadastro da senha transacional no mobile.
-- [011 - cadastro-senha-transacional_tasks.md](<mobile/011 - cadastro-senha-transacional_tasks.md>): tasks do cadastro da senha transacional no mobile.
-- [012 - step-up-transferencia-interna.md](<mobile/012 - step-up-transferencia-interna.md>): autorização step-up no fluxo mobile de transferência interna.
+Não há backlog mobile ativo neste momento. As tasks mobile de identidade de
+dispositivo serão derivadas após as decisões do backlog API 010.
 
 ## Histórico
 
 Os diretórios `done/` ajudam novos colaboradores a entender decisões anteriores sem confundir esses arquivos com trabalho ainda aberto.
+
+As entregas mais recentes movidas para o histórico incluem:
+
+- API 009: bootstrap unificado da sessão autenticada;
+- Mobile 011: cadastro da senha transacional;
+- Mobile 012: step-up da transferência interna.
 
 Manter esse histórico é importante porque o BankLab trata maturidade arquitetural como um processo incremental. Discussões, refinamentos e mudanças de direção devem continuar acessíveis quando forem relevantes para entender o estado atual do projeto.
 

@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026/06/15 - chore/backlog-ci-transfer-fix
+
+This change introduces a continuous integration workflow for both API and mobile applications, updates project visibility through repository status badges, and reorganizes backlog artifacts to reflect the completion of recent transactional security initiatives.
+
+The documentation backlog has been advanced to the next Zero Trust Architecture discussion topic, focusing on device identity as a contextual security signal. At the same time, completed mobile security backlogs were moved into the historical archive, keeping the active backlog aligned with the current roadmap.
+
+The mobile transfer flow also received a small cleanup by removing temporary diagnostic logging from the transfer confirmation process.
+
+1. **.github/workflows/ci.yml**
+
+   * Added a new GitHub Actions CI pipeline.
+   * Configured automated execution for pull requests and pushes to `main`.
+   * Added API validation through Go test execution.
+   * Added mobile validation through dependency installation, formatting checks, static analysis, and Flutter test execution.
+   * Enabled workflow concurrency control to prevent overlapping CI runs.
+
+2. **README.md**
+
+   * Added a GitHub Actions status badge.
+   * Exposed CI execution status directly in the repository landing page.
+   * Improved project visibility for contributors and reviewers.
+
+3. **docs/backlogs/README.md**
+
+   * Updated the active backlog index.
+   * Removed references to completed session bootstrap and transactional transfer initiatives.
+   * Added the new API research backlog for device identity.
+   * Clarified that there are currently no active mobile backlogs.
+   * Documented the migration of recent security-related work to the historical archive.
+
+4. **docs/backlogs/api/010 - device-identity-mvp.md**
+
+   * Added a new research backlog focused on device identity within the Zero Trust Architecture roadmap.
+   * Defined objectives, security principles, lifecycle considerations, candidate data models, and API contracts for discussion.
+   * Documented open architectural decisions regarding registration, revocation, session association, and policy enforcement.
+   * Established acceptance criteria required before implementation tasks can be derived.
+
+5. **docs/backlogs/mobile/done/**
+
+   * Moved the internal transfer step-up authorization backlog and its task list into the historical backlog archive.
+   * Preserved completed design decisions and implementation guidance for future reference.
+
+6. **mobile/lib/ui/pages/transfer/transfer_confirmation_page.dart**
+
+   * Removed temporary transfer diagnostic logging.
+   * Eliminated the unused logging dependency and logger instance.
+   * Simplified transfer completion and error-handling paths without changing user-facing behavior.
+
+### Conclusion
+
+This change establishes automated quality verification for both backend and mobile applications through GitHub Actions, providing continuous feedback on code quality and test execution.
+
+The backlog structure was advanced to the next Zero Trust Architecture discussion phase by introducing device identity research while archiving recently completed transactional security work.
+
+The mobile transfer confirmation flow was also cleaned up by removing temporary diagnostic instrumentation, keeping the implementation focused on production behavior.
+
+
 ## 2026/06/15 - mobile/transactional-password-10
 
 This update refines the transfer completion experience by improving the navigation options presented after a transaction result is displayed. The changes focus on providing clearer user actions for both successful and failed transfers, aligning the flow with expected banking application behavior.

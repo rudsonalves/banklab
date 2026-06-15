@@ -1,5 +1,7 @@
 # BankLab
 
+[![CI](https://github.com/rudsonalves/banklab/actions/workflows/ci.yml/badge.svg)](https://github.com/rudsonalves/banklab/actions/workflows/ci.yml)
+
 BankLab é um laboratório open source para estudar e praticar engenharia aplicada a sistemas financeiros, unindo **backend em Go**, **app mobile em Flutter**, **consistência transacional**, **onboarding** e evolução futura para **Zero Trust Architecture**.
 
 ![BankLab](docs/images/Capa_BankLab_LinkedIn_v3.png)

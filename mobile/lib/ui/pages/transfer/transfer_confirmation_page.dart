@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 
 import '/core/result/errors/backend_error_code.dart';
 import '/core/routing/routes.dart';
-import '/core/services/logging/console_log.dart';
 import '/domain/usecases/transfer/inputs/protected_transfer_input.dart';
 import '/domain/usecases/transfer/transfer_usecase.dart';
 import '/ui/components/base/safe_scaffold.dart';
@@ -35,7 +34,6 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
   TransferViewmodel get _viewModel => widget.viewModel;
   TransferConfirmationData get _transferData => widget.transferData;
 
-  final _log = ConsoleLog('TransferConfirmationPage');
   late final String _idempotencyKey;
   final _hasSubmitted = ValueNotifier<bool>(false);
 
@@ -163,16 +161,6 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
 
     final rawError = transferCommand.error;
     final mappedErrorCode = backendErrorCode(rawError);
-    _log.info(
-      'Transfer command completed: '
-      'state=${transferCommand.state.name}, '
-      'isSuccess=${transferCommand.isSuccess}, '
-      'isFailure=${transferCommand.isFailure}, '
-      'errorCode=${rawError?.code.name}, '
-      'backendErrorCode=$mappedErrorCode, '
-      'errorMessage=${rawError?.message}, '
-      'hasValue=${transferCommand.result?.value != null}',
-    );
 
     if (!mounted) return;
     if (transferCommand.isSuccess) {
@@ -223,12 +211,6 @@ class _TransferConfirmationPageState extends State<TransferConfirmationPage> {
         _finishSubmit();
         return;
       default:
-        _log.warn(
-          'Routing to failure status page. '
-          'Unhandled backendErrorCode=$errorCode, '
-          'appErrorCode=${transferCommand.error?.code.name}, '
-          'message=${transferCommand.error?.message}',
-        );
         context.pushNamed(TransferRoutes.statusFailure.routeName);
         _finishSubmit();
         return;
