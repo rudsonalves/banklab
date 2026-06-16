@@ -17,9 +17,8 @@ import (
 	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
+	sharedheaders "github.com/seu-usuario/bank-api/internal/shared/http/headers"
 )
-
-const stepUpTokenHeader = "X-Step-Up-Token"
 
 type depositUseCase interface {
 	Execute(ctx context.Context, input transactionapp.DepositInput) (*domain.Account, error)
@@ -243,7 +242,7 @@ func (h *Handler) Transfer(w http.ResponseWriter, r *http.Request) {
 	if err := h.enforceStepUp.Execute(r.Context(), securityapp.EnforceStepUpInput{
 		User:        user,
 		EndpointKey: securitydomain.StepUpEndpointInternalTransferCreate,
-		Token:       r.Header.Get(stepUpTokenHeader),
+		Token:       r.Header.Get(sharedheaders.StepUpToken),
 		Now:         time.Now().UTC(),
 	}); err != nil {
 		log.Printf("event=enforce_step_up error=%v", err)

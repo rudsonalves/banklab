@@ -15,6 +15,7 @@ import (
 	"github.com/seu-usuario/bank-api/internal/account/transaction/domain"
 	securityapp "github.com/seu-usuario/bank-api/internal/security/application"
 	securitydomain "github.com/seu-usuario/bank-api/internal/security/domain"
+	sharedheaders "github.com/seu-usuario/bank-api/internal/shared/http/headers"
 )
 
 type depositUseCaseMock struct {
@@ -86,7 +87,7 @@ func stringPtr(value string) *string {
 }
 
 func withStepUpToken(req *http.Request, token string) *http.Request {
-	req.Header.Set(stepUpTokenHeader, token)
+	req.Header.Set(sharedheaders.StepUpToken, token)
 	return req
 }
 

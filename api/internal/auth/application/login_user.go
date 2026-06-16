@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -18,10 +19,15 @@ type LoginUserUseCase struct {
 	hasher                     domain.PasswordHasher
 	tokenService               domain.TokenService
 	sessionRepo                domain.SessionRepository
+	installationClassifier     InstallationLoginClassifier
+	firstInstallationBootstrap FirstInstallationBootstrapper
+	transactor                 domain.Transactor
 	refreshSessionTTL          time.Duration
 }
 
 const defaultRefreshSessionTTL = 30 * 24 * time.Hour
+
+var errFirstInstallationBootstrapLostRace = errors.New("first installation bootstrap lost race")
 
 type AccountProvisioningChecker interface {
 	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)
@@ -59,9 +65,36 @@ func (uc *LoginUserUseCase) WithRefreshSessionTTL(ttl time.Duration) *LoginUserU
 	return uc
 }
 
+func (uc *LoginUserUseCase) WithInstallationClassifier(classifier InstallationLoginClassifier) *LoginUserUseCase {
+	if classifier != nil {
+		uc.installationClassifier = classifier
+	}
+
+	return uc
+}
+
+func (uc *LoginUserUseCase) WithFirstInstallationBootstrapper(
+	bootstrapper FirstInstallationBootstrapper,
+) *LoginUserUseCase {
+	if bootstrapper != nil {
+		uc.firstInstallationBootstrap = bootstrapper
+	}
+
+	return uc
+}
+
+func (uc *LoginUserUseCase) WithTransactor(transactor domain.Transactor) *LoginUserUseCase {
+	if transactor != nil {
+		uc.transactor = transactor
+	}
+
+	return uc
+}
+
 type LoginUserInput struct {
-	Email    string
-	Password string
+	Email          string
+	Password       string
+	InstallationID uuid.UUID
 }
 
 type LoginUserOutput struct {
@@ -110,6 +143,20 @@ func (uc *LoginUserUseCase) Execute(
 
 	if err := uc.validateLoginEligibility(ctx, user); err != nil {
 		return nil, err
+	}
+
+	var installationDecision *InstallationLoginDecision
+	if uc.installationClassifier != nil {
+		installationDecision, err = uc.installationClassifier.Classify(ctx, user.ID, input.InstallationID)
+		if err != nil {
+			return nil, fmt.Errorf("classify login installation: %w", err)
+		}
+	}
+
+	if installationDecision != nil && installationDecision.Classification == InstallationLoginFirst {
+		if err := uc.bootstrapFirstInstallation(ctx, user.ID, input.InstallationID); err != nil {
+			return nil, err
+		}
 	}
 
 	accessToken, err := uc.tokenService.GenerateAccessToken(domain.TokenClaims{
@@ -185,4 +232,53 @@ func validateContactVerification(user *domain.User) error {
 	}
 
 	return domain.NewContactNotVerifiedError(emailVerified, phoneVerified)
+}
+
+type FirstInstallationBootstrapper interface {
+	BootstrapFirstInstallation(ctx context.Context, userID uuid.UUID, installationID uuid.UUID, now time.Time) error
+}
+
+func (uc *LoginUserUseCase) bootstrapFirstInstallation(
+	ctx context.Context,
+	userID uuid.UUID,
+	installationID uuid.UUID,
+) error {
+	if uc.transactor == nil {
+		return fmt.Errorf("first installation transactor not configured")
+	}
+	if uc.firstInstallationBootstrap == nil {
+		return fmt.Errorf("first installation bootstrapper not configured")
+	}
+	if uc.installationClassifier == nil {
+		return fmt.Errorf("installation classifier not configured")
+	}
+
+	return uc.transactor.RunInTx(ctx, func(txCtx context.Context) error {
+		lockedUser, err := uc.userRepo.FindByIDForUpdate(txCtx, userID)
+		if err != nil {
+			return fmt.Errorf("lock user for first installation bootstrap: %w", err)
+		}
+		if lockedUser == nil {
+			return domain.ErrUserNotFound
+		}
+
+		decision, err := uc.installationClassifier.Classify(txCtx, userID, installationID)
+		if err != nil {
+			return fmt.Errorf("reclassify login installation in bootstrap: %w", err)
+		}
+		if decision == nil || decision.Classification != InstallationLoginFirst {
+			return errFirstInstallationBootstrapLostRace
+		}
+
+		if err := uc.firstInstallationBootstrap.BootstrapFirstInstallation(
+			txCtx,
+			userID,
+			installationID,
+			time.Now().UTC(),
+		); err != nil {
+			return fmt.Errorf("bootstrap first installation: %w", err)
+		}
+
+		return nil
+	})
 }

@@ -13,10 +13,14 @@ import (
 )
 
 type loginUserRepositoryMock struct {
-	findByEmailCalls int
-	findByEmailUser  *domain.User
-	findByEmailErr   error
-	findByEmailValue string
+	findByEmailCalls       int
+	findByEmailUser        *domain.User
+	findByEmailErr         error
+	findByEmailValue       string
+	findByIDForUpdateCalls int
+	findByIDForUpdateUser  *domain.User
+	findByIDForUpdateErr   error
+	findByIDForUpdateValue uuid.UUID
 }
 
 func (m *loginUserRepositoryMock) Create(ctx context.Context, user *domain.User) error {
@@ -28,7 +32,12 @@ func (m *loginUserRepositoryMock) UpdateStatus(ctx context.Context, userID uuid.
 }
 
 func (m *loginUserRepositoryMock) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	return nil, nil
+	m.findByIDForUpdateCalls++
+	m.findByIDForUpdateValue = id
+	if m.findByIDForUpdateErr != nil {
+		return nil, m.findByIDForUpdateErr
+	}
+	return m.findByIDForUpdateUser, nil
 }
 
 func (m *loginUserRepositoryMock) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
@@ -97,6 +106,29 @@ type accountProvisioningCheckerMock struct {
 	existsByCustomerIDErr   error
 }
 
+type installationLoginClassifierMock struct {
+	calls          int
+	userID         uuid.UUID
+	installationID uuid.UUID
+	decision       *InstallationLoginDecision
+	err            error
+	decisions      []*InstallationLoginDecision
+	errs           []error
+}
+
+type loginTransactorMock struct {
+	runInTxCalls int
+	runInTxErr   error
+}
+
+type firstInstallationBootstrapperMock struct {
+	calls          int
+	userID         uuid.UUID
+	installationID uuid.UUID
+	now            time.Time
+	err            error
+}
+
 func (m *accountProvisioningCheckerMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	m.existsByCustomerIDCalls++
 	m.existsByCustomerIDValue = customerID
@@ -104,6 +136,51 @@ func (m *accountProvisioningCheckerMock) ExistsByCustomerID(ctx context.Context,
 		return false, m.existsByCustomerIDErr
 	}
 	return m.existsByCustomerIDOK, nil
+}
+
+func (m *installationLoginClassifierMock) Classify(
+	ctx context.Context,
+	userID uuid.UUID,
+	installationID uuid.UUID,
+) (*InstallationLoginDecision, error) {
+	m.calls++
+	m.userID = userID
+	m.installationID = installationID
+	if len(m.decisions) > 0 || len(m.errs) > 0 {
+		var decision *InstallationLoginDecision
+		var err error
+		if len(m.decisions) > 0 {
+			decision = m.decisions[0]
+			m.decisions = m.decisions[1:]
+		}
+		if len(m.errs) > 0 {
+			err = m.errs[0]
+			m.errs = m.errs[1:]
+		}
+		return decision, err
+	}
+	return m.decision, m.err
+}
+
+func (m *loginTransactorMock) RunInTx(ctx context.Context, fn func(context.Context) error) error {
+	m.runInTxCalls++
+	if m.runInTxErr != nil {
+		return m.runInTxErr
+	}
+	return fn(ctx)
+}
+
+func (m *firstInstallationBootstrapperMock) BootstrapFirstInstallation(
+	ctx context.Context,
+	userID uuid.UUID,
+	installationID uuid.UUID,
+	now time.Time,
+) error {
+	m.calls++
+	m.userID = userID
+	m.installationID = installationID
+	m.now = now
+	return m.err
 }
 
 func (m *sessionRepositoryMock) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
@@ -275,6 +352,173 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 
 	if sessionRepo.createExpires.IsZero() {
 		t.Fatal("expected session expires_at to be set")
+	}
+}
+
+func TestLoginUserUseCase_Execute_CallsInstallationClassifierWhenConfigured(t *testing.T) {
+	customerID := uuid.New()
+	userID := uuid.New()
+	installationID := uuid.New()
+	verifiedAt := time.Now().UTC()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:              userID,
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
+		},
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{accessToken: "jwt-token", refreshToken: "refresh-token"}
+	sessionRepo := &sessionRepositoryMock{}
+	classifier := &installationLoginClassifierMock{
+		decision: &InstallationLoginDecision{Classification: InstallationLoginKnown},
+	}
+
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo).
+		WithInstallationClassifier(classifier)
+
+	_, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:          "user@example.com",
+		Password:       "password123",
+		InstallationID: installationID,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if classifier.calls != 1 {
+		t.Fatalf("expected classifier to be called once, got %d", classifier.calls)
+	}
+	if classifier.userID != userID {
+		t.Fatalf("expected classifier userID %q, got %q", userID, classifier.userID)
+	}
+	if classifier.installationID != installationID {
+		t.Fatalf("expected classifier installationID %q, got %q", installationID, classifier.installationID)
+	}
+}
+
+func TestLoginUserUseCase_Execute_FirstInstallationBootstrapsAtomically(t *testing.T) {
+	customerID := uuid.New()
+	userID := uuid.New()
+	installationID := uuid.New()
+	verifiedAt := time.Now().UTC()
+	user := &domain.User{
+		ID:              userID,
+		Email:           "user@example.com",
+		PasswordHash:    "stored-hash",
+		Role:            domain.RoleCustomer,
+		CustomerID:      &customerID,
+		Status:          domain.UserStatusActive,
+		EmailVerifiedAt: &verifiedAt,
+		PhoneVerifiedAt: &verifiedAt,
+	}
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser:       user,
+		findByIDForUpdateUser: user,
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{accessToken: "jwt-token", refreshToken: "refresh-token"}
+	sessionRepo := &sessionRepositoryMock{}
+	classifier := &installationLoginClassifierMock{
+		decisions: []*InstallationLoginDecision{
+			{Classification: InstallationLoginFirst},
+			{Classification: InstallationLoginFirst},
+		},
+	}
+	transactor := &loginTransactorMock{}
+	bootstrapper := &firstInstallationBootstrapperMock{}
+
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo).
+		WithInstallationClassifier(classifier).
+		WithTransactor(transactor).
+		WithFirstInstallationBootstrapper(bootstrapper)
+
+	_, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:          "user@example.com",
+		Password:       "password123",
+		InstallationID: installationID,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if transactor.runInTxCalls != 1 {
+		t.Fatalf("expected RunInTx once, got %d", transactor.runInTxCalls)
+	}
+	if userRepo.findByIDForUpdateCalls != 1 {
+		t.Fatalf("expected FindByIDForUpdate once, got %d", userRepo.findByIDForUpdateCalls)
+	}
+	if userRepo.findByIDForUpdateValue != userID {
+		t.Fatalf("expected lock userID %q, got %q", userID, userRepo.findByIDForUpdateValue)
+	}
+	if classifier.calls != 2 {
+		t.Fatalf("expected classifier twice, got %d", classifier.calls)
+	}
+	if bootstrapper.calls != 1 {
+		t.Fatalf("expected bootstrapper once, got %d", bootstrapper.calls)
+	}
+	if bootstrapper.userID != userID {
+		t.Fatalf("expected bootstrap userID %q, got %q", userID, bootstrapper.userID)
+	}
+	if bootstrapper.installationID != installationID {
+		t.Fatalf("expected bootstrap installationID %q, got %q", installationID, bootstrapper.installationID)
+	}
+}
+
+func TestLoginUserUseCase_Execute_FirstInstallationBootstrapLostRace(t *testing.T) {
+	customerID := uuid.New()
+	userID := uuid.New()
+	installationID := uuid.New()
+	verifiedAt := time.Now().UTC()
+	user := &domain.User{
+		ID:              userID,
+		Email:           "user@example.com",
+		PasswordHash:    "stored-hash",
+		Role:            domain.RoleCustomer,
+		CustomerID:      &customerID,
+		Status:          domain.UserStatusActive,
+		EmailVerifiedAt: &verifiedAt,
+		PhoneVerifiedAt: &verifiedAt,
+	}
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser:       user,
+		findByIDForUpdateUser: user,
+	}
+	accountProvisioning := &accountProvisioningCheckerMock{existsByCustomerIDOK: true}
+	hasher := &loginPasswordHasherMock{}
+	tokenService := &tokenServiceMock{accessToken: "jwt-token", refreshToken: "refresh-token"}
+	sessionRepo := &sessionRepositoryMock{}
+	classifier := &installationLoginClassifierMock{
+		decisions: []*InstallationLoginDecision{
+			{Classification: InstallationLoginFirst},
+			{Classification: InstallationLoginNew},
+		},
+	}
+	transactor := &loginTransactorMock{}
+	bootstrapper := &firstInstallationBootstrapperMock{}
+
+	useCase := NewLoginUserUseCase(userRepo, accountProvisioning, hasher, tokenService, sessionRepo).
+		WithInstallationClassifier(classifier).
+		WithTransactor(transactor).
+		WithFirstInstallationBootstrapper(bootstrapper)
+
+	_, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:          "user@example.com",
+		Password:       "password123",
+		InstallationID: installationID,
+	})
+	if !errors.Is(err, errFirstInstallationBootstrapLostRace) {
+		t.Fatalf("expected errFirstInstallationBootstrapLostRace, got %v", err)
+	}
+	if bootstrapper.calls != 0 {
+		t.Fatalf("expected bootstrapper not to be called, got %d", bootstrapper.calls)
 	}
 }
 

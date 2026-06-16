@@ -12,6 +12,7 @@ Os backlogs fazem parte da superfície colaborativa do projeto. Eles não são a
 backlogs/
 |-- api/          # discussões e backlogs ativos da API
 |-- api/done/     # histórico resolvido ou implementado da API
+|-- api/olds/     # backlogs substituídos por uma organização mais nova
 |-- mobile/       # discussões e backlogs ativos do mobile
 |-- mobile/done/  # histórico resolvido ou implementado do mobile
 `-- discussion.md # notas amplas de discussão técnica
@@ -21,6 +22,7 @@ backlogs/
 
 - Arquivos diretamente em `api/` ou `mobile/` representam assuntos ativos ou em planejamento.
 - Arquivos dentro de `done/` representam backlogs já resolvidos, implementados ou substituídos por decisões mais novas.
+- Arquivos dentro de `olds/` representam versões substituídas de backlogs ainda úteis como histórico de discussão.
 - Backlogs concluídos devem permanecer no repositório como histórico de deliberação.
 
 ## Backlogs ativos
@@ -28,23 +30,25 @@ backlogs/
 ### API
 
 - [010 - installation-identity-mvp.md](<api/010 - installation-identity-mvp.md>):
-  backlog guarda-chuva do MVP de identidade de instalação na API.
-- [011 - installation-identity-auth-login.md](<api/011 - installation-identity-auth-login.md>):
-  tratamento da instalação no `POST /auth/login`.
-- [012 - installation-identity-step-up-authorize.md](<api/012 - installation-identity-step-up-authorize.md>):
-  `step-up` para autorizar `POST /security/installations`.
-- [013 - installation-identity-register-installation.md](<api/013 - installation-identity-register-installation.md>):
-  registro explícito de nova instalação.
-- [014 - installation-identity-list-installations.md](<api/014 - installation-identity-list-installations.md>):
-  listagem de instalações cadastradas.
-- [015 - installation-identity-revoke-installation.md](<api/015 - installation-identity-revoke-installation.md>):
-  revogação de instalação e corte imediato de acesso.
-- [016 - installation-identity-auth-refresh.md](<api/016 - installation-identity-auth-refresh.md>):
-  vínculo de instalação no `POST /auth/refresh`.
-- [017 - installation-identity-session-enforcement.md](<api/017 - installation-identity-session-enforcement.md>):
-  enforcement do `X-Installation-Id` nas rotas autenticadas.
-- [018 - installation-identity-shared-infrastructure.md](<api/018 - installation-identity-shared-infrastructure.md>):
-  modelo de dados e infraestrutura compartilhada do MVP.
+  backlog principal do MVP de identidade de instalação na API.
+- [011 - installation-identity-entry-contract.md](<api/011 - installation-identity-entry-contract.md>):
+  contrato mínimo de `X-Installation-Id` no login.
+- [012 - installation-identity-persistence-foundation.md](<api/012 - installation-identity-persistence-foundation.md>):
+  tabelas e constraints de instalações e autorizações restritas.
+- [013 - installation-identity-domain-repositories.md](<api/013 - installation-identity-domain-repositories.md>):
+  domínio, repositórios e operações transacionais compartilhadas.
+- [014 - installation-identity-session-tokens.md](<api/014 - installation-identity-session-tokens.md>):
+  sessão, JWT, token restrito e contexto autenticado.
+- [015 - installation-identity-login-flow.md](<api/015 - installation-identity-login-flow.md>):
+  classificação e decisões do `POST /auth/login`.
+- [016 - installation-identity-registration-flow.md](<api/016 - installation-identity-registration-flow.md>):
+  step-up e `POST /security/installations`.
+- [017 - installation-identity-management.md](<api/017 - installation-identity-management.md>):
+  listagem e revogação de instalações.
+- [018 - installation-identity-refresh-enforcement.md](<api/018 - installation-identity-refresh-enforcement.md>):
+  refresh e enforcement em rotas autenticadas.
+- [019 - installation-identity-audit-retention.md](<api/019 - installation-identity-audit-retention.md>):
+  retenção, auditoria e minimização.
 
 ### Mobile
 

@@ -1,5 +1,78 @@
 # Changelog
 
+## 2026/06/16 - api/installation-identity-02
+
+This change introduces the first implementation layer for installation identity handling during authentication. The login flow now requires a canonical installation identifier, propagates it through the application layer, and introduces the initial classification model for installation-aware authentication decisions.
+
+The update also establishes shared infrastructure for HTTP headers, adds installation-specific error handling, and prepares the authentication use case for future installation registration, restricted authorization, and session binding flows. In parallel, the installation identity backlog was reorganized to follow dependency-driven implementation phases.
+
+1. **api/internal/auth/application**
+
+   * Added `InstallationLoginClassifier` and related domain models to classify login attempts as `known`, `first`, `new`, `revoked`, or `limit_reached`.
+   * Introduced installation-aware login decisions and repository contracts for installation lookup and counting.
+   * Extended `LoginUserUseCase` to receive and process `InstallationID`.
+   * Added support for first-installation bootstrap orchestration using transactional execution.
+   * Added bootstrap race-condition protection through reclassification inside a database transaction.
+   * Added configuration hooks for installation classifier, bootstrapper, and transaction manager.
+   * Added comprehensive unit test coverage for installation classification and first-installation bootstrap scenarios.
+
+2. **api/internal/auth/delivery**
+
+   * Added mandatory `X-Installation-Id` validation during `POST /auth/login`.
+   * Implemented canonical UUID v4 parsing and validation.
+   * Propagated validated installation identifiers to the login use case.
+   * Added HTTP contract validation for missing or malformed installation identifiers.
+   * Extended handler and integration tests to cover installation header propagation and validation behavior.
+
+3. **api/internal/shared/http**
+
+   * Introduced centralized shared header definitions through the new `headers` package.
+   * Consolidated `X-App-Token`, `X-Step-Up-Token`, and `X-Installation-Id` constants.
+   * Refactored middleware and transaction handlers to consume shared header definitions instead of local constants.
+   * Updated middleware tests to use the centralized header package.
+
+4. **api/internal/shared/errors**
+
+   * Added `INVALID_INSTALLATION_ID` error code.
+   * Introduced installation-specific error registration and HTTP mapping.
+   * Standardized validation failures for missing, malformed, or non-canonical installation identifiers.
+
+5. **api/internal/account/transaction**
+
+   * Refactored step-up token retrieval to use the centralized shared header package.
+   * Removed duplicated header constant definitions from transaction delivery handlers and tests.
+
+6. **docs/backlogs**
+
+   * Reorganized the Installation Identity MVP backlog structure around implementation dependencies.
+   * Replaced endpoint-oriented backlog decomposition with architecture-oriented phases.
+   * Added new backlog documents covering:
+
+     * Entry contract.
+     * Persistence foundation.
+     * Domain and repositories.
+     * Session and token infrastructure.
+     * Login flow.
+     * Registration flow.
+     * Installation management.
+     * Refresh enforcement.
+     * Audit and retention.
+   * Removed superseded backlog documents and task breakdowns that no longer matched the revised implementation strategy.
+   * Updated backlog documentation to distinguish active, completed, and archived discussions.
+
+7. **docs/.gitignore**
+
+   * Added support for ignoring the `olds/` backlog archive directory.
+
+### Conclusion
+
+This change establishes the first operational layer of the Installation Identity MVP by enforcing installation identifiers during login and introducing the application-level classification model required for future installation-aware authentication flows.
+
+The authentication architecture is now prepared for transactional first-installation registration, installation lifecycle management, restricted authorization flows, and session binding based on installation context.
+
+Documentation was reorganized to align implementation work with architectural dependencies, creating a clearer roadmap for the remaining phases of the Installation Identity initiative.
+
+
 ## 2026/06/16 - api/installation-identity-01
 
 This change expands the Installation Identity MVP planning for the API and aligns the mobile backlog with the newly consolidated backend contracts.

@@ -32,4 +32,5 @@ const (
 	ErrCodeStepUpTokenExpired            = "STEP_UP_TOKEN_EXPIRED"
 	ErrCodeStepUpTokenConsumed           = "STEP_UP_TOKEN_CONSUMED"
 	ErrCodeStepUpEndpointMismatch        = "STEP_UP_ENDPOINT_MISMATCH"
+	ErrCodeInvalidInstallationID         = "INVALID_INSTALLATION_ID"
 )

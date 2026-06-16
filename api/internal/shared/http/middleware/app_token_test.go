@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	sharedheaders "github.com/seu-usuario/bank-api/internal/shared/http/headers"
 )
 
 func TestAppToken_Require_MissingHeader(t *testing.T) {
@@ -20,7 +22,7 @@ func TestAppToken_Require_MissingHeader(t *testing.T) {
 
 func TestAppToken_Require_InvalidHeader(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
-	req.Header.Set(headerAppToken, "wrong-token")
+	req.Header.Set(sharedheaders.AppToken, "wrong-token")
 	rec := httptest.NewRecorder()
 
 	AppToken("expected-token")(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
@@ -32,7 +34,7 @@ func TestAppToken_Require_InvalidHeader(t *testing.T) {
 
 func TestAppToken_Require_ValidHeader(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
-	req.Header.Set(headerAppToken, "expected-token")
+	req.Header.Set(sharedheaders.AppToken, "expected-token")
 	rec := httptest.NewRecorder()
 	called := false
 
