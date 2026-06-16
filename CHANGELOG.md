@@ -1,5 +1,135 @@
 # Changelog
 
+## 2026/06/16 - api/installation-identity-01
+
+This change expands the Installation Identity MVP planning for the API and aligns the mobile backlog with the newly consolidated backend contracts.
+
+The umbrella backlog was refined into endpoint-specific and infrastructure-specific planning documents, covering login, restricted authorization, step-up, installation registration, listing, revocation, refresh, session enforcement, and shared persistence/token infrastructure.
+
+1. **docs/backlogs/README.md**
+
+   * Expanded the API backlog index for the Installation Identity MVP.
+   * Added references to the new API backlogs from `011` to `018`.
+   * Replaced the previous broad description of backlog `010` with a clearer umbrella backlog role.
+
+2. **docs/backlogs/api/010 - installation-identity-mvp.md**
+
+   * Reworked the Installation Identity MVP backlog into a consolidated umbrella document.
+   * Added `app_build` to the installation metadata model.
+   * Clarified that revoked installations are denied without recovery flow in the MVP.
+   * Finalized the `installation_limit_reached` response contract.
+   * Replaced the generic restricted access token naming with `restricted_access_token`.
+   * Defined the restricted authorization model, JWT claims, persistence table, statuses, consistency rules, and middleware expectations.
+   * Clarified that transactional password must be active before issuing step-up for installation registration.
+   * Defined that `POST /security/installations` completes the operational session bootstrap without requiring an intermediate login.
+   * Documented the operational `access_token` claim `installation_id` and its relationship with `X-Installation-Id`.
+   * Defined revocation behavior for installations, including no step-up requirement in the MVP and prevention of revoking the current installation.
+   * Added explicit error contracts for invalid installation headers and installation/session mismatches.
+   * Replaced the previous open-decision checklist with derived endpoint maps and shared infrastructure responsibilities.
+
+3. **docs/backlogs/api/011 - installation-identity-auth-login.md**
+
+   * Added the API backlog for handling installation identity during `POST /auth/login`.
+   * Defined login behavior for known installations, first installation bootstrap, new installation registration, revoked installations, and installation limit enforcement.
+   * Documented response contracts for `installation_registration_required` and `installation_limit_reached`.
+
+4. **docs/backlogs/api/011 - installation-identity-auth-login_tasks.md**
+
+   * Added detailed implementation tasks for login handling.
+   * Covered header validation, installation classification, first-installation bootstrap, operational session emission, restricted authorization, revoked installation denial, limit handling, and tests.
+
+5. **docs/backlogs/api/012 - installation-identity-step-up-authorize.md**
+
+   * Added the API backlog for authorizing `POST /security/installations` through the existing step-up flow.
+   * Defined the use of `restricted_access_token` for this flow.
+   * Documented the requirement for an active transactional password before issuing the step-up token.
+
+6. **docs/backlogs/api/012 - installation-identity-step-up-authorize_tasks.md**
+
+   * Added implementation tasks for step-up support in installation registration.
+   * Covered endpoint registration in the step-up policy, restricted access token acceptance, transactional password state validation, scoped step-up token issuance, and tests.
+
+7. **docs/backlogs/api/013 - installation-identity-register-installation.md**
+
+   * Added the API backlog for explicit installation registration through `POST /security/installations`.
+   * Defined required headers, restricted authorization validation, step-up token consumption, installation matching, limit validation, installation creation, grant invalidation, and operational token issuance.
+
+8. **docs/backlogs/api/013 - installation-identity-register-installation_tasks.md**
+
+   * Added implementation tasks for the installation registration endpoint.
+   * Covered use case orchestration, grant validation, step-up consumption, atomic installation creation, operational session creation, HTTP handler implementation, and test coverage.
+
+9. **docs/backlogs/api/014 - installation-identity-list-installations.md**
+
+   * Added the API backlog for listing user installations through `GET /security/installations`.
+   * Defined authenticated access, public management identifiers, supported installation states, MVP metadata, and session/header enforcement.
+
+10. **docs/backlogs/api/014 - installation-identity-list-installations_tasks.md**
+
+* Added implementation tasks for installation listing.
+* Covered use case creation, public response modeling, HTTP endpoint implementation, and tests for state visibility and user isolation.
+
+11. **docs/backlogs/api/015 - installation-identity-revoke-installation.md**
+
+* Added the API backlog for logical installation revocation through `DELETE /security/installations/{installation_resource_id}`.
+* Defined revocation rules, preservation of history, prevention of current-installation revocation, and immediate access cutoff.
+
+12. **docs/backlogs/api/015 - installation-identity-revoke-installation_tasks.md**
+
+* Added implementation tasks for installation revocation.
+* Covered logical revocation, current-installation protection, immediate session/token invalidation, endpoint exposure, and tests.
+
+13. **docs/backlogs/api/016 - installation-identity-auth-refresh.md**
+
+* Added the API backlog for binding `POST /auth/refresh` to the installation that originated the session.
+* Defined header requirements, session-installation matching, revoked installation denial, and refreshed access token behavior.
+
+14. **docs/backlogs/api/016 - installation-identity-auth-refresh_tasks.md**
+
+* Added implementation tasks for refresh enforcement.
+* Covered header validation, session and installation matching, revoked installation denial, refresh rotation behavior, and tests.
+
+15. **docs/backlogs/api/017 - installation-identity-session-enforcement.md**
+
+* Added the API backlog for enforcing `X-Installation-Id` on authenticated requests.
+* Defined operational token claims, middleware validation, mismatch errors, and MVP scope boundaries.
+
+16. **docs/backlogs/api/017 - installation-identity-session-enforcement_tasks.md**
+
+* Added implementation tasks for session enforcement.
+* Covered token claim extension, middleware adaptation, authenticated route enforcement, revoked installation denial, and tests.
+
+17. **docs/backlogs/api/018 - installation-identity-shared-infrastructure.md**
+
+* Added the shared infrastructure backlog for Installation Identity.
+* Defined the `app_installations` and `installation_registration_authorizations` data models.
+* Consolidated shared rules for operational sessions, restricted access tokens, grant uniqueness, header enforcement, and MVP recovery limitations.
+
+18. **docs/backlogs/api/018 - installation-identity-shared-infrastructure_tasks.md**
+
+* Added implementation tasks for shared infrastructure.
+* Covered database migrations, domain and repository contracts, Postgres persistence, JWT and context support, restricted middleware, and metadata retention/auditing decisions.
+
+19. **docs/backlogs/mobile/013 - installation-identity-mvp.md**
+
+* Aligned the mobile Installation Identity backlog with the finalized API planning.
+* Clarified that `X-Installation-Id` is mandatory from the first release of the feature.
+* Added `platform`, `app_version`, and `app_build` as the minimum metadata set expected by the API.
+* Updated the mobile flow to use `restricted_access_token` terminology.
+* Clarified that successful installation registration returns operational tokens directly.
+* Documented mobile behavior for missing or locked transactional password.
+* Refined `installation_limit_reached` handling with `known_installations_count`, `max_installations`, and `next_action`.
+* Added MVP revocation expectations, including no step-up requirement, disabling removal of the current installation, and immediate session loss after revocation.
+
+### Conclusion
+
+This change turns the Installation Identity MVP from a broad concept into a structured implementation plan split by endpoint and shared infrastructure.
+
+The API planning now defines the main contracts, token flows, persistence models, revocation behavior, session binding, refresh enforcement, and middleware responsibilities required to support installation-aware authentication.
+
+The mobile backlog was updated to reflect the backend decisions, keeping both sides aligned around mandatory `X-Installation-Id`, restricted registration, operational token bootstrap, installation limits, and revocation behavior.
+
+
 ## 2026/06/15 - api/backlog-device-identity-01
 
 This change refines the BankLab Zero Trust backlog by replacing the previous device-oriented terminology with an installation-oriented model. The update clarifies that the MVP identifies an app installation, not the physical device, and defines `X-Installation-Id` as the shared contract between API and mobile.

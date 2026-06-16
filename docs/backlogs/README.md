@@ -28,8 +28,23 @@ backlogs/
 ### API
 
 - [010 - installation-identity-mvp.md](<api/010 - installation-identity-mvp.md>):
-  validação do header, vínculo com usuário e sessão, persistência backend,
-  estados, revogação e rollout.
+  backlog guarda-chuva do MVP de identidade de instalação na API.
+- [011 - installation-identity-auth-login.md](<api/011 - installation-identity-auth-login.md>):
+  tratamento da instalação no `POST /auth/login`.
+- [012 - installation-identity-step-up-authorize.md](<api/012 - installation-identity-step-up-authorize.md>):
+  `step-up` para autorizar `POST /security/installations`.
+- [013 - installation-identity-register-installation.md](<api/013 - installation-identity-register-installation.md>):
+  registro explícito de nova instalação.
+- [014 - installation-identity-list-installations.md](<api/014 - installation-identity-list-installations.md>):
+  listagem de instalações cadastradas.
+- [015 - installation-identity-revoke-installation.md](<api/015 - installation-identity-revoke-installation.md>):
+  revogação de instalação e corte imediato de acesso.
+- [016 - installation-identity-auth-refresh.md](<api/016 - installation-identity-auth-refresh.md>):
+  vínculo de instalação no `POST /auth/refresh`.
+- [017 - installation-identity-session-enforcement.md](<api/017 - installation-identity-session-enforcement.md>):
+  enforcement do `X-Installation-Id` nas rotas autenticadas.
+- [018 - installation-identity-shared-infrastructure.md](<api/018 - installation-identity-shared-infrastructure.md>):
+  modelo de dados e infraestrutura compartilhada do MVP.
 
 ### Mobile
 

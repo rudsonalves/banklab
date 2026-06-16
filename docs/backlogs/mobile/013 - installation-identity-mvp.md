@@ -43,6 +43,9 @@ O formato canônico usa letras minúsculas e hífens:
 O header deve ser enviado no login, no registro de nova instalação, refresh,
 logout e em todas as chamadas autenticadas por access token.
 
+Para o MVP, não existe fase tolerante sem esse header. O cliente deve adotar o
+envio de `X-Installation-Id` desde o primeiro release da feature.
+
 No primeiro login do usuário que nunca teve instalação associada, a API
 cadastra automaticamente a primeira instalação. Essa regra representa o
 primeiro evento cronológico e não limita o usuário a uma única instalação.
@@ -132,7 +135,9 @@ X-Installation-Id: <UUID v4>
 ```
 
 Metadados como plataforma e versão do app devem seguir contrato separado, caso
-a API decida solicitá-los. Eles não devem ser codificados dentro do UUID.
+a API decida solicitá-los. Para o MVP, o conjunto mínimo aceito para esse
+contrato separado é `platform`, `app_version` e `app_build`. Eles não devem
+ser codificados dentro do UUID.
 
 ## 7. Comportamento em falhas
 
@@ -169,7 +174,7 @@ Mobile gera e persiste installation_id
   -> envia credenciais + X-Installation-Id
   -> API valida as credenciais
   -> mobile recebe installation_registration_required
-  -> mantém access token restrito durante o fluxo
+  -> mantém restricted_access_token durante o fluxo
   -> solicita step-up para POST /security/installations
   -> usuário informa senha transacional
   -> mobile recebe step_up_token
@@ -181,7 +186,7 @@ Mobile gera e persiste installation_id
 Quando as credenciais forem válidas, mas a nova instalação precisar ser
 registrada, o mobile deve:
 
-1. manter o access token restrito separado da sessão operacional;
+1. manter o `restricted_access_token` separado da sessão operacional;
 2. solicitar step-up para `POST /security/installations`;
 3. informar a senha transacional somente em
    `POST /security/step-up/authorize`;
@@ -190,6 +195,10 @@ registrada, o mobile deve:
 6. persistir os tokens operacionais retornados pelo registro;
 7. descartar token restrito, step-up token e senha em sucesso, erro definitivo
    ou cancelamento.
+
+Depois do cadastro bem-sucedido, o fluxo segue como uma sessão autenticada
+normal. Não existe novo login intermediário: o mobile passa a usar os tokens
+operacionais retornados por `POST /security/installations`.
 
 O mobile não deve:
 
@@ -201,15 +210,25 @@ O mobile não deve:
 No futuro, prova de vida poderá autorizar o mesmo endpoint de registro sem
 alterar o papel do `X-Installation-Id`.
 
+Senha transacional ativa é pré-requisito para esse fluxo. Se a API indicar que
+ela está `not_set` ou `locked`, o mobile não deve tentar registrar a nova
+instalação e deve direcionar o usuário para regularizar esse pré-requisito
+antes de repetir o login nessa instalação.
+
 ### Limite atingido
 
 Quando o login retornar `installation_limit_reached`, o mobile deve:
 
 - informar que o limite de três instalações foi atingido;
+- considerar `known_installations_count` e `max_installations` para compor a
+  mensagem ou o estado exibido;
+- informar que a instalação atual ainda não está cadastrada;
 - não persistir tokens de sessão;
 - não iniciar o step-up de registro enquanto não houver vaga;
-- orientar o usuário a utilizar uma instalação já cadastrada ou iniciar o
-  fluxo de gerenciamento/recuperação disponível.
+- interpretar `next_action = revoke_existing_installation` como orientação
+  estruturada de continuidade;
+- orientar o usuário a acessar uma instalação já cadastrada e, a partir dela,
+  revogar outra instalação para liberar vaga.
 
 Instalações revogadas permanecem no histórico da API, mas não ocupam uma das
 três vagas.
@@ -224,8 +243,16 @@ DELETE /security/installations/{installation_resource_id}
 ```
 
 O consumo mobile para listar e revogar instalações será detalhado depois que
-forem fechados o acesso em caso de limite atingido e a exigência de step-up
-para revogação.
+for definida a experiência de gerenciamento.
+
+Para o MVP, a revogação de instalação:
+
+- não exige step-up;
+- deve ocultar ou desabilitar a remoção da instalação atualmente em uso;
+- deve orientar logout para encerrar a instalação atual, em vez de tentar
+  revogá-la pelo gerenciamento.
+- deve considerar que uma instalação revogada perde a sessão imediatamente,
+  exigindo tratamento de retorno para acesso encerrado.
 
 ## 9. Decisões necessárias antes das tasks
 
@@ -240,17 +267,23 @@ para revogação.
 - [ ] Definir integração do interceptor com login, refresh e cliente principal.
 - [ ] Definir tratamento do resultado
   `installation_registration_required`.
-- [ ] Definir tratamento do resultado `installation_limit_reached`.
+- [x] Definir pós-cadastro: `POST /security/installations` conclui o bootstrap
+  da sessão operacional e retorna os tokens normais.
+- [ ] Definir contrato e UX final do resultado `installation_limit_reached`.
+- [x] Definir diretriz para `installation_limit_reached`: orientar revogação
+  em instalação já cadastrada, sem step-up de registro nessa tentativa.
 - [ ] Definir armazenamento temporário e descarte do access token restrito.
 - [ ] Integrar step-up para `POST /security/installations`.
 - [ ] Implementar `POST /security/installations` e troca pelos tokens
   operacionais.
 - [x] Reconhecer os contratos de listagem e revogação definidos pela API.
 - [ ] Definir a experiência mobile de gerenciamento das instalações.
+- [x] Definir regra de revogação: sem step-up e sem remover a instalação em
+  uso.
 - [ ] Definir tela e estados do registro com senha transacional.
 - [ ] Definir cancelamento e expiração da autorização restrita.
-- [ ] Definir experiência de recuperação quando a senha estiver ausente ou
-  bloqueada.
+- [x] Definir regra para senha transacional ausente ou bloqueada: nova
+  instalação não é registrada; é pré-requisito.
 - [ ] Definir telemetria segura para falhas de armazenamento.
 - [ ] Definir testes de ciclo de vida e concorrência.
 
