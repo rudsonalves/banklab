@@ -43,6 +43,10 @@ antes de implementar repositórios ou casos de uso.
 As tasks futuras devem separar tabela de instalações, tabela de autorizações,
 índices/constraints e testes ou validação de migration.
 
+Tasks:
+
+- [013 - installation-identity-database-schema_tasks.md](<013 - installation-identity-database-schema_tasks.md>)
+
 ## 7. Referencias
 
 - [Installation Identity MVP](<010 - installation-identity-mvp.md>)

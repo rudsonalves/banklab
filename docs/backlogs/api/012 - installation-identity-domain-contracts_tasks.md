@@ -13,7 +13,7 @@ Campos sugeridos para todas as tasks:
 
 ## Task 1/8: Definir value object de identificador de instalacao
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -39,7 +39,7 @@ Criar a representacao interna do `installation_id` recebido do cliente.
 
 ## Task 2/8: Modelar instalacao de app e estados persistidos
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -73,7 +73,7 @@ app.
 
 ## Task 3/8: Definir classificacoes derivadas para login
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -105,7 +105,7 @@ fluxo ao handler.
 
 ## Task 4/8: Definir erros de dominio e codigos de aplicacao
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -135,7 +135,7 @@ delivery HTTP.
 
 ## Task 5/8: Definir portas de leitura e classificacao de instalacoes
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -162,7 +162,7 @@ implementar banco.
 
 ## Task 6/8: Definir portas de escrita e operacoes atomicas de instalacao
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -191,7 +191,7 @@ revogacao sem expor detalhes de transacao ao delivery.
 
 ## Task 7/8: Modelar autorizacao restrita de registro
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -229,7 +229,7 @@ nova instalacao depois do login.
 
 ## Task 8/8: Definir portas de autorizacao restrita
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 

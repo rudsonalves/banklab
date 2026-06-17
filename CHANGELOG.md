@@ -1,5 +1,95 @@
 # Changelog
 
+## 2026/06/17 - api/installation-identity-04
+
+This change introduces the domain contracts for Installation Identity in the API. It defines the core installation aggregate, installation identifiers, login classifications, restricted registration authorizations, domain errors, repository ports, and unit tests.
+
+The update also closes the domain-contract backlog tasks and prepares the next database-schema backlog with detailed migration tasks.
+
+1. **api/internal/installation/domain/errors.go**
+
+   * Added domain errors for installation identity validation, lookup, mismatch, revocation, limit enforcement, and first-installation bootstrap conflicts.
+   * Added restricted authorization errors for invalid, missing, expired, consumed, revoked, and already-active authorization states.
+
+2. **api/internal/installation/domain/installation_id.go**
+
+   * Added `InstallationID` as a strict value object for client-provided installation identifiers.
+   * Enforced canonical UUID v4 format for installation IDs.
+   * Added `InstallationResourceID` as a separate value object for public installation management resources.
+   * Added parsing, string conversion, UUID access, and zero-value checks for both identifiers.
+
+3. **api/internal/installation/domain/installation.go**
+
+   * Added the `Installation` domain entity with persisted fields for user association, resource identity, installation identity, status, platform metadata, lifecycle timestamps, and revocation state.
+   * Added `known` and `revoked` installation statuses.
+   * Added `NewKnownInstallation` and `RestoreInstallation` constructors with invariant validation.
+   * Added validation rules for required identifiers, timestamps, status consistency, and revocation state.
+   * Added `Revoke` behavior to transition a known installation to revoked.
+   * Added login classifications for known, first, new, revoked, and limit-reached installation scenarios.
+   * Added `LoginDecision` validation around known installation count, associated installation history, and the maximum known installation limit.
+
+4. **api/internal/installation/domain/restricted_authorization.go**
+
+   * Added `RestrictedAuthorization` for installation registration authorization.
+   * Defined the initial restricted authorization scope as `installation.register`.
+   * Added the default authorization duration of five minutes.
+   * Added active, consumed, and revoked authorization statuses.
+   * Added constructors and restoration logic with invariant validation.
+   * Added expiration detection, consume behavior, and revoke behavior.
+   * Enforced single-use behavior through consumed-state validation.
+
+5. **api/internal/installation/domain/repository.go**
+
+   * Added read ports for finding installations by user and installation ID, finding by resource ID, counting known installations, checking user installation history, and listing installations.
+   * Added write ports for bootstrapping the first installation, reserving a known installation, and revoking an installation by resource ID.
+   * Added a session invalidation port for invalidating sessions by installation ID.
+   * Added restricted authorization repository ports for create, lookup, consume, revoke, and revoke-active operations.
+
+6. **api/internal/installation/domain/installation_id_test.go**
+
+   * Added tests for canonical UUID v4 installation ID parsing.
+   * Covered invalid cases such as blank values, non-UUID strings, UUID v1, non-canonical UUIDs without hyphens, and uppercase UUIDs.
+   * Verified that `InstallationResourceID` remains a separate value object from `InstallationID`.
+   * Added validation for rejecting nil installation resource IDs.
+
+7. **api/internal/installation/domain/installation_test.go**
+
+   * Added tests for creating known installations.
+   * Added revocation behavior tests, including repeated revocation rejection.
+   * Added restoration validation tests for known and revoked installation state consistency.
+   * Added login decision tests covering known, revoked, first, new, limit-reached, and invalid classification scenarios.
+
+8. **api/internal/installation/domain/restricted_authorization_test.go**
+
+   * Added tests for creating restricted authorizations with trimmed JTI values, default scope, active status, and default expiration.
+   * Added consume behavior tests, including repeated consumption rejection.
+   * Added expiration validation for restricted authorization consumption.
+   * Added revoke behavior tests, including repeated revocation rejection.
+   * Added restoration validation tests for active, consumed, revoked, invalid scope, blank JTI, and inconsistent consumed timestamp states.
+
+9. **docs/backlogs/api/012 - installation-identity-domain-contracts_tasks.md**
+
+   * Marked all eight domain-contract tasks as completed.
+   * Updated the backlog status for installation identifiers, installation modeling, login classifications, domain errors, read ports, write ports, restricted authorization modeling, and restricted authorization ports.
+
+10. **docs/backlogs/api/013 - installation-identity-database-schema.md**
+
+* Added a direct reference to the new database schema task file.
+* Linked the parent backlog to the detailed migration task breakdown.
+
+11. **docs/backlogs/api/013 - installation-identity-database-schema_tasks.md**
+
+* Added the database schema task backlog for Installation Identity.
+* Defined tasks for creating the `app_installations` table, integrity constraints, query indexes, support for the three-known-installation limit, restricted authorization storage, authorization constraints/indexes, and migration validation.
+* Documented acceptance criteria and dependencies for each database task.
+
+### Conclusion
+
+This change establishes the Installation Identity domain layer with explicit entities, value objects, lifecycle rules, authorization rules, errors, ports, and unit coverage.
+
+It completes the domain-contract backlog and creates the next implementation path for database schema work, keeping persistence concerns separated from the domain model.
+
+
 ## 2026/06/17 - api/installation-identity-03
 
 This change consolidates the installation identity entry contract and reorganizes the API backlog structure around technical dependency order. The login REST contract now explicitly documents the required `X-Installation-Id` header, including canonical UUID v4 validation and the `INVALID_INSTALLATION_ID` error behavior.
