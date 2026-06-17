@@ -91,12 +91,16 @@ type userData struct {
 }
 
 type loginData struct {
-	AccessToken  string     `json:"access_token"`
-	RefreshToken string     `json:"refresh_token"`
-	UserID       uuid.UUID  `json:"user_id"`
-	Email        string     `json:"email"`
-	Role         string     `json:"role"`
-	CustomerID   *uuid.UUID `json:"customer_id,omitempty"`
+	AccessToken           string     `json:"access_token,omitempty"`
+	RefreshToken          string     `json:"refresh_token,omitempty"`
+	RestrictedAccessToken string     `json:"restricted_access_token,omitempty"`
+	RestrictedTokenType   string     `json:"restricted_token_type,omitempty"`
+	RestrictedScope       string     `json:"restricted_scope,omitempty"`
+	RestrictedExpiresAt   *time.Time `json:"restricted_expires_at,omitempty"`
+	UserID                uuid.UUID  `json:"user_id"`
+	Email                 string     `json:"email"`
+	Role                  string     `json:"role"`
+	CustomerID            *uuid.UUID `json:"customer_id,omitempty"`
 }
 
 type sessionData struct {
@@ -351,12 +355,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sharedhttp.WriteJSON(w, http.StatusOK, loginData{
-		AccessToken:  output.AccessToken,
-		RefreshToken: output.RefreshToken,
-		UserID:       output.UserID,
-		Email:        output.Email,
-		Role:         output.Role,
-		CustomerID:   output.CustomerID,
+		AccessToken:           output.AccessToken,
+		RefreshToken:          output.RefreshToken,
+		RestrictedAccessToken: output.RestrictedAccessToken,
+		RestrictedTokenType:   output.RestrictedTokenType,
+		RestrictedScope:       output.RestrictedScope,
+		RestrictedExpiresAt:   output.RestrictedExpiresAt,
+		UserID:                output.UserID,
+		Email:                 output.Email,
+		Role:                  output.Role,
+		CustomerID:            output.CustomerID,
 	})
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	installationdomain "github.com/seu-usuario/bank-api/internal/installation/domain"
 )
 
 type loginUserRepositoryMock struct {
@@ -130,6 +131,15 @@ type firstInstallationBootstrapperMock struct {
 	err            error
 }
 
+type restrictedInstallationAuthorizationIssuerMock struct {
+	calls          int
+	userID         uuid.UUID
+	installationID uuid.UUID
+	now            time.Time
+	out            *RestrictedInstallationAuthorization
+	err            error
+}
+
 func (m *accountProvisioningCheckerMock) ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error) {
 	m.existsByCustomerIDCalls++
 	m.existsByCustomerIDValue = customerID
@@ -182,6 +192,22 @@ func (m *firstInstallationBootstrapperMock) BootstrapFirstInstallation(
 	m.installationID = installationID
 	m.now = now
 	return m.err
+}
+
+func (m *restrictedInstallationAuthorizationIssuerMock) Issue(
+	ctx context.Context,
+	userID uuid.UUID,
+	installationID uuid.UUID,
+	now time.Time,
+) (*RestrictedInstallationAuthorization, error) {
+	m.calls++
+	m.userID = userID
+	m.installationID = installationID
+	m.now = now
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.out, nil
 }
 
 func (m *sessionRepositoryMock) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
@@ -546,6 +572,178 @@ func TestLoginUserUseCase_Execute_FirstInstallationBootstrapLostRace(t *testing.
 	}
 	if bootstrapper.calls != 0 {
 		t.Fatalf("expected bootstrapper not to be called, got %d", bootstrapper.calls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_RevokedInstallationDoesNotIssueTokens(t *testing.T) {
+	customerID := uuid.New()
+	userID := uuid.New()
+	installationID := uuid.New()
+	verifiedAt := time.Now().UTC()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:              userID,
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
+		},
+	}
+	classifier := &installationLoginClassifierMock{
+		decision: &InstallationLoginDecision{Classification: InstallationLoginRevoked},
+	}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+
+	useCase := NewLoginUserUseCase(
+		userRepo,
+		&accountProvisioningCheckerMock{existsByCustomerIDOK: true},
+		&loginPasswordHasherMock{},
+		tokenService,
+		sessionRepo,
+	).WithInstallationClassifier(classifier)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:          "user@example.com",
+		Password:       "password123",
+		InstallationID: installationID,
+	})
+	if !errors.Is(err, installationdomain.ErrInstallationRevoked) {
+		t.Fatalf("expected ErrInstallationRevoked, got %v", err)
+	}
+	if output != nil {
+		t.Fatalf("expected nil output, got %+v", output)
+	}
+	if tokenService.generateAccessCalls != 0 || tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected no tokens, got access=%d refresh=%d", tokenService.generateAccessCalls, tokenService.generateRefreshCalls)
+	}
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected no session, got %d", sessionRepo.createCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_LimitReachedDoesNotIssueTokens(t *testing.T) {
+	customerID := uuid.New()
+	userID := uuid.New()
+	installationID := uuid.New()
+	verifiedAt := time.Now().UTC()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:              userID,
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
+		},
+	}
+	classifier := &installationLoginClassifierMock{
+		decision: &InstallationLoginDecision{Classification: InstallationLoginLimitReached},
+	}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+
+	useCase := NewLoginUserUseCase(
+		userRepo,
+		&accountProvisioningCheckerMock{existsByCustomerIDOK: true},
+		&loginPasswordHasherMock{},
+		tokenService,
+		sessionRepo,
+	).WithInstallationClassifier(classifier)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:          "user@example.com",
+		Password:       "password123",
+		InstallationID: installationID,
+	})
+	if !errors.Is(err, installationdomain.ErrInstallationLimitReached) {
+		t.Fatalf("expected ErrInstallationLimitReached, got %v", err)
+	}
+	if output != nil {
+		t.Fatalf("expected nil output, got %+v", output)
+	}
+	if tokenService.generateAccessCalls != 0 || tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected no tokens, got access=%d refresh=%d", tokenService.generateAccessCalls, tokenService.generateRefreshCalls)
+	}
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected no session, got %d", sessionRepo.createCalls)
+	}
+}
+
+func TestLoginUserUseCase_Execute_NewInstallationIssuesRestrictedTokenOnly(t *testing.T) {
+	customerID := uuid.New()
+	userID := uuid.New()
+	installationID := uuid.New()
+	expiresAt := time.Now().UTC().Add(5 * time.Minute)
+	verifiedAt := time.Now().UTC()
+	userRepo := &loginUserRepositoryMock{
+		findByEmailUser: &domain.User{
+			ID:              userID,
+			Email:           "user@example.com",
+			PasswordHash:    "stored-hash",
+			Role:            domain.RoleCustomer,
+			CustomerID:      &customerID,
+			Status:          domain.UserStatusActive,
+			EmailVerifiedAt: &verifiedAt,
+			PhoneVerifiedAt: &verifiedAt,
+		},
+	}
+	classifier := &installationLoginClassifierMock{
+		decision: &InstallationLoginDecision{Classification: InstallationLoginNew},
+	}
+	issuer := &restrictedInstallationAuthorizationIssuerMock{
+		out: &RestrictedInstallationAuthorization{
+			Token:     "restricted-token",
+			TokenType: "restricted_access",
+			Scope:     "installation.register",
+			ExpiresAt: expiresAt,
+		},
+	}
+	tokenService := &tokenServiceMock{}
+	sessionRepo := &sessionRepositoryMock{}
+
+	useCase := NewLoginUserUseCase(
+		userRepo,
+		&accountProvisioningCheckerMock{existsByCustomerIDOK: true},
+		&loginPasswordHasherMock{},
+		tokenService,
+		sessionRepo,
+	).WithInstallationClassifier(classifier).
+		WithRestrictedInstallationAuthorizationIssuer(issuer)
+
+	output, err := useCase.Execute(context.Background(), LoginUserInput{
+		Email:          "user@example.com",
+		Password:       "password123",
+		InstallationID: installationID,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if output == nil {
+		t.Fatal("expected output")
+	}
+	if output.RestrictedAccessToken != "restricted-token" {
+		t.Fatalf("expected restricted token, got %q", output.RestrictedAccessToken)
+	}
+	if output.RefreshToken != "" || output.AccessToken != "" {
+		t.Fatalf("expected no operational tokens, got access=%q refresh=%q", output.AccessToken, output.RefreshToken)
+	}
+	if issuer.calls != 1 {
+		t.Fatalf("expected issuer once, got %d", issuer.calls)
+	}
+	if issuer.userID != userID || issuer.installationID != installationID {
+		t.Fatalf("expected issuer user/install %q/%q, got %q/%q", userID, installationID, issuer.userID, issuer.installationID)
+	}
+	if tokenService.generateAccessCalls != 0 || tokenService.generateRefreshCalls != 0 {
+		t.Fatalf("expected no operational token service calls, got access=%d refresh=%d", tokenService.generateAccessCalls, tokenService.generateRefreshCalls)
+	}
+	if sessionRepo.createCalls != 0 {
+		t.Fatalf("expected no session, got %d", sessionRepo.createCalls)
 	}
 }
 

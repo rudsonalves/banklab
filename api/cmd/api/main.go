@@ -24,6 +24,7 @@ import (
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
 	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
+	installationInfrastructure "github.com/seu-usuario/bank-api/internal/installation/infrastructure"
 	securityApplication "github.com/seu-usuario/bank-api/internal/security/application"
 	securityDelivery "github.com/seu-usuario/bank-api/internal/security/delivery"
 	securityDomain "github.com/seu-usuario/bank-api/internal/security/domain"
@@ -114,6 +115,8 @@ func main() {
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
 	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
 	contactVerificationRepo := authInfrastructure.NewPostgresContactVerificationRepository(db)
+	installationRepo := installationInfrastructure.NewPostgresInstallationRepository(db)
+	restrictedAuthorizationRepo := installationInfrastructure.NewPostgresRestrictedAuthorizationRepository(db)
 	transactionPasswordRepo := securityInfrastructure.NewPostgresTransactionPasswordRepository(db)
 	stepUpTokenRepo := securityInfrastructure.NewPostgresStepUpTokenRepository(db)
 	transactor := authInfrastructure.NewPostgresTransactor(db)
@@ -127,6 +130,10 @@ func main() {
 		config.TransactionPasswordPepper,
 	)
 	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, config.JWTAccessTokenDuration)
+	restrictedAccessTokenService := installationInfrastructure.NewJWTRestrictedAccessTokenService(
+		config.JWTSecret,
+		restrictedAuthorizationRepo,
+	)
 	stepUpTokenSigner := securityInfrastructure.NewJWTStepUpTokenSigner(config.JWTSecret)
 	stepUpTokenVerifier := securityInfrastructure.NewJWTStepUpTokenVerifier(config.JWTSecret)
 
@@ -154,7 +161,16 @@ func main() {
 		transactor,
 	)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo).
-		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
+		WithRefreshSessionTTL(config.JWTRefreshTokenDuration).
+		WithInstallationClassifier(authApplication.NewDefaultInstallationLoginClassifier(
+			authApplication.NewInstallationLoginRepositoryAdapter(installationRepo),
+		)).
+		WithFirstInstallationBootstrapper(authApplication.NewFirstInstallationBootstrapperAdapter(installationRepo)).
+		WithRestrictedInstallationAuthorizationIssuer(authApplication.NewDefaultRestrictedInstallationAuthorizationIssuer(
+			restrictedAuthorizationRepo,
+			restrictedAccessTokenService,
+		)).
+		WithTransactor(transactor)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor).
 		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)

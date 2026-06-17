@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	installationdomain "github.com/seu-usuario/bank-api/internal/installation/domain"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 )
 
@@ -139,5 +140,33 @@ func RegisterErrors() {
 		sharederrors.ErrCodeInvalidData,
 		"Invalid data",
 		http.StatusBadRequest,
+	)
+
+	sharederrors.RegisterDomainError(
+		installationdomain.ErrInstallationRevoked,
+		sharederrors.ErrCodeInstallationRevoked,
+		"Installation revoked",
+		http.StatusForbidden,
+	)
+
+	sharederrors.RegisterDomainError(
+		installationdomain.ErrInstallationLimitReached,
+		sharederrors.ErrCodeInstallationLimitReached,
+		"Installation limit reached",
+		http.StatusConflict,
+	)
+
+	sharederrors.RegisterDomainError(
+		installationdomain.ErrRestrictedAuthorizationInvalid,
+		sharederrors.ErrCodeInvalidToken,
+		"Invalid token",
+		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainError(
+		installationdomain.ErrRestrictedAuthorizationExpired,
+		sharederrors.ErrCodeInvalidToken,
+		"Invalid token",
+		http.StatusUnauthorized,
 	)
 }
