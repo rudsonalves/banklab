@@ -13,7 +13,7 @@ Campos sugeridos para todas as tasks:
 
 ## Task 1/7: Criar migration base de instalacoes
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -56,7 +56,7 @@ instalacao do app.
 
 ## Task 2/7: Definir constraints de integridade de instalacoes
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -86,7 +86,7 @@ Garantir no banco os invariantes persistidos da entidade de instalacao.
 
 ## Task 3/7: Criar indices de consulta de instalacoes
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -113,7 +113,7 @@ implementar repositorios ainda.
 
 ## Task 4/7: Preparar suporte ao limite de tres instalacoes `known`
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -142,7 +142,7 @@ atomicamente o limite de tres instalacoes `known` por usuario.
 
 ## Task 5/7: Criar migration de autorizacoes restritas
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -179,7 +179,7 @@ futuro `restricted_access_token`.
 
 ## Task 6/7: Definir constraints e indices de autorizacoes restritas
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 
@@ -216,7 +216,7 @@ Garantir unicidade, estado e consultas futuras das autorizacoes restritas.
 
 ## Task 7/7: Validar migrations e rollback
 
-Status: Backlog
+Status: Concluída
 
 ### Objetivo
 

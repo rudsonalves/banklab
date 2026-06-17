@@ -1,5 +1,82 @@
 # Changelog
 
+## 2026/06/17 - api/installation-identity-05
+
+This change implements the PostgreSQL persistence layer for the installation identity module, adding schema support, repository implementations, and integration coverage for installation records and restricted registration authorizations.
+
+The update introduces the database structures required to persist known and revoked app installations, enforce the three-known-installation limit per user, and support future restricted authorization flows for installation registration.
+
+1. **api/migrations/000013_installation_identity_schema.up.sql**
+
+   * Added the `app_installations` table to persist installation identity records.
+   * Added integrity constraints for installation status, timestamps, revocation consistency, and known slot consistency.
+   * Added unique indexes for `resource_id`, `(user_id, installation_id)`, and active known slots.
+   * Added query indexes for user-based lookup, resource lookup, status filtering, and known installation counting.
+   * Added the `installation_registration_authorizations` table for restricted installation registration authorizations.
+   * Added constraints for `jti`, scope, status, expiration, and consumed timestamp consistency.
+   * Added unique and query indexes for authorization lookup, active authorization enforcement, and expiration filtering.
+
+2. **api/migrations/000013_installation_identity_schema.down.sql**
+
+   * Added rollback support for the installation identity schema.
+   * Drops authorization indexes and table before removing installation indexes and table.
+   * Keeps rollback order compatible with table dependencies.
+
+3. **api/internal/installation/infrastructure/postgres_repository.go**
+
+   * Added `PostgresInstallationRepository` implementing `domain.InstallationRepository`.
+   * Added transaction-aware executor support using `database.TxFromContext`.
+   * Implemented lookup by `(user_id, installation_id)` and `(user_id, resource_id)`.
+   * Implemented known installation counting, historical installation detection, and user installation listing.
+   * Implemented atomic first-installation bootstrap with user-level locking.
+   * Implemented atomic known-installation reservation with slot allocation and limit enforcement.
+   * Implemented logical revocation by public `resource_id`, preserving history and releasing the known slot.
+   * Added scan helpers to restore domain installation entities from PostgreSQL rows.
+   * Added PostgreSQL constraint and uniqueness error mapping to domain errors.
+
+4. **api/internal/installation/infrastructure/postgres_restricted_authorization_repository.go**
+
+   * Added `PostgresRestrictedAuthorizationRepository` implementing `domain.RestrictedAuthorizationRepository`.
+   * Implemented creation, lookup by `jti`, atomic consumption, and revocation of restricted authorizations.
+   * Added active authorization revocation by `(user_id, installation_id, scope)`.
+   * Added single-use consumption behavior based on `status = active` and `expires_at`.
+   * Added failure mapping for consumed, revoked, expired, invalid, and missing authorizations.
+   * Added scan helpers to restore restricted authorization domain entities from database rows.
+   * Added PostgreSQL error mapping for duplicate active authorizations and invalid persisted data.
+
+5. **api/internal/installation/infrastructure/postgres_repository_test.go**
+
+   * Added PostgreSQL integration tests for installation repository behavior.
+   * Covered first-installation bootstrap, historical bootstrap rejection, known installation limit enforcement, revoked slot reuse, and historical listing.
+   * Added concurrency tests ensuring only one bootstrap succeeds for a new user.
+   * Added concurrency tests ensuring known installation reservations do not exceed the configured limit.
+   * Added PostgreSQL integration tests for restricted authorization repository behavior.
+   * Covered authorization creation, lookup, active uniqueness, single-use consumption, expiration handling, and concurrent consumption.
+   * Added local test schema helpers, test user creation, cleanup helpers, and domain value constructors.
+
+6. **docs/backlogs/api/013 - installation-identity-database-schema_tasks.md**
+
+   * Marked all database schema tasks as completed.
+   * Updated task status for installation migrations, constraints, indexes, known slot support, restricted authorization schema, and rollback validation.
+
+7. **docs/backlogs/api/014 - installation-identity-repositories.md**
+
+   * Added a reference from the repository backlog to its dedicated task document.
+   * Linked the repository planning document to the new task breakdown.
+
+8. **docs/backlogs/api/014 - installation-identity-repositories_tasks.md**
+
+   * Added the task breakdown for the installation identity repository backlog.
+   * Documented eight completed tasks covering infrastructure structure, installation reads, atomic bootstrap, atomic reservation, logical revocation, restricted authorization persistence, concurrency tests, and build validation.
+   * Captured scope, acceptance criteria, and dependencies for each repository implementation step.
+
+### Conclusion
+
+This change delivers the persistence foundation for installation identity in the API. The database schema, repository implementations, and integration tests now support installation history, known installation limits, logical revocation, and restricted registration authorization storage.
+
+The module remains isolated from handlers and login wiring, keeping the implementation ready for later application and delivery integration without changing current HTTP behavior.
+
+
 ## 2026/06/17 - api/installation-identity-04
 
 This change introduces the domain contracts for Installation Identity in the API. It defines the core installation aggregate, installation identifiers, login classifications, restricted registration authorizations, domain errors, repository ports, and unit tests.

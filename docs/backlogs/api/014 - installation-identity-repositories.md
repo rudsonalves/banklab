@@ -42,6 +42,10 @@ incluindo as operações atômicas que sustentam os use cases posteriores.
 As tasks devem ser divididas por repositório e por operação atômica. Testes
 devem cobrir os caminhos de concorrência mais importantes.
 
+Tasks:
+
+- [014 - installation-identity-repositories_tasks.md](<014 - installation-identity-repositories_tasks.md>)
+
 ## 7. Referencias
 
 - [Installation Identity MVP](<010 - installation-identity-mvp.md>)

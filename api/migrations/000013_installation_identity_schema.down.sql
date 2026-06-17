@@ -1,0 +1,16 @@
+DROP INDEX IF EXISTS idx_installation_registration_authorizations_expires_at;
+DROP INDEX IF EXISTS idx_installation_registration_authorizations_user_installation_scope_status;
+DROP INDEX IF EXISTS ux_installation_registration_authorizations_active;
+DROP INDEX IF EXISTS ux_installation_registration_authorizations_jti;
+
+DROP TABLE IF EXISTS installation_registration_authorizations;
+
+DROP INDEX IF EXISTS idx_app_installations_known_count;
+DROP INDEX IF EXISTS idx_app_installations_user_status;
+DROP INDEX IF EXISTS idx_app_installations_user_resource_id;
+DROP INDEX IF EXISTS idx_app_installations_user_id;
+DROP INDEX IF EXISTS ux_app_installations_known_slot;
+DROP INDEX IF EXISTS ux_app_installations_user_installation_id;
+DROP INDEX IF EXISTS ux_app_installations_resource_id;
+
+DROP TABLE IF EXISTS app_installations;
