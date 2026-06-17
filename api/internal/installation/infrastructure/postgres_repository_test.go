@@ -329,6 +329,81 @@ func TestPostgresRestrictedAuthorizationRepository_Integration(t *testing.T) {
 			t.Fatalf("expected 1 success and 1 consumed error, got successes=%d consumed=%d", successes, consumedErrors)
 		}
 	})
+
+	t.Run("cleanup removes only authorizations outside retention", func(t *testing.T) {
+		userID := createInstallationTestUser(t, ctx, pool)
+		defer cleanupInstallationTestUser(t, ctx, pool, userID)
+		now := time.Now().UTC().Truncate(time.Microsecond)
+		retention := 24 * time.Hour
+
+		oldActive := mustRestrictedAuthorizationAt(
+			t,
+			userID,
+			mustTestInstallationID(t),
+			domain.RestrictedAuthorizationStatusActive,
+			now.Add(-48*time.Hour),
+			nil,
+		)
+		oldConsumedAt := now.Add(-25 * time.Hour)
+		oldConsumed := mustRestrictedAuthorizationAt(
+			t,
+			userID,
+			mustTestInstallationID(t),
+			domain.RestrictedAuthorizationStatusConsumed,
+			now.Add(-48*time.Hour),
+			&oldConsumedAt,
+		)
+		oldRevoked := mustRestrictedAuthorizationAt(
+			t,
+			userID,
+			mustTestInstallationID(t),
+			domain.RestrictedAuthorizationStatusRevoked,
+			now.Add(-48*time.Hour),
+			nil,
+		)
+		recentActive := mustRestrictedAuthorizationAt(
+			t,
+			userID,
+			mustTestInstallationID(t),
+			domain.RestrictedAuthorizationStatusActive,
+			now.Add(-time.Hour),
+			nil,
+		)
+
+		for _, authorization := range []*domain.RestrictedAuthorization{
+			oldActive,
+			oldConsumed,
+			oldRevoked,
+			recentActive,
+		} {
+			if err := repo.Create(ctx, authorization); err != nil {
+				t.Fatalf("expected create %q, got %v", authorization.JTI, err)
+			}
+		}
+
+		deleted, err := repo.CleanupExpired(ctx, now, retention)
+		if err != nil {
+			t.Fatalf("expected cleanup to succeed, got %v", err)
+		}
+		if deleted != 3 {
+			t.Fatalf("expected 3 deleted authorizations, got %d", deleted)
+		}
+
+		for _, authorization := range []*domain.RestrictedAuthorization{oldActive, oldConsumed, oldRevoked} {
+			_, err := repo.FindByJTI(ctx, authorization.JTI)
+			if !errors.Is(err, domain.ErrRestrictedAuthorizationNotFound) {
+				t.Fatalf("expected authorization %q to be removed, got %v", authorization.JTI, err)
+			}
+		}
+
+		got, err := repo.FindByJTI(ctx, recentActive.JTI)
+		if err != nil {
+			t.Fatalf("expected recent authorization to remain, got %v", err)
+		}
+		if got.Status != domain.RestrictedAuthorizationStatusActive {
+			t.Fatalf("expected recent authorization to stay active, got %q", got.Status)
+		}
+	})
 }
 
 func newInstallationTestPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
@@ -485,6 +560,33 @@ func mustRestrictedAuthorization(
 	t.Helper()
 
 	authorization, err := domain.NewRestrictedAuthorization(uuid.NewString(), userID, installationID, now)
+	if err != nil {
+		t.Fatalf("expected restricted authorization, got %v", err)
+	}
+	return authorization
+}
+
+func mustRestrictedAuthorizationAt(
+	t *testing.T,
+	userID uuid.UUID,
+	installationID domain.InstallationID,
+	status domain.RestrictedAuthorizationStatus,
+	createdAt time.Time,
+	consumedAt *time.Time,
+) *domain.RestrictedAuthorization {
+	t.Helper()
+
+	authorization, err := domain.RestoreRestrictedAuthorization(
+		uuid.Nil,
+		uuid.NewString(),
+		userID,
+		installationID,
+		domain.RestrictedAuthorizationScopeInstallationRegister,
+		status,
+		createdAt.Add(domain.RestrictedAuthorizationDefaultDuration),
+		consumedAt,
+		createdAt,
+	)
 	if err != nil {
 		t.Fatalf("expected restricted authorization, got %v", err)
 	}

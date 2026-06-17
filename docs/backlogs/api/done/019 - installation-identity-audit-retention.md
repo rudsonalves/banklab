@@ -5,7 +5,7 @@
 - Tipo: Planning
 - Area: Security
 - Prioridade: High
-- Estado: Discussao
+- Estado: Concluido
 
 ## 2. Objetivo
 
@@ -45,3 +45,22 @@ documentação final.
 
 - [Installation Identity MVP](<010 - installation-identity-mvp.md>)
 - [Split por dependencia](<010 - split-installation-identity-by-dependency.md>)
+
+## 8. Decisoes implementadas
+
+- Instalacoes revogadas permanecem no historico. Elas nao ocupam slot `known`,
+  mas continuam impedindo que o usuario volte a ser elegivel ao bootstrap de
+  primeira instalacao.
+- Autorizacoes restritas ativas expiradas ha mais de 24 horas sao removidas.
+- Autorizacoes restritas consumidas sao removidas 24 horas apos `consumed_at`.
+- Autorizacoes restritas revogadas sao removidas 24 horas apos `created_at`.
+- A limpeza operacional e feita por `cleanup_installation_registration_authorizations()`,
+  agendada via `pg_cron` para 03:30.
+- A revogacao de instalacao invalida refresh sessions vinculadas a instalacao
+  revogada. Access tokens ja emitidos permanecem limitados ao proprio TTL curto
+  e ao enforcement de contexto nas rotas protegidas.
+- Logs e auditoria devem usar nomes de evento, identificadores publicos,
+  status, timestamps e codigos de erro. Tokens, senha transacional, hashes e
+  payloads sensiveis nao devem ser registrados.
+- O `installation_id` permanece documentado como sinal contextual fraco, nunca
+  como identidade forte, fator de autenticacao ou prova de posse do aparelho.

@@ -29,7 +29,7 @@ This separation allows the system to remain simple while preserving a clear path
 
 ## 3. Token Types
 
-The system operates with two distinct tokens:
+The system operates with these token types:
 
 ### 3.1 App Token
 
@@ -66,6 +66,28 @@ A user-scoped token issued after successful authentication.
 * contains claims (`sub`, `role`, `customer_id`)
 * validated via JWT middleware
 * lifetime is configured by `JWT_ACCESS_TOKEN_DURATION` and defaults to `15m`
+
+### 3.3 Restricted Access Token (JWT)
+
+A short-lived token issued after successful credentials when the presented app
+installation is new and cannot be associated automatically.
+
+**Purpose:**
+
+* carry only the context needed to register the presented installation
+* allow step-up authorization for `POST /security/installations`
+* avoid creating an operational session before the installation is registered
+
+**Characteristics:**
+
+* sent via `Authorization: Bearer <restricted_access_token>`
+* contains `token_type = restricted_access`
+* contains `scope = installation.register`
+* contains the presented `installation_id`
+* does not create a refresh token
+* cannot access account, customer, statement, transfer, or general security
+  operations
+* expires after five minutes and is tracked by persisted `jti`
 
 ---
 
@@ -142,6 +164,12 @@ expiration, and user identity before rotating the session.
 Refresh session lifetime is configured by `JWT_REFRESH_TOKEN_DURATION` and
 defaults to `168h`.
 
+When a refresh session is bound to an installation, `POST /auth/refresh` also
+requires `X-Installation-Id`. The header must match the installation recorded
+for that refresh session. Revoking an installation marks matching refresh
+sessions as revoked, so later refresh attempts fail even if the refresh token
+has not reached its cryptographic expiration.
+
 ---
 
 ### 4.4 Protected Resource Endpoints (JWT Required)
@@ -164,11 +192,68 @@ Protected Handler
 **Requirements:**
 
 * valid `Authorization: Bearer <access_token>`
+* valid `X-Installation-Id` matching the access token claim and server-side
+  session context for operational routes
 * App Token is not required
 
 ---
 
-## 5. Authorization Model
+### 4.5 Installation Registration Flow
+
+Endpoint:
+
+* `POST /security/installations`
+
+This route accepts a restricted access token, the same `X-Installation-Id`
+presented at login, and a valid `X-Step-Up-Token` authorized for the public
+operation `POST /security/installations`.
+
+Successful registration consumes the restricted authorization, reserves one of
+the user's known installation slots, creates an operational refresh session, and
+returns normal access and refresh tokens. The API still treats the
+`installation_id` as a weak contextual signal. It is never sufficient by itself
+for authentication or authorization.
+
+---
+
+## 5. Audit, Retention, and Logging
+
+Installation identity events that must be observable in operational telemetry:
+
+* login with known installation
+* first installation bootstrap
+* login requiring restricted installation registration
+* login denied for revoked installation
+* login denied because the installation limit was reached
+* restricted authorization creation, consumption, revocation, and expiration
+* installation registration
+* installation listing
+* installation revocation and session invalidation
+* installation mismatch between header, token claim, and session context
+
+Logs and audit payloads must not include access tokens, refresh tokens,
+restricted access tokens, step-up tokens, transaction passwords, password hashes,
+raw request bodies for sensitive operations, or environment attributes beyond
+the minimum fields needed to operate the flow. When correlation is needed, use
+event names, user/resource identifiers, status, timestamps, and error codes
+instead of secrets.
+
+Retention policy:
+
+* revoked installations are retained as historical records because they preserve
+  bootstrap history and support support/audit review;
+* active restricted installation authorizations expired for more than 24 hours
+  are deleted;
+* consumed restricted installation authorizations are deleted 24 hours after
+  `consumed_at`;
+* revoked restricted installation authorizations are deleted 24 hours after
+  `created_at`.
+
+The cleanup function
+`cleanup_installation_registration_authorizations()` is scheduled by `pg_cron`
+for 03:30 daily.
+
+## 6. Authorization Model
 
 Authorization is based on the authenticated user identity extracted from the JWT.
 
@@ -185,7 +270,7 @@ Authorization is based on the authenticated user identity extracted from the JWT
 
 ---
 
-## 5.1 Operational Status (UserStatus)
+## 6.1 Operational Status (UserStatus)
 
 **IMPORTANT DISTINCTION:** Authorization, user lifecycle, and account operability are separate concerns.
 
@@ -245,7 +330,7 @@ Account status governs whether a specific account is operational.
 
 ---
 
-## 6. Design Rationale
+## 7. Design Rationale
 
 This model reflects a deliberate decision to:
 

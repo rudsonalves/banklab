@@ -1,6 +1,89 @@
 # Changelog
 
-## 2026/06/17 - api/installation-identity-06
+## 2026/06/17 - api/installation-identity-09
+
+This change completes the audit, retention, and operational cleanup layer for the Installation Identity MVP. It documents the security boundaries of installation identity, clarifies revoked-installation behavior, and adds automated cleanup for restricted installation registration authorizations.
+
+The update affects REST documentation, authentication implementation notes, database documentation, PostgreSQL migrations, the concrete installation repository, integration tests, and backlog organization.
+
+1. **api/docs/07-api-rest.md**
+
+   * Clarified that `X-Installation-Id` is only a weak installation signal.
+   * Documented that installation identity does not replace JWT validation or step-up authorization.
+   * Expanded revocation behavior for installations.
+   * Documented that revoked installations invalidate bound refresh sessions, while already issued access tokens remain valid until their short expiration.
+   * Clarified that revoked installations remain in historical storage and do not consume known-installation slots.
+
+2. **api/docs/08-auth_implementation.md**
+
+   * Updated the token model to include restricted access tokens.
+   * Documented the restricted access token used during new installation registration.
+   * Described its scope, token type, expiration, persisted `jti`, and operational limitations.
+   * Added refresh-session behavior when sessions are bound to installations.
+   * Added protected-route requirements for matching `X-Installation-Id`.
+   * Added the installation registration flow using restricted access tokens and step-up authorization.
+   * Added audit, retention, and safe logging rules for installation identity events.
+   * Documented the cleanup policy for restricted installation registration authorizations.
+   * Renumbered authorization and design rationale sections after the new operational documentation.
+
+3. **api/docs/09-database.md**
+
+   * Added `app_installations` and `installation_registration_authorizations` to the support table list.
+   * Documented `installation_id` on refresh sessions.
+   * Added notes describing refresh-session invalidation when an installation is revoked.
+   * Added the `app_installations` table documentation, including status, slot behavior, metadata, retention, and privacy limits.
+   * Added the `installation_registration_authorizations` table documentation, including states, scope, expiration, retention, and cleanup behavior.
+
+4. **api/internal/installation/infrastructure/postgres_restricted_authorization_repository.go**
+
+   * Added `CleanupExpired` to remove restricted installation registration authorizations outside the retention window.
+   * Implemented cleanup rules for expired active authorizations, old consumed authorizations, and old revoked authorizations.
+   * Added validation for invalid cleanup inputs.
+   * Returned the number of deleted rows for operational visibility and testability.
+
+5. **api/internal/installation/infrastructure/postgres_repository_test.go**
+
+   * Added an integration test for restricted authorization cleanup.
+   * Covered removal of old active, consumed, and revoked authorizations.
+   * Verified that recent active authorizations are preserved.
+   * Added a helper to create restricted authorizations with controlled timestamps.
+
+6. **api/migrations/000015_installation_authorizations_cleanup.up.sql**
+
+   * Added the `pg_cron` extension requirement.
+   * Added partial indexes for active, consumed, and revoked restricted authorization cleanup.
+   * Added `cleanup_installation_registration_authorizations()`.
+   * Scheduled the cleanup job to run daily at 03:30.
+   * Executed the cleanup function once during migration application.
+
+7. **api/migrations/000015_installation_authorizations_cleanup.down.sql**
+
+   * Added rollback logic for the scheduled cleanup job.
+   * Removed the cleanup function.
+   * Dropped the partial indexes created for cleanup support.
+
+8. **docs/backlogs/api/done/**
+
+   * Moved installation identity backlogs 010 through 019 to the `done` folder.
+   * Marked the audit and retention backlog as concluded.
+   * Added implemented decisions covering revoked installation retention, restricted authorization cleanup, refresh-session invalidation, safe logging, and weak installation identity semantics.
+   * Added completed task documentation for the audit, retention, cleanup, and operational documentation work.
+
+9. **docs/backlogs/mobile/pendencias.md**
+
+   * Added mobile pending decisions for installation identity integration.
+   * Documented open UX and implementation questions for reinstall detection, backup and restore, storage failure, concurrency, restricted login, installation limit handling, transaction password edge cases, token expiration, installation management, telemetry, and first delivery scope.
+
+### Conclusion
+
+This change finalizes the operational retention policy for installation identity and restricted installation registration authorizations.
+
+The API documentation now presents installation identity as a weak contextual signal, with explicit limits around authentication, authorization, revocation, logging, and audit behavior.
+
+The database and repository layers now include a versioned cleanup mechanism, backed by migration, scheduled execution, and integration test coverage.
+
+
+## 2026/06/17 - api/installation-identity-08
 
 This change completes the API delivery and enforcement layer for installation identity management. It connects restricted installation registration, operational installation enforcement, installation listing, and revocation into the real API wiring.
 
@@ -175,7 +258,7 @@ This change set completes the installation identity management flow across appli
 The API now distinguishes operational access from restricted installation-registration access, binds authenticated flows to `X-Installation-Id`, supports secure registration of new installations through step-up, and allows users to list and revoke known installations without exposing raw installation identifiers.
 
 
-## 2026/06/17 - api/installation-identity-06
+## 2026/06/17 - api/installation-identity-07
 
 This change prepares the authentication flow to carry installation identity across operational sessions, access tokens, refresh rotation, and shared authentication context.
 

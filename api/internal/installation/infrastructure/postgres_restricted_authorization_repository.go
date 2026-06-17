@@ -166,6 +166,31 @@ func (r *PostgresRestrictedAuthorizationRepository) RevokeByJTI(ctx context.Cont
 	}
 }
 
+func (r *PostgresRestrictedAuthorizationRepository) CleanupExpired(
+	ctx context.Context,
+	now time.Time,
+	retention time.Duration,
+) (int64, error) {
+	if now.IsZero() || retention < 0 {
+		return 0, domain.ErrInvalidRestrictedAuthorization
+	}
+
+	cutoff := now.UTC().Add(-retention)
+	commandTag, err := r.executor(ctx).Exec(
+		ctx,
+		`DELETE FROM installation_registration_authorizations
+		 WHERE (status = 'active' AND expires_at < $1)
+			OR (status = 'consumed' AND consumed_at IS NOT NULL AND consumed_at < $1)
+			OR (status = 'revoked' AND created_at < $1)`,
+		cutoff,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("cleanup expired restricted authorizations: %w", err)
+	}
+
+	return commandTag.RowsAffected(), nil
+}
+
 func (r *PostgresRestrictedAuthorizationRepository) RevokeActiveByUserIDAndInstallationID(
 	ctx context.Context,
 	userID uuid.UUID,

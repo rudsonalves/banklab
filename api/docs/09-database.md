@@ -89,6 +89,8 @@ Each concept is represented once:
 ### Support Tables
 
 * `schema_migrations`
+* `app_installations`
+* `installation_registration_authorizations`
 
 ---
 
@@ -178,7 +180,17 @@ Fields:
 * `token_hash` (unique)
 * `expires_at`
 * `revoked_at`
+* `installation_id` (nullable UUID)
 * `created_at`
+
+Notes:
+
+* `installation_id` links refresh sessions to the app installation association
+  presented at login or registration.
+* Revoking an installation invalidates non-revoked refresh sessions for the
+  same user and installation.
+* The access token is still short-lived; the refresh session is the server-side
+  revocation boundary.
 
 ---
 
@@ -208,7 +220,73 @@ Notes:
 
 ---
 
-## 4.6 accounts
+## 4.6 app_installations
+
+Represents app installation associations for a user.
+
+Fields:
+
+* `id` (UUID, PK)
+* `resource_id` (public management identifier)
+* `user_id` (FK -> users)
+* `installation_id` (client-generated UUID v4)
+* `status` (`known` or `revoked`)
+* `known_slot` (1 to 3 while `known`; null when `revoked`)
+* `platform` (nullable)
+* `app_version` (nullable)
+* `app_build` (nullable)
+* `first_seen_at`
+* `last_seen_at`
+* `revoked_at`
+* `created_at`
+* `updated_at`
+
+Notes:
+
+* `installation_id` is a weak contextual signal, not proof of physical device
+  possession.
+* Public management operations use `resource_id`; API responses do not expose
+  the raw client-provided `installation_id`.
+* Revoked installations are retained as history. They do not occupy a known
+  slot, but they continue to prove that the user already had a first
+  installation and must not regain bootstrap eligibility.
+* The MVP intentionally does not persist geolocation, biometric data,
+  attestation data, device fingerprints, IP history, user agent history, or
+  other environment attributes beyond the optional app metadata columns above.
+
+---
+
+## 4.7 installation_registration_authorizations
+
+Represents short-lived restricted login authorizations for registering a new
+installation after credential authentication.
+
+Fields:
+
+* `id` (UUID, PK)
+* `jti` (unique JWT identifier)
+* `user_id` (FK -> users)
+* `installation_id` (client-generated UUID v4)
+* `scope` (`installation.register`)
+* `status` (`active`, `consumed`, or `revoked`)
+* `expires_at`
+* `consumed_at`
+* `created_at`
+
+Notes:
+
+* The restricted access token is returned only to the client; the database keeps
+  the `jti` and authorization metadata needed for single-use validation.
+* Active authorizations expire after five minutes.
+* Active authorizations expired for more than 24 hours are removed.
+* Consumed authorizations are retained for 24 hours after `consumed_at`.
+* Revoked authorizations are retained for 24 hours after `created_at`.
+* Cleanup is performed daily at 03:30 by `pg_cron` through
+  `cleanup_installation_registration_authorizations()`.
+
+---
+
+## 4.8 accounts
 
 Represents a financial account.
 
