@@ -2,18 +2,18 @@
 
 ## 1. Status
 
-- Tipo: Research
+- Tipo: Planning
 - Área: Security
 - Prioridade: High
-- Estado: Discussão
+- Estado: Pronto para tasks
 
 Este backlog define as responsabilidades do aplicativo mobile para criar e
 propagar uma identidade aleatória por instalação. Associação com usuário,
 sessão, estados e revogação pertencem ao backlog API 010.
 
-Ele ainda não autoriza implementação: as decisões de armazenamento,
-reinstalação, concorrência e falha precisam ser fechadas antes da criação das
-tasks mobile.
+As decisões de armazenamento, reinstalação, falha, login restrito e limite de
+instalações foram fechadas. A implementação deve seguir as tasks mobile
+derivadas deste backlog.
 
 ## 2. Objetivo
 
@@ -24,8 +24,8 @@ O mobile deve:
 - enviar o valor em `X-Installation-Id`;
 - preservar o identificador em logout e troca de usuário;
 - gerar uma nova identidade após reinstalação ou limpeza dos dados;
-- não bloquear o uso básico do app caso o armazenamento falhe durante o
-  rollout inicial;
+- bloquear login e chamadas à API quando não conseguir resolver uma identidade
+  estável da instalação;
 - não tratar o identificador como segredo, autenticação ou prova de posse.
 
 ## 3. Contrato compartilhado
@@ -70,7 +70,9 @@ advertising ID, fingerprint ou atributos semelhantes.
 
 ```text
 App procura installation_id
-  -> se não existir, gera UUID v4
+  -> valida marcador local da instalação
+  -> se marcador não existir, considera nova instalação
+  -> se não existir installation_id válido para a instalação atual, gera UUID v4
   -> persiste localmente
   -> reutiliza o mesmo valor nas requisições seguintes
 ```
@@ -93,31 +95,48 @@ Uma nova instalação ou limpeza dos dados deve gerar uma nova identidade. O app
 não deve tentar reconstruir silenciosamente a identidade anterior por
 fingerprint físico.
 
+O mobile deve manter um marcador local simples da instalação fora do
+armazenamento seguro durável. Esse marcador não é uma identidade, não é secreto
+e pode ser apenas um sinal interno de que os dados locais da instalação atual
+ainda existem.
+
+Se esse marcador sumir, o app deve considerar que houve reinstalação, limpeza
+de dados ou restauração incompleta, e gerar uma nova `installation_id`, mesmo
+que `flutter_secure_storage` ainda devolva um valor antigo. Essa regra evita
+que Keychain, backup ou restauração ressuscitem uma instalação antiga sem
+intenção.
+
 ## 5. Persistência
 
-Chave candidata:
+O mobile deve persistir a identidade localmente com `flutter_secure_storage`.
+A chave definida é:
 
 ```text
 banklab.installation.id
 ```
 
-O projeto já possui `LocalSecureStorage` sobre `flutter_secure_storage`. A
-implementação deve decidir como distinguir atualização de reinstalação,
-considerando que mecanismos como o Keychain do iOS podem preservar valores
-após a remoção do app.
+O projeto já possui `LocalSecureStorage` sobre `flutter_secure_storage` e a
+implementação deve reutilizar essa infraestrutura. A persistência segura não
+deve ser usada isoladamente como prova de que a instalação ainda é a mesma,
+pois mecanismos como o Keychain do iOS podem preservar valores após a remoção
+do app.
 
 A identidade da instalação deve ter ciclo de vida separado dos tokens. O
-`deleteAll()` usado para limpar sessão não pode apagar esse valor sem uma
-decisão explícita.
+logout, a limpeza de credenciais e a troca de usuário devem apagar apenas
+tokens e estado de sessão. Eles não devem apagar `banklab.installation.id`.
+
+Backup e restore não devem ressuscitar silenciosamente uma instalação antiga.
+O marcador local deve ser excluído de backup ou tratado de forma que, após
+restore sem marcador válido, o app gere uma nova `installation_id`.
 
 ## 6. Serviço e interceptor
 
 O mobile deve possuir um serviço responsável por:
 
 - executar `read-or-create` do UUID;
-- evitar geração concorrente de valores diferentes durante o bootstrap;
 - validar localmente o valor recuperado antes de reutilizá-lo;
 - disponibilizar o identificador ao transporte HTTP;
+- bloquear login e chamadas à API se não houver identidade estável;
 - nunca registrar o valor completo em logs.
 
 O esqueleto atual de `DeviceInterceptor` é apenas referência. A implementação
@@ -139,19 +158,18 @@ a API decida solicitá-los. Para o MVP, o conjunto mínimo aceito para esse
 contrato separado é `platform`, `app_version` e `app_build`. Eles não devem
 ser codificados dentro do UUID.
 
-## 7. Comportamento em falhas
+## 7. Comportamento em falhas e bootstrap
 
-No rollout inicial:
+O app deve resolver uma `installation_id` estável durante o bootstrap. Enquanto
+isso não acontecer, login e chamadas à API ficam bloqueados.
 
-- falha de leitura ou escrita não deve gerar um UUID novo por requisição;
-- uma tentativa de geração deve ser compartilhada entre requisições
-  concorrentes;
-- se não houver identidade estável disponível, a requisição segue sem o header;
+- falha de leitura, validação, geração ou escrita deve bloquear o fluxo;
+- o app deve exibir erro recuperável, com opção de tentar novamente;
+- a requisição não deve seguir sem `X-Installation-Id`;
+- o app não deve gerar um UUID novo por requisição;
 - o erro deve ser observável sem registrar o identificador;
-- a ausência do header não deve encerrar a sessão por decisão exclusiva do
-  mobile.
-
-O comportamento futuro para operações sensíveis será definido pela API.
+- falha de storage pode ser apresentada como erro de login, rede ou
+  armazenamento, conforme o ponto da jornada.
 
 ## 8. Registro de nova instalação
 
@@ -211,9 +229,15 @@ No futuro, prova de vida poderá autorizar o mesmo endpoint de registro sem
 alterar o papel do `X-Installation-Id`.
 
 Senha transacional ativa é pré-requisito para esse fluxo. Se a API indicar que
-ela está `not_set` ou `locked`, o mobile não deve tentar registrar a nova
-instalação e deve direcionar o usuário para regularizar esse pré-requisito
-antes de repetir o login nessa instalação.
+ela está `not_set` ou `locked`, o mobile não deve cadastrar a nova instalação.
+O app deve interromper o fluxo, descartar `restricted_access_token`, eventual
+`step_up_token` e a senha informada, e orientar o usuário a regularizar o
+pré-requisito por uma instalação já autorizada antes de tentar novamente.
+
+Se o `restricted_access_token` expirar, falhar definitivamente ou o usuário
+cancelar o fluxo, o mobile deve descartar o estado temporário e pedir login
+novamente. Tokens operacionais não devem ser persistidos antes do registro
+bem-sucedido da instalação.
 
 ### Limite atingido
 
@@ -230,10 +254,24 @@ Quando o login retornar `installation_limit_reached`, o mobile deve:
 - orientar o usuário a acessar uma instalação já cadastrada e, a partir dela,
   revogar outra instalação para liberar vaga.
 
+Mensagem aprovada:
+
+```text
+Limite de instalações atingido
+
+Esta conta já possui 3 instalações cadastradas. A instalação atual ainda não
+está autorizada.
+
+Acesse sua conta por uma instalação já autorizada e remova uma instalação
+antiga para liberar espaço. Depois, tente entrar novamente neste app.
+```
+
+O botão principal deve ser `Entendi` e retornar o usuário ao login.
+
 Instalações revogadas permanecem no histórico da API, mas não ocupam uma das
 três vagas.
 
-### Gerenciamento
+### Gerenciamento futuro
 
 A API disponibilizará:
 
@@ -242,10 +280,10 @@ GET    /security/installations
 DELETE /security/installations/{installation_resource_id}
 ```
 
-O consumo mobile para listar e revogar instalações será detalhado depois que
-for definida a experiência de gerenciamento.
+O consumo mobile para listar e revogar instalações fica fora do primeiro corte
+mobile e será detalhado em uma segunda implementação.
 
-Para o MVP, a revogação de instalação:
+Na implementação futura de gerenciamento, a revogação de instalação:
 
 - não exige step-up;
 - deve ocultar ou desabilitar a remoção da instalação atualmente em uso;
@@ -254,38 +292,38 @@ Para o MVP, a revogação de instalação:
 - deve considerar que uma instalação revogada perde a sessão imediatamente,
   exigindo tratamento de retorno para acesso encerrado.
 
-## 9. Decisões necessárias antes das tasks
+## 9. Decisões fechadas e recorte
 
 - [x] Definir geração: UUID v4 aleatório por instalação.
 - [x] Definir header: `X-Installation-Id`.
 - [x] Preservar o identificador em logout e troca de usuário.
 - [x] Gerar nova identidade após reinstalação ou limpeza dos dados.
-- [ ] Definir chave e mecanismo final de persistência.
-- [ ] Definir estratégia de detecção de reinstalação no iOS e Android.
-- [ ] Definir exclusão de backup e restauração quando aplicável.
-- [ ] Definir sincronização do `read-or-create`.
-- [ ] Definir integração do interceptor com login, refresh e cliente principal.
-- [ ] Definir tratamento do resultado
+- [x] Definir chave e mecanismo final de persistência.
+- [x] Definir estratégia de detecção de reinstalação no iOS e Android.
+- [x] Definir exclusão de backup e restauração quando aplicável.
+- [x] Definir integração do interceptor com login, refresh e cliente principal.
+- [x] Definir tratamento do resultado
   `installation_registration_required`.
 - [x] Definir pós-cadastro: `POST /security/installations` conclui o bootstrap
   da sessão operacional e retorna os tokens normais.
-- [ ] Definir contrato e UX final do resultado `installation_limit_reached`.
+- [x] Definir contrato e UX final do resultado `installation_limit_reached`.
 - [x] Definir diretriz para `installation_limit_reached`: orientar revogação
   em instalação já cadastrada, sem step-up de registro nessa tentativa.
-- [ ] Definir armazenamento temporário e descarte do access token restrito.
-- [ ] Integrar step-up para `POST /security/installations`.
-- [ ] Implementar `POST /security/installations` e troca pelos tokens
+- [x] Definir armazenamento temporário e descarte do access token restrito.
+- [x] Integrar step-up para `POST /security/installations`.
+- [x] Incluir `POST /security/installations` e troca pelos tokens
   operacionais.
 - [x] Reconhecer os contratos de listagem e revogação definidos pela API.
-- [ ] Definir a experiência mobile de gerenciamento das instalações.
+- [x] Adiar a experiência mobile de gerenciamento das instalações para uma
+  segunda implementação.
 - [x] Definir regra de revogação: sem step-up e sem remover a instalação em
   uso.
-- [ ] Definir tela e estados do registro com senha transacional.
-- [ ] Definir cancelamento e expiração da autorização restrita.
+- [x] Definir tela e estados do registro com senha transacional.
+- [x] Definir cancelamento e expiração da autorização restrita.
 - [x] Definir regra para senha transacional ausente ou bloqueada: nova
   instalação não é registrada; é pré-requisito.
-- [ ] Definir telemetria segura para falhas de armazenamento.
-- [ ] Definir testes de ciclo de vida e concorrência.
+- [x] Definir telemetria segura para falhas de armazenamento.
+- [x] Definir testes de ciclo de vida e bootstrap.
 
 ## 10. Fora de escopo
 
@@ -294,7 +332,7 @@ Para o MVP, a revogação de instalação:
 - device fingerprinting;
 - biometria como prova para o backend;
 - decisão local de confiança;
-- associação, listagem ou revogação de instalações na API;
+- listagem ou revogação de instalações no mobile;
 - políticas para operações sensíveis;
 - geolocalização e score antifraude.
 
@@ -304,12 +342,13 @@ Para o MVP, a revogação de instalação:
 - Ciclo de vida separado das credenciais documentado.
 - Integração HTTP definida para login, refresh e chamadas autenticadas.
 - Fluxo de registro de nova instalação definido.
-- Comportamento de falha e concorrência definido.
+- Comportamento de falha e bootstrap definido.
 - Contrato alinhado com o backlog API 010.
 - Tasks de implementação mobile derivadas.
 
 ## 12. Referências internas
 
-- [Installation Identity MVP API](<../api/010 - installation-identity-mvp.md>)
+- [Installation Identity MVP API](<../api/done/010 - installation-identity-mvp.md>)
 - [Arquitetura mobile](../../../mobile/docs/ARCHITECTURE.md)
+- [Tasks](<013 - installation-identity-mvp_tasks.md>)
 - [Roadmap](../../ROADMAP.md)

@@ -1,5 +1,54 @@
 # Changelog
 
+## 2026/06/17 - mobile/installation-identity-01
+
+This change finalizes the mobile planning backlog for the Installation Identity MVP and converts the previous research-oriented document into an implementation-ready plan.
+
+The update closes the pending mobile decisions around local storage, reinstall detection, bootstrap failure behavior, restricted login, installation registration, installation limits, and deferred management capabilities. It also adds a dedicated task breakdown to guide the first mobile implementation cut.
+
+1. **docs/backlogs/mobile/013 - installation-identity-mvp.md**
+
+   * Changed the backlog type from research to planning and marked the state as ready for tasks.
+   * Updated the mobile objective to block login and API calls when a stable installation identity cannot be resolved.
+   * Expanded the installation lifecycle rules with a local marker contract to distinguish app updates from reinstall, clear-data, or incomplete restore scenarios.
+   * Defined `banklab.installation.id` as the installation identity storage key.
+   * Clarified that logout, credential cleanup, and user switching must not delete the installation identity.
+   * Documented that secure storage alone must not be treated as proof that the current installation is still the same.
+   * Reworked failure handling so bootstrap, login, and API calls are blocked when identity resolution fails.
+   * Defined the expected retry behavior and prohibited sending requests without `X-Installation-Id`.
+   * Refined the restricted installation registration flow, including token cleanup, expiration handling, cancellation handling, and transaction password preconditions.
+   * Added the approved UX message for `installation_limit_reached`.
+   * Deferred installation listing and revocation management to a future mobile implementation.
+   * Updated the decision checklist to mark storage, reinstall detection, backup/restore behavior, restricted token handling, step-up integration, limit UX, telemetry, and bootstrap tests as resolved.
+   * Adjusted the out-of-scope section to exclude mobile listing and revocation instead of API association concerns.
+   * Updated references to point to the completed API backlog and the new task document.
+
+2. **docs/backlogs/mobile/013 - installation-identity-mvp_tasks.md**
+
+   * Added a new implementation task breakdown for the Installation Identity MVP.
+   * Defined storage key and local marker tasks for distinguishing app updates from reinstall or restore cases.
+   * Added the `InstallationIdentityService` task for read-or-create UUID v4 resolution, validation, persistence, marker refresh, and safe logging.
+   * Added bootstrap blocking requirements for unresolved or failed installation identity resolution.
+   * Added the installation interceptor task to propagate `X-Installation-Id` through the main HTTP client.
+   * Added refresh-flow requirements to ensure `/auth/refresh` also sends the installation identity.
+   * Added login response modeling tasks for operational login, restricted installation registration, and installation limit outcomes.
+   * Added the installation registration API task for `POST /security/installations`.
+   * Added the step-up operation task for authorizing installation registration with the transaction password flow.
+   * Added the restricted installation certification flow task, covering password entry, step-up authorization, registration, token persistence, and cleanup.
+   * Added blocker handling tasks for installation limits and transaction password preconditions.
+   * Added safe telemetry and test coverage tasks for lifecycle, headers, restricted login, registration, and blocking outcomes.
+   * Added the final mobile verification task covering formatting, focused tests, analysis, and regression checks.
+   * Documented deferred work for installation listing, revocation, management UI, and current-installation removal protection.
+
+### Conclusion
+
+The mobile installation identity backlog is now implementation-ready and aligned with the API contract.
+
+The change establishes the expected local identity lifecycle, failure behavior, restricted registration flow, and user-facing blocker states, while explicitly deferring installation management to a later cut.
+
+The new task file provides a structured execution path for implementing the MVP without mixing it with future list and revocation features.
+
+
 ## 2026/06/17 - api/installation-identity-09
 
 This change completes the audit, retention, and operational cleanup layer for the Installation Identity MVP. It documents the security boundaries of installation identity, clarifies revoked-installation behavior, and adds automated cleanup for restricted installation registration authorizations.
