@@ -20,6 +20,9 @@
     - [3.6 Create Customer Account (Admin Only)](#36-create-customer-account-admin-only)
     - [3.7 Create Transaction Password](#37-create-transaction-password)
     - [3.8 Authorize Step-Up](#38-authorize-step-up)
+    - [3.9 Register Installation](#39-register-installation)
+    - [3.10 List Installations](#310-list-installations)
+    - [3.11 Revoke Installation](#311-revoke-installation)
   - [4. Account Endpoints](#4-account-endpoints)
     - [4.1 List Accounts](#41-list-accounts)
     - [4.2 Customer Account Creation Removed](#42-customer-account-creation-removed)
@@ -73,15 +76,17 @@ Content type:
 Authentication:
 - `POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, and `POST /auth/login` require header `X-App-Token: <app_token>`
 - `POST /auth/login` also requires header `X-Installation-Id: <canonical_uuid_v4>`
-- `POST /auth/refresh` requires a valid `refresh_token` in the request body
-- `GET /auth/session`, `GET /auth/me`, all `/accounts` and `/accounts/*`, all `/customers/*`, and `POST /security/transaction-password` require JWT Bearer token
+- `POST /auth/refresh` requires `X-Installation-Id` and a valid `refresh_token` in the request body
+- `GET /auth/session`, `GET /auth/me`, all `/accounts` and `/accounts/*`, all `/customers/*`, and operational `/security/*` routes require JWT Bearer token plus `X-Installation-Id`
+- `POST /security/installations` requires a restricted access token, `X-Installation-Id`, and a valid `X-Step-Up-Token`
 - Send JWT in header `Authorization: Bearer <access_token>`
 
 Access control summary:
 - Auth entry routes: AppToken only
 - Login entry route: AppToken plus installation identifier header
-- Auth refresh route: refresh token only
-- Auth session and service routes: JWT only
+- Auth refresh route: refresh token plus installation identifier header
+- Auth session and service routes: JWT plus installation identifier header
+- Installation registration route: restricted access token plus installation identifier and step-up token
 
 ## 2. Response Envelope
 
@@ -357,9 +362,8 @@ X-Installation-Id: <canonical_uuid_v4>
 ```
 
 `X-Installation-Id` must be a UUID v4 in canonical lowercase form with hyphens,
-for example `550e8400-e29b-41d4-a716-446655440000`. At this stage the header is
-only validated and propagated to the login application layer. The API does not
-classify, register, revoke, or bind sessions to installations in this contract.
+for example `550e8400-e29b-41d4-a716-446655440000`. The API classifies the
+installation after credential validation.
 
 Request body:
 
@@ -386,6 +390,30 @@ Success response (200):
 }
 ```
 
+When the installation is new and the user still has an available installation
+slot, login returns a restricted authorization instead of an operational
+session:
+
+```json
+{
+  "data": {
+    "restricted_access_token": "<jwt>",
+    "restricted_token_type": "restricted_access",
+    "restricted_scope": "installation.register",
+    "restricted_expires_at": "2026-06-17T10:05:00Z",
+    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "email": "user@example.com",
+    "role": "customer",
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
+  },
+  "error": null
+}
+```
+
+Restricted login responses do not include `refresh_token`. The client must
+authorize step-up for `POST /security/installations` and then register the
+installation.
+
 `customer_id` is always populated for users with role `customer`. The JWT embeds this value for use in subsequent requests.
 
 Every login issues a new refresh token and persists a corresponding server-side session. The refresh token is required to obtain a new access token via `POST /auth/refresh`.
@@ -406,15 +434,23 @@ Possible errors:
 - 401 INVALID_CREDENTIALS: invalid email/password
 - 403 CONTACT_NOT_VERIFIED: e-mail and/or phone not verified
 - 403 ACCOUNT_APPROVAL_REQUIRED: customer user still requires admin approval or account provisioning
+- 403 INSTALLATION_REVOKED: installation was revoked and cannot login
+- 409 INSTALLATION_LIMIT_REACHED: user already has three known installations
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ### 3.3 Refresh Access Token
 
 - Method: POST
 - Path: /auth/refresh
-- Auth required: refresh token in request body
+- Auth required: installation identifier (`X-Installation-Id`) and refresh token in request body
 
 Exchanges a valid refresh token for a new access token and a new refresh token (token rotation). Each refresh token is single-use — after a successful refresh the old token is immediately revoked and a new session is created atomically.
+
+Request headers:
+
+```http
+X-Installation-Id: <canonical_uuid_v4>
+```
 
 Request body:
 
@@ -441,10 +477,13 @@ Success response (200):
 Behaviour:
 - The old refresh token is revoked and the new token is persisted in a single database transaction. If either step fails the entire rotation is rolled back and the original token remains valid.
 - A refresh token that has been revoked, is expired, or does not correspond to any session returns `401 INVALID_TOKEN`.
+- The `X-Installation-Id` header must match the installation bound to the refresh session.
 
 Possible errors:
+- 400 INVALID_INSTALLATION_ID: missing or malformed `X-Installation-Id`
 - 400 INVALID_REQUEST: missing or blank `refresh_token`, invalid JSON, or unknown fields
 - 401 INVALID_TOKEN: invalid, revoked, expired, or unknown refresh token
+- 403 INSTALLATION_MISMATCH: header installation does not match the session
 - 500 INTERNAL_ERROR: unexpected internal error
 
 ### 3.4 Get Auth Session
@@ -701,7 +740,10 @@ Possible errors:
 
 Authorizes a sensitive logical endpoint with the authenticated user's
 transaction password and returns a short-lived step-up token. In the MVP, the
-only accepted public operation is `POST /accounts/internal-transfers`.
+accepted public operations are `POST /accounts/internal-transfers` and
+`POST /security/installations`. The installation registration operation may be
+authorized with a restricted access token from login; other operations require
+an operational access token.
 
 The step-up token is an `HS256` JWT. It lasts 120 seconds, is scoped to the
 requested public operation, and is tracked by a persisted `jti` so it can be
@@ -751,6 +793,92 @@ Possible errors:
 - 403 STEP_UP_ENDPOINT_NOT_ALLOWED: public operation is not allowed for step-up
 - 409 TRANSACTION_PASSWORD_NOT_SET: transaction password does not exist
 - 500 INTERNAL_ERROR: unexpected internal error
+
+### 3.9 Register Installation
+
+- Method: POST
+- Path: /security/installations
+- Auth required: restricted access token, `X-Installation-Id`, and `X-Step-Up-Token`
+
+Request headers:
+
+```http
+Authorization: Bearer <restricted_access_token>
+X-Installation-Id: <canonical_uuid_v4>
+X-Step-Up-Token: <step_up_token>
+```
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "access_token": "<jwt>",
+    "refresh_token": "<opaque-token>",
+    "installation_resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
+    "installation_status": "known"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 400 INVALID_INSTALLATION_ID: missing or malformed `X-Installation-Id`
+- 401 INVALID_TOKEN: restricted token is invalid, expired, consumed, or revoked
+- 401 STEP_UP_TOKEN_REQUIRED: missing `X-Step-Up-Token`
+- 401 STEP_UP_TOKEN_INVALID: invalid step-up token
+- 403 INSTALLATION_MISMATCH: header does not match restricted token
+- 409 INSTALLATION_LIMIT_REACHED: no available installation slot
+
+### 3.10 List Installations
+
+- Method: GET
+- Path: /security/installations
+- Auth required: operational JWT and `X-Installation-Id`
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "installations": [
+      {
+        "resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
+        "status": "known",
+        "first_seen_at": "2026-06-17T10:00:00Z",
+        "last_seen_at": "2026-06-17T10:00:00Z",
+        "created_at": "2026-06-17T10:00:00Z",
+        "updated_at": "2026-06-17T10:00:00Z"
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+The response never exposes the raw `installation_id` generated by the client.
+
+### 3.11 Revoke Installation
+
+- Method: DELETE
+- Path: /security/installations/{installation_resource_id}
+- Auth required: operational JWT and `X-Installation-Id`
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
+    "status": "revoked",
+    "revoked_at": "2026-06-17T10:10:00Z"
+  },
+  "error": null
+}
+```
+
+The current installation cannot revoke itself. Revoking another installation
+invalidates refresh sessions bound to that installation.
 
 ## 4. Account Endpoints
 
@@ -1297,12 +1425,26 @@ Common error codes currently used by handlers:
 - STEP_UP_TOKEN_EXPIRED
 - STEP_UP_TOKEN_CONSUMED
 - STEP_UP_ENDPOINT_MISMATCH
+- INVALID_INSTALLATION_ID
+- INSTALLATION_MISMATCH
+- INSTALLATION_REVOKED
+- INSTALLATION_LIMIT_REACHED
 - INTERNAL_ERROR
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when onboarding routes protected by AppToken (`POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, `POST /auth/login`) are called without `X-App-Token` or with an invalid app token.
 
-`INVALID_INSTALLATION_ID` (HTTP 400) is returned by `POST /auth/login` when
-`X-Installation-Id` is missing or is not a canonical UUID v4.
+`INVALID_INSTALLATION_ID` (HTTP 400) is returned when `X-Installation-Id` is
+missing or is not a canonical UUID v4.
+
+`INSTALLATION_MISMATCH` (HTTP 403) is returned when `X-Installation-Id` does
+not match the installation bound to the token, refresh session, or restricted
+authorization.
+
+`INSTALLATION_REVOKED` (HTTP 403) is returned when a revoked installation tries
+to login again.
+
+`INSTALLATION_LIMIT_REACHED` (HTTP 409) is returned when a user attempts to add
+a fourth known installation.
 
 `ACCOUNT_APPROVAL_REQUIRED` (HTTP 403) is returned by `POST /auth/login` when a
 customer user has valid credentials but cannot enter the app because admin

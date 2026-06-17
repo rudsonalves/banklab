@@ -3,8 +3,10 @@ package domain
 import "strings"
 
 const (
-	StepUpPublicMethodInternalTransferCreate = "POST"
-	StepUpPublicPathInternalTransferCreate   = "/accounts/internal-transfers"
+	StepUpPublicMethodInternalTransferCreate     = "POST"
+	StepUpPublicPathInternalTransferCreate       = "/accounts/internal-transfers"
+	StepUpPublicMethodInstallationRegisterCreate = "POST"
+	StepUpPublicPathInstallationRegisterCreate   = "/security/installations"
 )
 
 type PublicStepUpOperationMapping struct {
@@ -48,11 +50,18 @@ func NewWhitelistStepUpPublicOperationResolver(
 // WhitelistStepUpPublicOperationResolver with the default operation to endpoint
 // key mappings.
 func NewDefaultStepUpPublicOperationResolver() *WhitelistStepUpPublicOperationResolver {
-	return NewWhitelistStepUpPublicOperationResolver(PublicStepUpOperationMapping{
-		Method:      StepUpPublicMethodInternalTransferCreate,
-		Path:        StepUpPublicPathInternalTransferCreate,
-		EndpointKey: StepUpEndpointInternalTransferCreate,
-	})
+	return NewWhitelistStepUpPublicOperationResolver(
+		PublicStepUpOperationMapping{
+			Method:      StepUpPublicMethodInternalTransferCreate,
+			Path:        StepUpPublicPathInternalTransferCreate,
+			EndpointKey: StepUpEndpointInternalTransferCreate,
+		},
+		PublicStepUpOperationMapping{
+			Method:      StepUpPublicMethodInstallationRegisterCreate,
+			Path:        StepUpPublicPathInstallationRegisterCreate,
+			EndpointKey: StepUpEndpointInstallationRegisterCreate,
+		},
+	)
 }
 
 // Resolve checks if the provided PublicHTTPOperation matches any of the

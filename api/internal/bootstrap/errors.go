@@ -5,6 +5,7 @@ import (
 	adminapplication "github.com/seu-usuario/bank-api/internal/admin/application"
 	authapplication "github.com/seu-usuario/bank-api/internal/auth/application"
 	customerapplication "github.com/seu-usuario/bank-api/internal/customer/application"
+	installationapplication "github.com/seu-usuario/bank-api/internal/installation/application"
 	securityapplication "github.com/seu-usuario/bank-api/internal/security/application"
 )
 
@@ -21,6 +22,8 @@ func RegisterErrors() {
 	customerapplication.RegisterErrors()
 	// 3. Auth-specific errors
 	authapplication.RegisterErrors()
-	// 4. Security-specific errors
+	// 4. Installation-specific errors
+	installationapplication.RegisterErrors()
+	// 5. Security-specific errors
 	securityapplication.RegisterErrors()
 }

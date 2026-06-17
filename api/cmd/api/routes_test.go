@@ -13,6 +13,7 @@ import (
 	adminDelivery "github.com/seu-usuario/bank-api/internal/admin/delivery"
 	authDelivery "github.com/seu-usuario/bank-api/internal/auth/delivery"
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
+	installationDelivery "github.com/seu-usuario/bank-api/internal/installation/delivery"
 	securityDelivery "github.com/seu-usuario/bank-api/internal/security/delivery"
 	sharedhttpmiddleware "github.com/seu-usuario/bank-api/internal/shared/http/middleware"
 )
@@ -89,9 +90,12 @@ func TestAuthRouter_OnboardingRoutesRequireAppToken(t *testing.T) {
 func TestAPIRouter_OperationalAccountRoutes(t *testing.T) {
 	router := newAPIRouter(
 		func(next http.Handler) http.Handler { return next },
+		func(next http.Handler) http.Handler { return next },
+		func(next http.Handler) http.Handler { return next },
 		adminDelivery.New(nil),
 		accountDelivery.New(nil, nil, nil, nil),
 		customerDelivery.New(nil, nil),
+		installationDelivery.New(nil, nil, nil),
 		statementDelivery.New(nil),
 		transactionDelivery.New(nil, nil, nil, nil, nil),
 		securityDelivery.New(nil),
@@ -139,16 +143,31 @@ func TestAPIRouter_OperationalAccountRoutes(t *testing.T) {
 
 func TestAPIRouter_StepUpAuthorizeRouteRequiresAuth(t *testing.T) {
 	authCalled := false
+	operationalCalled := false
+	restrictedCalled := false
 	router := newAPIRouter(
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				operationalCalled = true
+				next.ServeHTTP(w, r)
+			})
+		},
 		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				authCalled = true
 				next.ServeHTTP(w, r)
 			})
 		},
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				restrictedCalled = true
+				next.ServeHTTP(w, r)
+			})
+		},
 		adminDelivery.New(nil),
 		accountDelivery.New(nil, nil, nil, nil),
 		customerDelivery.New(nil, nil),
+		installationDelivery.New(nil, nil, nil),
 		statementDelivery.New(nil),
 		transactionDelivery.New(nil, nil, nil, nil, nil),
 		securityDelivery.New(nil),
@@ -164,7 +183,68 @@ func TestAPIRouter_StepUpAuthorizeRouteRequiresAuth(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	if !authCalled {
-		t.Fatal("expected step-up authorize route to be wrapped by auth middleware")
+		t.Fatal("expected step-up authorize route to be wrapped by operational-or-restricted auth middleware")
+	}
+	if operationalCalled || restrictedCalled {
+		t.Fatalf("expected only step-up auth middleware, got operational=%v restricted=%v", operationalCalled, restrictedCalled)
+	}
+}
+
+func TestAPIRouter_InstallationRoutesUseExpectedAuth(t *testing.T) {
+	operationalCalls := 0
+	restrictedCalls := 0
+	router := newAPIRouter(
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				operationalCalls++
+				next.ServeHTTP(w, r)
+			})
+		},
+		func(next http.Handler) http.Handler { return next },
+		func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				restrictedCalls++
+				next.ServeHTTP(w, r)
+			})
+		},
+		adminDelivery.New(nil),
+		accountDelivery.New(nil, nil, nil, nil),
+		customerDelivery.New(nil, nil),
+		installationDelivery.New(nil, nil, nil),
+		statementDelivery.New(nil),
+		transactionDelivery.New(nil, nil, nil, nil, nil),
+		securityDelivery.New(nil),
+	)
+
+	tests := []struct {
+		method               string
+		path                 string
+		wantOperationalCalls int
+		wantRestrictedCalls  int
+	}{
+		{method: http.MethodPost, path: "/security/installations", wantRestrictedCalls: 1},
+		{method: http.MethodGet, path: "/security/installations", wantOperationalCalls: 1},
+		{method: http.MethodDelete, path: "/security/installations/550e8400-e29b-41d4-a716-446655440000", wantOperationalCalls: 1},
+	}
+
+	for _, tt := range tests {
+		operationalCalls = 0
+		restrictedCalls = 0
+		req := httptest.NewRequest(tt.method, tt.path, nil)
+		rec := httptest.NewRecorder()
+
+		router.ServeHTTP(rec, req)
+
+		if operationalCalls != tt.wantOperationalCalls || restrictedCalls != tt.wantRestrictedCalls {
+			t.Fatalf("%s %s: expected operational/restricted calls %d/%d, got %d/%d",
+				tt.method,
+				tt.path,
+				tt.wantOperationalCalls,
+				tt.wantRestrictedCalls,
+				operationalCalls,
+				restrictedCalls,
+			)
+		}
 	}
 }
 

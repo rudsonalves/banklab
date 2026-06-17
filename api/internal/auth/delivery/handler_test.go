@@ -669,6 +669,7 @@ func TestHandler_Refresh_Success(t *testing.T) {
 	}}
 	handler := New(nil, nil, nil, refreshUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"valid-refresh-token"}`))
+	req.Header.Set(sharedheaders.InstallationID, "550e8400-e29b-41d4-a716-446655440000")
 	rec := httptest.NewRecorder()
 
 	handler.Refresh(rec, req)
@@ -683,6 +684,9 @@ func TestHandler_Refresh_Success(t *testing.T) {
 
 	if refreshUC.input.RefreshToken != "valid-refresh-token" {
 		t.Fatalf("expected refresh token %q, got %q", "valid-refresh-token", refreshUC.input.RefreshToken)
+	}
+	if refreshUC.input.InstallationID.String() != "550e8400-e29b-41d4-a716-446655440000" {
+		t.Fatalf("expected installation id to be propagated, got %q", refreshUC.input.InstallationID.String())
 	}
 
 	var got struct {
@@ -714,6 +718,7 @@ func TestHandler_Refresh_InvalidToken(t *testing.T) {
 	refreshUC := &refreshAccessTokenUseCaseMock{err: domain.ErrInvalidToken}
 	handler := New(nil, nil, nil, refreshUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"bad-token"}`))
+	req.Header.Set(sharedheaders.InstallationID, "550e8400-e29b-41d4-a716-446655440000")
 	rec := httptest.NewRecorder()
 
 	handler.Refresh(rec, req)

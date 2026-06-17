@@ -2,7 +2,10 @@ package domain
 
 import "strings"
 
-const StepUpEndpointInternalTransferCreate = "internal_transfer.create"
+const (
+	StepUpEndpointInternalTransferCreate     = "internal_transfer.create"
+	StepUpEndpointInstallationRegisterCreate = "installation.register"
+)
 
 type WhitelistStepUpEndpointPolicy struct {
 	allowed map[string]struct{}
@@ -30,7 +33,10 @@ func NewWhitelistStepUpEndpointPolicy(endpointKeys ...string) *WhitelistStepUpEn
 // NewDefaultStepUpEndpointPolicy creates a new instance of WhitelistStepUpEndpointPolicy
 // with the default allowed endpoint keys.
 func NewDefaultStepUpEndpointPolicy() *WhitelistStepUpEndpointPolicy {
-	return NewWhitelistStepUpEndpointPolicy(StepUpEndpointInternalTransferCreate)
+	return NewWhitelistStepUpEndpointPolicy(
+		StepUpEndpointInternalTransferCreate,
+		StepUpEndpointInstallationRegisterCreate,
+	)
 }
 
 // Validate checks if the provided endpoint key is allowed by the policy.

@@ -143,6 +143,13 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		installationdomain.ErrInstallationMismatch,
+		sharederrors.ErrCodeInstallationMismatch,
+		"Installation mismatch",
+		http.StatusForbidden,
+	)
+
+	sharederrors.RegisterDomainError(
 		installationdomain.ErrInstallationRevoked,
 		sharederrors.ErrCodeInstallationRevoked,
 		"Installation revoked",
@@ -157,6 +164,13 @@ func RegisterErrors() {
 	)
 
 	sharederrors.RegisterDomainError(
+		installationdomain.ErrRestrictedAuthorizationNotFound,
+		sharederrors.ErrCodeInvalidToken,
+		"Invalid token",
+		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainError(
 		installationdomain.ErrRestrictedAuthorizationInvalid,
 		sharederrors.ErrCodeInvalidToken,
 		"Invalid token",
@@ -165,6 +179,20 @@ func RegisterErrors() {
 
 	sharederrors.RegisterDomainError(
 		installationdomain.ErrRestrictedAuthorizationExpired,
+		sharederrors.ErrCodeInvalidToken,
+		"Invalid token",
+		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainError(
+		installationdomain.ErrRestrictedAuthorizationConsumed,
+		sharederrors.ErrCodeInvalidToken,
+		"Invalid token",
+		http.StatusUnauthorized,
+	)
+
+	sharederrors.RegisterDomainError(
+		installationdomain.ErrRestrictedAuthorizationRevoked,
 		sharederrors.ErrCodeInvalidToken,
 		"Invalid token",
 		http.StatusUnauthorized,

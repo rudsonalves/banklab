@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	installationdomain "github.com/seu-usuario/bank-api/internal/installation/domain"
 )
 
 type RefreshAccessTokenUseCase struct {
@@ -50,7 +51,8 @@ func (uc *RefreshAccessTokenUseCase) WithRefreshSessionTTL(ttl time.Duration) *R
 }
 
 type RefreshAccessTokenInput struct {
-	RefreshToken string
+	RefreshToken   string
+	InstallationID uuid.UUID
 }
 
 type RefreshAccessTokenOutput struct {
@@ -100,6 +102,11 @@ func (uc *RefreshAccessTokenUseCase) Execute(
 
 	if session.UserID != userID {
 		return nil, domain.ErrInvalidToken
+	}
+	if input.InstallationID != uuid.Nil {
+		if session.InstallationID == nil || *session.InstallationID != input.InstallationID {
+			return nil, installationdomain.ErrInstallationMismatch
+		}
 	}
 
 	user, err := uc.userRepo.FindByID(ctx, userID)

@@ -9,6 +9,7 @@ import (
 
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	"github.com/seu-usuario/bank-api/internal/security/application"
+	"github.com/seu-usuario/bank-api/internal/security/domain"
 	sharedauthctx "github.com/seu-usuario/bank-api/internal/shared/authctx"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
@@ -128,16 +129,25 @@ func (h *Handler) AuthorizeStepUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, ok := sharedauthctx.GetAuthenticatedUser(r.Context())
-	if !ok || user == nil {
-		sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrUnauthorized))
-		return
-	}
-
 	var req authorizeStepUpRequest
 	if err := sharedhttp.DecodeJSON(r.Body, &req); err != nil {
 		sharedhttp.WriteError(w, sharederrors.MapError(sharederrors.ErrInvalidRequest))
 		return
+	}
+
+	user, ok := sharedauthctx.GetAuthenticatedUser(r.Context())
+	if !ok || user == nil {
+		restricted, restrictedOK := sharedauthctx.GetRestrictedSession(r.Context())
+		if !restrictedOK || restricted == nil {
+			sharedhttp.WriteError(w, sharederrors.MapError(authdomain.ErrUnauthorized))
+			return
+		}
+		if strings.TrimSpace(req.Method) != domain.StepUpPublicMethodInstallationRegisterCreate ||
+			strings.TrimSpace(req.Path) != domain.StepUpPublicPathInstallationRegisterCreate {
+			sharedhttp.WriteError(w, sharederrors.MapError(domain.ErrStepUpEndpointNotAllowed))
+			return
+		}
+		user = &authdomain.AuthenticatedUser{UserID: restricted.UserID}
 	}
 
 	output, err := h.authorizeStepUp.Execute(r.Context(), application.AuthorizeStepUpInput{

@@ -2,6 +2,181 @@
 
 ## 2026/06/17 - api/installation-identity-06
 
+This change completes the API delivery and enforcement layer for installation identity management. It connects restricted installation registration, operational installation enforcement, installation listing, and revocation into the real API wiring.
+
+The implementation introduces dedicated installation use cases, HTTP handlers, middleware paths for operational and restricted tokens, refresh-token installation validation, and REST contract updates. It also extends step-up authorization to support installation registration under restricted authentication.
+
+1. **api/cmd/api/main.go**
+
+   * Wired the installation application and delivery modules into the API bootstrap.
+   * Added use cases for registering, listing, and revoking installations.
+   * Registered the installation handler with the main API router.
+   * Replaced generic authenticated routing with operational, restricted, and operational-or-restricted middleware flows.
+   * Added routes for:
+
+     * `POST /security/installations`
+     * `GET /security/installations`
+     * `DELETE /security/installations/{installation_resource_id}`
+   * Configured the JWT middleware with restricted access token verification.
+
+2. **api/cmd/api/routes_test.go**
+
+   * Updated router tests to account for the new middleware signatures.
+   * Verified that step-up authorization uses the operational-or-restricted authentication path.
+   * Added route-level tests confirming that installation registration uses restricted authentication, while listing and revocation use operational authentication.
+
+3. **api/internal/auth/delivery/jwt_middleware.go**
+
+   * Added operational authentication enforcement requiring `X-Installation-Id`.
+   * Added restricted authentication support using restricted access token verification.
+   * Added combined operational-or-restricted authentication for flows that may accept either context.
+   * Validated consistency between the installation header and token claims.
+   * Populated `OperationalSession` and `RestrictedSession` contexts for downstream application use.
+   * Extracted principal creation into a shared helper.
+
+4. **api/internal/auth/delivery/handler.go**
+
+   * Updated refresh-token handling to require and parse `X-Installation-Id`.
+   * Propagated the validated installation identifier to the refresh access token use case.
+
+5. **api/internal/auth/application/refresh_access_token.go**
+
+   * Extended refresh input with `InstallationID`.
+   * Added validation to ensure the refresh session belongs to the installation presented in the request.
+   * Returned installation mismatch when the header and persisted session installation differ.
+
+6. **api/internal/auth/delivery/handler_test.go**
+
+   * Updated refresh tests to include `X-Installation-Id`.
+   * Verified that the installation identifier is propagated to the refresh use case.
+   * Preserved invalid-token behavior under the new refresh contract.
+
+7. **api/internal/auth/application/errors_registry.go**
+
+   * Registered installation mismatch as a public domain error.
+   * Registered additional restricted authorization states as invalid-token responses.
+
+8. **api/internal/bootstrap/errors.go**
+
+   * Added installation application error registration to the API bootstrap.
+   * Preserved the existing registration order for admin, customer, auth, and security errors.
+
+9. **api/internal/installation/application/errors_registry.go**
+
+   * Added installation-specific error registration.
+   * Mapped installation mismatch, invalid resource identifiers, missing installations, and restricted authorization failures to stable HTTP error responses.
+
+10. **api/internal/installation/application/register_installation.go**
+
+* Added the installation registration use case.
+* Validated restricted session scope, user, installation identifier, and authorization `jti`.
+* Enforced step-up for `installation.register`.
+* Reserved a known installation slot using the installation repository.
+* Consumed restricted authorization inside the registration transaction.
+* Issued operational access and refresh tokens after successful registration.
+* Persisted the refresh session bound to the installation.
+
+11. **api/internal/installation/application/register_installation_test.go**
+
+* Added tests for successful installation registration.
+* Verified token generation, refresh-token hashing, session persistence, step-up enforcement, authorization consumption, and installation reservation.
+* Covered mismatch scenarios where registration must not consume restricted authorization or step-up.
+* Covered validation of consumed restricted authorization against the current restricted context.
+
+12. **api/internal/installation/application/list_installations.go**
+
+* Added the use case for listing installations owned by the authenticated user.
+* Returned safe installation summaries using public `resource_id`, status, and timestamps.
+* Avoided exposing the raw client-generated `installation_id`.
+
+13. **api/internal/installation/application/list_installations_test.go**
+
+* Added tests confirming that known and revoked installations are returned as safe summaries.
+* Verified that listing is scoped to the operational session user.
+
+14. **api/internal/installation/application/revoke_installation.go**
+
+* Added the installation revocation use case.
+* Validated operational session context.
+* Revoked installations by public resource identifier.
+* Prevented revocation of the current installation.
+* Invalidated refresh sessions associated with the revoked installation inside the transaction.
+
+15. **api/internal/installation/application/revoke_installation_test.go**
+
+* Added tests for successful revocation and session invalidation.
+* Verified that the current installation cannot revoke itself.
+* Ensured invalid revocation attempts do not revoke installations or invalidate sessions.
+
+16. **api/internal/installation/delivery/handler.go**
+
+* Added HTTP handlers for installation registration, listing, and revocation.
+* Parsed and validated canonical UUID values from headers and path parameters.
+* Exposed safe response DTOs for installation management.
+* Ensured list and revoke responses do not expose raw installation identifiers.
+
+17. **api/internal/installation/delivery/handler_test.go**
+
+* Added handler tests for successful registration.
+* Verified step-up token and installation header propagation.
+* Confirmed that listing does not expose `installation_id`.
+* Covered invalid installation resource identifiers during revocation.
+
+18. **api/internal/security/delivery/handler.go**
+
+* Updated step-up authorization to support restricted sessions for installation registration.
+* Preserved operational authentication requirements for other sensitive operations.
+* Rejected restricted-context step-up requests targeting operations other than `POST /security/installations`.
+
+19. **api/internal/security/domain/step_up_endpoint_policy.go**
+
+* Added `installation.register` as an allowed step-up endpoint key.
+* Included the installation registration endpoint in the default step-up policy.
+
+20. **api/internal/security/domain/step_up_endpoint_policy_test.go**
+
+* Added coverage confirming that the default step-up policy allows installation registration.
+
+21. **api/internal/security/domain/step_up_public_operation_resolver.go**
+
+* Added the public operation mapping for `POST /security/installations`.
+* Resolved that route to the `installation.register` endpoint key.
+
+22. **api/internal/security/domain/step_up_public_operation_resolver_test.go**
+
+* Added coverage confirming that `POST /security/installations` resolves to the installation registration step-up endpoint.
+
+23. **api/internal/shared/errors/codes.go**
+
+* Added the public error code `INSTALLATION_MISMATCH`.
+
+24. **api/docs/07-api-rest.md**
+
+* Updated authentication rules to require `X-Installation-Id` for refresh and operational authenticated routes.
+* Documented restricted login responses for new installations.
+* Documented installation registration, listing, and revocation endpoints.
+* Added installation-related error codes and behavior.
+* Updated step-up documentation to include installation registration as a supported public operation.
+
+25. **docs/backlogs/api/017 - installation-identity-management-usecases_tasks.md**
+
+* Added completed task documentation for installation identity management use cases.
+* Documented registration, restricted context validation, installation matching, slot reservation, authorization consumption, session creation, listing, revocation, and session invalidation.
+
+26. **docs/backlogs/api/018 - installation-identity-delivery-enforcement_tasks.md**
+
+* Added completed task documentation for delivery and enforcement of installation identity.
+* Documented refresh enforcement, operational middleware, restricted middleware, step-up support for restricted registration, installation handlers, router wiring, and REST contract validation.
+
+### Conclusion
+
+This change set completes the installation identity management flow across application, delivery, middleware, routing, error handling, tests, and documentation.
+
+The API now distinguishes operational access from restricted installation-registration access, binds authenticated flows to `X-Installation-Id`, supports secure registration of new installations through step-up, and allows users to list and revoke known installations without exposing raw installation identifiers.
+
+
+## 2026/06/17 - api/installation-identity-06
+
 This change prepares the authentication flow to carry installation identity across operational sessions, access tokens, refresh rotation, and shared authentication context.
 
 It adds persistence support for `installation_id` in user sessions, extends JWT claims, introduces restricted access token infrastructure for installation registration, and documents the related backlog tasks.

@@ -22,6 +22,23 @@ func TestDefaultStepUpPublicOperationResolver_ResolvesInternalTransferCreate(t *
 	}
 }
 
+func TestDefaultStepUpPublicOperationResolver_ResolvesInstallationRegisterCreate(t *testing.T) {
+	resolver := NewDefaultStepUpPublicOperationResolver()
+	operation, err := NewPublicHTTPOperation("POST", "/security/installations")
+	if err != nil {
+		t.Fatalf("expected valid operation, got %v", err)
+	}
+
+	endpointKey, err := resolver.Resolve(operation)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if endpointKey != StepUpEndpointInstallationRegisterCreate {
+		t.Fatalf("expected endpoint key %q, got %q", StepUpEndpointInstallationRegisterCreate, endpointKey)
+	}
+}
+
 func TestDefaultStepUpPublicOperationResolver_RejectsDifferentMethodForSamePath(t *testing.T) {
 	resolver := NewDefaultStepUpPublicOperationResolver()
 	operation, err := NewPublicHTTPOperation("GET", "/accounts/internal-transfers")

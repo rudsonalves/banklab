@@ -470,6 +470,12 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	installationID, err := parseCanonicalInstallationID(r.Header.Get(sharedheaders.InstallationID))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
 	var req refreshAccessTokenRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -484,7 +490,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.refreshAccessToken.Execute(r.Context(), application.RefreshAccessTokenInput{
-		RefreshToken: req.RefreshToken,
+		RefreshToken:   req.RefreshToken,
+		InstallationID: installationID,
 	})
 	if err != nil {
 		log.Printf("event=refresh_access_token error=%v", err)
