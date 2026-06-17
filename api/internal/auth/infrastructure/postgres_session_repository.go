@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
 	"github.com/seu-usuario/bank-api/internal/database"
+	installationdomain "github.com/seu-usuario/bank-api/internal/installation/domain"
 )
 
 type PostgresSessionRepository struct {
@@ -19,6 +20,7 @@ type PostgresSessionRepository struct {
 // Ensure PostgresSessionRepository implements the SessionRepository interface at
 // compile time.
 var _ domain.SessionRepository = (*PostgresSessionRepository)(nil)
+var _ installationdomain.InstallationSessionInvalidator = (*PostgresSessionRepository)(nil)
 
 // NewPostgresSessionRepository creates a new instance of PostgresSessionRepository
 // with the provided pgxpool.Pool. This repository will be used to manage user
@@ -46,16 +48,28 @@ func (r *PostgresSessionRepository) executor(ctx context.Context) dbExecutor {
 // database. If the operation is successful, it returns nil; otherwise, it returns
 // an error.
 func (r *PostgresSessionRepository) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
+	return r.CreateWithInstallation(ctx, domain.CreateSessionInput{
+		UserID:    userID,
+		TokenHash: tokenHash,
+		ExpiresAt: expiresAt,
+	})
+}
+
+func (r *PostgresSessionRepository) CreateWithInstallation(
+	ctx context.Context,
+	input domain.CreateSessionInput,
+) error {
 	query := `
 		INSERT INTO user_sessions (
 			user_id,
 			token_hash,
-			expires_at
+			expires_at,
+			installation_id
 		)
-		VALUES ($1, $2, $3)
+		VALUES ($1, $2, $3, $4)
 	`
 
-	_, err := r.executor(ctx).Exec(ctx, query, userID, tokenHash, expiresAt)
+	_, err := r.executor(ctx).Exec(ctx, query, input.UserID, input.TokenHash, input.ExpiresAt, input.InstallationID)
 	return err
 }
 
@@ -65,25 +79,54 @@ func (r *PostgresSessionRepository) Create(ctx context.Context, userID uuid.UUID
 // If no session is found with the given token hash, it returns a zero UUID,
 // zero time, false for revoked, and nil for error.
 func (r *PostgresSessionRepository) FindByTokenHash(ctx context.Context, tokenHash string) (uuid.UUID, time.Time, bool, error) {
+	record, err := r.FindByTokenHashWithInstallation(ctx, tokenHash)
+	if err != nil {
+		return uuid.Nil, time.Time{}, false, err
+	}
+	if record == nil {
+		return uuid.Nil, time.Time{}, false, nil
+	}
+
+	return record.UserID, record.ExpiresAt, record.Revoked, nil
+}
+
+func (r *PostgresSessionRepository) FindByTokenHashWithInstallation(
+	ctx context.Context,
+	tokenHash string,
+) (*domain.SessionRecord, error) {
 	query := `
-		SELECT user_id, expires_at, revoked_at
+		SELECT user_id, token_hash, expires_at, revoked_at, installation_id
 		FROM user_sessions
 		WHERE token_hash = $1
 	`
 
 	var userID uuid.UUID
+	var storedTokenHash string
 	var expiresAt time.Time
 	var revokedAt *time.Time
+	var installationID *uuid.UUID
 
-	err := r.executor(ctx).QueryRow(ctx, query, tokenHash).Scan(&userID, &expiresAt, &revokedAt)
+	err := r.executor(ctx).QueryRow(ctx, query, tokenHash).Scan(
+		&userID,
+		&storedTokenHash,
+		&expiresAt,
+		&revokedAt,
+		&installationID,
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return uuid.Nil, time.Time{}, false, nil
+			return nil, nil
 		}
-		return uuid.Nil, time.Time{}, false, err
+		return nil, err
 	}
 
-	return userID, expiresAt, revokedAt != nil, nil
+	return &domain.SessionRecord{
+		UserID:         userID,
+		TokenHash:      storedTokenHash,
+		ExpiresAt:      expiresAt,
+		Revoked:        revokedAt != nil,
+		InstallationID: installationID,
+	}, nil
 }
 
 // Revoke sets the revoked_at timestamp for a session in the user_sessions table
@@ -105,4 +148,31 @@ func (r *PostgresSessionRepository) Revoke(ctx context.Context, tokenHash string
 		return domain.ErrSessionNotFound
 	}
 	return nil
+}
+
+func (r *PostgresSessionRepository) RevokeByUserIDAndInstallationID(
+	ctx context.Context,
+	userID uuid.UUID,
+	installationID uuid.UUID,
+	revokedAt time.Time,
+) error {
+	query := `
+		UPDATE user_sessions
+		SET revoked_at = $3
+		WHERE user_id = $1
+			AND installation_id = $2
+			AND revoked_at IS NULL
+	`
+
+	_, err := r.executor(ctx).Exec(ctx, query, userID, installationID, revokedAt.UTC())
+	return err
+}
+
+func (r *PostgresSessionRepository) InvalidateByInstallationID(
+	ctx context.Context,
+	userID uuid.UUID,
+	installationID installationdomain.InstallationID,
+	now time.Time,
+) error {
+	return r.RevokeByUserIDAndInstallationID(ctx, userID, installationID.UUID(), now)
 }

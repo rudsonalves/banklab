@@ -92,11 +92,12 @@ type tokenServiceMock struct {
 }
 
 type sessionRepositoryMock struct {
-	createCalls   int
-	createUserID  uuid.UUID
-	createHash    string
-	createExpires time.Time
-	createErr     error
+	createCalls          int
+	createUserID         uuid.UUID
+	createHash           string
+	createExpires        time.Time
+	createInstallationID *uuid.UUID
+	createErr            error
 }
 
 type accountProvisioningCheckerMock struct {
@@ -184,10 +185,19 @@ func (m *firstInstallationBootstrapperMock) BootstrapFirstInstallation(
 }
 
 func (m *sessionRepositoryMock) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
+	return m.CreateWithInstallation(ctx, domain.CreateSessionInput{
+		UserID:    userID,
+		TokenHash: tokenHash,
+		ExpiresAt: expiresAt,
+	})
+}
+
+func (m *sessionRepositoryMock) CreateWithInstallation(ctx context.Context, input domain.CreateSessionInput) error {
 	m.createCalls++
-	m.createUserID = userID
-	m.createHash = tokenHash
-	m.createExpires = expiresAt
+	m.createUserID = input.UserID
+	m.createHash = input.TokenHash
+	m.createExpires = input.ExpiresAt
+	m.createInstallationID = input.InstallationID
 	return m.createErr
 }
 
@@ -195,7 +205,15 @@ func (m *sessionRepositoryMock) FindByTokenHash(ctx context.Context, tokenHash s
 	return uuid.Nil, time.Time{}, false, nil
 }
 
+func (m *sessionRepositoryMock) FindByTokenHashWithInstallation(ctx context.Context, tokenHash string) (*domain.SessionRecord, error) {
+	return nil, nil
+}
+
 func (m *sessionRepositoryMock) Revoke(ctx context.Context, tokenHash string) error {
+	return nil
+}
+
+func (m *sessionRepositoryMock) RevokeByUserIDAndInstallationID(ctx context.Context, userID uuid.UUID, installationID uuid.UUID, revokedAt time.Time) error {
 	return nil
 }
 
@@ -353,6 +371,9 @@ func TestLoginUserUseCase_Execute_Success(t *testing.T) {
 	if sessionRepo.createExpires.IsZero() {
 		t.Fatal("expected session expires_at to be set")
 	}
+	if sessionRepo.createInstallationID != nil {
+		t.Fatalf("expected no installation id for legacy login, got %q", *sessionRepo.createInstallationID)
+	}
 }
 
 func TestLoginUserUseCase_Execute_CallsInstallationClassifierWhenConfigured(t *testing.T) {
@@ -400,6 +421,12 @@ func TestLoginUserUseCase_Execute_CallsInstallationClassifierWhenConfigured(t *t
 	}
 	if classifier.installationID != installationID {
 		t.Fatalf("expected classifier installationID %q, got %q", installationID, classifier.installationID)
+	}
+	if tokenService.generateAccessClaims.InstallationID == nil || *tokenService.generateAccessClaims.InstallationID != installationID {
+		t.Fatalf("expected token installation ID %q, got %#v", installationID, tokenService.generateAccessClaims.InstallationID)
+	}
+	if sessionRepo.createInstallationID == nil || *sessionRepo.createInstallationID != installationID {
+		t.Fatalf("expected session installation ID %q, got %#v", installationID, sessionRepo.createInstallationID)
 	}
 }
 

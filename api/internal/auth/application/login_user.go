@@ -160,9 +160,10 @@ func (uc *LoginUserUseCase) Execute(
 	}
 
 	accessToken, err := uc.tokenService.GenerateAccessToken(domain.TokenClaims{
-		UserID:     user.ID,
-		Role:       user.Role,
-		CustomerID: user.CustomerID,
+		UserID:         user.ID,
+		Role:           user.Role,
+		CustomerID:     user.CustomerID,
+		InstallationID: optionalUUID(input.InstallationID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("generate access token: %w", err)
@@ -176,7 +177,12 @@ func (uc *LoginUserUseCase) Execute(
 	hash := sha256.Sum256([]byte(refreshToken))
 	tokenHash := hex.EncodeToString(hash[:])
 
-	err = uc.sessionRepo.Create(ctx, user.ID, tokenHash, time.Now().UTC().Add(uc.refreshSessionTTL))
+	err = uc.sessionRepo.CreateWithInstallation(ctx, domain.CreateSessionInput{
+		UserID:         user.ID,
+		TokenHash:      tokenHash,
+		ExpiresAt:      time.Now().UTC().Add(uc.refreshSessionTTL),
+		InstallationID: optionalUUID(input.InstallationID),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
@@ -189,6 +195,14 @@ func (uc *LoginUserUseCase) Execute(
 		Role:         string(user.Role),
 		CustomerID:   user.CustomerID,
 	}, nil
+}
+
+func optionalUUID(value uuid.UUID) *uuid.UUID {
+	if value == uuid.Nil {
+		return nil
+	}
+
+	return &value
 }
 
 func (uc *LoginUserUseCase) validateLoginEligibility(ctx context.Context, user *domain.User) error {

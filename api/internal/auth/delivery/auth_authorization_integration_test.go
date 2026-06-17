@@ -462,6 +462,8 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			revoked_at TIMESTAMP WITH TIME ZONE,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
+		`ALTER TABLE user_sessions
+			ADD COLUMN IF NOT EXISTS installation_id UUID`,
 	}
 
 	for _, statement := range statements {

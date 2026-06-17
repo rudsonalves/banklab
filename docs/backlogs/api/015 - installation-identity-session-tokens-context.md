@@ -47,6 +47,10 @@ autenticado antes dos use cases dependerem do vínculo de instalação.
 As tasks devem separar mudanças de claims, serviço de token restrito, contexto
 autenticado e persistência do vínculo de sessão.
 
+Tasks:
+
+- [015 - installation-identity-session-tokens-context_tasks.md](<015 - installation-identity-session-tokens-context_tasks.md>)
+
 ## 7. Referencias
 
 - [Installation Identity MVP](<010 - installation-identity-mvp.md>)

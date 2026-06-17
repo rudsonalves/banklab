@@ -100,39 +100,74 @@ func (m *refreshTokenServiceMock) ParseRefreshToken(token string) (uuid.UUID, er
 }
 
 type refreshSessionRepositoryMock struct {
-	findCalls       int
-	findTokenHash   string
-	findUserID      uuid.UUID
-	findExpiresAt   time.Time
-	findRevoked     bool
-	findErr         error
-	revokeCalls     int
-	revokeTokenHash string
-	revokeErr       error
-	createCalls     int
-	createTokenHash string
-	createErr       error
+	findCalls            int
+	findTokenHash        string
+	findUserID           uuid.UUID
+	findExpiresAt        time.Time
+	findRevoked          bool
+	findInstallationID   *uuid.UUID
+	findErr              error
+	revokeCalls          int
+	revokeTokenHash      string
+	revokeErr            error
+	createCalls          int
+	createTokenHash      string
+	createInstallationID *uuid.UUID
+	createErr            error
 }
 
 func (m *refreshSessionRepositoryMock) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
+	return m.CreateWithInstallation(ctx, domain.CreateSessionInput{
+		UserID:    userID,
+		TokenHash: tokenHash,
+		ExpiresAt: expiresAt,
+	})
+}
+
+func (m *refreshSessionRepositoryMock) CreateWithInstallation(ctx context.Context, input domain.CreateSessionInput) error {
 	m.createCalls++
-	m.createTokenHash = tokenHash
+	m.createTokenHash = input.TokenHash
+	m.createInstallationID = input.InstallationID
 	return m.createErr
 }
 
 func (m *refreshSessionRepositoryMock) FindByTokenHash(ctx context.Context, tokenHash string) (uuid.UUID, time.Time, bool, error) {
+	record, err := m.FindByTokenHashWithInstallation(ctx, tokenHash)
+	if err != nil {
+		return uuid.Nil, time.Time{}, false, err
+	}
+	if record == nil {
+		return uuid.Nil, time.Time{}, false, nil
+	}
+	return record.UserID, record.ExpiresAt, record.Revoked, nil
+}
+
+func (m *refreshSessionRepositoryMock) FindByTokenHashWithInstallation(ctx context.Context, tokenHash string) (*domain.SessionRecord, error) {
 	m.findCalls++
 	m.findTokenHash = tokenHash
 	if m.findErr != nil {
-		return uuid.Nil, time.Time{}, false, m.findErr
+		return nil, m.findErr
 	}
-	return m.findUserID, m.findExpiresAt, m.findRevoked, nil
+	if m.findUserID == uuid.Nil {
+		return nil, nil
+	}
+	return &domain.SessionRecord{
+		UserID:         m.findUserID,
+		TokenHash:      tokenHash,
+		ExpiresAt:      m.findExpiresAt,
+		Revoked:        m.findRevoked,
+		InstallationID: m.findInstallationID,
+	}, nil
 }
 
 func (m *refreshSessionRepositoryMock) Revoke(ctx context.Context, tokenHash string) error {
 	m.revokeCalls++
 	m.revokeTokenHash = tokenHash
 	return m.revokeErr
+}
+
+func (m *refreshSessionRepositoryMock) RevokeByUserIDAndInstallationID(ctx context.Context, userID uuid.UUID, installationID uuid.UUID, revokedAt time.Time) error {
+	return nil
 }
 
 type transactorMock struct{}
@@ -210,6 +245,37 @@ func TestRefreshAccessTokenUseCase_Execute_Success(t *testing.T) {
 	newExpectedHash := sha256.Sum256([]byte(out.RefreshToken))
 	if sessions.createTokenHash != hex.EncodeToString(newExpectedHash[:]) {
 		t.Fatalf("expected Create called with new hash %q, got %q", hex.EncodeToString(newExpectedHash[:]), sessions.createTokenHash)
+	}
+}
+
+func TestRefreshAccessTokenUseCase_Execute_PreservesInstallationID(t *testing.T) {
+	userID := uuid.New()
+	installationID := uuid.New()
+	repo := &refreshUserRepositoryMock{findByIDUser: &domain.User{
+		ID:   userID,
+		Role: domain.RoleAdmin,
+	}}
+	tokens := &refreshTokenServiceMock{
+		parseUserID:   userID,
+		generateToken: "new-access-token",
+	}
+	sessions := &refreshSessionRepositoryMock{
+		findUserID:         userID,
+		findExpiresAt:      time.Now().UTC().Add(10 * time.Minute),
+		findInstallationID: &installationID,
+	}
+	uc := NewRefreshAccessTokenUseCase(repo, tokens, sessions, &transactorMock{})
+
+	_, err := uc.Execute(context.Background(), RefreshAccessTokenInput{RefreshToken: "refresh-token"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if tokens.generateIn.InstallationID == nil || *tokens.generateIn.InstallationID != installationID {
+		t.Fatalf("expected access token installation ID %q, got %#v", installationID, tokens.generateIn.InstallationID)
+	}
+	if sessions.createInstallationID == nil || *sessions.createInstallationID != installationID {
+		t.Fatalf("expected new session installation ID %q, got %#v", installationID, sessions.createInstallationID)
 	}
 }
 
@@ -420,9 +486,10 @@ func TestRefreshAccessTokenUseCase_Execute_CreateNewSessionFailure(t *testing.T)
 // statefulSessionMock is a session repository that tracks actual state across
 // calls, used to verify rotation integrity end-to-end.
 type statefulSessionEntry struct {
-	userID    uuid.UUID
-	expiresAt time.Time
-	revoked   bool
+	userID         uuid.UUID
+	expiresAt      time.Time
+	revoked        bool
+	installationID *uuid.UUID
 }
 
 type statefulSessionMock struct {
@@ -434,16 +501,45 @@ func newStatefulSessionMock() *statefulSessionMock {
 }
 
 func (m *statefulSessionMock) Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error {
-	m.store[tokenHash] = &statefulSessionEntry{userID: userID, expiresAt: expiresAt}
+	return m.CreateWithInstallation(ctx, domain.CreateSessionInput{
+		UserID:    userID,
+		TokenHash: tokenHash,
+		ExpiresAt: expiresAt,
+	})
+}
+
+func (m *statefulSessionMock) CreateWithInstallation(ctx context.Context, input domain.CreateSessionInput) error {
+	m.store[input.TokenHash] = &statefulSessionEntry{
+		userID:         input.UserID,
+		expiresAt:      input.ExpiresAt,
+		installationID: input.InstallationID,
+	}
 	return nil
 }
 
 func (m *statefulSessionMock) FindByTokenHash(ctx context.Context, tokenHash string) (uuid.UUID, time.Time, bool, error) {
-	e, ok := m.store[tokenHash]
-	if !ok {
+	record, err := m.FindByTokenHashWithInstallation(ctx, tokenHash)
+	if err != nil {
+		return uuid.Nil, time.Time{}, false, err
+	}
+	if record == nil {
 		return uuid.Nil, time.Time{}, false, nil
 	}
-	return e.userID, e.expiresAt, e.revoked, nil
+	return record.UserID, record.ExpiresAt, record.Revoked, nil
+}
+
+func (m *statefulSessionMock) FindByTokenHashWithInstallation(ctx context.Context, tokenHash string) (*domain.SessionRecord, error) {
+	e, ok := m.store[tokenHash]
+	if !ok {
+		return nil, nil
+	}
+	return &domain.SessionRecord{
+		UserID:         e.userID,
+		TokenHash:      tokenHash,
+		ExpiresAt:      e.expiresAt,
+		Revoked:        e.revoked,
+		InstallationID: e.installationID,
+	}, nil
 }
 
 func (m *statefulSessionMock) Revoke(ctx context.Context, tokenHash string) error {
@@ -452,6 +548,15 @@ func (m *statefulSessionMock) Revoke(ctx context.Context, tokenHash string) erro
 		return domain.ErrSessionNotFound
 	}
 	e.revoked = true
+	return nil
+}
+
+func (m *statefulSessionMock) RevokeByUserIDAndInstallationID(ctx context.Context, userID uuid.UUID, installationID uuid.UUID, revokedAt time.Time) error {
+	for _, entry := range m.store {
+		if entry.userID == userID && entry.installationID != nil && *entry.installationID == installationID {
+			entry.revoked = true
+		}
+	}
 	return nil
 }
 

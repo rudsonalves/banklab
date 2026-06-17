@@ -13,6 +13,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 )
 
@@ -23,16 +24,38 @@ import (
 // while keeping dependency direction explicit.
 type AuthenticatedUser = authdomain.AuthenticatedUser
 
+type OperationalSession struct {
+	UserID         uuid.UUID
+	Role           authdomain.Role
+	CustomerID     *uuid.UUID
+	InstallationID *uuid.UUID
+}
+
+type RestrictedSession struct {
+	UserID         uuid.UUID
+	InstallationID uuid.UUID
+	JTI            string
+	Scope          string
+}
+
 // contextKey is a private type used to avoid key collisions
 // when storing values in context.
 type contextKey string
 
 // authenticatedUserKey is the key used to store the authenticated user in context.
-const authenticatedUserKey contextKey = "authenticatedUser"
+const (
+	authenticatedUserKey  contextKey = "authenticatedUser"
+	operationalSessionKey contextKey = "operationalSession"
+	restrictedSessionKey  contextKey = "restrictedSession"
+)
 
 // ErrAuthenticatedUserNotFound is returned when the context does not contain
 // a valid authenticated user.
-var ErrAuthenticatedUserNotFound = errors.New("authenticated user not found in context")
+var (
+	ErrAuthenticatedUserNotFound  = errors.New("authenticated user not found in context")
+	ErrOperationalSessionNotFound = errors.New("operational session not found in context")
+	ErrRestrictedSessionNotFound  = errors.New("restricted session not found in context")
+)
 
 // WithAuthenticatedUser returns a new context derived from ctx that carries
 // the given authenticated user.
@@ -90,4 +113,50 @@ func RequireAuthenticatedUser(ctx context.Context) (*AuthenticatedUser, error) {
 	}
 
 	return nil, ErrAuthenticatedUserNotFound
+}
+
+func WithOperationalSession(ctx context.Context, session OperationalSession) context.Context {
+	return context.WithValue(ctx, operationalSessionKey, session)
+}
+
+func GetOperationalSession(ctx context.Context) (*OperationalSession, bool) {
+	if session, ok := ctx.Value(operationalSessionKey).(OperationalSession); ok {
+		return &session, true
+	}
+	if sessionPtr, ok := ctx.Value(operationalSessionKey).(*OperationalSession); ok && sessionPtr != nil {
+		return sessionPtr, true
+	}
+
+	return nil, false
+}
+
+func RequireOperationalSession(ctx context.Context) (*OperationalSession, error) {
+	if session, ok := GetOperationalSession(ctx); ok {
+		return session, nil
+	}
+
+	return nil, ErrOperationalSessionNotFound
+}
+
+func WithRestrictedSession(ctx context.Context, session RestrictedSession) context.Context {
+	return context.WithValue(ctx, restrictedSessionKey, session)
+}
+
+func GetRestrictedSession(ctx context.Context) (*RestrictedSession, bool) {
+	if session, ok := ctx.Value(restrictedSessionKey).(RestrictedSession); ok {
+		return &session, true
+	}
+	if sessionPtr, ok := ctx.Value(restrictedSessionKey).(*RestrictedSession); ok && sessionPtr != nil {
+		return sessionPtr, true
+	}
+
+	return nil, false
+}
+
+func RequireRestrictedSession(ctx context.Context) (*RestrictedSession, error) {
+	if session, ok := GetRestrictedSession(ctx); ok {
+		return session, nil
+	}
+
+	return nil, ErrRestrictedSessionNotFound
 }

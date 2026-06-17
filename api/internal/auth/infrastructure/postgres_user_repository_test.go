@@ -109,7 +109,7 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		userA := &domain.User{
 			Email:        email,
 			PasswordHash: "hash-a",
-			Role:         domain.RoleCustomer,
+			Role:         domain.RoleAdmin,
 			Status:       domain.UserStatusPending,
 			CreatedAt:    now,
 			UpdatedAt:    now,
@@ -118,7 +118,7 @@ func TestPostgresUserRepository_Integration(t *testing.T) {
 		userB := &domain.User{
 			Email:        email,
 			PasswordHash: "hash-b",
-			Role:         domain.RoleCustomer,
+			Role:         domain.RoleAdmin,
 			Status:       domain.UserStatusPending,
 			CreatedAt:    now,
 			UpdatedAt:    now,
@@ -219,6 +219,14 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			CONSTRAINT fk_users_customer_id FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS user_sessions (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token_hash CHAR(64) NOT NULL UNIQUE,
+			expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+			revoked_at TIMESTAMP WITH TIME ZONE,
+			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+		)`,
 	}
 
 	for _, statement := range statements {
@@ -239,6 +247,14 @@ func ensureAuthRepoTestSchema(t *testing.T, ctx context.Context, pool *pgxpool.P
 	if _, err := pool.Exec(ctx, `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP WITH TIME ZONE`); err != nil {
 		t.Fatalf("failed to ensure users.phone_verified_at column: %v", err)
 	}
+	if _, err := pool.Exec(ctx, `ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS installation_id UUID`); err != nil {
+		t.Fatalf("failed to ensure user_sessions.installation_id column: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS idx_user_sessions_user_installation
+		ON user_sessions(user_id, installation_id)
+		WHERE installation_id IS NOT NULL`); err != nil {
+		t.Fatalf("failed to ensure user_sessions installation index: %v", err)
+	}
 }
 
 func cleanupUserByID(t *testing.T, ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID) {
@@ -254,7 +270,7 @@ func testUser(now time.Time) *domain.User {
 		Email:        strings.ToLower(uuid.NewString()) + "@example.com",
 		Phone:        "+5511" + strings.ReplaceAll(uuid.NewString(), "-", "")[:9],
 		PasswordHash: "hashed-password",
-		Role:         domain.RoleCustomer,
+		Role:         domain.RoleAdmin,
 		CustomerID:   nil,
 		Status:       domain.UserStatusPending,
 		CreatedAt:    now,

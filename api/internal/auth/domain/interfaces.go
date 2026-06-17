@@ -38,9 +38,10 @@ type PasswordHasher interface {
 }
 
 type TokenClaims struct {
-	UserID     uuid.UUID
-	Role       Role
-	CustomerID *uuid.UUID
+	UserID         uuid.UUID
+	Role           Role
+	CustomerID     *uuid.UUID
+	InstallationID *uuid.UUID
 }
 
 type TokenService interface {
@@ -53,8 +54,26 @@ type TokenService interface {
 
 type SessionRepository interface {
 	Create(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) error
+	CreateWithInstallation(ctx context.Context, input CreateSessionInput) error
 	FindByTokenHash(ctx context.Context, tokenHash string) (userID uuid.UUID, expiresAt time.Time, revoked bool, err error)
+	FindByTokenHashWithInstallation(ctx context.Context, tokenHash string) (*SessionRecord, error)
 	Revoke(ctx context.Context, tokenHash string) error
+	RevokeByUserIDAndInstallationID(ctx context.Context, userID uuid.UUID, installationID uuid.UUID, revokedAt time.Time) error
+}
+
+type CreateSessionInput struct {
+	UserID         uuid.UUID
+	TokenHash      string
+	ExpiresAt      time.Time
+	InstallationID *uuid.UUID
+}
+
+type SessionRecord struct {
+	UserID         uuid.UUID
+	TokenHash      string
+	ExpiresAt      time.Time
+	Revoked        bool
+	InstallationID *uuid.UUID
 }
 
 type Transactor interface {

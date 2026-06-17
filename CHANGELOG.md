@@ -1,5 +1,130 @@
 # Changelog
 
+## 2026/06/17 - api/installation-identity-06
+
+This change prepares the authentication flow to carry installation identity across operational sessions, access tokens, refresh rotation, and shared authentication context.
+
+It adds persistence support for `installation_id` in user sessions, extends JWT claims, introduces restricted access token infrastructure for installation registration, and documents the related backlog tasks.
+
+1. **api/internal/auth/domain/interfaces.go**
+
+   * Extended `TokenClaims` with optional `InstallationID`.
+   * Added session creation and lookup models with installation metadata.
+   * Expanded `SessionRepository` with installation-aware create, lookup, and revocation methods.
+
+2. **api/internal/auth/application/login_user.go**
+
+   * Included `installation_id` in generated access tokens when available.
+   * Persisted refresh sessions using the installation-aware session creation flow.
+   * Added helper logic to keep legacy logins compatible when no installation ID is provided.
+
+3. **api/internal/auth/application/login_user_test.go**
+
+   * Updated session repository mocks for installation-aware session creation.
+   * Added assertions ensuring legacy login keeps `installation_id` absent.
+   * Added assertions ensuring classified installation login propagates the installation ID into both token claims and session persistence.
+
+4. **api/internal/auth/application/refresh_access_token.go**
+
+   * Replaced legacy session lookup with installation-aware session records.
+   * Preserved `installation_id` during access token generation and refresh token rotation.
+   * Created rotated refresh sessions with the same installation binding.
+
+5. **api/internal/auth/application/refresh_access_token_test.go**
+
+   * Updated refresh session mocks and stateful test repositories to support installation-aware records.
+   * Added coverage for preserving `installation_id` across refresh rotation.
+   * Added revocation support by user and installation in test doubles.
+
+6. **api/internal/auth/infrastructure/jwt_token_service.go**
+
+   * Added optional `installation_id` claim emission in access tokens.
+   * Added parsing and UUID validation for `installation_id`.
+   * Preserved compatibility with access tokens that do not contain installation metadata.
+
+7. **api/internal/auth/infrastructure/jwt_token_service_test.go**
+
+   * Added coverage for generating and parsing access tokens with `installation_id`.
+   * Added coverage for access tokens without installation identity.
+   * Added validation coverage for malformed `installation_id` claims.
+
+8. **api/internal/auth/infrastructure/postgres_session_repository.go**
+
+   * Implemented installation-aware session creation and lookup.
+   * Added session revocation by `user_id` and `installation_id`.
+   * Implemented `InstallationSessionInvalidator` through the session repository.
+
+9. **api/internal/auth/infrastructure/postgres_session_repository_test.go**
+
+   * Added integration coverage for creating, reading, and revoking sessions by installation.
+   * Verified that revocation affects only the target installation session.
+   * Verified that sessions from other installations remain active.
+
+10. **api/internal/auth/infrastructure/postgres_user_repository_test.go**
+
+* Extended the shared auth repository test schema with `user_sessions`.
+* Added `installation_id` schema support and index setup for repository tests.
+* Adjusted test users to use an admin role where customer dependencies are not required.
+
+11. **api/internal/auth/delivery/auth_authorization_integration_test.go**
+
+* Updated integration schema setup to include the optional `installation_id` column in `user_sessions`.
+
+12. **api/internal/installation/domain/restricted_token.go**
+
+* Added restricted access token claims for installation registration.
+* Defined validation rules for token type, scope, user, installation, JTI, and expiration.
+* Added signer and verifier interfaces for restricted access tokens.
+
+13. **api/internal/installation/infrastructure/jwt_restricted_access_token_service.go**
+
+* Added JWT-based restricted access token signer and verifier.
+* Validated restricted token claims against persisted restricted authorization records.
+* Added rejection paths for missing, consumed, revoked, expired, mismatched, or invalid authorizations.
+
+14. **api/internal/installation/infrastructure/jwt_restricted_access_token_service_test.go**
+
+* Added coverage for signing and verifying restricted access tokens.
+* Added validation for authorization mismatch.
+* Added validation for consumed authorization rejection.
+
+15. **api/internal/shared/authctx/context.go**
+
+* Added operational session context carrying user, role, customer, and installation identity.
+* Added restricted session context carrying user, installation, JTI, and scope.
+* Added required and optional accessors with explicit missing-context errors.
+
+16. **api/internal/shared/authctx/context_test.go**
+
+* Added tests for operational session context storage and retrieval.
+* Added tests for restricted session context storage and retrieval.
+* Added missing-context error coverage for both session types.
+
+17. **api/migrations/000014_user_sessions_installation_id.up.sql**
+
+* Added `installation_id` to `user_sessions`.
+* Added partial index on `(user_id, installation_id)` for installation-bound sessions.
+
+18. **api/migrations/000014_user_sessions_installation_id.down.sql**
+
+* Added rollback for the installation session index.
+* Added rollback for the `installation_id` column.
+
+19. **docs/backlogs/api/015 - installation-identity-session-tokens-context.md**
+
+* Linked the backlog to its dedicated task breakdown document.
+
+20. **docs/backlogs/api/015 - installation-identity-session-tokens-context_tasks.md**
+
+* Added task breakdown for session schema, repository contracts, access token claims, restricted tokens, authentication contexts, installation-based invalidation, and validation without enforcement.
+
+### Conclusion
+
+This change establishes the infrastructure required to bind authentication sessions and tokens to installation identity while preserving compatibility with legacy flows.
+
+The API can now persist installation-aware refresh sessions, propagate installation identity through access token and refresh rotation flows, validate restricted installation registration tokens, and expose operational and restricted authentication contexts for future enforcement work.
+
+
 ## 2026/06/17 - api/installation-identity-05
 
 This change implements the PostgreSQL persistence layer for the installation identity module, adding schema support, repository implementations, and integration coverage for installation records and restricted registration authorizations.
