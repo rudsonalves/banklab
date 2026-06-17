@@ -3,17 +3,18 @@
 ## 1. Status
 
 - Tipo: Planning
-- Área: Security
+- Area: Security
 - Prioridade: High
-- Estado: Discussão
+- Estado: Discussao
 
 ## 2. Objetivo
 
 Estabelecer o contrato mínimo de entrada para identidade de instalação antes de
-qualquer dependência de persistência.
+qualquer dependência de domínio persistente, tabela de instalações ou sessão
+vinculada.
 
-Este backlog cobre apenas o que pode ser implementado sem tabela de
-instalações, sem sessão vinculada e sem classificação operacional.
+Este backlog é a exceção inicial da ordem em camadas porque o contrato HTTP do
+header pode ser validado sem consultar estado.
 
 ## 3. Escopo
 
@@ -36,12 +37,17 @@ instalações, sem sessão vinculada e sem classificação operacional.
 
 - Nenhuma dependência interna da identidade de instalação.
 
-## 6. Orientação para tasks
+## 6. Preparação para tasks
 
-As tasks deste backlog devem ser pequenas e verificáveis por contrato HTTP e
-testes de handler/use case. Não devem criar dependências fictícias com
-repositórios de instalação ainda inexistentes.
+As tasks futuras devem ser pequenas e verificáveis por contrato HTTP e testes de
+handler/use case. Elas não devem criar repositórios fictícios nem antecipar a
+classificação operacional.
 
-## 7. Referências
+Tasks:
+
+- [011 - installation-identity-entry-contract_tasks.md](<011 - installation-identity-entry-contract_tasks.md>)
+
+## 7. Referencias
 
 - [Installation Identity MVP](<010 - installation-identity-mvp.md>)
+- [Split por dependencia](<010 - split-installation-identity-by-dependency.md>)

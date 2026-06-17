@@ -527,165 +527,13 @@ sem introduzir bloqueios prematuros no fluxo financeiro.
 
 ## 9. Ordem de implementação por dependência
 
-A ordem abaixo evita implementar fluxo de negócio antes de existir a base que
-sustenta esse fluxo. Cada etapa deve deixar a próxima etapa tecnicamente
-possível, sem depender de contratos fictícios ou repositórios ainda inexistentes.
+A separação operacional deste MVP fica em um documento próprio para evitar que
+o backlog principal misture decisão de produto, modelo de ameaça e divisão de
+execução.
 
-### 1. Contrato mínimo de entrada
+Ver:
 
-Primeiro corte já sustentável sem persistência de instalação:
-
-- centralizar constantes de headers compartilhados;
-- exigir `X-Installation-Id` no `POST /auth/login`;
-- validar UUID v4 canônico;
-- retornar `400 INVALID_INSTALLATION_ID` para ausência ou formato inválido;
-- propagar o `installation_id` validado até a camada de aplicação.
-
-Essa etapa não deve classificar instalação, criar associação, emitir token
-restrito nem alterar sessão.
-
-### 2. Base de dados de instalações
-
-Antes de qualquer fluxo que consulte, registre ou revogue instalações:
-
-- criar a tabela `app_installations`;
-- incluir os metadados mínimos do MVP;
-- representar apenas os estados `known` e `revoked`;
-- garantir identificador público de gerenciamento separado do
-  `installation_id` enviado pelo cliente;
-- criar índices e constraints para consulta por usuário, instalação e status;
-- preparar suporte ao limite de três instalações `known` por usuário.
-
-Essa etapa deve permitir saber, de forma confiável, se uma instalação é
-conhecida, nova, revogada ou se o usuário nunca teve instalação associada.
-
-### 3. Base de dados de autorizações restritas
-
-Antes de emitir `restricted_access_token`:
-
-- criar a tabela `installation_registration_authorizations`;
-- persistir `jti`, `user_id`, `installation_id`, `scope`, `status`,
-  `expires_at`, `consumed_at` e `created_at`;
-- garantir unicidade de `jti`;
-- garantir no máximo uma autorização `active` por
-  `(user_id, installation_id, scope)`;
-- tratar expiração como estado derivado de `expires_at`.
-
-Essa etapa deve existir antes do login retornar autorização restrita para uma
-nova instalação.
-
-### 4. Domínio e repositórios compartilhados
-
-Depois das tabelas, implementar os contratos usados por todos os fluxos:
-
-- domínio de instalação e autorização restrita;
-- repositório de instalações com operações de consulta, criação, listagem e
-  revogação lógica;
-- repositório de autorizações restritas com criação, consulta, consumo e
-  revogação;
-- operações atômicas necessárias para:
-  - bootstrap da primeira instalação;
-  - reserva de vaga respeitando o limite;
-  - consumo da autorização restrita;
-  - revogação com invalidação de acesso.
-
-Essa etapa deve ser concluída antes de ligar classificação ou bootstrap ao
-`POST /auth/login`.
-
-### 5. Sessão, JWT e contexto autenticado
-
-Antes dos endpoints passarem a depender do vínculo de instalação:
-
-- vincular sessão operacional ao par usuário + `installation_id`;
-- emitir `access_token` operacional com claim `installation_id`;
-- validar `X-Installation-Id` no refresh;
-- emitir e validar `restricted_access_token`;
-- criar middleware específico para acesso restrito;
-- carregar `user_id`, `installation_id`, `jti` e `scope` no contexto
-  restrito;
-- preparar o middleware operacional para comparar header, token e sessão.
-
-Essa etapa sustenta o pós-cadastro, o refresh e o enforcement das rotas
-autenticadas.
-
-### 6. Login com classificação de instalação
-
-Somente depois da base compartilhada:
-
-- classificar a instalação no `POST /auth/login`;
-- permitir sessão normal para instalação `known`;
-- executar bootstrap automático da primeira instalação;
-- bloquear instalação `revoked`;
-- retornar `installation_limit_reached` quando o limite de três instalações
-  `known` estiver atingido;
-- emitir autorização restrita quando a instalação for nova e ainda houver vaga.
-
-A criação da primeira instalação e a decisão de limite devem ser atômicas.
-
-### 7. Step-up para registro de instalação
-
-Depois do token restrito e dos repositórios:
-
-- permitir `POST /security/step-up/authorize` com contexto restrito;
-- reconhecer `POST /security/installations` como operação elegível;
-- exigir senha transacional ativa;
-- bloquear o fluxo se a senha estiver `not_set` ou `locked`;
-- emitir `step_up_token` de uso único para o registro da instalação.
-
-### 8. Registro explícito da instalação
-
-Depois do step-up e do contexto restrito:
-
-- implementar `POST /security/installations`;
-- validar autorização restrita, step-up e `X-Installation-Id`;
-- confirmar correspondência com a instalação apresentada no login;
-- confirmar vaga de forma atômica;
-- criar associação `known`;
-- consumir a autorização restrita;
-- criar sessão operacional vinculada;
-- retornar `access_token` e `refresh_token` normais.
-
-### 9. Listagem de instalações
-
-Depois do repositório de instalações:
-
-- implementar `GET /security/installations`;
-- listar instalações do usuário autenticado;
-- expor identificador público de gerenciamento;
-- refletir os estados `known` e `revoked`;
-- retornar apenas os metadados mínimos definidos para o MVP.
-
-### 10. Revogação de instalação
-
-Depois do vínculo entre sessão, token e instalação:
-
-- implementar `DELETE /security/installations/{installation_resource_id}`;
-- impedir revogação da instalação da sessão atual;
-- aplicar revogação lógica com `revoked_at`;
-- invalidar imediatamente refresh tokens da instalação revogada;
-- fazer access tokens já emitidos deixarem de valer na hora;
-- preservar a instalação revogada no histórico.
-
-### 11. Refresh e enforcement de sessão
-
-Depois de sessão e JWT carregarem `installation_id`:
-
-- exigir `X-Installation-Id` em `POST /auth/refresh`;
-- negar refresh para instalação revogada ou divergente;
-- exigir `X-Installation-Id` nas rotas autenticadas;
-- retornar `403 INSTALLATION_MISMATCH` quando header, token e sessão
-  divergirem;
-- manter o sinal de instalação fora das políticas financeiras sensíveis neste
-  primeiro corte.
-
-### 12. Retenção, auditoria e minimização
-
-Antes de encerrar o MVP:
-
-- definir retenção de instalações revogadas;
-- definir quais metadados entram em auditoria;
-- confirmar que o MVP não persiste atributos além do mínimo necessário;
-- documentar a política final neste backlog.
+- [010 - split-installation-identity-by-dependency.md](<010 - split-installation-identity-by-dependency.md>)
 
 ## 10. Estado atual de implementação
 
@@ -711,28 +559,11 @@ Não considerar como concluídos, até que a base exista:
 
 ## 11. Backlogs derivados
 
-Os backlogs abaixo orientam a futura criação de tasks. Eles seguem a ordem de
-dependência deste documento e não devem ser tratados como frentes paralelas
-independentes quando houver dependência explícita entre eles.
+Os backlogs derivados devem seguir a separação por dependência técnica definida
+no documento de split.
 
-- [011 - installation-identity-entry-contract.md](<011 - installation-identity-entry-contract.md>):
-  contrato mínimo de `X-Installation-Id` no login.
-- [012 - installation-identity-persistence-foundation.md](<012 - installation-identity-persistence-foundation.md>):
-  tabelas e constraints de instalações e autorizações restritas.
-- [013 - installation-identity-domain-repositories.md](<013 - installation-identity-domain-repositories.md>):
-  domínio, repositórios e operações transacionais compartilhadas.
-- [014 - installation-identity-session-tokens.md](<014 - installation-identity-session-tokens.md>):
-  sessão, JWT, token restrito e contexto autenticado.
-- [015 - installation-identity-login-flow.md](<015 - installation-identity-login-flow.md>):
-  classificação e decisões do `POST /auth/login`.
-- [016 - installation-identity-registration-flow.md](<016 - installation-identity-registration-flow.md>):
-  step-up e `POST /security/installations`.
-- [017 - installation-identity-management.md](<017 - installation-identity-management.md>):
-  listagem e revogação de instalações.
-- [018 - installation-identity-refresh-enforcement.md](<018 - installation-identity-refresh-enforcement.md>):
-  refresh e enforcement em rotas autenticadas.
-- [019 - installation-identity-audit-retention.md](<019 - installation-identity-audit-retention.md>):
-  retenção, auditoria e minimização.
+- [010 - split-installation-identity-by-dependency.md](<010 - split-installation-identity-by-dependency.md>):
+  separação dos backlogs por ordem de dependência técnica.
 
 ## 12. Fora de escopo
 

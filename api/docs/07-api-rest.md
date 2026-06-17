@@ -72,12 +72,14 @@ Content type:
 
 Authentication:
 - `POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, and `POST /auth/login` require header `X-App-Token: <app_token>`
+- `POST /auth/login` also requires header `X-Installation-Id: <canonical_uuid_v4>`
 - `POST /auth/refresh` requires a valid `refresh_token` in the request body
 - `GET /auth/session`, `GET /auth/me`, all `/accounts` and `/accounts/*`, all `/customers/*`, and `POST /security/transaction-password` require JWT Bearer token
 - Send JWT in header `Authorization: Bearer <access_token>`
 
 Access control summary:
 - Auth entry routes: AppToken only
+- Login entry route: AppToken plus installation identifier header
 - Auth refresh route: refresh token only
 - Auth session and service routes: JWT only
 
@@ -345,7 +347,19 @@ Possible errors:
 
 - Method: POST
 - Path: /auth/login
-- Auth required: AppToken (`X-App-Token`)
+- Auth required: AppToken (`X-App-Token`) and installation identifier (`X-Installation-Id`)
+
+Request headers:
+
+```http
+X-App-Token: <app_token>
+X-Installation-Id: <canonical_uuid_v4>
+```
+
+`X-Installation-Id` must be a UUID v4 in canonical lowercase form with hyphens,
+for example `550e8400-e29b-41d4-a716-446655440000`. At this stage the header is
+only validated and propagated to the login application layer. The API does not
+classify, register, revoke, or bind sessions to installations in this contract.
 
 Request body:
 
@@ -386,6 +400,7 @@ with `ACCOUNT_APPROVAL_REQUIRED`.
 
 Possible errors:
 - 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
+- 400 INVALID_INSTALLATION_ID: missing or malformed `X-Installation-Id`
 - 400 INVALID_REQUEST: invalid JSON body or unknown fields
 - 400 INVALID_DATA: invalid email or password input
 - 401 INVALID_CREDENTIALS: invalid email/password
@@ -1285,6 +1300,9 @@ Common error codes currently used by handlers:
 - INTERNAL_ERROR
 
 `INVALID_APP_TOKEN` (HTTP 401) is returned when onboarding routes protected by AppToken (`POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, `POST /auth/login`) are called without `X-App-Token` or with an invalid app token.
+
+`INVALID_INSTALLATION_ID` (HTTP 400) is returned by `POST /auth/login` when
+`X-Installation-Id` is missing or is not a canonical UUID v4.
 
 `ACCOUNT_APPROVAL_REQUIRED` (HTTP 403) is returned by `POST /auth/login` when a
 customer user has valid credentials but cannot enter the app because admin

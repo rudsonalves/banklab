@@ -31,24 +31,26 @@ backlogs/
 
 - [010 - installation-identity-mvp.md](<api/010 - installation-identity-mvp.md>):
   backlog principal do MVP de identidade de instalação na API.
+- [010 - split-installation-identity-by-dependency.md](<api/010 - split-installation-identity-by-dependency.md>):
+  separação dos backlogs API por ordem de dependência técnica.
 - [011 - installation-identity-entry-contract.md](<api/011 - installation-identity-entry-contract.md>):
   contrato mínimo de `X-Installation-Id` no login.
-- [012 - installation-identity-persistence-foundation.md](<api/012 - installation-identity-persistence-foundation.md>):
-  tabelas e constraints de instalações e autorizações restritas.
-- [013 - installation-identity-domain-repositories.md](<api/013 - installation-identity-domain-repositories.md>):
-  domínio, repositórios e operações transacionais compartilhadas.
-- [014 - installation-identity-session-tokens.md](<api/014 - installation-identity-session-tokens.md>):
-  sessão, JWT, token restrito e contexto autenticado.
-- [015 - installation-identity-login-flow.md](<api/015 - installation-identity-login-flow.md>):
-  classificação e decisões do `POST /auth/login`.
-- [016 - installation-identity-registration-flow.md](<api/016 - installation-identity-registration-flow.md>):
-  step-up e `POST /security/installations`.
-- [017 - installation-identity-management.md](<api/017 - installation-identity-management.md>):
-  listagem e revogação de instalações.
-- [018 - installation-identity-refresh-enforcement.md](<api/018 - installation-identity-refresh-enforcement.md>):
-  refresh e enforcement em rotas autenticadas.
+- [012 - installation-identity-domain-contracts.md](<api/012 - installation-identity-domain-contracts.md>):
+  domínio, estados, erros e portas internas.
+- [013 - installation-identity-database-schema.md](<api/013 - installation-identity-database-schema.md>):
+  migrations, tabelas, constraints e índices.
+- [014 - installation-identity-repositories.md](<api/014 - installation-identity-repositories.md>):
+  implementações Postgres e operações atômicas.
+- [015 - installation-identity-session-tokens-context.md](<api/015 - installation-identity-session-tokens-context.md>):
+  sessão, claims, token restrito e contexto autenticado.
+- [016 - installation-identity-login-usecases.md](<api/016 - installation-identity-login-usecases.md>):
+  classificação, bootstrap, limite e autorização restrita no login.
+- [017 - installation-identity-management-usecases.md](<api/017 - installation-identity-management-usecases.md>):
+  registro explícito, listagem, revogação e efeitos em sessão.
+- [018 - installation-identity-delivery-enforcement.md](<api/018 - installation-identity-delivery-enforcement.md>):
+  handlers, middlewares, enforcement e contrato REST.
 - [019 - installation-identity-audit-retention.md](<api/019 - installation-identity-audit-retention.md>):
-  retenção, auditoria e minimização.
+  auditoria, retenção, minimização e documentação operacional.
 
 ### Mobile
 

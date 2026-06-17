@@ -1,44 +1,47 @@
-# Backlog API 019: Installation Identity Audit and Retention
+# Backlog API 019: Installation Identity Audit, Retention and Operational Docs
 
 ## 1. Status
 
 - Tipo: Planning
-- Área: Security
-- Prioridade: Medium
-- Estado: Discussão
+- Area: Security
+- Prioridade: High
+- Estado: Discussao
 
 ## 2. Objetivo
 
-Definir retenção, auditoria e minimização dos metadados de instalação antes de
-encerrar o MVP.
+Fechar o MVP com política de retenção, auditoria, minimização e documentação
+operacional coerentes com o modelo de ameaça.
 
 ## 3. Escopo
 
 - Definir retenção de instalações revogadas.
-- Definir quais metadados entram em auditoria.
+- Definir retenção de autorizações restritas consumidas, revogadas ou
+  expiradas.
+- Definir quais eventos devem ser auditados.
+- Garantir que logs não exponham tokens, senha transacional ou atributos
+  excessivos do ambiente.
 - Confirmar que o MVP não persiste atributos além do mínimo necessário.
-- Registrar a política final no backlog principal.
-- Ajustar implementação caso a política final exija mudanças em tabela,
-  listagem ou logs.
+- Documentar efeitos de revogação sobre sessões e tokens.
+- Atualizar documentação técnica e operacional.
+- Validar que a documentação final não sugere confiança forte no
+  `installation_id`.
 
 ## 4. Fora de escopo
 
-- Device fingerprinting.
-- Attestation de plataforma.
-- Geolocalização.
-- Correlação entre reinstalações no mesmo aparelho.
-- Painel administrativo.
+- Criar painel administrativo.
+- Adicionar score antifraude.
+- Adicionar geolocalização, biometria, attestation ou device fingerprinting.
 
-## 5. Dependências
+## 5. Dependencias
 
-- Backlog 012: modelo de dados inicial.
-- Backlog 017: revogação e histórico.
+- Backlogs 011 a 018 concluídos ou com contrato final estabilizado.
 
-## 6. Orientação para tasks
+## 6. Preparacao para tasks
 
-As tasks deste backlog devem ser criadas quando o modelo estiver estável o
-suficiente para revisar retenção e auditoria sem retrabalho prematuro.
+As tasks devem separar política de retenção, auditoria, limpeza operacional e
+documentação final.
 
-## 7. Referências
+## 7. Referencias
 
 - [Installation Identity MVP](<010 - installation-identity-mvp.md>)
+- [Split por dependencia](<010 - split-installation-identity-by-dependency.md>)

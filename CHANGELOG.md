@@ -1,5 +1,166 @@
 # Changelog
 
+## 2026/06/17 - api/installation-identity-03
+
+This change consolidates the installation identity entry contract and reorganizes the API backlog structure around technical dependency order. The login REST contract now explicitly documents the required `X-Installation-Id` header, including canonical UUID v4 validation and the `INVALID_INSTALLATION_ID` error behavior.
+
+The backlog documentation was refactored to separate planning by architectural dependency instead of by isolated flow. This creates a clearer sequence from entry contract, domain contracts, database schema, repositories, session/token context, use cases, delivery enforcement, and operational documentation.
+
+1. **api/docs/07-api-rest.md**
+
+   * Documented that `POST /auth/login` requires both `X-App-Token` and `X-Installation-Id`.
+   * Added request header documentation for `X-Installation-Id`.
+   * Defined the expected canonical lowercase UUID v4 format with hyphens.
+   * Clarified that the current contract only validates and propagates the installation identifier to the login application layer.
+   * Added `INVALID_INSTALLATION_ID` as a possible login error.
+   * Added the common error code description for missing or malformed installation identifiers.
+
+2. **api/internal/auth/delivery/handler_test.go**
+
+   * Expanded invalid installation identifier test coverage using table-driven cases.
+   * Added validation scenarios for non-UUID values, UUID v1, UUID without hyphens, uppercase UUID, and blank values.
+   * Preserved the assertion that invalid headers return `400 INVALID_INSTALLATION_ID`.
+   * Preserved the assertion that the login use case is not called when the installation identifier is invalid.
+
+3. **docs/backlogs/README.md**
+
+   * Updated the installation identity backlog index to reflect the new dependency-based split.
+   * Added the new split document as the operational reference for backlog sequencing.
+   * Replaced the previous flow-oriented backlog names with the new dependency-oriented structure.
+   * Updated backlog descriptions for domain contracts, database schema, repositories, session/token context, login use cases, management use cases, delivery enforcement, and audit/retention documentation.
+
+4. **docs/backlogs/api/010 - installation-identity-mvp.md**
+
+   * Removed the detailed implementation order from the main MVP backlog.
+   * Replaced the embedded implementation sequence with a reference to the dedicated split document.
+   * Simplified the derived backlog section to point to the dependency-based split.
+   * Kept the main MVP backlog focused on product decision, threat model, and scope instead of operational task sequencing.
+
+5. **docs/backlogs/api/010 - split-installation-identity-by-dependency.md**
+
+   * Added a new planning document defining the dependency-based implementation order for installation identity.
+   * Established the technical sequence from entry contract through audit, retention, and operational documentation.
+   * Defined separation rules for domain, interfaces, migrations, repositories, use cases, delivery, and enforcement.
+   * Documented the allowed exception for the minimal `X-Installation-Id` login entry contract before persistence exists.
+   * Listed the resulting backlog files from 011 through 019.
+
+6. **docs/backlogs/api/011 - installation-identity-entry-contract.md**
+
+   * Refined the backlog objective to emphasize that the entry contract does not depend on persistent domain, installation tables, or linked sessions.
+   * Clarified that this backlog is the initial layered-order exception because the HTTP header can be validated without consulting state.
+   * Updated the task preparation guidance to avoid fake repositories or premature operational classification.
+   * Added a link to the dedicated task file.
+   * Added the split document as a reference.
+
+7. **docs/backlogs/api/011 - installation-identity-entry-contract_tasks.md**
+
+   * Added the task breakdown for the completed entry contract backlog.
+   * Documented tasks for centralizing the installation header constant, defining `INVALID_INSTALLATION_ID`, validating canonical UUID v4, propagating the validated value to the application layer, covering tests, and updating REST documentation.
+   * Marked all six entry contract tasks as completed.
+   * Captured acceptance criteria and dependencies for each task.
+
+8. **docs/backlogs/api/012 - installation-identity-domain-contracts.md**
+
+   * Added the new domain contracts backlog.
+   * Defined the objective of creating stable installation identity language before database, use case, or delivery implementation.
+   * Scoped domain entities, persisted states, derived login classifications, value objects, internal errors, and application/domain ports.
+   * Explicitly excluded migrations, Postgres repositories, login changes, refresh changes, middleware, and HTTP handlers.
+
+9. **docs/backlogs/api/012 - installation-identity-domain-contracts_tasks.md**
+
+   * Added the task breakdown for domain contracts.
+   * Defined tasks for the installation identifier value object, app installation entity, login classifications, domain errors, read ports, write ports, restricted authorization model, and restricted authorization ports.
+   * Captured acceptance criteria focused on pure domain behavior and stable interfaces without database or HTTP dependencies.
+
+10. **docs/backlogs/api/012 - installation-identity-persistence-foundation.md**
+
+* Removed the previous persistence foundation backlog.
+* Replaced the combined persistence-oriented planning with the new split between domain contracts and database schema.
+
+11. **docs/backlogs/api/013 - installation-identity-database-schema.md**
+
+* Added the new database schema backlog.
+* Scoped the relational foundation for `app_installations` and `installation_registration_authorizations`.
+* Documented required states, constraints, indexes, public management identifiers, authorization expiration semantics, and migration expectations.
+* Positioned schema creation after domain contracts and before repository implementation.
+
+12. **docs/backlogs/api/013 - installation-identity-domain-repositories.md**
+
+* Removed the previous combined domain and repositories backlog.
+* Replaced it with separate domain contracts and repository implementation backlogs.
+
+13. **docs/backlogs/api/014 - installation-identity-repositories.md**
+
+* Added the new repositories backlog.
+* Scoped Postgres implementations for installation and restricted authorization ports.
+* Documented atomic operations for first-installation bootstrap, slot reservation, authorization consumption, authorization revocation, and logical installation revocation.
+* Added concurrency requirements for preventing duplicate first installations and exceeding the known-installation limit.
+
+14. **docs/backlogs/api/014 - installation-identity-session-tokens.md**
+
+* Removed the previous session and tokens backlog.
+* Replaced it with a more explicit session, tokens, and context backlog aligned with the new dependency sequence.
+
+15. **docs/backlogs/api/015 - installation-identity-session-tokens-context.md**
+
+* Added the new session, tokens, and context backlog.
+* Scoped operational session binding to user and installation.
+* Documented operational access token claims, restricted access token claims, restricted authorization validation, authenticated context, restricted context, and session invalidation interfaces.
+* Kept login classification, installation registration, revocation, and HTTP handlers out of scope.
+
+16. **docs/backlogs/api/015 - installation-identity-login-flow.md**
+
+* Removed the previous login flow backlog.
+* Replaced it with the new login use cases backlog aligned after repositories and session/token context.
+
+17. **docs/backlogs/api/016 - installation-identity-login-usecases.md**
+
+* Added the login use cases backlog.
+* Scoped installation classification during login, known-installation sessions, first-installation bootstrap, revoked-installation blocking, limit handling, restricted authorization emission, and atomicity requirements.
+* Explicitly kept schema, repositories, new handlers, refresh enforcement, authenticated route enforcement, and transactional password out of scope.
+
+18. **docs/backlogs/api/016 - installation-identity-registration-flow.md**
+
+* Removed the previous registration flow backlog.
+* Replaced it with the new registration and management use cases backlog.
+
+19. **docs/backlogs/api/017 - installation-identity-management-usecases.md**
+
+* Added the registration and management use cases backlog.
+* Scoped restricted-context registration, step-up validation, installation identifier matching, atomic slot confirmation, known-installation creation, restricted authorization consumption, operational session creation, listing, revocation, and session/token invalidation effects.
+* Kept schema, repositories, final HTTP DTOs, administrative panels, and step-up for revocation out of scope.
+
+20. **docs/backlogs/api/017 - installation-identity-management.md**
+
+* Removed the previous management backlog.
+* Replaced it with the broader registration and management use cases backlog.
+
+21. **docs/backlogs/api/018 - installation-identity-delivery-enforcement.md**
+
+* Added the delivery and enforcement backlog.
+* Scoped HTTP connection for login results, refresh header enforcement, authenticated route header enforcement, operational middleware, restricted middleware, step-up support for installation registration, installation management handlers, HTTP error standardization, REST documentation, and test collection updates.
+* Positioned delivery after the domain, persistence, repository, token, and application layers are ready.
+
+22. **docs/backlogs/api/018 - installation-identity-refresh-enforcement.md**
+
+* Removed the previous refresh and enforcement backlog.
+* Replaced it with a broader delivery and enforcement backlog that covers handlers, middleware, REST contract, and route integration.
+
+23. **docs/backlogs/api/019 - installation-identity-audit-retention.md**
+
+* Renamed the backlog focus to audit, retention, and operational documentation.
+* Raised the priority to High.
+* Expanded scope to include retention for restricted authorizations, audited events, safe logging, revocation effects over sessions and tokens, final technical documentation, and operational validation.
+* Clarified that the final documentation must not imply strong trust in `installation_id`.
+* Updated dependencies to require the preceding installation identity backlogs or their final contracts.
+
+### Conclusion
+
+This change completes the current entry-contract documentation for installation identity by making `X-Installation-Id` an explicit login requirement and tightening validation test coverage for malformed identifiers.
+
+It also restructures the installation identity planning model into a cleaner dependency-based backlog sequence. The result is a more coherent implementation path that separates domain contracts, persistence, repositories, session/token context, application use cases, delivery enforcement, and operational documentation.
+
+
 ## 2026/06/16 - api/installation-identity-02
 
 This change introduces the first implementation layer for installation identity handling during authentication. The login flow now requires a canonical installation identifier, propagates it through the application layer, and introduces the initial classification model for installation-aware authentication decisions.
