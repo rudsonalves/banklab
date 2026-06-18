@@ -1,5 +1,7 @@
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/app_section/app_section.dart';
+import 'package:bankflow/core/services/installation_identity/installation_identity.dart';
+import 'package:bankflow/core/services/secure_storage/local_secure_storage.dart';
 import 'package:bankflow/data/repositories/auth/auth_repository.dart';
 import 'package:bankflow/data/services/apis/auth/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/cache/last_login/models/last_login_identity.dart';
@@ -15,6 +17,7 @@ void main() {
     test('returns sessionError when userProfile is missing', () {
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: AppSection(),
       );
 
@@ -28,6 +31,7 @@ void main() {
       final appSection = AppSection()..setAuthSession(_session());
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -42,6 +46,7 @@ void main() {
         ..setAuthSession(_session(hasOperationalAccount: false));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -56,6 +61,7 @@ void main() {
         ..setAuthSession(_session(status: TransactionPasswordStatus.notSet));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -70,6 +76,7 @@ void main() {
         ..setAuthSession(_session(status: TransactionPasswordStatus.locked));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -84,6 +91,7 @@ void main() {
         ..setAuthSession(_session(status: TransactionPasswordStatus.unknown));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -100,6 +108,7 @@ void main() {
         ..setAuthSession(_session(status: TransactionPasswordStatus.notSet));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -159,4 +168,44 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   AsyncResult<AuthSession> getAuthSession() async => throw UnimplementedError();
+}
+
+class _FakeInstallationIdentityService extends InstallationIdentityService {
+  _FakeInstallationIdentityService()
+    : super(
+        secureStorage: _NoopSecureStorage(),
+        markerStore: _NoopMarkerStore(),
+      );
+
+  @override
+  AsyncResult<String> resolve() async {
+    return const Success('018f7b82-4a3d-4f71-9ad7-dedc8e5b10c8');
+  }
+}
+
+class _NoopMarkerStore implements InstallationMarkerStore {
+  @override
+  AsyncResult<bool> hasMarker() async => const Success(true);
+
+  @override
+  AsyncResult<Unit> markResolved() async => const Success(unit);
+}
+
+class _NoopSecureStorage implements LocalSecureStorage {
+  @override
+  AsyncResult<Unit> write(String key, String value) async =>
+      const Success(unit);
+
+  @override
+  AsyncResult<String> read(String key) async =>
+      const Success('018f7b82-4a3d-4f71-9ad7-dedc8e5b10c8');
+
+  @override
+  AsyncResult<Unit> delete(String key) async => const Success(unit);
+
+  @override
+  AsyncResult<Unit> deleteAll() async => const Success(unit);
+
+  @override
+  Future<List<String>> keysWithPrefix(String pattern) async => const [];
 }

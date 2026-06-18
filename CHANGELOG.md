@@ -1,5 +1,109 @@
 # Changelog
 
+## 2026/06/18 - mobile/installation-identity-02
+
+This change introduces the first mobile implementation layer for installation identity in BankLab. It adds durable installation ID storage, a non-secret local marker, identity resolution during app bootstrap, and login blocking when the installation identity cannot be resolved.
+
+The update affects core services, dependency injection, splash initialization, login flow, storage contracts, documentation, and automated tests for the installation identity lifecycle.
+
+1. **docs/backlogs/mobile/013 - installation-identity-mvp_tasks.md**
+
+   * Translated the installation identity MVP task document to Portuguese.
+   * Preserved the original task structure, scope, dependencies, acceptance criteria, and deferred items.
+   * Clarified the mobile implementation plan for local identity, HTTP propagation, restricted login, installation registration, and future management flows.
+
+2. **mobile/lib/core/resources/storage_keys.dart**
+
+   * Added `StorageKeys.installationId` for the durable installation identity stored in secure storage.
+   * Added `StorageKeys.installationLocalMarker` as a non-secret marker stored outside secure storage.
+   * Documented that logout, credential cleanup, and user switching must not delete the installation identity.
+
+3. **mobile/lib/core/services/installation_identity/**
+
+   * Added the installation identity module exports.
+   * Created `InstallationMarkerStore` as the abstraction for checking and writing the local installation marker.
+   * Implemented `FileInstallationMarkerStore` using the application support directory.
+   * Implemented `InstallationIdentityService` to resolve, validate, generate, persist, and refresh the local installation identity.
+   * Added canonical UUID v4 validation and replacement behavior for missing markers, missing values, or invalid stored values.
+   * Added failure handling for marker and secure storage errors without silently continuing.
+
+4. **mobile/lib/core/services/core_services.dart**
+
+   * Registered `InstallationMarkerStore` and `InstallationIdentityService` in core dependency injection.
+   * Inserted installation identity setup before the main HTTP client and authentication interceptor registration.
+   * Preserved the existing Dio, AuthInterceptor, and RestClient setup sequence.
+
+5. **mobile/lib/ui/pages/splash/viewmodel/splash_viewmodel.dart**
+
+   * Updated splash initialization to resolve installation identity before loading remembered login data.
+   * Added `SplashBootstrapState` to carry the optional remembered login identity.
+   * Changed missing last-login data into a successful bootstrap state instead of a blocking failure.
+   * Preserved blocking behavior when installation identity resolution fails.
+
+6. **mobile/lib/ui/pages/splash/models/splash_bootstrap_state.dart**
+
+   * Added a bootstrap state model to represent splash initialization output.
+   * Encapsulated the optional `LastLoginIdentity` used to decide between short login and full login navigation.
+
+7. **mobile/lib/ui/pages/splash/splash_page.dart**
+
+   * Updated the splash animation listener to react to initialization command state.
+   * Added a recoverable error UI when installation identity bootstrap fails.
+   * Added a retry action that re-executes initialization.
+   * Adjusted navigation to route to short login only when a remembered identity is available.
+
+8. **mobile/lib/ui/pages/auth/viewmodel/login_viewmodel.dart**
+
+   * Injected `InstallationIdentityService` into `LoginViewModel`.
+   * Wrapped login execution with installation identity resolution.
+   * Prevented login API calls when installation identity resolution fails.
+   * Preserved post-login destination resolution based on the current app session.
+
+9. **mobile/test/core/resources/storage_keys_test.dart**
+
+   * Added tests for the durable installation ID storage key.
+   * Added tests ensuring the local marker key is separate from the installation ID key.
+
+10. **mobile/test/core/services/installation_identity/installation_identity_service_test.dart**
+
+* Added lifecycle tests for first-run identity creation.
+* Added tests for UUID reuse when the local marker exists.
+* Added tests for replacing secure-storage values when the marker is missing.
+* Added tests for invalid stored identity replacement.
+* Added failure-path tests for marker lookup, secure storage read, secure storage write, and marker refresh errors.
+
+11. **mobile/test/data/repositories/auth/auth_repository_impl_test.dart**
+
+* Updated logout test coverage to confirm installation identity is not deleted during session cleanup.
+* Added tracking of deleted storage keys in the fake secure storage implementation.
+* Verified logout still clears access and refresh tokens while preserving the installation ID.
+
+12. **mobile/test/ui/pages/auth/post_login_destination_test.dart**
+
+* Updated `LoginViewModel` test setup to provide a fake installation identity service.
+* Added local fake marker and secure storage implementations required by the new constructor dependency.
+* Preserved existing post-login destination behavior tests.
+
+13. **mobile/test/ui/pages/auth/viewmodel/login_viewmodel_test.dart**
+
+* Added tests confirming login is blocked when installation identity resolution fails.
+* Added tests confirming the login repository is called only after installation identity resolves successfully.
+
+14. **mobile/test/ui/pages/splash/viewmodel/splash_viewmodel_test.dart**
+
+* Added tests confirming splash bootstrap blocks when installation identity resolution fails.
+* Added tests confirming remembered login identity is returned after successful identity resolution.
+* Added tests confirming bootstrap continues successfully when no remembered identity exists.
+
+### Conclusion
+
+This change establishes the mobile foundation for installation identity by introducing durable identity storage, a local marker contract, identity resolution, bootstrap blocking, and login protection.
+
+The mobile app now avoids entering authentication flows when it cannot safely resolve the current installation identity, while preserving existing logout behavior and short-login navigation.
+
+Test coverage was expanded across storage keys, identity lifecycle, splash initialization, login blocking, and logout cleanup behavior.
+
+
 ## 2026/06/17 - mobile/installation-identity-01
 
 This change finalizes the mobile planning backlog for the Installation Identity MVP and converts the previous research-oriented document into an implementation-ready plan.

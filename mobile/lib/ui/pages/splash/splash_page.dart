@@ -84,23 +84,69 @@ class _SplashPageState extends State<SplashPage>
         ),
         child: Center(
           child: AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, _) => Opacity(
-              opacity: _logoOpacity.value,
-              child: Transform.scale(
-                scale: _logoScale.value,
-                child: Card(
-                  color: colorScheme.onPrimary,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Image.asset(
-                      'assets/images/brand.png',
-                      width: 200,
+            animation: Listenable.merge([
+              _animationController,
+              _viewModel.initialize,
+            ]),
+            builder: (context, _) {
+              final command = _viewModel.initialize;
+              final showRecoverableError =
+                  command.isFailure && !command.isRunning;
+
+              return Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Opacity(
+                      opacity: _logoOpacity.value,
+                      child: Transform.scale(
+                        scale: _logoScale.value,
+                        child: Card(
+                          color: colorScheme.onPrimary,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Image.asset(
+                              'assets/images/brand.png',
+                              width: 200,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    if (showRecoverableError) ...[
+                      const SizedBox(height: 28),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: Column(
+                          spacing: 14,
+                          children: [
+                            Text(
+                              'Não foi possível preparar este app para acesso.',
+                              style: Theme.of(context).textTheme.titleMedium,
+                              textAlign: TextAlign.center,
+                            ),
+                            Text(
+                              'Verifique o armazenamento do dispositivo e tente novamente.',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                              textAlign: TextAlign.center,
+                            ),
+                            FilledButton.icon(
+                              onPressed: _retryInitialize,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Tentar novamente'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
@@ -122,14 +168,27 @@ class _SplashPageState extends State<SplashPage>
 
     if (!mounted) return;
 
+    if (command.isFailure) return;
+
     if (command.isSuccess) {
+      final lastLoginIdentity = command.value?.lastLoginIdentity;
+      if (lastLoginIdentity == null) {
+        context.goNamed(AuthRoutes.login.routeName);
+        return;
+      }
+
       context.goNamed(
         AuthRoutes.shortLogin.name,
-        extra: command.value,
+        extra: lastLoginIdentity,
       );
       return;
     }
 
     context.goNamed(AuthRoutes.login.routeName);
+  }
+
+  void _retryInitialize() {
+    _startedAt = DateTime.now();
+    _viewModel.initialize.execute();
   }
 }

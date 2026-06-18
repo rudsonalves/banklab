@@ -1,374 +1,391 @@
-# Installation Identity MVP Tasks
+# Tarefas do MVP de Identidade de Instalação
 
-These tasks split the mobile implementation of installation identity into
-implementation-sized steps aligned with the API contract.
+Estas tarefas dividem a implementação mobile da identidade de instalação em
+etapas de tamanho adequado, alinhadas ao contrato da API.
 
-The first cut covers local installation identity, HTTP propagation, login,
-restricted installation registration, and approved error states. Installation
-management with listing and revocation is intentionally deferred.
+A primeira versão cobre identidade local da instalação, propagação HTTP, login,
+registro restrito de instalação e estados de erro aprovados. O gerenciamento de
+instalações, com listagem e revogação, fica intencionalmente adiado.
 
-## Task 1/12: Add installation identity storage keys and local marker contract
+## Tarefa 1/12: Adicionar chaves de armazenamento da identidade de instalação e contrato do marcador local
 
-### Goal
+### Objetivo
 
-Define the local keys and local marker contract used to distinguish app updates
-from new installations.
+Definir as chaves locais e o contrato do marcador local usados para distinguir
+atualizações do app de novas instalações.
 
-### Scope
+### Escopo
 
-- Add `StorageKeys.installationId` with value `banklab.installation.id`.
-- Define the local marker mechanism used outside durable secure storage.
-- Ensure the marker is not treated as a secret or identity.
-- Ensure restore without a valid marker results in a new installation identity.
-- Document that logout and credential cleanup must not delete
+- Adicionar `StorageKeys.installationId` com o valor
+  `banklab.installation.id`.
+- Definir o mecanismo de marcador local usado fora do armazenamento seguro
+  durável.
+- Garantir que o marcador não seja tratado como segredo ou identidade.
+- Garantir que uma restauração sem marcador válido resulte em uma nova
+  identidade de instalação.
+- Documentar que logout e limpeza de credenciais não devem apagar
   `StorageKeys.installationId`.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- The installation id key is available through `StorageKeys`.
-- The local marker behavior is documented in code or tests.
-- The implementation can distinguish an app update from a reinstall/clear data
-  scenario.
-- Session cleanup does not target the installation id key.
+- A chave do id de instalação está disponível por meio de `StorageKeys`.
+- O comportamento do marcador local está documentado em código ou testes.
+- A implementação consegue distinguir uma atualização do app de um cenário de
+  reinstalação/limpeza de dados.
+- A limpeza de sessão não mira a chave do id de instalação.
 
-### Depends On
+### Depende De
 
-- None.
+- Nenhuma.
 
-## Task 2/12: Implement installation identity service
+## Tarefa 2/12: Implementar serviço de identidade de instalação
 
-### Goal
+### Objetivo
 
-Create a service that resolves a stable UUID v4 for the current app
-installation.
+Criar um serviço que resolva um UUID v4 estável para a instalação atual do app.
 
-### Scope
+### Escopo
 
-- Create `InstallationIdentityService`.
-- Read the existing installation id from `LocalSecureStorage`.
-- Validate that the stored value is a canonical UUID v4.
-- Generate a new UUID v4 when the local marker is missing, the value is
-  missing, or the value is invalid.
-- Persist the generated UUID v4 in `flutter_secure_storage`.
-- Create or refresh the local installation marker after a successful resolve.
-- Return an `AsyncResult<String>`.
-- Do not log the full installation id.
+- Criar `InstallationIdentityService`.
+- Ler o id de instalação existente em `LocalSecureStorage`.
+- Validar que o valor armazenado é um UUID v4 canônico.
+- Gerar um novo UUID v4 quando o marcador local estiver ausente, o valor estiver
+  ausente ou o valor for inválido.
+- Persistir o UUID v4 gerado em `flutter_secure_storage`.
+- Criar ou atualizar o marcador local de instalação após uma resolução
+  bem-sucedida.
+- Retornar um `AsyncResult<String>`.
+- Não registrar em log o id completo da instalação.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- First run creates and persists a UUID v4.
-- App update with local marker present reuses the same UUID.
-- Reinstall/clear data/restore without local marker generates a new UUID even if
-  secure storage still returns an older value.
-- Invalid stored values are replaced.
-- Read/write failures return a failure result and do not silently continue.
-- Logs do not include the complete UUID.
+- A primeira execução cria e persiste um UUID v4.
+- Uma atualização do app com marcador local presente reutiliza o mesmo UUID.
+- Reinstalação/limpeza de dados/restauração sem marcador local gera um novo UUID,
+  mesmo que o armazenamento seguro ainda retorne um valor antigo.
+- Valores armazenados inválidos são substituídos.
+- Falhas de leitura/escrita retornam um resultado de falha e não continuam de
+  forma silenciosa.
+- Logs não incluem o UUID completo.
 
-### Depends On
+### Depende De
 
-- Task 1.
+- Tarefa 1.
 
-## Task 3/12: Block bootstrap when installation identity fails
+## Tarefa 3/12: Bloquear bootstrap quando a identidade de instalação falhar
 
-### Goal
+### Objetivo
 
-Prevent login and API calls when the app cannot resolve a stable
-`installation_id`.
+Impedir login e chamadas à API quando o app não conseguir resolver um
+`installation_id` estável.
 
-### Scope
+### Escopo
 
-- Resolve installation identity during app bootstrap or before the first API
-  workflow.
-- Show a recoverable error when identity resolution fails.
-- Provide a retry path.
-- Do not send API requests without `X-Installation-Id`.
+- Resolver a identidade de instalação durante o bootstrap do app ou antes do
+  primeiro fluxo de API.
+- Exibir um erro recuperável quando a resolução da identidade falhar.
+- Fornecer um caminho de retentativa.
+- Não enviar requisições à API sem `X-Installation-Id`.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Login is unavailable while installation identity is unresolved.
-- A storage/read/write/generation failure blocks the flow.
-- Retrying can resolve the identity and unblock the app.
-- No request is intentionally sent without `X-Installation-Id`.
+- O login fica indisponível enquanto a identidade de instalação não estiver
+  resolvida.
+- Uma falha de armazenamento/leitura/escrita/geração bloqueia o fluxo.
+- A retentativa pode resolver a identidade e desbloquear o app.
+- Nenhuma requisição é enviada intencionalmente sem `X-Installation-Id`.
 
-### Depends On
+### Depende De
 
-- Task 2.
+- Tarefa 2.
 
-## Task 4/12: Add installation interceptor
+## Tarefa 4/12: Adicionar interceptor de instalação
 
-### Goal
+### Objetivo
 
-Attach `X-Installation-Id` to all requests handled by the main HTTP client.
+Anexar `X-Installation-Id` a todas as requisições tratadas pelo cliente HTTP
+principal.
 
-### Scope
+### Escopo
 
-- Create `InstallationInterceptor`.
-- Resolve the current installation id through `InstallationIdentityService`.
-- Add `X-Installation-Id` to request headers.
-- Register the interceptor in the main Dio/RestClient setup.
-- Keep the existing auth interceptor behavior.
-- Remove or leave unused the old commented device interceptor reference without
-  reintroducing device terminology.
+- Criar `InstallationInterceptor`.
+- Resolver o id da instalação atual por meio de `InstallationIdentityService`.
+- Adicionar `X-Installation-Id` aos headers da requisição.
+- Registrar o interceptor na configuração principal de Dio/RestClient.
+- Manter o comportamento existente do interceptor de autenticação.
+- Remover ou deixar sem uso a referência comentada antiga ao interceptor de
+  dispositivo, sem reintroduzir terminologia de dispositivo.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Login requests include `X-Installation-Id`.
-- Authenticated requests include `X-Installation-Id`.
-- The header value is canonical lowercase UUID v4.
-- Existing `Authorization` behavior remains unchanged.
-- Interceptor failures block the request through normal app error handling
-  instead of sending a headerless request.
+- Requisições de login incluem `X-Installation-Id`.
+- Requisições autenticadas incluem `X-Installation-Id`.
+- O valor do header é um UUID v4 canônico em letras minúsculas.
+- O comportamento existente de `Authorization` permanece inalterado.
+- Falhas do interceptor bloqueiam a requisição pelo tratamento normal de erro do
+  app, em vez de enviar uma requisição sem header.
 
-### Depends On
+### Depende De
 
-- Task 2.
-- Task 3.
+- Tarefa 2.
+- Tarefa 3.
 
-## Task 5/12: Add installation header to token refresh
+## Tarefa 5/12: Adicionar header de instalação ao refresh de token
 
-### Goal
+### Objetivo
 
-Ensure `/auth/refresh` sends the same installation identity as normal requests.
+Garantir que `/auth/refresh` envie a mesma identidade de instalação das
+requisições normais.
 
-### Scope
+### Escopo
 
-- Update `AuthInterceptor` refresh flow.
-- Inject or otherwise access `InstallationIdentityService` for refresh.
-- Add `X-Installation-Id` to the dedicated refresh Dio request.
-- Preserve refresh de-duplication and retry behavior.
-- Preserve token cleanup behavior on refresh failure.
+- Atualizar o fluxo de refresh em `AuthInterceptor`.
+- Injetar ou acessar de outra forma `InstallationIdentityService` para o
+  refresh.
+- Adicionar `X-Installation-Id` à requisição Dio dedicada de refresh.
+- Preservar o comportamento de deduplicação de refresh e retentativa.
+- Preservar a limpeza de tokens em falha de refresh.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Refresh requests include `X-Installation-Id`.
-- Refresh still writes rotated access and refresh tokens.
-- Refresh failure still clears session tokens.
-- No refresh request is sent without an installation id when identity resolution
-  fails.
+- Requisições de refresh incluem `X-Installation-Id`.
+- O refresh continua gravando access token e refresh token rotacionados.
+- A falha de refresh continua limpando os tokens de sessão.
+- Nenhuma requisição de refresh é enviada sem id de instalação quando a resolução
+  da identidade falhar.
 
-### Depends On
+### Depende De
 
-- Task 2.
-- Task 4.
+- Tarefa 2.
+- Tarefa 4.
 
-## Task 6/12: Model operational and restricted login responses
+## Tarefa 6/12: Modelar respostas operacionais e restritas de login
 
-### Goal
+### Objetivo
 
-Represent login responses that can either create an operational session or
-require installation registration.
+Representar respostas de login que podem criar uma sessão operacional ou exigir
+registro de instalação.
 
-### Scope
+### Escopo
 
-- Replace direct login parsing as only `LoggedUser` with a typed login result.
-- Support operational response with `access_token` and `refresh_token`.
-- Support restricted response with `restricted_access_token`,
-  `restricted_token_type`, `restricted_scope`, and `restricted_expires_at`.
-- Support `INSTALLATION_LIMIT_REACHED` as a typed app error.
-- Preserve current handling of account approval and contact verification.
-- Do not persist tokens for restricted or limit-reached outcomes.
+- Substituir o parsing direto de login apenas como `LoggedUser` por um resultado
+  de login tipado.
+- Dar suporte à resposta operacional com `access_token` e `refresh_token`.
+- Dar suporte à resposta restrita com `restricted_access_token`,
+  `restricted_token_type`, `restricted_scope` e `restricted_expires_at`.
+- Dar suporte a `INSTALLATION_LIMIT_REACHED` como erro tipado do app.
+- Preservar o tratamento atual de aprovação da conta e verificação de contato.
+- Não persistir tokens para resultados restritos ou de limite atingido.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Operational login continues to persist tokens and load profile.
-- Restricted login does not persist operational tokens.
-- Limit reached does not persist tokens.
-- Existing login error tests still pass after updates.
-- Parsing failures return `AppErrorCode.parsingError`.
+- Login operacional continua persistindo tokens e carregando o perfil.
+- Login restrito não persiste tokens operacionais.
+- Limite atingido não persiste tokens.
+- Testes existentes de erro de login continuam passando após as atualizações.
+- Falhas de parsing retornam `AppErrorCode.parsingError`.
 
-### Depends On
+### Depende De
 
-- Task 4.
+- Tarefa 4.
 
-## Task 7/12: Add installation registration API
+## Tarefa 7/12: Adicionar API de registro de instalação
 
-### Goal
+### Objetivo
 
-Call `POST /security/installations` to exchange a restricted authorization for
-an operational session.
+Chamar `POST /security/installations` para trocar uma autorização restrita por
+uma sessão operacional.
 
-### Scope
+### Escopo
 
-- Add API DTOs for installation registration request/response as needed.
-- Send `Authorization: Bearer <restricted_access_token>`.
-- Send `X-Step-Up-Token`.
-- Send the same `X-Installation-Id` used by the app.
-- Parse operational `access_token` and `refresh_token`.
-- Parse installation metadata returned by the API.
+- Adicionar DTOs de API para requisição/resposta de registro de instalação,
+  conforme necessário.
+- Enviar `Authorization: Bearer <restricted_access_token>`.
+- Enviar `X-Step-Up-Token`.
+- Enviar o mesmo `X-Installation-Id` usado pelo app.
+- Fazer parsing de `access_token` e `refresh_token` operacionais.
+- Fazer parsing dos metadados de instalação retornados pela API.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Successful registration returns operational tokens.
-- Missing or invalid step-up token maps to an app error.
-- Installation mismatch and invalid installation id map to app errors.
-- Registration does not send the transaction password.
+- Registro bem-sucedido retorna tokens operacionais.
+- Step-up token ausente ou inválido é mapeado para erro do app.
+- Incompatibilidade de instalação e id de instalação inválido são mapeados para
+  erros do app.
+- O registro não envia a senha transacional.
 
-### Depends On
+### Depende De
 
-- Task 5.
-- Task 6.
+- Tarefa 5.
+- Tarefa 6.
 
-## Task 8/12: Extend step-up operation for installation registration
+## Tarefa 8/12: Estender operação de step-up para registro de instalação
 
-### Goal
+### Objetivo
 
-Allow the existing transaction password step-up flow to authorize installation
-registration.
+Permitir que o fluxo existente de step-up com senha transacional autorize o
+registro de instalação.
 
-### Scope
+### Escopo
 
-- Add `StepUpOperation.installationRegistration`.
-- Use method `POST`.
-- Use path `/security/installations`.
-- Reuse existing `/security/step-up/authorize` API.
-- Ensure the transaction password is sent only to the step-up endpoint.
+- Adicionar `StepUpOperation.installationRegistration`.
+- Usar método `POST`.
+- Usar path `/security/installations`.
+- Reutilizar a API existente `/security/step-up/authorize`.
+- Garantir que a senha transacional seja enviada apenas ao endpoint de step-up.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- The app can request a step-up token for `POST /security/installations`.
-- Step-up request body matches the API public operation contract.
-- Transaction password is not sent to login or installation registration.
-- Existing internal transfer step-up behavior remains unchanged.
+- O app consegue solicitar um step-up token para `POST /security/installations`.
+- O corpo da requisição de step-up corresponde ao contrato público de operação da
+  API.
+- A senha transacional não é enviada ao login nem ao registro de instalação.
+- O comportamento existente de step-up para transferência interna permanece
+  inalterado.
 
-### Depends On
+### Depende De
 
-- None.
+- Nenhuma.
 
-## Task 9/12: Implement restricted installation certification flow
+## Tarefa 9/12: Implementar fluxo restrito de certificação de instalação
 
-### Goal
+### Objetivo
 
-Complete login for a known user on a new installation by asking for the
-transaction password and registering the installation.
+Concluir o login de um usuário conhecido em uma nova instalação solicitando a
+senha transacional e registrando a instalação.
 
-### Scope
+### Escopo
 
-- When login returns restricted installation registration, navigate to a
-  certification state/screen.
-- Ask for the transaction password.
-- Authorize step-up for `POST /security/installations`.
-- Call installation registration with the restricted token and step-up token.
-- Persist operational tokens returned by registration.
-- Load auth session and continue the normal post-login flow.
-- Clear restricted token, step-up token, and password on success, failure, or
-  cancellation.
+- Quando o login retornar registro restrito de instalação, navegar para um
+  estado/tela de certificação.
+- Solicitar a senha transacional.
+- Autorizar step-up para `POST /security/installations`.
+- Chamar o registro de instalação com o token restrito e o step-up token.
+- Persistir os tokens operacionais retornados pelo registro.
+- Carregar a sessão autenticada e continuar o fluxo normal pós-login.
+- Limpar token restrito, step-up token e senha em sucesso, falha ou cancelamento.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Restricted login leads to the certification flow.
-- Successful certification ends in an authenticated operational session.
-- No operational tokens are persisted before registration succeeds.
-- Cancel returns to login and requires a new login.
-- Expired restricted token returns to login and requires a new login.
+- Login restrito leva ao fluxo de certificação.
+- Certificação bem-sucedida termina em uma sessão operacional autenticada.
+- Nenhum token operacional é persistido antes do sucesso do registro.
+- Cancelamento retorna ao login e exige um novo login.
+- Token restrito expirado retorna ao login e exige um novo login.
 
-### Depends On
+### Depende De
 
-- Task 6.
-- Task 7.
-- Task 8.
+- Tarefa 6.
+- Tarefa 7.
+- Tarefa 8.
 
-## Task 10/12: Handle installation limit and transaction password blockers
+## Tarefa 10/12: Tratar limite de instalações e bloqueios de senha transacional
 
-### Goal
+### Objetivo
 
-Show approved blocking states for limit reached and transaction password
-preconditions.
+Exibir estados de bloqueio aprovados para limite atingido e pré-condições de
+senha transacional.
 
-### Scope
+### Escopo
 
-- Map `INSTALLATION_LIMIT_REACHED` to a typed app state or error.
-- Show the approved limit reached message:
+- Mapear `INSTALLATION_LIMIT_REACHED` para um estado ou erro tipado do app.
+- Exibir a mensagem aprovada de limite atingido:
   `Esta conta já possui 3 instalações cadastradas. A instalação atual ainda não está autorizada.`
-- Continue the message with:
+- Continuar a mensagem com:
   `Acesse sua conta por uma instalação já autorizada e remova uma instalação antiga para liberar espaço. Depois, tente entrar novamente neste app.`
-- Use button text `Entendi`.
-- Return to login after acknowledgement.
-- Do not start step-up on limit reached.
-- On `TRANSACTION_PASSWORD_NOT_SET` or `TRANSACTION_PASSWORD_LOCKED`, do not
-  register the installation.
-- Discard temporary restricted flow state for these blockers.
+- Usar o texto de botão `Entendi`.
+- Retornar ao login após a confirmação.
+- Não iniciar step-up quando o limite for atingido.
+- Em `TRANSACTION_PASSWORD_NOT_SET` ou `TRANSACTION_PASSWORD_LOCKED`, não
+  registrar a instalação.
+- Descartar o estado temporário do fluxo restrito nesses bloqueios.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Limit reached shows the approved title, body, and button.
-- Limit reached does not ask for transaction password.
-- Transaction password not set does not call `POST /security/installations`.
-- Transaction password locked does not call `POST /security/installations`.
-- All blocker outcomes return the user to login or an informational state that
-  requires login again.
+- Limite atingido exibe título, corpo e botão aprovados.
+- Limite atingido não solicita senha transacional.
+- Senha transacional não configurada não chama `POST /security/installations`.
+- Senha transacional bloqueada não chama `POST /security/installations`.
+- Todos os resultados de bloqueio retornam o usuário ao login ou a um estado
+  informativo que exige novo login.
 
-### Depends On
+### Depende De
 
-- Task 6.
-- Task 9.
+- Tarefa 6.
+- Tarefa 9.
 
-## Task 11/12: Add safe telemetry and tests
+## Tarefa 11/12: Adicionar telemetria segura e testes
 
-### Goal
+### Objetivo
 
-Make failures observable without leaking identifiers or credentials, and cover
-the critical identity lifecycle.
+Tornar falhas observáveis sem vazar identificadores ou credenciais, e cobrir o
+ciclo de vida crítico da identidade.
 
-### Scope
+### Escopo
 
-- Log storage/read/write/validation failures without full installation id.
-- Do not log tokens.
-- Do not log transaction password.
-- Add tests for first run identity creation.
-- Add tests for local-marker-present reuse.
-- Add tests for local-marker-missing replacement of an old secure-storage value.
-- Add tests for failure blocking behavior.
-- Add tests for interceptor header injection.
-- Add tests for refresh header injection.
-- Add tests for restricted login and registration success.
-- Add tests for limit reached and transaction password blockers.
+- Registrar falhas de armazenamento/leitura/escrita/validação sem o id completo
+  da instalação.
+- Não registrar tokens em log.
+- Não registrar a senha transacional em log.
+- Adicionar testes para criação da identidade na primeira execução.
+- Adicionar testes para reutilização quando o marcador local estiver presente.
+- Adicionar testes para substituição de um valor antigo do armazenamento seguro
+  quando o marcador local estiver ausente.
+- Adicionar testes para comportamento de bloqueio em falha.
+- Adicionar testes para injeção do header pelo interceptor.
+- Adicionar testes para injeção do header no refresh.
+- Adicionar testes para login restrito e sucesso no registro.
+- Adicionar testes para limite atingido e bloqueios de senha transacional.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Logs contain event context but no complete UUID, token, or password.
-- Identity lifecycle tests pass.
-- HTTP header tests pass.
-- Auth repository/API tests cover operational, restricted, and blocked outcomes.
+- Logs contêm contexto do evento, mas nenhum UUID completo, token ou senha.
+- Testes do ciclo de vida da identidade passam.
+- Testes de headers HTTP passam.
+- Testes do repositório/API de autenticação cobrem resultados operacionais,
+  restritos e bloqueados.
 
-### Depends On
+### Depende De
 
-- Task 2.
-- Task 4.
-- Task 5.
-- Task 9.
-- Task 10.
+- Tarefa 2.
+- Tarefa 4.
+- Tarefa 5.
+- Tarefa 9.
+- Tarefa 10.
 
-## Task 12/12: Run mobile verification
+## Tarefa 12/12: Executar verificação mobile
 
-### Goal
+### Objetivo
 
-Confirm the mobile app remains healthy after the installation identity change.
+Confirmar que o app mobile permanece saudável após a mudança de identidade de
+instalação.
 
-### Scope
+### Escopo
 
-- Run `dart format` on changed Dart files.
-- Run focused tests for identity, interceptors, auth parsing, and registration.
-- Run `flutter analyze`.
-- Run `flutter test` if feasible.
-- Fix regressions introduced by the implementation.
+- Executar `dart format` nos arquivos Dart alterados.
+- Executar testes focados em identidade, interceptors, parsing de autenticação e
+  registro.
+- Executar `flutter analyze`.
+- Executar `flutter test` se viável.
+- Corrigir regressões introduzidas pela implementação.
 
-### Acceptance Criteria
+### Critérios de Aceite
 
-- Changed Dart files are formatted.
-- Focused tests pass.
-- `flutter analyze` passes.
-- `flutter test` passes or any skipped/unavailable test run is documented.
-- Existing login, refresh, logout, and step-up transfer behavior remain
-  unchanged.
+- Arquivos Dart alterados estão formatados.
+- Testes focados passam.
+- `flutter analyze` passa.
+- `flutter test` passa ou qualquer execução pulada/indisponível é documentada.
+- Comportamentos existentes de login, refresh, logout e step-up de transferência
+  permanecem inalterados.
 
-### Depends On
+### Depende De
 
-- Task 11.
+- Tarefa 11.
 
-## Deferred
+## Adiado
 
 - `GET /security/installations`.
 - `DELETE /security/installations/{installation_resource_id}`.
-- Installation management screen.
-- Revoking an existing installation from mobile.
-- Identifying and disabling removal of the current installation in management.
+- Tela de gerenciamento de instalações.
+- Revogar uma instalação existente pelo mobile.
+- Identificar e desabilitar a remoção da instalação atual no gerenciamento.

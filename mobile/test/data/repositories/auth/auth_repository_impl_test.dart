@@ -129,16 +129,21 @@ void main() {
         loginResult: Success(_loggedUser()),
         profileResult: Success(_profile()),
       );
+      final storage = _FakeLocalSecureStorage();
       final appSection = AppSection();
       final repository = AuthRepositoryImpl(
         api: api,
-        storage: _FakeLocalSecureStorage(),
+        storage: storage,
         lastLoginCacheService: _FakeLastLoginCacheService(),
         appSection: appSection,
       );
 
       await repository.login(
         LoginRequestDto(email: 'customer@example.com', password: '123456'),
+      );
+      await storage.write(
+        StorageKeys.installationId,
+        '018f7b82-4a3d-4f71-9ad7-dedc8e5b10c8',
       );
       expect(appSection.currentSession, isNotNull);
 
@@ -147,6 +152,11 @@ void main() {
       expect(result, isA<Success<Unit>>());
       expect(appSection.currentSession, isNull);
       expect(repository.isLoggedIn, isFalse);
+      expect(storage.writesByKey, contains(StorageKeys.installationId));
+      expect(storage.deleteCallsByKey, [
+        StorageKeys.accessToken,
+        StorageKeys.refreshToken,
+      ]);
     });
 
     test(
@@ -234,6 +244,7 @@ class _FakeAuthApi extends AuthApi {
 class _FakeLocalSecureStorage implements LocalSecureStorage {
   int writeCalls = 0;
   final Map<String, String> writesByKey = {};
+  final List<String> deleteCallsByKey = [];
 
   @override
   AsyncResult<Unit> write(String key, String value) async {
@@ -256,6 +267,7 @@ class _FakeLocalSecureStorage implements LocalSecureStorage {
 
   @override
   AsyncResult<Unit> delete(String key) async {
+    deleteCallsByKey.add(key);
     writesByKey.remove(key);
     return Success(unit);
   }
