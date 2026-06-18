@@ -17,6 +17,11 @@ const _contactNotVerifiedPhoneOnlyMessage =
 
 AppError mapHttpError(Object err, [StackTrace? stack]) {
   if (err is DioException) {
+    final interceptorError = err.error;
+    if (interceptorError is AppError) {
+      return interceptorError;
+    }
+
     final response = err.response;
     final data = response?.data;
 

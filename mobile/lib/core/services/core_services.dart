@@ -31,9 +31,16 @@ class CoreServices {
           markerStore: injector.get<InstallationMarkerStore>(),
         ),
       )
-      // 4. Main Dio instance without AuthInterceptor
+      // 4. Main Dio instance without request interceptors
       ..addSingleton<Dio>(() => DioFactory.create())
-      // 5. AuthInterceptor with its own Dio instance (no interceptors to avoid recursion)
+      // 5. InstallationInterceptor
+      ..addSingleton<InstallationInterceptor>(
+        () => InstallationInterceptor(
+          installationIdentityService: injector
+              .get<InstallationIdentityService>(),
+        ),
+      )
+      // 6. AuthInterceptor with its own Dio instance (no interceptors to avoid recursion)
       ..addSingleton<AuthInterceptor>(
         () => AuthInterceptor(
           authDio: injector.get<Dio>(),
@@ -41,9 +48,10 @@ class CoreServices {
           baseUrl: AppEnv.baseUrl,
         ),
       )
-      // 6. RestClient with AuthInterceptor
+      // 7. RestClient with installation and auth interceptors
       ..addSingleton<RestClient>(() {
         final dio = injector.get<Dio>();
+        dio.interceptors.add(injector.get<InstallationInterceptor>());
         dio.interceptors.add(injector.get<AuthInterceptor>());
         return DioRestClient(dio: dio);
       })

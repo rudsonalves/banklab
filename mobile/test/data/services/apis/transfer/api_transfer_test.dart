@@ -1,4 +1,5 @@
 import 'package:bankflow/core/resources/app_currencies.dart';
+import 'package:bankflow/core/resources/app_http_headers.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
 import 'package:bankflow/data/services/apis/transfer/api_transfer.dart';
@@ -42,7 +43,7 @@ void main() {
         expect(client.postCalls, 1);
         expect(client.lastPostRequest?.path, '/accounts/internal-transfers');
         expect(client.lastPostRequest?.headers, {
-          'X-Step-Up-Token': 'step-up-token',
+          AppHttpHeaders.stepUpToken: 'step-up-token',
         });
         expect(client.lastPostRequest?.queryParameters, isNull);
         expect(client.lastPostRequest?.body, {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:bankflow/core/resources/app_http_headers.dart';
 import 'package:bankflow/core/resources/storage_keys.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/interceptors/auth/auth_interceptor.dart';
@@ -30,7 +31,7 @@ void main() {
         ) async {
           protectedCalls++;
 
-          final authorization = options.headers['Authorization'];
+          final authorization = options.headers[AppHttpHeaders.authorization];
           if (authorization == 'Bearer new-access') {
             return _jsonResponse(200, {
               'data': {'ok': true},

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '/core/resources/app_http_headers.dart';
 import '/core/resources/storage_keys.dart';
 import '/core/services/logging/console_log.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
@@ -35,7 +36,7 @@ class AuthInterceptor extends Interceptor {
                connectTimeout: timeout,
                receiveTimeout: timeout,
                headers: const {
-                 'Accept': 'application/json',
+                 AppHttpHeaders.accept: 'application/json',
                },
              ),
            );
@@ -47,8 +48,8 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // If the request already has an Authorization header, skip adding the token
-    if (options.headers.containsKey('Authorization')) {
+    // If the request already has an auth header, skip adding the token.
+    if (options.headers.containsKey(AppHttpHeaders.authorization)) {
       return handler.next(options);
     }
 
@@ -57,7 +58,9 @@ class AuthInterceptor extends Interceptor {
     tokenResult.fold(
       onSuccess: (token) {
         if (token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
+          options.headers[AppHttpHeaders.authorization] = AppHttpHeaders.bearer(
+            token,
+          );
         }
       },
       onFailure: (_) {},
@@ -221,7 +224,7 @@ class AuthInterceptor extends Interceptor {
           method: request.method,
           headers: {
             ...request.headers,
-            'Authorization': 'Bearer $accessToken',
+            AppHttpHeaders.authorization: AppHttpHeaders.bearer(accessToken),
           },
           responseType: request.responseType,
           contentType: request.contentType,
@@ -243,7 +246,7 @@ class AuthInterceptor extends Interceptor {
 
   Future<String?> _accessTokenUpdatedAfter(DioException err) async {
     final failedToken = _bearerToken(
-      err.requestOptions.headers['Authorization'],
+      err.requestOptions.headers[AppHttpHeaders.authorization],
     );
     if (failedToken == null || failedToken.isEmpty) {
       return null;

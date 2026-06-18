@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:bankflow/core/resources/app_http_headers.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/client/rest_client_request.dart';
 import 'package:bankflow/core/services/client_http/client/rest_client_response.dart';
@@ -34,7 +35,7 @@ void main() {
         final result = await client.get(
           const RestClientRequest(
             path: '/users',
-            headers: {'Authorization': 'Bearer token'},
+            headers: {AppHttpHeaders.authorization: 'Bearer token'},
             queryParameters: {'page': 1},
           ),
         );
@@ -43,7 +44,10 @@ void main() {
         expect(capturedOptions.method, 'GET');
         expect(capturedOptions.path, '/users');
         expect(capturedOptions.queryParameters, {'page': 1});
-        expect(capturedOptions.headers['Authorization'], 'Bearer token');
+        expect(
+          capturedOptions.headers[AppHttpHeaders.authorization],
+          'Bearer token',
+        );
         expect(result.value?.statusCode, 200);
         expect(result.value?.statusMessage, 'OK');
         expect(result.value?.data, {'ok': true});
@@ -114,10 +118,10 @@ void main() {
           const RestClientRequest(
             path: '/security/step-up/authorize',
             headers: {
-              'Authorization': 'Bearer access-secret',
-              'X-Step-Up-Token': 'step-up-secret',
-              'X-App-Token': 'app-secret',
-              'X-Trace-Id': 'trace-123',
+              AppHttpHeaders.authorization: 'Bearer access-secret',
+              AppHttpHeaders.stepUpToken: 'step-up-secret',
+              AppHttpHeaders.appToken: 'app-secret',
+              AppHttpHeaders.traceId: 'trace-123',
             },
             body: {'transaction_password': '123456'},
           ),
@@ -125,9 +129,12 @@ void main() {
 
         final output = logs.join('\n');
         expect(output, contains('POST /security/step-up/authorize'));
-        expect(output, contains('X-Trace-Id: trace-123'));
-        expect(output, contains('Authorization: <redacted>'));
-        expect(output, contains('X-Step-Up-Token: <redacted>'));
+        expect(output, contains('${AppHttpHeaders.traceId}: trace-123'));
+        expect(
+          output,
+          contains('${AppHttpHeaders.authorization}: <redacted>'),
+        );
+        expect(output, contains('${AppHttpHeaders.stepUpToken}: <redacted>'));
         expect(output, isNot(contains('access-secret')));
         expect(output, isNot(contains('step-up-secret')));
         expect(output, isNot(contains('app-secret')));
@@ -159,14 +166,14 @@ void main() {
       await client.post(
         const RestClientRequest(
           path: '/accounts/internal-transfers',
-          headers: {'X-Step-Up-Token': 'single-use-step-up-secret'},
+          headers: {AppHttpHeaders.stepUpToken: 'single-use-step-up-secret'},
           body: {'amount': 2500},
         ),
       );
 
       final output = logs.join('\n');
       expect(output, contains('POST /accounts/internal-transfers'));
-      expect(output, contains('X-Step-Up-Token: <redacted>'));
+      expect(output, contains('${AppHttpHeaders.stepUpToken}: <redacted>'));
       expect(output, isNot(contains('single-use-step-up-secret')));
     });
 

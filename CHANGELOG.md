@@ -1,5 +1,96 @@
 # Changelog
 
+## 2026/06/18 - mobile/installation-identity-03
+
+This change introduces centralized HTTP header definitions and integrates installation identity propagation into the mobile HTTP client pipeline.
+
+The update replaces scattered literal header names with `AppHttpHeaders`, adds automatic `X-Installation-Id` injection through a dedicated interceptor, improves interceptor error mapping, and updates API services, documentation, dependency injection, and tests to use the new contract.
+
+1. **mobile/lib/core/resources/app_http_headers.dart**
+
+   * Added `AppHttpHeaders` as the centralized source for HTTP header names used by the mobile app.
+   * Added constants for common, authentication, installation, step-up, trace, and app-token headers.
+   * Added `sensitiveLowercase` to define headers that must be redacted from logs.
+   * Added `bearer()` helper to format bearer authorization values consistently.
+
+2. **mobile/lib/core/services/client_http/dio**
+
+   * Updated `DioFactory` to use `AppHttpHeaders` for default `Accept` and `Content-Type` headers.
+   * Updated `DioRestClient` to use the centralized sensitive header list when sanitizing request logs.
+   * Updated `DioErrorMapper` to preserve `AppError` instances propagated by interceptors through `DioException.error`.
+
+3. **mobile/lib/core/services/client_http/interceptors/auth**
+
+   * Refactored `AuthInterceptor` to use `AppHttpHeaders.authorization` and `AppHttpHeaders.bearer()`.
+   * Preserved the existing behavior of skipping requests that already define an authorization header.
+   * Updated retry logic after token refresh to write the refreshed authorization header through the centralized header helper.
+
+4. **mobile/lib/core/services/client_http/interceptors/installation**
+
+   * Added `InstallationInterceptor`.
+   * Resolved the installation identity before outgoing requests.
+   * Added `X-Installation-Id` to request headers when identity resolution succeeds.
+   * Blocked the request with a `DioException` carrying the original `AppError` when installation identity resolution fails.
+
+5. **mobile/lib/core/services/client_http/interceptors/device**
+
+   * Removed the old commented `DeviceInterceptor` implementation.
+   * Updated interceptor exports to expose the new installation interceptor.
+
+6. **mobile/lib/core/services/core_services.dart**
+
+   * Registered `InstallationInterceptor` in dependency injection.
+   * Updated the main `RestClient` setup to attach the installation interceptor before the auth interceptor.
+   * Clarified comments around the main Dio instance and interceptor registration order.
+
+7. **mobile/lib/data/services/apis**
+
+   * Updated auth, contact verification, registration, and transfer APIs to use `AppHttpHeaders`.
+   * Replaced literal `X-App-Token` and `X-Step-Up-Token` strings with centralized constants.
+   * Updated API documentation examples to reference `AppHttpHeaders.appToken`.
+
+8. **mobile/lib/core/AGENT.md and mobile/lib/data/services/apis/AGENT.md**
+
+   * Updated documentation to describe authorization and app-token headers through `AppHttpHeaders`.
+   * Aligned interceptor and API examples with the centralized header contract.
+
+9. **mobile/test/core/resources/app_http_headers_test.dart**
+
+   * Added tests covering exposed header names.
+   * Added coverage for bearer token formatting.
+   * Added coverage for sensitive header classification used by log redaction.
+
+10. **mobile/test/core/services/client_http**
+
+* Updated client request, response, Dio client, and auth interceptor tests to use `AppHttpHeaders`.
+* Adjusted log redaction assertions to validate sensitive headers through centralized constants.
+* Updated one response copy test expectation from `Accepted` to `Created`.
+
+11. **mobile/test/core/services/client_http/interceptors/installation**
+
+* Added tests for installation header injection.
+* Added coverage for interaction between installation and auth interceptors.
+* Added failure-path coverage to ensure unresolved installation identity blocks outgoing requests.
+* Added RestClient-level coverage to ensure interceptor failures are returned as `Failure` without reaching the HTTP adapter.
+
+12. **mobile/test/data/services/apis**
+
+* Updated contact verification and transfer API tests to assert headers through `AppHttpHeaders`.
+* Adjusted test descriptions to reference app-token behavior instead of literal header strings.
+
+13. **mobile/test/data/repositories/transaction_password**
+
+* Updated step-up authorization failure message expectation to `Step-up auth failed`.
+
+### Conclusion
+
+The mobile HTTP layer now has a single source of truth for header names, sensitive header redaction, and bearer token formatting.
+
+Installation identity is now part of the standard request pipeline, and requests are blocked when the identity cannot be resolved, preserving the underlying application error for consistent handling.
+
+The API layer, dependency injection setup, documentation, and tests were aligned with this behavior, reducing duplicated header literals and strengthening request consistency.
+
+
 ## 2026/06/18 - mobile/installation-identity-02
 
 This change introduces the first mobile implementation layer for installation identity in BankLab. It adds durable installation ID storage, a non-secret local marker, identity resolution during app bootstrap, and login blocking when the installation identity cannot be resolved.

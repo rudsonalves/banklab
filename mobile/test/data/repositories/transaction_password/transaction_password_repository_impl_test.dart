@@ -259,7 +259,7 @@ void main() {
             result: Failure(
               AppError(
                 code: AppErrorCode.httpError,
-                message: 'Authorization failed',
+                message: 'Step-up auth failed',
                 details: {'code': errorCode},
               ),
             ),

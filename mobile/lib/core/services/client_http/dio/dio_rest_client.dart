@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '/core/resources/app_http_headers.dart';
 import '/core/result/result.dart';
 import '../../logging/console_log.dart';
 import '../client/rest_client.dart';
@@ -9,11 +10,6 @@ import 'dio_error_mapper.dart';
 
 class DioRestClient implements RestClient {
   static const _redactedHeaderValue = '<redacted>';
-  static const _sensitiveHeaders = {
-    'authorization',
-    'x-app-token',
-    'x-step-up-token',
-  };
 
   final Dio _dio;
 
@@ -99,7 +95,7 @@ class DioRestClient implements RestClient {
     final sanitizedHeaders = headers.map(
       (name, value) => MapEntry(
         name,
-        _sensitiveHeaders.contains(name.toLowerCase())
+        AppHttpHeaders.sensitiveLowercase.contains(name.toLowerCase())
             ? _redactedHeaderValue
             : value,
       ),

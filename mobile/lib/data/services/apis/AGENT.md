@@ -87,7 +87,7 @@ Example shape:
 final response = await _client.post(
   RestClientRequest(
     path: '/auth/login',
-    headers: {'X-App-Token': AppEnv.appToken},
+    headers: {AppHttpHeaders.appToken: AppEnv.appToken},
     body: dto.toMap(),
   ),
 );
