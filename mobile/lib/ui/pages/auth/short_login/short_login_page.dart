@@ -6,6 +6,7 @@ import '/core/routing/models/transaction_password_setup_origin.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
+import '/domain/common/auth/models/auth_state.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/input_text/basic_input_text.dart';
@@ -216,7 +217,15 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
       return;
     }
 
-    if (loginCommand.isSuccess) _handlePostLoginDestination();
+    if (loginCommand.isSuccess) {
+      final authState = loginCommand.value;
+      if (authState is RestrictedInstallationAuthState) {
+        context.goNamed(AuthRoutes.installationCertification.routeName);
+        return;
+      }
+
+      _handlePostLoginDestination();
+    }
   }
 
   void _handlePostLoginDestination() {

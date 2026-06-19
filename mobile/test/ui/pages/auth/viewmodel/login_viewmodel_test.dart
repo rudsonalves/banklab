@@ -69,7 +69,7 @@ class _FakeAuthRepository implements AuthRepository {
       throw UnimplementedError();
 
   @override
-  AsyncResult<OperationalAuthState> login(LoginRequestDto dto) async {
+  AsyncResult<AuthState> login(LoginRequestDto dto) async {
     loginCalls++;
     return Success(
       OperationalAuthState(
@@ -82,6 +82,11 @@ class _FakeAuthRepository implements AuthRepository {
       ),
     );
   }
+
+  @override
+  AsyncResult<OperationalAuthState> certifyInstallation(
+    String transactionPassword,
+  ) async => throw UnimplementedError();
 
   @override
   AsyncResult<Unit> logout() async => throw UnimplementedError();

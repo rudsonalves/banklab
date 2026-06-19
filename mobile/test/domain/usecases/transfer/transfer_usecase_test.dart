@@ -623,6 +623,13 @@ class _FakeTransactionPasswordRepository
   }
 
   @override
+  AsyncResult<StepUpAuthorizeResponseDto> authorizeInstallationRegistration(
+    String transactionPassword,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
   AsyncResult<TransactionPasswordStatusResponseDto> create(
     CreateTransactionPasswordRequestDto dto,
   ) {

@@ -4,6 +4,10 @@ enum StepUpOperation {
   internalTransfer(
     method: HttpMethod.post,
     path: '/accounts/internal-transfers',
+  ),
+  installationRegistration(
+    method: HttpMethod.post,
+    path: '/security/installations',
   );
 
   const StepUpOperation({

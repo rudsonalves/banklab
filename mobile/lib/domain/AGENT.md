@@ -137,6 +137,11 @@ Current auth domain conventions:
 - `RestrictedInstallationAuthState` contains restricted authorization data for
   the installation registration flow and must not be treated as an operational
   session.
+- `AuthRepository.login` may return either an operational state or a restricted
+  installation state. Only the operational state may persist session tokens.
+- Installation certification promotes a restricted state to
+  `OperationalAuthState` only after step-up authorization and successful
+  registration.
 - `AnonymousAuthState` is the anonymous/default state.
 - `UserProfile` represents profile details fetched after login.
 - `UserRole.byName` maps unknown role strings to `UserRole.none`.

@@ -2,7 +2,7 @@ import '/core/result/result.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
 import '/domain/common/auth/models/auth_session/auth_session.dart';
-import '../../../domain/common/auth/models/auth_state.dart';
+import '/domain/common/auth/models/auth_state.dart';
 
 abstract class AuthRepository {
   /// Returns the current authentication state for the app session.
@@ -15,7 +15,14 @@ abstract class AuthRepository {
   ///
   /// If a user is already logged in, the current logged user is returned
   /// without making a new API request.
-  AsyncResult<OperationalAuthState> login(LoginRequestDto dto);
+  AsyncResult<AuthState> login(LoginRequestDto dto);
+
+  /// Completes the restricted installation registration flow.
+  ///
+  /// Requires a previous restricted login result in [currentUser].
+  AsyncResult<OperationalAuthState> certifyInstallation(
+    String transactionPassword,
+  );
 
   /// Ends the current session and clears persisted auth tokens.
   ///

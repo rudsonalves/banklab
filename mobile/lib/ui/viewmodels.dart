@@ -1,5 +1,6 @@
 import 'package:auto_injector/auto_injector.dart';
 
+import 'pages/auth/installation_certification/viewmodel/installation_certification_viewmodel.dart';
 import 'pages/auth/viewmodel/login_viewmodel.dart';
 import 'pages/home/viewmodel/home_viewmodel.dart';
 import 'pages/register/viewmodel/register_viewmodel.dart';
@@ -14,6 +15,9 @@ class Viewmodels {
     injector
       ..add<HomeViewmodel>(HomeViewmodel.new)
       ..add<LoginViewModel>(LoginViewModel.new)
+      ..add<InstallationCertificationViewModel>(
+        InstallationCertificationViewModel.new,
+      )
       ..addLazySingleton<RegisterViewmodel>(RegisterViewmodel.new)
       ..add<TransferViewmodel>(TransferViewmodel.new)
       ..add<DetailsViewmodel>(DetailsViewmodel.new)

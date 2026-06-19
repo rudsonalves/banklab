@@ -1,5 +1,162 @@
 # Changelog
 
+## 2026/06/19 - mobile/installation-identity-05
+
+This change implements the mobile installation certification flow after a restricted login result. The login process can now return either an operational authentication state or a restricted installation state, allowing the UI to redirect the user to a certification screen before starting a full session.
+
+The update affects routing, authentication repositories, transaction password step-up authorization, installation registration, dependency injection, documentation, and related tests.
+
+1. **mobile/lib/core/routing/routes.dart**
+
+   * Added the `installationCertification` authentication route.
+   * Introduced the `/installation-certification` path for the restricted installation certification flow.
+
+2. **mobile/lib/core/routing/routes/auth_routes.dart**
+
+   * Registered the installation certification route in the authentication route list.
+   * Added route construction for `InstallationCertificationPage`.
+   * Injected `InstallationCertificationViewModel` through the existing dependency container.
+
+3. **mobile/lib/data/repositories/auth/auth_repository.dart**
+
+   * Changed `login` to return `AuthState` instead of only `OperationalAuthState`.
+   * Added `certifyInstallation`, responsible for completing restricted installation registration using the transaction password flow.
+
+4. **mobile/lib/data/repositories/auth/auth_repository_impl.dart**
+
+   * Added dependencies on `InstallationApi` and `TransactionPasswordRepository`.
+   * Updated login handling to store `RestrictedInstallationAuthState` temporarily without persisting operational session tokens.
+   * Added `certifyInstallation` to authorize installation registration through step-up validation.
+   * Registered the installation through `InstallationApi` after successful step-up authorization.
+   * Promoted the restricted state to `OperationalAuthState` after successful installation registration.
+   * Extracted operational session startup into `_startOperationalSession`.
+   * Added `_discardTemporaryAuthState` to clear restricted temporary state after failed certification attempts.
+   * Adjusted logout behavior to clear `AppSection` even when no operational user is logged in.
+
+5. **mobile/lib/data/repositories/transaction_password/transaction_password_repository.dart**
+
+   * Added `authorizeInstallationRegistration` to the transaction password repository contract.
+   * Extended the repository abstraction to support step-up authorization for installation registration.
+
+6. **mobile/lib/data/repositories/transaction_password/transaction_password_repository_impl.dart**
+
+   * Added implementation for installation registration authorization.
+   * Refactored step-up authorization into a shared `_authorize` helper.
+   * Reused the same authorization flow for internal transfers and installation registration.
+
+7. **mobile/lib/data/services/apis/transaction_password/enums/step_up_operation.dart**
+
+   * Added `installationRegistration` as a step-up operation.
+   * Mapped the operation to `POST /security/installations`.
+
+8. **mobile/lib/domain/AGENT.md**
+
+   * Documented the restricted installation authentication convention.
+   * Clarified that `AuthRepository.login` may return operational or restricted states.
+   * Documented that only operational states may persist session tokens.
+   * Documented that installation certification promotes restricted state only after step-up authorization and successful registration.
+
+9. **mobile/lib/ui/pages/auth/installation_certification/installation_certification_page.dart**
+
+   * Added the installation certification screen.
+   * Added hidden token input for the six-digit transaction password.
+   * Added cancel and certification actions through bottom buttons.
+   * Redirected invalid restricted-auth access back to login.
+   * Redirected successful certification to home.
+   * Added error feedback through `AppSnackbar`.
+
+10. **mobile/lib/ui/pages/auth/installation_certification/viewmodel/installation_certification_viewmodel.dart**
+
+* Added `InstallationCertificationViewModel`.
+* Exposed the certification command backed by `AuthRepository.certifyInstallation`.
+* Added restricted-auth state detection.
+* Added cancellation behavior through repository logout.
+
+11. **mobile/lib/ui/pages/auth/login/login_page.dart**
+
+* Updated post-login handling to inspect the returned `AuthState`.
+* Redirected restricted installation login results to the installation certification route.
+* Preserved existing post-login destination handling for operational sessions.
+
+12. **mobile/lib/ui/pages/auth/short_login/short_login_page.dart**
+
+* Updated short-login post-auth handling to support restricted installation states.
+* Redirected restricted installation results to the certification screen.
+* Preserved existing operational post-login navigation.
+
+13. **mobile/lib/ui/pages/auth/viewmodel/login_viewmodel.dart**
+
+* Updated the login command result type from `OperationalAuthState` to `AuthState`.
+* Allowed the login command to propagate restricted installation states to the UI layer.
+
+14. **mobile/lib/ui/viewmodels.dart**
+
+* Registered `InstallationCertificationViewModel` in the mobile dependency setup.
+
+15. **mobile/test/data/repositories/auth/auth_repository_impl_test.dart**
+
+* Updated login tests to expect `AuthState` results where appropriate.
+* Changed restricted installation login expectations from failure to successful restricted state.
+* Added repository factory helper to provide new dependencies.
+* Added tests for successful installation certification and operational session startup.
+* Added tests ensuring installation registration is not called when step-up authorization fails.
+* Added fake implementations for `InstallationApi`, `TransactionPasswordRepository`, and installation identity dependencies.
+
+16. **mobile/test/data/repositories/transaction_password/transaction_password_repository_impl_test.dart**
+
+* Added test coverage for installation registration step-up authorization.
+* Verified that the repository delegates using the `installationRegistration` operation.
+* Verified serialization of method, path, and transaction password for the installation registration operation.
+
+17. **mobile/test/data/services/apis/transaction_password/dtos/transaction_password_dtos_test.dart**
+
+* Added DTO serialization coverage for the installation registration step-up operation.
+* Verified that the request maps to `POST /security/installations`.
+
+18. **mobile/test/domain/usecases/transfer/transfer_usecase_test.dart**
+
+* Updated fake transaction password repository implementations to satisfy the expanded repository contract.
+
+19. **mobile/test/ui/pages/auth/post_login_destination_test.dart**
+
+* Updated fake auth repository login return type to `AuthState`.
+* Added the new `certifyInstallation` contract implementation to the fake repository.
+
+20. **mobile/test/ui/pages/auth/viewmodel/login_viewmodel_test.dart**
+
+* Updated fake auth repository login return type to `AuthState`.
+* Added the new `certifyInstallation` method required by the repository contract.
+
+21. **mobile/test/ui/pages/splash/viewmodel/splash_viewmodel_test.dart**
+
+* Updated fake auth repository login return type to `AuthState`.
+* Added the new `certifyInstallation` contract implementation.
+
+22. **mobile/test/ui/pages/auth/transaction_password/viewmodel/transaction_password_viewmodel_test.dart**
+
+* Updated fake transaction password repository implementations with the new installation registration authorization method.
+
+23. **mobile/test/ui/pages/transaction_password/setup/confirm_transaction_password_page_test.dart**
+
+* Updated fake transaction password repository implementations to match the expanded contract.
+
+24. **mobile/test/ui/pages/transaction_password/setup/create_transaction_password_page_test.dart**
+
+* Updated fake transaction password repository implementations to match the expanded contract.
+
+25. **mobile/test/ui/pages/transfer/transfer_confirmation_page_test.dart**
+
+* Updated fake transaction password repository implementations to include installation registration authorization.
+
+### Conclusion
+
+This change completes the mobile-side restricted installation certification path. Restricted login results are now routed to a dedicated certification screen instead of being treated as login failures.
+
+The authentication flow now separates temporary restricted authorization from operational sessions, preserving token persistence only after step-up authorization and successful installation registration.
+
+The related repository contracts, route definitions, view models, UI flow, documentation, and tests were updated to support the new installation certification behavior consistently.
+
+
 ## 2026/06/19 - mobile/installation-identity-04
 
 This change advances the mobile installation identity flow by introducing typed authentication states, distinguishing operational sessions from restricted installation authorization responses.

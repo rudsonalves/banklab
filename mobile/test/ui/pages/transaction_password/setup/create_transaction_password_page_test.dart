@@ -70,4 +70,11 @@ class _FakeTransactionPasswordRepository
   ) {
     throw UnimplementedError();
   }
+
+  @override
+  AsyncResult<StepUpAuthorizeResponseDto> authorizeInstallationRegistration(
+    String transactionPassword,
+  ) {
+    throw UnimplementedError();
+  }
 }

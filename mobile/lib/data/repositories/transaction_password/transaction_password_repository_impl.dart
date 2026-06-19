@@ -39,8 +39,28 @@ class TransactionPasswordRepositoryImpl
   AsyncResult<StepUpAuthorizeResponseDto> authorizeInternalTransfer(
     String transactionPassword,
   ) async {
-    final dto = StepUpAuthorizeRequestDto(
+    return _authorize(
       operation: StepUpOperation.internalTransfer,
+      transactionPassword: transactionPassword,
+    );
+  }
+
+  @override
+  AsyncResult<StepUpAuthorizeResponseDto> authorizeInstallationRegistration(
+    String transactionPassword,
+  ) async {
+    return _authorize(
+      operation: StepUpOperation.installationRegistration,
+      transactionPassword: transactionPassword,
+    );
+  }
+
+  AsyncResult<StepUpAuthorizeResponseDto> _authorize({
+    required StepUpOperation operation,
+    required String transactionPassword,
+  }) async {
+    final dto = StepUpAuthorizeRequestDto(
+      operation: operation,
       transactionPassword: transactionPassword,
     );
     final result = await _api.stepUpAuthorize(dto);

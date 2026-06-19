@@ -71,6 +71,19 @@ void main() {
         'transaction_password': '123456',
       });
     });
+
+    test('serializes the installation registration operation', () {
+      final dto = StepUpAuthorizeRequestDto(
+        operation: StepUpOperation.installationRegistration,
+        transactionPassword: '123456',
+      );
+
+      expect(dto.toMap(), {
+        'method': 'POST',
+        'path': '/security/installations',
+        'transaction_password': '123456',
+      });
+    });
   });
 
   group('StepUpAuthorizeResponseDto.fromApi', () {

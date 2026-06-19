@@ -21,9 +21,9 @@ class LoginViewModel {
     login = Command1(_login);
   }
 
-  late final Command1<OperationalAuthState, LoginRequestDto> login;
+  late final Command1<AuthState, LoginRequestDto> login;
 
-  AsyncResult<OperationalAuthState> _login(LoginRequestDto dto) async {
+  AsyncResult<AuthState> _login(LoginRequestDto dto) async {
     final identityResult = await _installationIdentityService.resolve();
     if (identityResult.isFailure) {
       return Failure(identityResult.error!);
