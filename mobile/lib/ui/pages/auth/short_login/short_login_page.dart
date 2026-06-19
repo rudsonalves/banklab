@@ -13,6 +13,7 @@ import '/ui/components/input_text/basic_input_text.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '../models/post_login_destination.dart';
 import '../viewmodel/login_viewmodel.dart';
+import '../widgets/installation_limit_dialog.dart';
 
 const _accountApprovalRequiredMessage =
     'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar sua conta.';
@@ -205,6 +206,11 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
     if (loginCommand.isFailure) {
       final error = loginCommand.error;
+      if (error?.code == AppErrorCode.installationLimitReached) {
+        _handleInstallationLimitReached();
+        return;
+      }
+
       final message = _resolveLoginErrorMessage(error);
 
       AppSnackbar.show(
@@ -261,6 +267,12 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
         );
         return;
     }
+  }
+
+  Future<void> _handleInstallationLimitReached() async {
+    await showInstallationLimitDialog(context);
+    if (!mounted) return;
+    context.goNamed(AuthRoutes.login.routeName);
   }
 
   String _resolveLoginErrorMessage(AppError? error) {

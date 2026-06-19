@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '/core/routing/routes.dart';
 import '/core/result/result.dart';
+import '/core/routing/routes.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/double_bottom_buttons.dart';
 import '/ui/components/input_text/token_input.dart';
@@ -97,16 +97,21 @@ class _InstallationCertificationPageState
     );
   }
 
+  /// Listener for changes in the token input. Trims the input and updates the
+  /// disabled state of the submit button.
   void _onTokenChanged(String value) {
     _transactionPassword = value.trim();
     _isDisabled.value = _transactionPassword.length != 6;
   }
 
+  /// Listener for when the token input is completed. Trims the input and unfocuses the field.
   void _onTokenCompleted(String value) {
     _onTokenChanged(value);
     FocusScope.of(context).unfocus();
   }
 
+  /// Submits the certification request using the current transaction password.
+  /// Shows a loading state while processing.
   Future<void> _submit() async {
     if (_transactionPassword.length != 6 || _viewModel.certify.isRunning) {
       return;
@@ -116,12 +121,15 @@ class _InstallationCertificationPageState
     _transactionPassword = '';
   }
 
+  /// Cancels the certification process and navigates back to the login page.
   Future<void> _cancel() async {
     await _viewModel.cancel();
     if (!mounted) return;
     context.goNamed(AuthRoutes.login.routeName);
   }
 
+  /// Listener for changes in the certification process. Navigates or shows messages
+  /// based on the outcome.
   void _onCertifyChanged() {
     final command = _viewModel.certify;
     if (!mounted || command.isRunning) return;
@@ -142,7 +150,18 @@ class _InstallationCertificationPageState
     }
   }
 
+  /// Resolves a user-friendly error message based on the provided [AppError].
   String _resolveCertificationErrorMessage(AppError? error) {
+    if (error?.code == AppErrorCode.transactionPasswordNotSet) {
+      return 'Sua senha transacional ainda não está configurada. Entre por'
+          ' uma instalação já autorizada para regularizar antes de tentar novamente.';
+    }
+
+    if (error?.code == AppErrorCode.transactionPasswordLocked) {
+      return 'Sua senha transacional está bloqueada. Entre por'
+          ' uma instalação já autorizada para regularizar antes de tentar novamente.';
+    }
+
     final backendCode = backendErrorCode(error);
     if (backendCode == 'INVALID_TOKEN' || backendCode == 'UNAUTHORIZED') {
       return 'Sua autorização expirou. Entre novamente para continuar.';

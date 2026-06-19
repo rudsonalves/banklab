@@ -1,5 +1,73 @@
 # Changelog
 
+## 2026/06/19 - mobile/installation-identity-06
+
+This change improves the installation identity flow by refining user feedback, strengthening lifecycle logging, and documenting the REST API in a route-oriented structure.
+
+The update affects API documentation, installation identity logging, login error handling, installation certification messaging, and automated tests around installation lifecycle behavior.
+
+1. **api/docs/07-api-rest.md**
+
+   * Reorganized the REST API documentation around path prefixes instead of feature-oriented sections.
+   * Grouped endpoints under `/admin`, `/auth`, `/accounts`, `/customers`, `/security`, and `/terminal`.
+   * Moved endpoint-specific error scenarios closer to their respective endpoint descriptions.
+   * Renumbered the authorization model, error reference, domain notes, and Bruno setup sections.
+   * Preserved installation, step-up, transaction password, account, customer, and terminal endpoint contracts while improving navigability.
+
+2. **mobile/lib/core/services/installation_identity/installation_identity_service.dart**
+
+   * Added contextual log labels to installation identity lifecycle messages.
+   * Logged the case where the installation marker is missing and a new identity must be generated.
+   * Kept warning logs focused on lifecycle events without exposing full installation identifiers.
+
+3. **mobile/lib/ui/pages/auth/installation_certification/installation_certification_page.dart**
+
+   * Added documentation comments for token input, completion, submit, cancel, certification listener, and error resolution methods.
+   * Added specific user-facing messages for `TRANSACTION_PASSWORD_NOT_SET` and `TRANSACTION_PASSWORD_LOCKED`.
+   * Improved certification failure guidance when the user cannot authorize a new installation from the current app instance.
+
+4. **mobile/lib/ui/pages/auth/login/login_page.dart**
+
+   * Added handling for `installationLimitReached`.
+   * Displays a dedicated installation limit dialog instead of falling back to the generic login error snackbar.
+   * Returns the user to the login route after the dialog is dismissed.
+
+5. **mobile/lib/ui/pages/auth/short_login/short_login_page.dart**
+
+   * Added the same `installationLimitReached` handling used by the full login page.
+   * Displays the shared installation limit dialog and redirects back to login after dismissal.
+
+6. **mobile/lib/ui/pages/auth/widgets/installation_limit_dialog.dart**
+
+   * Added a reusable dialog for the approved installation limit case.
+   * Introduced centralized copy constants for title, primary message, secondary guidance, and action label.
+   * Guides the user to access an already authorized installation, remove an old installation, and retry login.
+
+7. **mobile/test/core/services/installation_identity/installation_identity_service_test.dart**
+
+   * Added coverage for installation identity lifecycle logging.
+   * Verified that log output includes service context and marker-missing information.
+   * Verified that old and newly generated installation identifiers are not exposed in logs.
+
+8. **mobile/test/data/repositories/auth/auth_repository_impl_test.dart**
+
+   * Added assertions to ensure installation authorization is not called when the initial app-token login fails.
+   * Added test cases for failed installation certification when step-up fails with `TRANSACTION_PASSWORD_NOT_SET`.
+   * Added test cases for failed installation certification when step-up fails with `TRANSACTION_PASSWORD_LOCKED`.
+   * Verified that installation registration is skipped and the repository remains in anonymous auth state in those blocked certification cases.
+
+9. **mobile/test/ui/pages/auth/widgets/installation_limit_dialog_test.dart**
+
+   * Added widget coverage for the installation limit dialog.
+   * Verified title, explanatory messages, action label, and dismissal behavior.
+
+### Conclusion
+
+This change improves the installation identity experience by making blocked installation states clearer to the user and safer in application behavior.
+
+It also strengthens diagnostics without leaking installation identifiers, expands test coverage for blocked certification paths, and restructures the REST API documentation to better match the backend route layout.
+
+
 ## 2026/06/19 - mobile/installation-identity-05
 
 This change implements the mobile installation certification flow after a restricted login result. The login process can now return either an operational authentication state or a restricted installation state, allowing the UI to redirect the user to a certification screen before starting a full session.

@@ -111,9 +111,12 @@ void main() {
       final storage = _FakeLocalSecureStorage();
       final cache = _FakeLastLoginCacheService();
       final appSection = AppSection();
+      final transactionPasswordRepository =
+          _FakeTransactionPasswordRepository();
 
       final repository = _repository(
         api: api,
+        transactionPasswordRepository: transactionPasswordRepository,
         storage: storage,
         lastLoginCacheService: cache,
         appSection: appSection,
@@ -130,6 +133,7 @@ void main() {
       expect(storage.writeCalls, 0);
       expect(storage.writesByKey, isEmpty);
       expect(cache.saveCalls, 0);
+      expect(transactionPasswordRepository.authorizeInstallationCalls, 0);
       expect(repository.isLoggedIn, isFalse);
       expect(appSection.currentSession, isNull);
     });
@@ -355,6 +359,61 @@ void main() {
         expect(repository.currentUser, isA<AnonymousAuthState>());
       },
     );
+
+    for (final blockedCase in [
+      (
+        code: AppErrorCode.transactionPasswordNotSet,
+        backendCode: 'TRANSACTION_PASSWORD_NOT_SET',
+      ),
+      (
+        code: AppErrorCode.transactionPasswordLocked,
+        backendCode: 'TRANSACTION_PASSWORD_LOCKED',
+      ),
+    ]) {
+      test(
+        'does not register installation when step-up fails with ${blockedCase.backendCode}',
+        () async {
+          final installationApi = _FakeInstallationApi(
+            result: const Failure(
+              AppError(
+                code: AppErrorCode.unexpected,
+                message: 'Should not call',
+              ),
+            ),
+          );
+          final repository = _repository(
+            api: _FakeAuthApi(
+              loginResult: Success(_restrictedLogin()),
+              profileResult: Success(_profile()),
+            ),
+            installationApi: installationApi,
+            transactionPasswordRepository: _FakeTransactionPasswordRepository(
+              result: Failure(
+                AppError(
+                  code: blockedCase.code,
+                  message: blockedCase.backendCode,
+                  details: {'code': blockedCase.backendCode},
+                ),
+              ),
+            ),
+            storage: _FakeLocalSecureStorage(),
+            lastLoginCacheService: _FakeLastLoginCacheService(),
+            appSection: AppSection(),
+          );
+
+          await repository.login(
+            LoginRequestDto(email: 'customer@example.com', password: '123456'),
+          );
+          final result = await repository.certifyInstallation('000000');
+
+          expect(result, isA<Failure<OperationalAuthState>>());
+          expect(result.error?.code, blockedCase.code);
+          expect(backendErrorCode(result.error), blockedCase.backendCode);
+          expect(installationApi.registerCalls, 0);
+          expect(repository.currentUser, isA<AnonymousAuthState>());
+        },
+      );
+    }
   });
 }
 

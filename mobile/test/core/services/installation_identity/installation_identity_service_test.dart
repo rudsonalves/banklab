@@ -2,6 +2,7 @@ import 'package:bankflow/core/resources/storage_keys.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/installation_identity/installation_identity.dart';
 import 'package:bankflow/core/services/secure_storage/local_secure_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -166,6 +167,33 @@ void main() {
 
       expect(result, isA<Failure<String>>());
       expect(result.error?.message, 'marker write failed');
+    });
+
+    test('logs lifecycle context without full installation ids', () async {
+      const oldId = '018f7b82-4a3d-4f71-9ad7-dedc8e5b10c8';
+      final messages = <String>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (message, {wrapWidth}) {
+        if (message != null) messages.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+
+      final storage = _MemorySecureStorage(
+        initialValues: {StorageKeys.installationId: oldId},
+      );
+      final service = InstallationIdentityService(
+        secureStorage: storage,
+        markerStore: _FakeInstallationMarkerStore(markerPresent: false),
+      );
+
+      final result = await service.resolve();
+
+      expect(result, isA<Success<String>>());
+      final logOutput = messages.join('\n');
+      expect(logOutput, contains('InstallationIdentityService.resolve'));
+      expect(logOutput, contains('Installation marker is missing'));
+      expect(logOutput, isNot(contains(oldId)));
+      expect(logOutput, isNot(contains(result.value)));
     });
   });
 }

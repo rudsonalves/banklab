@@ -2,65 +2,49 @@
 
 ## Table of Contents
 
-- [REST API Documentation - Bank API](#rest-api-documentation---bank-api)
-  - [Table of Contents](#table-of-contents)
-  - [1. Overview](#1-overview)
-  - [2. Response Envelope](#2-response-envelope)
-    - [2.1 Error Payload Examples (Standard)](#21-error-payload-examples-standard)
-  - [3. Authentication Endpoints](#3-authentication-endpoints)
-    - [3.0 Check CPF](#30-check-cpf)
-    - [3.0.1 Request Contact Verification](#301-request-contact-verification)
-    - [3.0.2 Confirm Contact Verification](#302-confirm-contact-verification)
-    - [3.1 Register User](#31-register-user)
-    - [3.2 Login User](#32-login-user)
-    - [3.3 Refresh Access Token](#33-refresh-access-token)
-    - [3.4 Get Auth Session](#34-get-auth-session)
-    - [3.4.1 Get Current User](#341-get-current-user)
-    - [3.5 Approve User (Admin Only)](#35-approve-user-admin-only)
-    - [3.6 Create Customer Account (Admin Only)](#36-create-customer-account-admin-only)
-    - [3.7 Create Transaction Password](#37-create-transaction-password)
-    - [3.8 Authorize Step-Up](#38-authorize-step-up)
-    - [3.9 Register Installation](#39-register-installation)
-    - [3.10 List Installations](#310-list-installations)
-    - [3.11 Revoke Installation](#311-revoke-installation)
-  - [4. Account Endpoints](#4-account-endpoints)
-    - [4.1 List Accounts](#41-list-accounts)
-    - [4.2 Customer Account Creation Removed](#42-customer-account-creation-removed)
-    - [4.3 Deposit](#43-deposit)
-    - [4.4 Withdraw](#44-withdraw)
-    - [4.5 Internal Transfer Recipient Lookup](#45-internal-transfer-recipient-lookup)
-    - [4.6 Internal Transfer](#46-internal-transfer)
-    - [4.7 Transfer Receipt](#47-transfer-receipt)
-    - [4.8 Get Balance](#48-get-balance)
-    - [4.9 Get Statement](#49-get-statement)
-  - [5. Customer Endpoints](#5-customer-endpoints)
-    - [5.1 Get My Customer Profile](#51-get-my-customer-profile)
-  - [6. Authorization Model](#6-authorization-model)
-  - [7. Error Code Reference](#7-error-code-reference)
-  - [8. Domain Notes for API Consumers](#8-domain-notes-for-api-consumers)
-  - [9. Error Scenarios by Endpoint (with Payload)](#9-error-scenarios-by-endpoint-with-payload)
-    - [9.0 POST /auth/cpf-check](#90-post-authcpf-check)
-    - [9.1 POST /auth/register](#91-post-authregister)
-    - [9.2 POST /auth/login](#92-post-authlogin)
-    - [9.3 POST /auth/refresh](#93-post-authrefresh)
-    - [9.4 GET /auth/session](#94-get-authsession)
-    - [9.4.1 GET /auth/me](#941-get-authme)
-    - [9.5 GET /accounts](#95-get-accounts)
-    - [9.6 POST /admin/customers/{customer\_id}/accounts](#96-post-admincustomerscustomer_idaccounts)
-    - [9.7 POST /terminal/accounts/{id}/deposit](#97-post-terminalaccountsiddeposit)
-    - [9.8 POST /terminal/accounts/{id}/withdraw](#98-post-terminalaccountsidwithdraw)
-    - [9.9 GET /accounts/internal-transfers/recipients](#99-get-accountsinternal-transfersrecipients)
-    - [9.10 POST /accounts/internal-transfers](#910-post-accountsinternal-transfers)
-    - [9.11 GET /accounts/transfer/{transaction\_reference}/receipt](#911-get-accountstransfertransaction_referencereceipt)
-    - [9.12 GET /accounts/{id}/balance](#912-get-accountsidbalance)
-    - [9.13 GET /accounts/{id}/statement](#913-get-accountsidstatement)
-    - [9.14 GET /customers/me](#914-get-customersme)
-    - [9.15 POST /security/transaction-password](#915-post-securitytransaction-password)
-  - [10. Bruno Setup](#10-bruno-setup)
-    - [10.1 Files in Repository](#101-files-in-repository)
-    - [10.2 Environment Variables](#102-environment-variables)
-    - [10.3 How to Import and Configure](#103-how-to-import-and-configure)
-    - [10.4 Recommended Execution Flow](#104-recommended-execution-flow)
+- [1. Overview](#1-overview)
+- [2. Response Envelope](#2-response-envelope)
+  - [2.1 Error Payload Examples (Standard)](#21-error-payload-examples-standard)
+- [3. Endpoints by Path](#3-endpoints-by-path)
+  - [3.1 /admin](#31-admin)
+    - [3.1.1 POST /admin/customers/{customer_id}/accounts](#311-post-admincustomerscustomer_idaccounts)
+    - [3.1.2 POST /admin/users/{id}/approve](#312-post-adminusersidapprove)
+  - [3.2 /auth](#32-auth)
+    - [3.2.1 POST /auth/contact-verifications](#321-post-authcontact-verifications)
+    - [3.2.2 POST /auth/contact-verifications/confirm](#322-post-authcontact-verificationsconfirm)
+    - [3.2.3 POST /auth/cpf-check](#323-post-authcpf-check)
+    - [3.2.4 POST /auth/login](#324-post-authlogin)
+    - [3.2.5 GET /auth/me](#325-get-authme)
+    - [3.2.6 POST /auth/refresh](#326-post-authrefresh)
+    - [3.2.7 POST /auth/register](#327-post-authregister)
+    - [3.2.8 GET /auth/session](#328-get-authsession)
+  - [3.3 /accounts](#33-accounts)
+    - [Note: Customer Account Creation Removed](#note-customer-account-creation-removed)
+    - [3.3.1 GET /accounts](#331-get-accounts)
+    - [3.3.2 POST /accounts/internal-transfers](#332-post-accountsinternal-transfers)
+    - [3.3.3 GET /accounts/internal-transfers/recipients](#333-get-accountsinternal-transfersrecipients)
+    - [3.3.4 GET /accounts/transfer/{transaction_reference}/receipt](#334-get-accountstransfertransaction_referencereceipt)
+    - [3.3.5 GET /accounts/{id}/balance](#335-get-accountsidbalance)
+    - [3.3.6 GET /accounts/{id}/statement](#336-get-accountsidstatement)
+  - [3.4 /customers](#34-customers)
+    - [3.4.1 GET /customers/me](#341-get-customersme)
+  - [3.5 /security](#35-security)
+    - [3.5.1 GET /security/installations](#351-get-securityinstallations)
+    - [3.5.2 POST /security/installations](#352-post-securityinstallations)
+    - [3.5.3 DELETE /security/installations/{installation_resource_id}](#353-delete-securityinstallationsinstallation_resource_id)
+    - [3.5.4 POST /security/step-up/authorize](#354-post-securitystep-upauthorize)
+    - [3.5.5 POST /security/transaction-password](#355-post-securitytransaction-password)
+  - [3.6 /terminal](#36-terminal)
+    - [3.6.1 POST /terminal/accounts/{id}/deposit](#361-post-terminalaccountsiddeposit)
+    - [3.6.2 POST /terminal/accounts/{id}/withdraw](#362-post-terminalaccountsidwithdraw)
+- [4. Authorization Model](#4-authorization-model)
+- [5. Error Code Reference](#5-error-code-reference)
+- [6. Domain Notes for API Consumers](#6-domain-notes-for-api-consumers)
+- [7. Bruno Setup](#7-bruno-setup)
+  - [7.1 Files in Repository](#71-files-in-repository)
+  - [7.2 Environment Variables](#72-environment-variables)
+  - [7.3 How to Import and Configure](#73-how-to-import-and-configure)
+  - [7.4 Recommended Execution Flow](#74-recommended-execution-flow)
 
 ## 1. Overview
 
@@ -87,6 +71,7 @@ Access control summary:
 - Auth refresh route: refresh token plus installation identifier header
 - Auth session and service routes: JWT plus installation identifier header
 - Installation registration route: restricted access token plus installation identifier and step-up token
+
 
 ## 2. Response Envelope
 
@@ -168,12 +153,242 @@ Example - 500 INTERNAL_ERROR:
 }
 ```
 
-## 3. Authentication Endpoints
+
+## 3. Endpoints by Path
+
+Endpoints are grouped by path prefix and sorted by path. This mirrors the API route layout and makes it easier to relate this document to handler and route code.
+
+### 3.1 /admin
+
+#### 3.1.1 POST /admin/customers/{customer_id}/accounts
+
+Purpose: Create Customer Account (Admin Only)
+
+- Method: POST
+- Path: /admin/customers/{customer_id}/accounts
+- Auth required: JWT (admin role)
+
+Creates an additional account for an existing customer. Account creation is a
+provisioning action and is not exposed as customer self-service.
+
+Onboarding approval remains responsible for creating the first account
+automatically. Additional accounts for the same `customer_id` are allowed.
+
+Path parameters:
+
+- `customer_id`: UUID of the customer that will receive the new account
+
+Request body:
+
+Empty object or no body required. Extra fields are rejected.
+
+```json
+{}
+```
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
+    "number": "10000001",
+    "branch": "0001",
+    "balance": 0,
+    "status": "active"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid `customer_id`
+- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
+- 403 FORBIDDEN: authenticated user does not have admin role
+- 404 CUSTOMER_NOT_FOUND: customer does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
+
+Scenario: authenticated user is not admin
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+Scenario: customer does not exist
+- Status: 404
+- Code: CUSTOMER_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "CUSTOMER_NOT_FOUND",
+    "message": "Customer not found"
+  }
+}
+```
+
+#### 3.1.2 POST /admin/users/{id}/approve
+
+Purpose: Approve User (Admin Only)
+
+- Method: POST
+- Path: /admin/users/{id}/approve
+- Auth required: JWT (admin role)
+
+Approves a pending user, transitioning them from `pending` to `active` status. Also creates the associated account atomically.
+
+Path parameters:
+
+- `id`: UUID of the user to approve
+
+Request body:
+
+Empty object or no body required.
+
+```json
+{}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "status": "active",
+    "account_id": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789"
+  },
+  "error": null
+}
+```
+
+Response fields:
+
+- `user_id`: UUID of the approved user
+- `status`: new status (always "active" on success)
+- `account_id`: UUID of the newly created account
+
+Atomicity:
+
+- User status update and account creation occur within a single database transaction
+- If account creation fails, user status is not updated
+- No partial state is possible
+
+Possible errors:
+
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid or expired
+- 403 FORBIDDEN: authenticated user does not have admin role
+- 404 USER_NOT_FOUND: user does not exist
+- 404 CUSTOMER_NOT_FOUND: associated customer does not exist
+- 409 USER_ALREADY_ACTIVE: user is already active (cannot approve active/blocked users)
+- 500 INTERNAL_ERROR: unexpected internal error
+
+### 3.2 /auth
 
 Before registration, the client must check CPF availability and request and
 confirm contact verifications for both e-mail and phone.
 
-### 3.0 Check CPF
+#### 3.2.1 POST /auth/contact-verifications
+
+Purpose: Request Contact Verification
+
+- Method: POST
+- Path: /auth/contact-verifications
+- Auth required: AppToken (`X-App-Token`)
+
+Request body:
+
+```json
+{
+  "channel": "email",
+  "target": "user@example.com"
+}
+```
+
+`channel` accepts `email` or `phone`.
+
+The `target` value is normalized before creating a verification challenge:
+- `email`: trimmed and lowercased
+- `phone`: trimmed
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "verification_id": "8d9ad65f-f837-4f6f-bd20-63f2c7cefab6",
+    "channel": "email",
+    "target": "user@example.com",
+    "debug_token": "123456",
+    "expires_at": "2026-05-18T12:10:00Z"
+  },
+  "error": null
+}
+```
+
+`debug_token` is returned by the current implementation because the project does
+not yet have an e-mail/SMS notification provider to deliver verification codes.
+Clients may use it for local/manual testing and debug logs, but application flow
+must not treat it as part of the stable verification contract. The stable data
+for the request step is `verification_id`, `channel`, `target`, and `expires_at`.
+
+Possible errors:
+- 400 INVALID_DATA: invalid channel or empty target
+- 409 USER_ALREADY_EXISTS: target e-mail or phone already belongs to a user
+- 500 INTERNAL_ERROR: unexpected internal error
+
+#### 3.2.2 POST /auth/contact-verifications/confirm
+
+Purpose: Confirm Contact Verification
+
+- Method: POST
+- Path: /auth/contact-verifications/confirm
+- Auth required: AppToken (`X-App-Token`)
+
+Request body:
+
+```json
+{
+  "verification_id": "8d9ad65f-f837-4f6f-bd20-63f2c7cefab6",
+  "token": "123456"
+}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "verification_token": "12adf6b7-2c5f-4895-96a3-a8e45db5c1d1",
+    "channel": "email",
+    "target": "user@example.com",
+    "verified_at": "2026-05-18T12:03:00Z"
+  },
+  "error": null
+}
+```
+
+The `verification_token` from this response is required by
+`POST /auth/register`.
+
+#### 3.2.3 POST /auth/cpf-check
+
+Purpose: Check CPF
 
 - Method: POST
 - Path: /auth/cpf-check
@@ -221,134 +436,42 @@ Possible errors:
 - 400 INVALID_DATA: missing or invalid CPF
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 3.0.1 Request Contact Verification
+##### Error Scenarios
 
-- Method: POST
-- Path: /auth/contact-verifications
-- Auth required: AppToken (`X-App-Token`)
-
-Request body:
+Scenario: missing or invalid app token
+- Status: 401
+- Code: INVALID_APP_TOKEN
 
 ```json
 {
-  "channel": "email",
-  "target": "user@example.com"
+  "data": null,
+  "error": {
+    "code": "INVALID_APP_TOKEN",
+    "message": "invalid application token"
+  }
 }
 ```
 
-`channel` accepts `email` or `phone`.
-
-The `target` value is normalized before creating a verification challenge:
-- `email`: trimmed and lowercased
-- `phone`: trimmed
-
-Success response (201):
+Scenario: invalid cpf format or missing cpf
+- Status: 400
+- Code: INVALID_DATA
 
 ```json
 {
-  "data": {
-    "verification_id": "8d9ad65f-f837-4f6f-bd20-63f2c7cefab6",
-    "channel": "email",
-    "target": "user@example.com",
-    "debug_token": "123456",
-    "expires_at": "2026-05-18T12:10:00Z"
-  },
-  "error": null
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
 }
 ```
 
-`debug_token` is returned by the current implementation because the project does
-not yet have an e-mail/SMS notification provider to deliver verification codes.
-Clients may use it for local/manual testing and debug logs, but application flow
-must not treat it as part of the stable verification contract. The stable data
-for the request step is `verification_id`, `channel`, `target`, and `expires_at`.
+Examples of `error.message` for this scenario include `Invalid CPF format` and
+`CPF is required`.
 
-Possible errors:
-- 400 INVALID_DATA: invalid channel or empty target
-- 409 USER_ALREADY_EXISTS: target e-mail or phone already belongs to a user
-- 500 INTERNAL_ERROR: unexpected internal error
+#### 3.2.4 POST /auth/login
 
-### 3.0.2 Confirm Contact Verification
-
-- Method: POST
-- Path: /auth/contact-verifications/confirm
-- Auth required: AppToken (`X-App-Token`)
-
-Request body:
-
-```json
-{
-  "verification_id": "8d9ad65f-f837-4f6f-bd20-63f2c7cefab6",
-  "token": "123456"
-}
-```
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "verification_token": "12adf6b7-2c5f-4895-96a3-a8e45db5c1d1",
-    "channel": "email",
-    "target": "user@example.com",
-    "verified_at": "2026-05-18T12:03:00Z"
-  },
-  "error": null
-}
-```
-
-The `verification_token` from this response is required by
-`POST /auth/register`.
-
-### 3.1 Register User
-
-- Method: POST
-- Path: /auth/register
-- Auth required: AppToken (`X-App-Token`)
-
-This endpoint creates a User and an associated Customer atomically in a single transaction. The Customer is created automatically — the client never needs to call a separate customer creation endpoint.
-
-Request body:
-
-```json
-{
-  "email": "user@example.com",
-  "phone": "+5511999999999",
-  "password": "P@ssword123",
-  "name": "Maria Silva",
-  "birth_date": "1990-01-15",
-  "cpf": "12345678901",
-  "email_verification_token": "12adf6b7-2c5f-4895-96a3-a8e45db5c1d1",
-  "phone_verification_token": "95d3102d-c58f-4fa3-a1e8-2f0834bb9a39"
-}
-```
-
-All fields are required.
-
-Success response (201):
-
-```json
-{
-  "data": {
-    "id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
-    "email": "user@example.com",
-    "role": "customer",
-    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
-  },
-  "error": null
-}
-```
-
-`customer_id` is always populated for users with role `customer`.
-
-Possible errors:
-- 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
-- 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_DATA: invalid email or password format
-- 409 USER_ALREADY_EXISTS: duplicate e-mail, phone, or CPF document
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 3.2 Login User
+Purpose: Login User
 
 - Method: POST
 - Path: /auth/login
@@ -438,7 +561,114 @@ Possible errors:
 - 409 INSTALLATION_LIMIT_REACHED: user already has three known installations
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 3.3 Refresh Access Token
+##### Error Scenarios
+
+Scenario: missing or invalid app token
+- Status: 401
+- Code: INVALID_APP_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_APP_TOKEN",
+    "message": "invalid application token"
+  }
+}
+```
+
+Scenario: invalid credentials
+- Status: 401
+- Code: INVALID_CREDENTIALS
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Invalid credentials"
+  }
+}
+```
+
+Scenario: account approval required
+- Status: 403
+- Code: ACCOUNT_APPROVAL_REQUIRED
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_APPROVAL_REQUIRED",
+    "message": "Account approval required"
+  }
+}
+```
+
+Scenario: contact not verified
+- Status: 403
+- Code: CONTACT_NOT_VERIFIED
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "CONTACT_NOT_VERIFIED",
+    "message": "Contact not verified",
+    "details": {
+      "email_verified": true,
+      "phone_verified": false
+    }
+  }
+}
+```
+
+#### 3.2.5 GET /auth/me
+
+Purpose: Get Current User
+
+- Method: GET
+- Path: /auth/me
+- Auth required: yes
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "email": "user@example.com",
+    "role": "customer",
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
+
+Scenario: missing/invalid authentication
+- Status: 401
+- Code: UNAUTHORIZED or INVALID_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+#### 3.2.6 POST /auth/refresh
+
+Purpose: Refresh Access Token
 
 - Method: POST
 - Path: /auth/refresh
@@ -486,7 +716,119 @@ Possible errors:
 - 403 INSTALLATION_MISMATCH: header installation does not match the session
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 3.4 Get Auth Session
+##### Error Scenarios
+
+Scenario: missing/invalid JWT authentication
+- Status: 401
+- Code: UNAUTHORIZED or INVALID_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
+}
+```
+
+#### 3.2.7 POST /auth/register
+
+Purpose: Register User
+
+- Method: POST
+- Path: /auth/register
+- Auth required: AppToken (`X-App-Token`)
+
+This endpoint creates a User and an associated Customer atomically in a single transaction. The Customer is created automatically — the client never needs to call a separate customer creation endpoint.
+
+Request body:
+
+```json
+{
+  "email": "user@example.com",
+  "phone": "+5511999999999",
+  "password": "P@ssword123",
+  "name": "Maria Silva",
+  "birth_date": "1990-01-15",
+  "cpf": "12345678901",
+  "email_verification_token": "12adf6b7-2c5f-4895-96a3-a8e45db5c1d1",
+  "phone_verification_token": "95d3102d-c58f-4fa3-a1e8-2f0834bb9a39"
+}
+```
+
+All fields are required.
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "email": "user@example.com",
+    "role": "customer",
+    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
+  },
+  "error": null
+}
+```
+
+`customer_id` is always populated for users with role `customer`.
+
+Possible errors:
+- 401 INVALID_APP_TOKEN: missing or invalid `X-App-Token`
+- 400 INVALID_REQUEST: invalid JSON body
+- 400 INVALID_DATA: invalid email or password format
+- 409 USER_ALREADY_EXISTS: duplicate e-mail, phone, or CPF document
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
+
+Scenario: missing or invalid app token
+- Status: 401
+- Code: INVALID_APP_TOKEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_APP_TOKEN",
+    "message": "invalid application token"
+  }
+}
+```
+
+Scenario: malformed JSON
+- Status: 400
+- Code: INVALID_REQUEST
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request body"
+  }
+}
+```
+
+Scenario: duplicate email/CPF
+- Status: 409
+- Code: USER_ALREADY_EXISTS
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "USER_ALREADY_EXISTS",
+    "message": "User already exists"
+  }
+}
+```
+
+#### 3.2.8 GET /auth/session
+
+Purpose: Get Auth Session
 
 - Method: GET
 - Path: /auth/session
@@ -554,349 +896,54 @@ Possible errors:
 - 404 CUSTOMER_NOT_FOUND or equivalent: linked customer record was not found
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 3.4.1 Get Current User
+##### Error Scenarios
 
-- Method: GET
-- Path: /auth/me
-- Auth required: yes
-
-Success response (200):
+Scenario: missing/invalid authentication
+- Status: 401
+- Code: UNAUTHORIZED or INVALID_TOKEN
 
 ```json
 {
-  "data": {
-    "id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
-    "email": "user@example.com",
-    "role": "customer",
-    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3"
-  },
-  "error": null
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "Authentication required"
+  }
 }
 ```
 
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 3.5 Approve User (Admin Only)
-
-- Method: POST
-- Path: /admin/users/{id}/approve
-- Auth required: JWT (admin role)
-
-Approves a pending user, transitioning them from `pending` to `active` status. Also creates the associated account atomically.
-
-Path parameters:
-
-- `id`: UUID of the user to approve
-
-Request body:
-
-Empty object or no body required.
-
-```json
-{}
-```
-
-Success response (200):
+Scenario: invalid customer user state
+- Status: 409
+- Code: INVALID_USER_STATE
 
 ```json
 {
-  "data": {
-    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
-    "status": "active",
-    "account_id": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789"
-  },
-  "error": null
+  "data": null,
+  "error": {
+    "code": "INVALID_USER_STATE",
+    "message": "Invalid user state"
+  }
 }
 ```
 
-Response fields:
-
-- `user_id`: UUID of the approved user
-- `status`: new status (always "active" on success)
-- `account_id`: UUID of the newly created account
-
-Atomicity:
-
-- User status update and account creation occur within a single database transaction
-- If account creation fails, user status is not updated
-- No partial state is possible
-
-Possible errors:
-
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid or expired
-- 403 FORBIDDEN: authenticated user does not have admin role
-- 404 USER_NOT_FOUND: user does not exist
-- 404 CUSTOMER_NOT_FOUND: associated customer does not exist
-- 409 USER_ALREADY_ACTIVE: user is already active (cannot approve active/blocked users)
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 3.6 Create Customer Account (Admin Only)
-
-- Method: POST
-- Path: /admin/customers/{customer_id}/accounts
-- Auth required: JWT (admin role)
-
-Creates an additional account for an existing customer. Account creation is a
-provisioning action and is not exposed as customer self-service.
-
-Onboarding approval remains responsible for creating the first account
-automatically. Additional accounts for the same `customer_id` are allowed.
-
-Path parameters:
-
-- `customer_id`: UUID of the customer that will receive the new account
-
-Request body:
-
-Empty object or no body required. Extra fields are rejected.
-
-```json
-{}
-```
-
-Success response (201):
-
-```json
-{
-  "data": {
-    "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
-    "customer_id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
-    "number": "10000001",
-    "branch": "0001",
-    "balance": 0,
-    "status": "active"
-  },
-  "error": null
-}
-```
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: invalid `customer_id`
-- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
-- 403 FORBIDDEN: authenticated user does not have admin role
-- 404 CUSTOMER_NOT_FOUND: customer does not exist
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 3.7 Create Transaction Password
-
-- Method: POST
-- Path: /security/transaction-password
-- Auth required: JWT
-
-Creates the authenticated user's initial transaction password. This endpoint is
-used only for first credential setup. It does not require a previous transaction
-password or a step-up token.
-
-The transaction password is a numeric PIN with exactly 6 digits. The API stores
-only the hash. The response never returns the PIN or hash.
-
-Request body:
-
-```json
-{
-  "transaction_password": "123456",
-  "transaction_password_confirmation": "123456"
-}
-```
-
-Success response (201):
-
-```json
-{
-  "data": {
-    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
-    "status": "active",
-    "created_at": "2026-05-28T10:00:00Z"
-  },
-  "error": null
-}
-```
-
-Response fields:
-- `status`: currently always returns `active` on successful creation. The
-  transaction password domain also has `blocked` for later validation/step-up
-  flows, but a newly created transaction password is always active.
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
-- 400 INVALID_DATA: PIN is not numeric with 6 digits or confirmation differs
-- 403 FORBIDDEN: authenticated user is not active
-- 409 TRANSACTION_PASSWORD_ALREADY_SET: transaction password already exists
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 3.8 Authorize Step-Up
-
-- Method: POST
-- Path: /security/step-up/authorize
-- Auth required: JWT
-
-Authorizes a sensitive logical endpoint with the authenticated user's
-transaction password and returns a short-lived step-up token. In the MVP, the
-accepted public operations are `POST /accounts/internal-transfers` and
-`POST /security/installations`. The installation registration operation may be
-authorized with a restricted access token from login; other operations require
-an operational access token.
-
-The step-up token is an `HS256` JWT. It lasts 120 seconds, is scoped to the
-requested public operation, and is tracked by a persisted `jti` so it can be
-consumed once during enforcement. The response never returns the transaction
-password, password hash, or operation payload.
-
-The client must send only the public HTTP operation (`method` + `path`).
-Internal policy keys (for example `internal_transfer.create`) are resolved by
-the backend and are not part of the public request contract.
-
-The canonical client representation uses an uppercase HTTP method, such as
-`POST`. For input tolerance, the API trims surrounding whitespace and
-normalizes `method` to uppercase before resolving the operation allowlist.
-The API only trims surrounding whitespace from `path`; it does not normalize
-or rewrite the path itself.
-
-Request body:
-
-```json
-{
-  "method": "POST",
-  "path": "/accounts/internal-transfers",
-  "transaction_password": "123456"
-}
-```
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "step_up_token": "<token>",
-    "expires_in": 120
-  },
-  "error": null
-}
-```
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 401 TRANSACTION_PASSWORD_INVALID: transaction password PIN is incorrect
-- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
-- 400 INVALID_DATA: PIN is not numeric with 6 digits
-- 403 FORBIDDEN: authenticated user is not active
-- 403 TRANSACTION_PASSWORD_LOCKED: transaction password is temporarily blocked
-- 403 STEP_UP_ENDPOINT_NOT_ALLOWED: public operation is not allowed for step-up
-- 409 TRANSACTION_PASSWORD_NOT_SET: transaction password does not exist
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 3.9 Register Installation
-
-- Method: POST
-- Path: /security/installations
-- Auth required: restricted access token, `X-Installation-Id`, and `X-Step-Up-Token`
-
-Request headers:
-
-```http
-Authorization: Bearer <restricted_access_token>
-X-Installation-Id: <canonical_uuid_v4>
-X-Step-Up-Token: <step_up_token>
-```
-
-Success response (201):
-
-```json
-{
-  "data": {
-    "access_token": "<jwt>",
-    "refresh_token": "<opaque-token>",
-    "installation_resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
-    "installation_status": "known"
-  },
-  "error": null
-}
-```
-
-Possible errors:
-- 400 INVALID_INSTALLATION_ID: missing or malformed `X-Installation-Id`
-- 401 INVALID_TOKEN: restricted token is invalid, expired, consumed, or revoked
-- 401 STEP_UP_TOKEN_REQUIRED: missing `X-Step-Up-Token`
-- 401 STEP_UP_TOKEN_INVALID: invalid step-up token
-- 403 INSTALLATION_MISMATCH: header does not match restricted token
-- 409 INSTALLATION_LIMIT_REACHED: no available installation slot
-
-### 3.10 List Installations
-
-- Method: GET
-- Path: /security/installations
-- Auth required: operational JWT and `X-Installation-Id`
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "installations": [
-      {
-        "resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
-        "status": "known",
-        "first_seen_at": "2026-06-17T10:00:00Z",
-        "last_seen_at": "2026-06-17T10:00:00Z",
-        "created_at": "2026-06-17T10:00:00Z",
-        "updated_at": "2026-06-17T10:00:00Z"
-      }
-    ]
-  },
-  "error": null
-}
-```
-
-The response never exposes the raw `installation_id` generated by the client.
-The value in `X-Installation-Id` is treated only as a weak installation signal;
-it is not proof of physical device possession and does not replace JWT or
-step-up validation.
-
-### 3.11 Revoke Installation
-
-- Method: DELETE
-- Path: /security/installations/{installation_resource_id}
-- Auth required: operational JWT and `X-Installation-Id`
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
-    "status": "revoked",
-    "revoked_at": "2026-06-17T10:10:00Z"
-  },
-  "error": null
-}
-```
-
-The current installation cannot revoke itself. Revoking another installation
-invalidates refresh sessions bound to that installation. Already issued access
-tokens remain cryptographically valid until their short expiration, but
-operational middleware still requires matching installation context on
-protected routes.
-
-Revoked installations remain in historical storage. They do not occupy one of
-the three known-installation slots, but they continue to show that the user has
-already completed first-installation bootstrap before.
-
-## 4. Account Endpoints
+### 3.3 /accounts
 
 All account routes are protected and require Authorization header with Bearer token.
 
 Ownership is enforced automatically. A customer-role user can only access accounts that belong to their own `customer_id`. Admin-role users can access account-scoped operations, but `GET /accounts` is customer-context scoped and requires a non-nil `customer_id` in the authenticated principal.
 
-### 4.1 List Accounts
+#### Note: Customer Account Creation Removed
+
+The customer-facing `POST /accounts` route is not registered. Account creation is
+available only through onboarding approval and the admin provisioning route:
+
+```http
+POST /admin/customers/{customer_id}/accounts
+```
+
+#### 3.3.1 GET /accounts
+
+Purpose: List Accounts
 
 - Method: GET
 - Path: /accounts
@@ -935,183 +982,39 @@ Possible errors:
 - 403 FORBIDDEN: authenticated user has no customer context
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.2 Customer Account Creation Removed
+##### Error Scenarios
 
-The customer-facing `POST /accounts` route is not registered. Account creation is
-available only through onboarding approval and the admin provisioning route:
-
-```http
-POST /admin/customers/{customer_id}/accounts
-```
-
-### 4.3 Deposit
-
-- Method: POST
-- Path: /terminal/accounts/{id}/deposit
-- Auth required: n/a (route disabled)
-
-Operational note:
-- This endpoint is not intended for mobile or customer-facing web clients. It
-  directly injects balance into the ledger and is positioned as a terminal
-  operation.
-- The route is intentionally disabled in the API wiring and is not callable.
-- A real terminal channel is outside the current project scope.
-
-Request body:
+Scenario: authenticated user has no customer context
+- Status: 403
+- Code: FORBIDDEN
 
 ```json
 {
-  "amount": 5000
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
 }
 ```
 
-Success response (200):
+Scenario: unexpected query params
+- Status: 400
+- Code: INVALID_REQUEST
 
 ```json
 {
-  "data": {
-    "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
-    "balance": 15000
-  },
-  "error": null
+  "data": null,
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Invalid request body"
+  }
 }
 ```
 
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: invalid account id
-- 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_AMOUNT: amount must be greater than zero
-- 403 FORBIDDEN: access denied
-- 404 ACCOUNT_NOT_FOUND: account does not exist
-- 422 ACCOUNT_INACTIVE: account not active
-- 500 INTERNAL_ERROR: unexpected internal error
+#### 3.3.2 POST /accounts/internal-transfers
 
-### 4.4 Withdraw
-
-- Method: POST
-- Path: /terminal/accounts/{id}/withdraw
-- Auth required: n/a (route disabled)
-
-Operational note:
-- This endpoint is not intended for mobile or customer-facing web clients. It
-  directly removes balance from the ledger and is positioned as a terminal
-  operation.
-- The route is intentionally disabled in the API wiring and is not callable.
-- A real terminal channel is outside the current project scope.
-
-Request body:
-
-```json
-{
-  "amount": 3000
-}
-```
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
-    "balance": 12000
-  },
-  "error": null
-}
-```
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: invalid account id
-- 400 INVALID_REQUEST: invalid JSON body
-- 400 INVALID_AMOUNT: amount must be greater than zero
-- 403 FORBIDDEN: access denied
-- 404 ACCOUNT_NOT_FOUND: account does not exist
-- 422 INSUFFICIENT_FUNDS: insufficient funds
-- 422 ACCOUNT_INACTIVE: account not active
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 4.5 Internal Transfer Recipient Lookup
-
-- Method: GET
-- Path: /accounts/internal-transfers/recipients
-- Auth required: yes
-
-This endpoint searches eligible recipient accounts for internal transfers only.
-It is not a Pix, TED, DOC, or interbank account discovery endpoint.
-
-Query modes:
-
-1. By branch and account number:
-
-```text
-/accounts/internal-transfers/recipients?branch=0001&account_number=00067890
-```
-
-2. By CPF document:
-
-```text
-/accounts/internal-transfers/recipients?document=12345678901
-```
-
-Rules:
-- `branch` and `account_number` must be provided together.
-- `document` may be used alone and currently accepts CPF only.
-- CNPJ and legal person account lookup are intentionally out of scope for this
-  version.
-- Requests with neither query mode are invalid.
-- Mixed query modes are invalid unless explicitly supported by a future version.
-- Branch, account number, and CPF are normalized before lookup.
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "accounts": [
-      {
-        "account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
-        "holder_name": "Maria Silva",
-        "document": "***.456.789-**",
-        "branch": "0001",
-        "account_number": "00067890"
-      }
-    ]
-  },
-  "error": null
-}
-```
-
-No results response (200):
-
-```json
-{
-  "data": {
-    "accounts": []
-  },
-  "error": null
-}
-```
-
-Response rules:
-- `account_id` is the account identifier used later as `to_account_id`.
-- `document` is always masked.
-- Lookup by branch + account number returns zero or one eligible account.
-- Lookup by CPF may return zero, one, or many eligible accounts.
-- If multiple accounts are returned, the client must require user selection.
-- The response must not include customer ID, balance, full document, phone,
-  e-mail, or unrelated internal fields.
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: invalid or unsupported query parameter combination
-- 403 FORBIDDEN: access denied
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 4.6 Internal Transfer
+Purpose: Internal Transfer
 
 - Method: POST
 - Path: /accounts/internal-transfers
@@ -1202,685 +1105,7 @@ Possible errors:
 - 422 ACCOUNT_INACTIVE: one account is inactive
 - 500 INTERNAL_ERROR: unexpected internal error
 
-### 4.7 Transfer Receipt
-
-- Method: GET
-- Path: /accounts/transfer/{transaction_reference}/receipt
-- Auth required: yes
-
-Returns persisted receipt details for an internal transfer.
-
-Path params:
-- `transaction_reference`: public transfer reference returned by `POST /accounts/internal-transfers`
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "operation_type": "transfer_out",
-    "amount": 2500,
-    "status": "completed",
-    "transaction_reference": "2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31",
-    "operation_date": "2026-05-06T12:30:00Z",
-    "source_branch": "0001",
-    "source_account_number": "00012345",
-    "destination_branch": "0001",
-    "destination_account_number": "00067890",
-    "recipient_name": "Maria Silva",
-    "description": "Aluguel de maio"
-  },
-  "error": null
-}
-```
-
-Notes:
-- `description` is omitted when the original transfer did not include one.
-- Receipt data remains public/confirmation-oriented and does not expose internal
-  customer IDs, balances, phone, e-mail, or full documents.
-
-Status semantics (`data.status`):
-- `completed`: transfer executed successfully (terminal success)
-- `pending`: transfer accepted and still processing (intermediate)
-- `failed`: transfer failed due to technical/system error (terminal failure)
-- `cancelled`: transfer cancelled before completion (terminal failure)
-- `rejected`: transfer rejected by validation/business rules (terminal failure)
-
-Current behavior:
-- The current backend implementation returns `completed` for persisted receipts.
-- Additional status values are documented here for upcoming backend evolution.
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: missing or malformed transaction reference
-- 403 FORBIDDEN: authenticated user cannot access this receipt
-- 404 TRANSACTION_NOT_FOUND: transfer receipt does not exist
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 4.8 Get Balance
-
-- Method: GET
-- Path: /accounts/{id}/balance
-- Auth required: yes
-
-Query params:
-- none (any query param returns `400 INVALID_DATA`)
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
-    "balance": 12000
-  },
-  "error": null
-}
-```
-
-Notes:
-- `balance` is returned in cents
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: invalid account id or unexpected query params
-- 403 FORBIDDEN: access denied
-- 404 ACCOUNT_NOT_FOUND: account does not exist
-- 500 INTERNAL_ERROR: unexpected internal error
-
-### 4.9 Get Statement
-
-- Method: GET
-- Path: /accounts/{id}/statement
-- Auth required: yes
-
-Query params (optional):
-- limit: integer, default 50, max 100
-- cursor: RFC3339 datetime
-- cursor_id: UUID
-- from: RFC3339 datetime
-- to: RFC3339 datetime
-
-Notes:
-- cursor and cursor_id must be provided together
-- items are returned in descending order by created_at and id
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
-    "items": [
-      {
-        "transaction_id": "0fd87d49-d94e-4449-bde4-0c0808f7645f",
-        "type": "deposit",
-        "amount": 5000,
-        "balance_after": 15000,
-        "reference_id": null,
-        "description": "Aluguel de maio",
-        "created_at": "2026-04-02T12:00:00Z"
-      }
-    ],
-    "next_cursor": null
-  },
-  "error": null
-}
-```
-
-When there are more results, `next_cursor` is an object — pass both fields as query params for the next page:
-
-Statement item notes:
-- `description` is optional and is omitted when the transaction has no description.
-
-```json
-{
-  "next_cursor": {
-    "created_at": "2026-04-02T11:59:00Z",
-    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
-  }
-}
-```
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 400 INVALID_DATA: invalid path/query value or cursor/cursor_id mismatch
-- 403 FORBIDDEN: access denied
-- 404 ACCOUNT_NOT_FOUND: account does not exist
-- 500 INTERNAL_ERROR: unexpected internal error
-
-## 5. Customer Endpoints
-
-All customer routes are protected and require Authorization header with Bearer token.
-
-### 5.1 Get My Customer Profile
-
-- Method: GET
-- Path: /customers/me
-- Auth required: yes
-
-Returns the customer profile linked to the authenticated user. No path or query parameters required.
-
-Notes:
-- `cpf` is resolved from the customer's primary `customer_documents` row (`type=cpf`, `country=BR`).
-
-Success response (200):
-
-```json
-{
-  "data": {
-    "id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
-    "name": "Maria Silva",
-    "cpf": "12345678901",
-    "email": "user@example.com",
-    "created_at": "2026-04-07T10:00:00Z"
-  },
-  "error": null
-}
-```
-
-Possible errors:
-- 401 UNAUTHORIZED: authentication required
-- 401 INVALID_TOKEN: token invalid, malformed, or expired
-- 409 INVALID_USER_STATE: authenticated user has no associated customer (inconsistent state)
-- 404 CUSTOMER_NOT_FOUND: customer record not found
-- 500 INTERNAL_ERROR: unexpected internal error
-
-## 6. Authorization Model
-
-All account and customer operations enforce ownership based on the authenticated user's context.
-
-Rules:
-- A user with role `customer` can only access resources where `resource.customer_id == user.customer_id`
-- A user with role `admin` can access account/customer scoped resources when identifiers are provided
-- `GET /accounts` is scoped to the authenticated principal's `customer_id` and returns `403 FORBIDDEN` when `customer_id` is absent
-- The `customer_id` is never accepted from the client — it is always read from the JWT token
-- Cross-customer access returns `403 FORBIDDEN`
-- Any operation where the user has no `customer_id` returns `409 INVALID_USER_STATE`
-
-This rule is enforced in the application layer via `CanAccessAccount` and `CanAccessCustomer` helpers, not in HTTP handlers.
-
-## 7. Error Code Reference
-
-Common error codes currently used by handlers:
-- INVALID_APP_TOKEN
-- INVALID_REQUEST
-- INVALID_DATA
-- INVALID_AMOUNT
-- INVALID_USER_STATE
-- USER_ALREADY_EXISTS
-- CUSTOMER_NOT_FOUND
-- INVALID_CREDENTIALS
-- CONTACT_NOT_VERIFIED
-- ACCOUNT_APPROVAL_REQUIRED
-- UNAUTHORIZED
-- INVALID_TOKEN
-- FORBIDDEN
-- ACCOUNT_NOT_FOUND
-- ACCOUNT_INACTIVE
-- INSUFFICIENT_FUNDS
-- SAME_ACCOUNT_TRANSFER
-- TRANSACTION_NOT_FOUND
-- TRANSACTION_PASSWORD_ALREADY_SET
-- TRANSACTION_PASSWORD_NOT_SET
-- TRANSACTION_PASSWORD_INVALID
-- TRANSACTION_PASSWORD_LOCKED
-- TRANSACTION_PASSWORD_REQUIRED
-- STEP_UP_ENDPOINT_NOT_ALLOWED
-- STEP_UP_TOKEN_REQUIRED
-- STEP_UP_TOKEN_INVALID
-- STEP_UP_TOKEN_EXPIRED
-- STEP_UP_TOKEN_CONSUMED
-- STEP_UP_ENDPOINT_MISMATCH
-- INVALID_INSTALLATION_ID
-- INSTALLATION_MISMATCH
-- INSTALLATION_REVOKED
-- INSTALLATION_LIMIT_REACHED
-- INTERNAL_ERROR
-
-`INVALID_APP_TOKEN` (HTTP 401) is returned when onboarding routes protected by AppToken (`POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, `POST /auth/login`) are called without `X-App-Token` or with an invalid app token.
-
-`INVALID_INSTALLATION_ID` (HTTP 400) is returned when `X-Installation-Id` is
-missing or is not a canonical UUID v4.
-
-`INSTALLATION_MISMATCH` (HTTP 403) is returned when `X-Installation-Id` does
-not match the installation bound to the token, refresh session, or restricted
-authorization.
-
-`INSTALLATION_REVOKED` (HTTP 403) is returned when a revoked installation tries
-to login again.
-
-`INSTALLATION_LIMIT_REACHED` (HTTP 409) is returned when a user attempts to add
-a fourth known installation.
-
-`ACCOUNT_APPROVAL_REQUIRED` (HTTP 403) is returned by `POST /auth/login` when a
-customer user has valid credentials but cannot enter the app because admin
-approval/account provisioning is incomplete. Mobile clients should use this code
-to show an approval-pending guidance message.
-
-`CONTACT_NOT_VERIFIED` (HTTP 403) is returned by `POST /auth/login` when one or
-both contact channels are not verified. The payload may include
-`error.details.email_verified` and `error.details.phone_verified`.
-
-`INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or refresh token signature invalid.
-
-`INVALID_USER_STATE` (HTTP 409) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
-
-`TRANSACTION_PASSWORD_ALREADY_SET` (HTTP 409) is returned when the authenticated
-user tries to create a transaction password after one already exists.
-
-`TRANSACTION_PASSWORD_NOT_SET` (HTTP 409) is returned by transaction-password
-dependent flows when the authenticated user has not created the credential yet.
-
-`TRANSACTION_PASSWORD_INVALID` (HTTP 401) is returned when a transaction password
-validation attempt receives an incorrect PIN.
-
-`TRANSACTION_PASSWORD_LOCKED` (HTTP 403) is returned when the transaction
-password is temporarily locked after repeated invalid attempts.
-
-`TRANSACTION_PASSWORD_REQUIRED` (HTTP 403) is reserved for challenge/policy
-flows that require step-up before a sensitive operation can proceed. It is not
-returned by `POST /accounts/internal-transfers`; that endpoint returns
-`STEP_UP_TOKEN_REQUIRED` when `X-Step-Up-Token` is missing.
-
-`STEP_UP_TOKEN_REQUIRED` (HTTP 401) is returned by protected endpoints when
-header `X-Step-Up-Token` is missing.
-
-`STEP_UP_ENDPOINT_NOT_ALLOWED` (HTTP 403) belongs to step-up authorization and
-is returned when the requested public operation (`method` + `path`) is outside
-the backend allowlist.
-
-`STEP_UP_TOKEN_INVALID` (HTTP 401) is returned for malformed step-up tokens,
-invalid signatures, required claims missing, `scope` different from `step_up`,
-or missing persisted `jti`.
-
-`STEP_UP_TOKEN_EXPIRED` (HTTP 401) is returned when the step-up token is
-already expired.
-
-`STEP_UP_TOKEN_CONSUMED` (HTTP 401) is returned when a previously consumed
-step-up token is reused.
-
-`STEP_UP_ENDPOINT_MISMATCH` (HTTP 403) is returned when the token was issued
-for a different operation than the protected endpoint.
-
-## 8. Domain Notes for API Consumers
-
-- Monetary values are represented as integer cents
-- UUID is used for all resource identifiers
-- Financial operations are synchronous and strongly consistent
-- Transfer operation is atomic: debit and credit are committed together
-
-## 9. Error Scenarios by Endpoint (with Payload)
-
-This section lists common error situations and the expected payload shape.
-
-### 9.0 POST /auth/cpf-check
-
-Scenario: missing or invalid app token
-- Status: 401
-- Code: INVALID_APP_TOKEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_APP_TOKEN",
-    "message": "invalid application token"
-  }
-}
-```
-
-Scenario: invalid cpf format or missing cpf
-- Status: 400
-- Code: INVALID_DATA
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_DATA",
-    "message": "Invalid data"
-  }
-}
-```
-
-Examples of `error.message` for this scenario include `Invalid CPF format` and
-`CPF is required`.
-
-### 9.1 POST /auth/register
-
-Scenario: missing or invalid app token
-- Status: 401
-- Code: INVALID_APP_TOKEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_APP_TOKEN",
-    "message": "invalid application token"
-  }
-}
-```
-
-Scenario: malformed JSON
-- Status: 400
-- Code: INVALID_REQUEST
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_REQUEST",
-    "message": "Invalid request body"
-  }
-}
-```
-
-Scenario: duplicate email/CPF
-- Status: 409
-- Code: USER_ALREADY_EXISTS
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "USER_ALREADY_EXISTS",
-    "message": "User already exists"
-  }
-}
-```
-
-### 9.2 POST /auth/login
-
-Scenario: missing or invalid app token
-- Status: 401
-- Code: INVALID_APP_TOKEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_APP_TOKEN",
-    "message": "invalid application token"
-  }
-}
-```
-
-Scenario: invalid credentials
-- Status: 401
-- Code: INVALID_CREDENTIALS
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_CREDENTIALS",
-    "message": "Invalid credentials"
-  }
-}
-```
-
-Scenario: account approval required
-- Status: 403
-- Code: ACCOUNT_APPROVAL_REQUIRED
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "ACCOUNT_APPROVAL_REQUIRED",
-    "message": "Account approval required"
-  }
-}
-```
-
-Scenario: contact not verified
-- Status: 403
-- Code: CONTACT_NOT_VERIFIED
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "CONTACT_NOT_VERIFIED",
-    "message": "Contact not verified",
-    "details": {
-      "email_verified": true,
-      "phone_verified": false
-    }
-  }
-}
-```
-
-### 9.3 POST /auth/refresh
-
-Scenario: missing/invalid JWT authentication
-- Status: 401
-- Code: UNAUTHORIZED or INVALID_TOKEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Authentication required"
-  }
-}
-```
-
-### 9.4 GET /auth/session
-
-Scenario: missing/invalid authentication
-- Status: 401
-- Code: UNAUTHORIZED or INVALID_TOKEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Authentication required"
-  }
-}
-```
-
-Scenario: invalid customer user state
-- Status: 409
-- Code: INVALID_USER_STATE
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_USER_STATE",
-    "message": "Invalid user state"
-  }
-}
-```
-
-### 9.4.1 GET /auth/me
-
-Scenario: missing/invalid authentication
-- Status: 401
-- Code: UNAUTHORIZED or INVALID_TOKEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Authentication required"
-  }
-}
-```
-
-### 9.5 GET /accounts
-
-Scenario: authenticated user has no customer context
-- Status: 403
-- Code: FORBIDDEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "Access denied"
-  }
-}
-```
-
-Scenario: unexpected query params
-- Status: 400
-- Code: INVALID_REQUEST
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_REQUEST",
-    "message": "Invalid request body"
-  }
-}
-```
-
-### 9.6 POST /admin/customers/{customer_id}/accounts
-
-Scenario: authenticated user is not admin
-- Status: 403
-- Code: FORBIDDEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "Access denied"
-  }
-}
-```
-
-Scenario: customer does not exist
-- Status: 404
-- Code: CUSTOMER_NOT_FOUND
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "CUSTOMER_NOT_FOUND",
-    "message": "Customer not found"
-  }
-}
-```
-
-### 9.7 POST /terminal/accounts/{id}/deposit
-
-Scenario: invalid amount
-- Status: 400
-- Code: INVALID_AMOUNT
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_AMOUNT",
-    "message": "Invalid amount"
-  }
-}
-```
-
-Scenario: account not found
-- Status: 404
-- Code: ACCOUNT_NOT_FOUND
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "ACCOUNT_NOT_FOUND",
-    "message": "Account not found"
-  }
-}
-```
-
-Scenario: account inactive
-- Status: 422
-- Code: ACCOUNT_INACTIVE
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "ACCOUNT_INACTIVE",
-    "message": "Account is not active"
-  }
-}
-```
-
-### 9.8 POST /terminal/accounts/{id}/withdraw
-
-Scenario: insufficient funds
-- Status: 422
-- Code: INSUFFICIENT_FUNDS
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INSUFFICIENT_FUNDS",
-    "message": "Insufficient balance"
-  }
-}
-```
-
-### 9.9 GET /accounts/internal-transfers/recipients
-
-Scenario: invalid query combination
-- Status: 400
-- Code: INVALID_DATA
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "INVALID_DATA",
-    "message": "Invalid data"
-  }
-}
-```
-
-Scenario: no recipients found
-- Status: 200
-
-```json
-{
-  "data": {
-    "accounts": []
-  },
-  "error": null
-}
-```
-
-Scenario: access denied
-- Status: 403
-- Code: FORBIDDEN
-
-```json
-{
-  "data": null,
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "Access denied"
-  }
-}
-```
-
-### 9.10 POST /accounts/internal-transfers
+##### Error Scenarios
 
 Scenario: missing `X-Step-Up-Token`
 - Status: 401
@@ -2064,7 +1289,187 @@ Scenario: inactive account
 }
 ```
 
-### 9.11 GET /accounts/transfer/{transaction_reference}/receipt
+#### 3.3.3 GET /accounts/internal-transfers/recipients
+
+Purpose: Internal Transfer Recipient Lookup
+
+- Method: GET
+- Path: /accounts/internal-transfers/recipients
+- Auth required: yes
+
+This endpoint searches eligible recipient accounts for internal transfers only.
+It is not a Pix, TED, DOC, or interbank account discovery endpoint.
+
+Query modes:
+
+1. By branch and account number:
+
+```text
+/accounts/internal-transfers/recipients?branch=0001&account_number=00067890
+```
+
+2. By CPF document:
+
+```text
+/accounts/internal-transfers/recipients?document=12345678901
+```
+
+Rules:
+- `branch` and `account_number` must be provided together.
+- `document` may be used alone and currently accepts CPF only.
+- CNPJ and legal person account lookup are intentionally out of scope for this
+  version.
+- Requests with neither query mode are invalid.
+- Mixed query modes are invalid unless explicitly supported by a future version.
+- Branch, account number, and CPF are normalized before lookup.
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "accounts": [
+      {
+        "account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+        "holder_name": "Maria Silva",
+        "document": "***.456.789-**",
+        "branch": "0001",
+        "account_number": "00067890"
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+No results response (200):
+
+```json
+{
+  "data": {
+    "accounts": []
+  },
+  "error": null
+}
+```
+
+Response rules:
+- `account_id` is the account identifier used later as `to_account_id`.
+- `document` is always masked.
+- Lookup by branch + account number returns zero or one eligible account.
+- Lookup by CPF may return zero, one, or many eligible accounts.
+- If multiple accounts are returned, the client must require user selection.
+- The response must not include customer ID, balance, full document, phone,
+  e-mail, or unrelated internal fields.
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid or unsupported query parameter combination
+- 403 FORBIDDEN: access denied
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
+
+Scenario: invalid query combination
+- Status: 400
+- Code: INVALID_DATA
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_DATA",
+    "message": "Invalid data"
+  }
+}
+```
+
+Scenario: no recipients found
+- Status: 200
+
+```json
+{
+  "data": {
+    "accounts": []
+  },
+  "error": null
+}
+```
+
+Scenario: access denied
+- Status: 403
+- Code: FORBIDDEN
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Access denied"
+  }
+}
+```
+
+#### 3.3.4 GET /accounts/transfer/{transaction_reference}/receipt
+
+Purpose: Transfer Receipt
+
+- Method: GET
+- Path: /accounts/transfer/{transaction_reference}/receipt
+- Auth required: yes
+
+Returns persisted receipt details for an internal transfer.
+
+Path params:
+- `transaction_reference`: public transfer reference returned by `POST /accounts/internal-transfers`
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "operation_type": "transfer_out",
+    "amount": 2500,
+    "status": "completed",
+    "transaction_reference": "2e3ef0c7-ef10-4f4e-a62b-56c71c3c5b31",
+    "operation_date": "2026-05-06T12:30:00Z",
+    "source_branch": "0001",
+    "source_account_number": "00012345",
+    "destination_branch": "0001",
+    "destination_account_number": "00067890",
+    "recipient_name": "Maria Silva",
+    "description": "Aluguel de maio"
+  },
+  "error": null
+}
+```
+
+Notes:
+- `description` is omitted when the original transfer did not include one.
+- Receipt data remains public/confirmation-oriented and does not expose internal
+  customer IDs, balances, phone, e-mail, or full documents.
+
+Status semantics (`data.status`):
+- `completed`: transfer executed successfully (terminal success)
+- `pending`: transfer accepted and still processing (intermediate)
+- `failed`: transfer failed due to technical/system error (terminal failure)
+- `cancelled`: transfer cancelled before completion (terminal failure)
+- `rejected`: transfer rejected by validation/business rules (terminal failure)
+
+Current behavior:
+- The current backend implementation returns `completed` for persisted receipts.
+- Additional status values are documented here for upcoming backend evolution.
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: missing or malformed transaction reference
+- 403 FORBIDDEN: authenticated user cannot access this receipt
+- 404 TRANSACTION_NOT_FOUND: transfer receipt does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
 
 Scenario: receipt found
 - Status: 200
@@ -2113,7 +1518,41 @@ Scenario: access denied to receipt
 }
 ```
 
-### 9.12 GET /accounts/{id}/balance
+#### 3.3.5 GET /accounts/{id}/balance
+
+Purpose: Get Balance
+
+- Method: GET
+- Path: /accounts/{id}/balance
+- Auth required: yes
+
+Query params:
+- none (any query param returns `400 INVALID_DATA`)
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+    "balance": 12000
+  },
+  "error": null
+}
+```
+
+Notes:
+- `balance` is returned in cents
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid account id or unexpected query params
+- 403 FORBIDDEN: access denied
+- 404 ACCOUNT_NOT_FOUND: account does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
 
 Scenario: invalid query/path data
 - Status: 400
@@ -2129,7 +1568,71 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.13 GET /accounts/{id}/statement
+#### 3.3.6 GET /accounts/{id}/statement
+
+Purpose: Get Statement
+
+- Method: GET
+- Path: /accounts/{id}/statement
+- Auth required: yes
+
+Query params (optional):
+- limit: integer, default 50, max 100
+- cursor: RFC3339 datetime
+- cursor_id: UUID
+- from: RFC3339 datetime
+- to: RFC3339 datetime
+
+Notes:
+- cursor and cursor_id must be provided together
+- items are returned in descending order by created_at and id
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "account_id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+    "items": [
+      {
+        "transaction_id": "0fd87d49-d94e-4449-bde4-0c0808f7645f",
+        "type": "deposit",
+        "amount": 5000,
+        "balance_after": 15000,
+        "reference_id": null,
+        "description": "Aluguel de maio",
+        "created_at": "2026-04-02T12:00:00Z"
+      }
+    ],
+    "next_cursor": null
+  },
+  "error": null
+}
+```
+
+When there are more results, `next_cursor` is an object — pass both fields as query params for the next page:
+
+Statement item notes:
+- `description` is optional and is omitted when the transaction has no description.
+
+```json
+{
+  "next_cursor": {
+    "created_at": "2026-04-02T11:59:00Z",
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  }
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid path/query value or cursor/cursor_id mismatch
+- 403 FORBIDDEN: access denied
+- 404 ACCOUNT_NOT_FOUND: account does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
 
 Scenario: invalid query/path data
 - Status: 400
@@ -2145,7 +1648,46 @@ Scenario: invalid query/path data
 }
 ```
 
-### 9.14 GET /customers/me
+### 3.4 /customers
+
+All customer routes are protected and require Authorization header with Bearer token.
+
+#### 3.4.1 GET /customers/me
+
+Purpose: Get My Customer Profile
+
+- Method: GET
+- Path: /customers/me
+- Auth required: yes
+
+Returns the customer profile linked to the authenticated user. No path or query parameters required.
+
+Notes:
+- `cpf` is resolved from the customer's primary `customer_documents` row (`type=cpf`, `country=BR`).
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "id": "6f3ebf86-bf82-4b75-a2ce-cd261ca47ec3",
+    "name": "Maria Silva",
+    "cpf": "12345678901",
+    "email": "user@example.com",
+    "created_at": "2026-04-07T10:00:00Z"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 409 INVALID_USER_STATE: authenticated user has no associated customer (inconsistent state)
+- 404 CUSTOMER_NOT_FOUND: customer record not found
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
 
 Scenario: user has inconsistent state (customer role without customer_id)
 - Status: 409
@@ -2175,7 +1717,226 @@ Scenario: customer not found
 }
 ```
 
-### 9.15 POST /security/transaction-password
+### 3.5 /security
+
+#### 3.5.1 GET /security/installations
+
+Purpose: List Installations
+
+- Method: GET
+- Path: /security/installations
+- Auth required: operational JWT and `X-Installation-Id`
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "installations": [
+      {
+        "resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
+        "status": "known",
+        "first_seen_at": "2026-06-17T10:00:00Z",
+        "last_seen_at": "2026-06-17T10:00:00Z",
+        "created_at": "2026-06-17T10:00:00Z",
+        "updated_at": "2026-06-17T10:00:00Z"
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+The response never exposes the raw `installation_id` generated by the client.
+The value in `X-Installation-Id` is treated only as a weak installation signal;
+it is not proof of physical device possession and does not replace JWT or
+step-up validation.
+
+#### 3.5.2 POST /security/installations
+
+Purpose: Register Installation
+
+- Method: POST
+- Path: /security/installations
+- Auth required: restricted access token, `X-Installation-Id`, and `X-Step-Up-Token`
+
+Request headers:
+
+```http
+Authorization: Bearer <restricted_access_token>
+X-Installation-Id: <canonical_uuid_v4>
+X-Step-Up-Token: <step_up_token>
+```
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "access_token": "<jwt>",
+    "refresh_token": "<opaque-token>",
+    "installation_resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
+    "installation_status": "known"
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 400 INVALID_INSTALLATION_ID: missing or malformed `X-Installation-Id`
+- 401 INVALID_TOKEN: restricted token is invalid, expired, consumed, or revoked
+- 401 STEP_UP_TOKEN_REQUIRED: missing `X-Step-Up-Token`
+- 401 STEP_UP_TOKEN_INVALID: invalid step-up token
+- 403 INSTALLATION_MISMATCH: header does not match restricted token
+- 409 INSTALLATION_LIMIT_REACHED: no available installation slot
+
+#### 3.5.3 DELETE /security/installations/{installation_resource_id}
+
+Purpose: Revoke Installation
+
+- Method: DELETE
+- Path: /security/installations/{installation_resource_id}
+- Auth required: operational JWT and `X-Installation-Id`
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "resource_id": "2e4a8e20-272a-4e7b-b782-bc7f6b1d0442",
+    "status": "revoked",
+    "revoked_at": "2026-06-17T10:10:00Z"
+  },
+  "error": null
+}
+```
+
+The current installation cannot revoke itself. Revoking another installation
+invalidates refresh sessions bound to that installation. Already issued access
+tokens remain cryptographically valid until their short expiration, but
+operational middleware still requires matching installation context on
+protected routes.
+
+Revoked installations remain in historical storage. They do not occupy one of
+the three known-installation slots, but they continue to show that the user has
+already completed first-installation bootstrap before.
+
+#### 3.5.4 POST /security/step-up/authorize
+
+Purpose: Authorize Step-Up
+
+- Method: POST
+- Path: /security/step-up/authorize
+- Auth required: JWT
+
+Authorizes a sensitive logical endpoint with the authenticated user's
+transaction password and returns a short-lived step-up token. In the MVP, the
+accepted public operations are `POST /accounts/internal-transfers` and
+`POST /security/installations`. The installation registration operation may be
+authorized with a restricted access token from login; other operations require
+an operational access token.
+
+The step-up token is an `HS256` JWT. It lasts 120 seconds, is scoped to the
+requested public operation, and is tracked by a persisted `jti` so it can be
+consumed once during enforcement. The response never returns the transaction
+password, password hash, or operation payload.
+
+The client must send only the public HTTP operation (`method` + `path`).
+Internal policy keys (for example `internal_transfer.create`) are resolved by
+the backend and are not part of the public request contract.
+
+The canonical client representation uses an uppercase HTTP method, such as
+`POST`. For input tolerance, the API trims surrounding whitespace and
+normalizes `method` to uppercase before resolving the operation allowlist.
+The API only trims surrounding whitespace from `path`; it does not normalize
+or rewrite the path itself.
+
+Request body:
+
+```json
+{
+  "method": "POST",
+  "path": "/accounts/internal-transfers",
+  "transaction_password": "123456"
+}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "step_up_token": "<token>",
+    "expires_in": 120
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 401 TRANSACTION_PASSWORD_INVALID: transaction password PIN is incorrect
+- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
+- 400 INVALID_DATA: PIN is not numeric with 6 digits
+- 403 FORBIDDEN: authenticated user is not active
+- 403 TRANSACTION_PASSWORD_LOCKED: transaction password is temporarily blocked
+- 403 STEP_UP_ENDPOINT_NOT_ALLOWED: public operation is not allowed for step-up
+- 409 TRANSACTION_PASSWORD_NOT_SET: transaction password does not exist
+- 500 INTERNAL_ERROR: unexpected internal error
+
+#### 3.5.5 POST /security/transaction-password
+
+Purpose: Create Transaction Password
+
+- Method: POST
+- Path: /security/transaction-password
+- Auth required: JWT
+
+Creates the authenticated user's initial transaction password. This endpoint is
+used only for first credential setup. It does not require a previous transaction
+password or a step-up token.
+
+The transaction password is a numeric PIN with exactly 6 digits. The API stores
+only the hash. The response never returns the PIN or hash.
+
+Request body:
+
+```json
+{
+  "transaction_password": "123456",
+  "transaction_password_confirmation": "123456"
+}
+```
+
+Success response (201):
+
+```json
+{
+  "data": {
+    "user_id": "d3de5f8b-4892-42e8-9680-979cf3f37844",
+    "status": "active",
+    "created_at": "2026-05-28T10:00:00Z"
+  },
+  "error": null
+}
+```
+
+Response fields:
+- `status`: currently always returns `active` on successful creation. The
+  transaction password domain also has `blocked` for later validation/step-up
+  flows, but a newly created transaction password is always active.
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_REQUEST: invalid JSON body or unexpected fields
+- 400 INVALID_DATA: PIN is not numeric with 6 digits or confirmation differs
+- 403 FORBIDDEN: authenticated user is not active
+- 409 TRANSACTION_PASSWORD_ALREADY_SET: transaction password already exists
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
 
 Scenario: invalid PIN or confirmation mismatch
 - Status: 400
@@ -2233,16 +1994,298 @@ Scenario: transaction password already exists
 }
 ```
 
-## 10. Bruno Setup
+### 3.6 /terminal
+
+#### 3.6.1 POST /terminal/accounts/{id}/deposit
+
+Purpose: Deposit
+
+- Method: POST
+- Path: /terminal/accounts/{id}/deposit
+- Auth required: n/a (route disabled)
+
+Operational note:
+- This endpoint is not intended for mobile or customer-facing web clients. It
+  directly injects balance into the ledger and is positioned as a terminal
+  operation.
+- The route is intentionally disabled in the API wiring and is not callable.
+- A real terminal channel is outside the current project scope.
+
+Request body:
+
+```json
+{
+  "amount": 5000
+}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+    "balance": 15000
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid account id
+- 400 INVALID_REQUEST: invalid JSON body
+- 400 INVALID_AMOUNT: amount must be greater than zero
+- 403 FORBIDDEN: access denied
+- 404 ACCOUNT_NOT_FOUND: account does not exist
+- 422 ACCOUNT_INACTIVE: account not active
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
+
+Scenario: invalid amount
+- Status: 400
+- Code: INVALID_AMOUNT
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_AMOUNT",
+    "message": "Invalid amount"
+  }
+}
+```
+
+Scenario: account not found
+- Status: 404
+- Code: ACCOUNT_NOT_FOUND
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_NOT_FOUND",
+    "message": "Account not found"
+  }
+}
+```
+
+Scenario: account inactive
+- Status: 422
+- Code: ACCOUNT_INACTIVE
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "ACCOUNT_INACTIVE",
+    "message": "Account is not active"
+  }
+}
+```
+
+#### 3.6.2 POST /terminal/accounts/{id}/withdraw
+
+Purpose: Withdraw
+
+- Method: POST
+- Path: /terminal/accounts/{id}/withdraw
+- Auth required: n/a (route disabled)
+
+Operational note:
+- This endpoint is not intended for mobile or customer-facing web clients. It
+  directly removes balance from the ledger and is positioned as a terminal
+  operation.
+- The route is intentionally disabled in the API wiring and is not callable.
+- A real terminal channel is outside the current project scope.
+
+Request body:
+
+```json
+{
+  "amount": 3000
+}
+```
+
+Success response (200):
+
+```json
+{
+  "data": {
+    "id": "fb3a1709-57a9-4c35-ba90-5a5dca6fdb4b",
+    "balance": 12000
+  },
+  "error": null
+}
+```
+
+Possible errors:
+- 401 UNAUTHORIZED: authentication required
+- 401 INVALID_TOKEN: token invalid, malformed, or expired
+- 400 INVALID_DATA: invalid account id
+- 400 INVALID_REQUEST: invalid JSON body
+- 400 INVALID_AMOUNT: amount must be greater than zero
+- 403 FORBIDDEN: access denied
+- 404 ACCOUNT_NOT_FOUND: account does not exist
+- 422 INSUFFICIENT_FUNDS: insufficient funds
+- 422 ACCOUNT_INACTIVE: account not active
+- 500 INTERNAL_ERROR: unexpected internal error
+
+##### Error Scenarios
+
+Scenario: insufficient funds
+- Status: 422
+- Code: INSUFFICIENT_FUNDS
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INSUFFICIENT_FUNDS",
+    "message": "Insufficient balance"
+  }
+}
+```
+
+## 4. Authorization Model
+
+All account and customer operations enforce ownership based on the authenticated user's context.
+
+Rules:
+- A user with role `customer` can only access resources where `resource.customer_id == user.customer_id`
+- A user with role `admin` can access account/customer scoped resources when identifiers are provided
+- `GET /accounts` is scoped to the authenticated principal's `customer_id` and returns `403 FORBIDDEN` when `customer_id` is absent
+- The `customer_id` is never accepted from the client — it is always read from the JWT token
+- Cross-customer access returns `403 FORBIDDEN`
+- Any operation where the user has no `customer_id` returns `409 INVALID_USER_STATE`
+
+This rule is enforced in the application layer via `CanAccessAccount` and `CanAccessCustomer` helpers, not in HTTP handlers.
+
+
+## 5. Error Code Reference
+
+Common error codes currently used by handlers:
+- INVALID_APP_TOKEN
+- INVALID_REQUEST
+- INVALID_DATA
+- INVALID_AMOUNT
+- INVALID_USER_STATE
+- USER_ALREADY_EXISTS
+- CUSTOMER_NOT_FOUND
+- INVALID_CREDENTIALS
+- CONTACT_NOT_VERIFIED
+- ACCOUNT_APPROVAL_REQUIRED
+- UNAUTHORIZED
+- INVALID_TOKEN
+- FORBIDDEN
+- ACCOUNT_NOT_FOUND
+- ACCOUNT_INACTIVE
+- INSUFFICIENT_FUNDS
+- SAME_ACCOUNT_TRANSFER
+- TRANSACTION_NOT_FOUND
+- TRANSACTION_PASSWORD_ALREADY_SET
+- TRANSACTION_PASSWORD_NOT_SET
+- TRANSACTION_PASSWORD_INVALID
+- TRANSACTION_PASSWORD_LOCKED
+- TRANSACTION_PASSWORD_REQUIRED
+- STEP_UP_ENDPOINT_NOT_ALLOWED
+- STEP_UP_TOKEN_REQUIRED
+- STEP_UP_TOKEN_INVALID
+- STEP_UP_TOKEN_EXPIRED
+- STEP_UP_TOKEN_CONSUMED
+- STEP_UP_ENDPOINT_MISMATCH
+- INVALID_INSTALLATION_ID
+- INSTALLATION_MISMATCH
+- INSTALLATION_REVOKED
+- INSTALLATION_LIMIT_REACHED
+- INTERNAL_ERROR
+
+`INVALID_APP_TOKEN` (HTTP 401) is returned when onboarding routes protected by AppToken (`POST /auth/cpf-check`, `POST /auth/contact-verifications`, `POST /auth/contact-verifications/confirm`, `POST /auth/register`, `POST /auth/login`) are called without `X-App-Token` or with an invalid app token.
+
+`INVALID_INSTALLATION_ID` (HTTP 400) is returned when `X-Installation-Id` is
+missing or is not a canonical UUID v4.
+
+`INSTALLATION_MISMATCH` (HTTP 403) is returned when `X-Installation-Id` does
+not match the installation bound to the token, refresh session, or restricted
+authorization.
+
+`INSTALLATION_REVOKED` (HTTP 403) is returned when a revoked installation tries
+to login again.
+
+`INSTALLATION_LIMIT_REACHED` (HTTP 409) is returned when a user attempts to add
+a fourth known installation.
+
+`ACCOUNT_APPROVAL_REQUIRED` (HTTP 403) is returned by `POST /auth/login` when a
+customer user has valid credentials but cannot enter the app because admin
+approval/account provisioning is incomplete. Mobile clients should use this code
+to show an approval-pending guidance message.
+
+`CONTACT_NOT_VERIFIED` (HTTP 403) is returned by `POST /auth/login` when one or
+both contact channels are not verified. The payload may include
+`error.details.email_verified` and `error.details.phone_verified`.
+
+`INVALID_TOKEN` (HTTP 401) is returned for any of the following conditions on the `/auth/refresh` endpoint: token not found, already revoked, expired, or refresh token signature invalid.
+
+`INVALID_USER_STATE` (HTTP 409) indicates the system detected an invariant violation: a user with role `customer` has no linked `customer_id`. This should never occur under normal operation; it signals a data consistency bug.
+
+`TRANSACTION_PASSWORD_ALREADY_SET` (HTTP 409) is returned when the authenticated
+user tries to create a transaction password after one already exists.
+
+`TRANSACTION_PASSWORD_NOT_SET` (HTTP 409) is returned by transaction-password
+dependent flows when the authenticated user has not created the credential yet.
+
+`TRANSACTION_PASSWORD_INVALID` (HTTP 401) is returned when a transaction password
+validation attempt receives an incorrect PIN.
+
+`TRANSACTION_PASSWORD_LOCKED` (HTTP 403) is returned when the transaction
+password is temporarily locked after repeated invalid attempts.
+
+`TRANSACTION_PASSWORD_REQUIRED` (HTTP 403) is reserved for challenge/policy
+flows that require step-up before a sensitive operation can proceed. It is not
+returned by `POST /accounts/internal-transfers`; that endpoint returns
+`STEP_UP_TOKEN_REQUIRED` when `X-Step-Up-Token` is missing.
+
+`STEP_UP_TOKEN_REQUIRED` (HTTP 401) is returned by protected endpoints when
+header `X-Step-Up-Token` is missing.
+
+`STEP_UP_ENDPOINT_NOT_ALLOWED` (HTTP 403) belongs to step-up authorization and
+is returned when the requested public operation (`method` + `path`) is outside
+the backend allowlist.
+
+`STEP_UP_TOKEN_INVALID` (HTTP 401) is returned for malformed step-up tokens,
+invalid signatures, required claims missing, `scope` different from `step_up`,
+or missing persisted `jti`.
+
+`STEP_UP_TOKEN_EXPIRED` (HTTP 401) is returned when the step-up token is
+already expired.
+
+`STEP_UP_TOKEN_CONSUMED` (HTTP 401) is returned when a previously consumed
+step-up token is reused.
+
+`STEP_UP_ENDPOINT_MISMATCH` (HTTP 403) is returned when the token was issued
+for a different operation than the protected endpoint.
+
+
+## 6. Domain Notes for API Consumers
+
+- Monetary values are represented as integer cents
+- UUID is used for all resource identifiers
+- Financial operations are synchronous and strongly consistent
+- Transfer operation is atomic: debit and credit are committed together
+
+
+## 7. Bruno Setup
 
 The repository uses Bruno for local API exploration under `tools/bruno`.
 
-### 10.1 Files in Repository
+### 7.1 Files in Repository
 
 - `tools/bruno/README.md`
 - Bruno collection files (`*.bru`) when requests are exported/versioned
 
-### 10.2 Environment Variables
+### 7.2 Environment Variables
 
 Use these variables when configuring the Bruno environment:
 
@@ -2263,7 +2306,7 @@ Use these variables when configuring the Bruno environment:
 - `transaction_reference`: public reference returned by successful transfer requests
 - `id`: user UUID used by admin approval route (`/admin/users/{id}/approve`)
 
-### 10.3 How to Import and Configure
+### 7.3 How to Import and Configure
 
 1. Open Bruno.
 2. Open the collection directory under `tools/bruno` when collection files are present.
@@ -2272,7 +2315,7 @@ Use these variables when configuring the Bruno environment:
 5. Confirm `app_token` matches the value configured in your local API environment.
 6. Run auth requests to obtain tokens and update `access_token` / `refresh_token`.
 
-### 10.4 Recommended Execution Flow
+### 7.4 Recommended Execution Flow
 
 Use this flow to bootstrap test data and credentials quickly:
 

@@ -33,11 +33,18 @@ class InstallationIdentityService {
   AsyncResult<String> resolve() async {
     final markerResult = await _markerStore.hasMarker();
     if (markerResult.isFailure) {
-      _log.warn('Installation marker check failed.');
+      _log.warn(
+        'Installation marker check failed.',
+        label: 'resolve',
+      );
       return Failure(markerResult.error!);
     }
 
     if (!markerResult.value!) {
+      _log.info(
+        'Installation marker is missing. A new identity will be generated.',
+        label: 'resolve',
+      );
       return _replaceIdentity();
     }
 
@@ -48,7 +55,10 @@ class InstallationIdentityService {
         return _replaceIdentity();
       }
 
-      _log.warn('Installation identity read failed.');
+      _log.warn(
+        'Installation identity read failed.',
+        label: 'resolve',
+      );
       return Failure(error);
     }
 
@@ -56,13 +66,17 @@ class InstallationIdentityService {
     if (!_isCanonicalUuidV4(storedInstallationId)) {
       _log.warn(
         'Stored installation identity is invalid and will be replaced.',
+        label: 'resolve',
       );
       return _replaceIdentity();
     }
 
     final markerWriteResult = await _markerStore.markResolved();
     if (markerWriteResult.isFailure) {
-      _log.warn('Installation marker refresh failed.');
+      _log.warn(
+        'Installation marker refresh failed.',
+        label: 'resolve',
+      );
       return Failure(markerWriteResult.error!);
     }
 
@@ -81,13 +95,19 @@ class InstallationIdentityService {
       installationId,
     );
     if (writeResult.isFailure) {
-      _log.warn('Installation identity write failed.');
+      _log.warn(
+        'Installation identity write failed.',
+        label: 'replace',
+      );
       return Failure(writeResult.error!);
     }
 
     final markerWriteResult = await _markerStore.markResolved();
     if (markerWriteResult.isFailure) {
-      _log.warn('Installation marker write failed.');
+      _log.warn(
+        'Installation marker write failed.',
+        label: 'replace',
+      );
       return Failure(markerWriteResult.error!);
     }
 
