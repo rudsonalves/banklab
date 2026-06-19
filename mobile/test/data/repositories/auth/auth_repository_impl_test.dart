@@ -11,7 +11,7 @@ import 'package:bankflow/data/services/apis/auth/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/cache/last_login/last_login_cache_service.dart';
 import 'package:bankflow/data/services/cache/last_login/models/last_login_identity.dart';
 import 'package:bankflow/domain/common/auth/models/auth_session/auth_session.dart';
-import 'package:bankflow/domain/common/auth/models/auth_user.dart';
+import 'package:bankflow/domain/common/auth/models/auth_state.dart';
 import 'package:bankflow/domain/common/user/enums/user_role.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -45,7 +45,7 @@ void main() {
           LoginRequestDto(email: 'customer@example.com', password: '123456'),
         );
 
-        expect(result, isA<Failure<LoggedUser>>());
+        expect(result, isA<Failure<OperationalAuthState>>());
         expect(result.error?.code, AppErrorCode.accountApprovalRequired);
         expect(api.loginCalls, 1);
         expect(api.getProfileCalls, 0);
@@ -79,7 +79,7 @@ void main() {
           LoginRequestDto(email: 'customer@example.com', password: '123456'),
         );
 
-        expect(result, isA<Success<LoggedUser>>());
+        expect(result, isA<Success<OperationalAuthState>>());
         expect(api.loginCalls, 1);
         expect(api.getProfileCalls, 1);
         expect(storage.writeCalls, 2);
@@ -95,6 +95,73 @@ void main() {
         expect(appSection.currentSession?.customer?.name, 'Maria Silva');
       },
     );
+
+    test('restricted login does not persist tokens or load profile', () async {
+      final api = _FakeAuthApi(
+        loginResult: Success(_restrictedLogin()),
+        profileResult: Success(_profile()),
+      );
+      final storage = _FakeLocalSecureStorage();
+      final cache = _FakeLastLoginCacheService();
+      final appSection = AppSection();
+
+      final repository = AuthRepositoryImpl(
+        api: api,
+        storage: storage,
+        lastLoginCacheService: cache,
+        appSection: appSection,
+      );
+
+      final result = await repository.login(
+        LoginRequestDto(email: 'customer@example.com', password: '123456'),
+      );
+
+      expect(result, isA<Failure<OperationalAuthState>>());
+      expect(result.error?.code, AppErrorCode.installationRegistrationRequired);
+      expect(api.loginCalls, 1);
+      expect(api.getProfileCalls, 0);
+      expect(storage.writeCalls, 0);
+      expect(storage.writesByKey, isEmpty);
+      expect(cache.saveCalls, 0);
+      expect(repository.isLoggedIn, isFalse);
+      expect(appSection.currentSession, isNull);
+    });
+
+    test('installation limit reached does not persist tokens', () async {
+      final api = _FakeAuthApi(
+        loginResult: const Failure(
+          AppError(
+            code: AppErrorCode.installationLimitReached,
+            message: 'Installation limit reached.',
+          ),
+        ),
+        profileResult: Success(_profile()),
+      );
+      final storage = _FakeLocalSecureStorage();
+      final cache = _FakeLastLoginCacheService();
+      final appSection = AppSection();
+
+      final repository = AuthRepositoryImpl(
+        api: api,
+        storage: storage,
+        lastLoginCacheService: cache,
+        appSection: appSection,
+      );
+
+      final result = await repository.login(
+        LoginRequestDto(email: 'customer@example.com', password: '123456'),
+      );
+
+      expect(result, isA<Failure<OperationalAuthState>>());
+      expect(result.error?.code, AppErrorCode.installationLimitReached);
+      expect(api.loginCalls, 1);
+      expect(api.getProfileCalls, 0);
+      expect(storage.writeCalls, 0);
+      expect(storage.writesByKey, isEmpty);
+      expect(cache.saveCalls, 0);
+      expect(repository.isLoggedIn, isFalse);
+      expect(appSection.currentSession, isNull);
+    });
   });
 
   group('AuthRepositoryImpl session lifecycle', () {
@@ -182,10 +249,23 @@ void main() {
   });
 }
 
-LoggedUser _loggedUser() {
-  return LoggedUser(
+OperationalAuthState _loggedUser() {
+  return OperationalAuthState(
     accessToken: 'access-token',
     refreshToken: 'refresh-token',
+    userId: 'user-1',
+    email: 'customer@example.com',
+    role: UserRole.customer,
+    customerId: 'customer-1',
+  );
+}
+
+RestrictedInstallationAuthState _restrictedLogin() {
+  return RestrictedInstallationAuthState(
+    restrictedAccessToken: 'restricted-token',
+    restrictedTokenType: 'restricted_access',
+    restrictedScope: 'installation.register',
+    restrictedExpiresAt: DateTime.parse('2026-06-17T10:05:00Z'),
     userId: 'user-1',
     email: 'customer@example.com',
     role: UserRole.customer,
@@ -217,7 +297,7 @@ AuthSession _profile() {
 }
 
 class _FakeAuthApi extends AuthApi {
-  Result<LoggedUser> loginResult;
+  Result<AuthState> loginResult;
   Result<AuthSession> profileResult;
 
   int loginCalls = 0;
@@ -229,7 +309,7 @@ class _FakeAuthApi extends AuthApi {
   }) : super(_NoopRestClient());
 
   @override
-  AsyncResult<LoggedUser> login(LoginRequestDto dto) async {
+  AsyncResult<AuthState> login(LoginRequestDto dto) async {
     loginCalls++;
     return loginResult;
   }

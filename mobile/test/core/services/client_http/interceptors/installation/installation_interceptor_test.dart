@@ -61,6 +61,9 @@ void main() {
         AuthInterceptor(
           authDio: dio,
           secureStorage: storage,
+          installationIdentityService: _FakeInstallationIdentityService(
+            result: const Success(installationId),
+          ),
           baseUrl: 'https://api.test',
         ),
       );

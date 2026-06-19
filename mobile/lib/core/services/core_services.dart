@@ -45,6 +45,8 @@ class CoreServices {
         () => AuthInterceptor(
           authDio: injector.get<Dio>(),
           secureStorage: injector.get<LocalSecureStorage>(),
+          installationIdentityService: injector
+              .get<InstallationIdentityService>(),
           baseUrl: AppEnv.baseUrl,
         ),
       )

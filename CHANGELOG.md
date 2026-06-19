@@ -1,5 +1,171 @@
 # Changelog
 
+## 2026/06/19 - mobile/installation-identity-04
+
+This change advances the mobile installation identity flow by introducing typed authentication states, distinguishing operational sessions from restricted installation authorization responses.
+
+The update also adds the installation registration API client, propagates installation identity during token refresh, maps installation-related backend errors, and extends tests around login parsing, restricted authentication, registration headers, and refresh behavior.
+
+1. **docs/backlogs/mobile/013 - installation-identity-mvp.md**
+
+   * Updated the restricted login flow to explicitly represent restricted responses as `RestrictedInstallationAuthState`.
+   * Clarified that restricted authentication must not create an operational session.
+   * Reordered the installation registration steps to keep restricted tokens, step-up authorization, operational token persistence, and token cleanup explicit.
+
+2. **docs/backlogs/mobile/013 - installation-identity-mvp_tasks.md**
+
+   * Updated the task scope from parsing login only as an operational user to using an `AuthState` hierarchy.
+   * Documented support for operational, anonymous, and restricted installation authentication states.
+   * Clarified that restricted login data is represented by `RestrictedInstallationAuthState`.
+
+3. **mobile/lib/domain/common/auth/models/auth_state.dart**
+
+   * Added the `AuthState` sealed hierarchy.
+   * Added `OperationalAuthState` for token-bearing authenticated sessions.
+   * Added `RestrictedInstallationAuthState` for restricted installation registration authorization.
+   * Added `AnonymousAuthState` as the default unauthenticated state.
+   * Added login response shape detection through `AuthState.fromLoginMap`.
+
+4. **mobile/lib/domain/common/auth/models/auth_user.dart**
+
+   * Removed the previous `AuthUser`, `LoggedUser`, and `NotLoggedUser` model hierarchy.
+   * Replaced it with the new `AuthState` model structure.
+
+5. **mobile/lib/domain/AGENT.md**
+
+   * Updated domain documentation to reference `auth_state.dart`.
+   * Documented the new authentication state model with operational, restricted installation, and anonymous states.
+   * Clarified that restricted installation authentication must not be treated as an operational session.
+
+6. **mobile/lib/core/result/errors/app_error_code.dart**
+
+   * Added `installationRegistrationRequired`.
+   * Added `installationLimitReached`.
+   * Introduced explicit app-level error codes for installation identity login outcomes.
+
+7. **mobile/lib/core/services/client_http/dio/dio_error_mapper.dart**
+
+   * Added mapping for backend `INSTALLATION_LIMIT_REACHED`.
+   * Converted this backend error into `AppErrorCode.installationLimitReached`.
+   * Preserved backend error details in the mapped `AppError`.
+
+8. **mobile/lib/core/services/client_http/interceptors/auth/auth_interceptor.dart**
+
+   * Injected `InstallationIdentityService` into `AuthInterceptor`.
+   * Resolved the installation identity before refreshing tokens.
+   * Added `X-Installation-Id` to refresh token requests.
+   * Prevented refresh requests when installation identity resolution fails.
+
+9. **mobile/lib/core/services/core_services.dart**
+
+   * Updated dependency registration for `AuthInterceptor`.
+   * Injected `InstallationIdentityService` into the authentication interceptor factory.
+
+10. **mobile/lib/data/repositories/auth/auth_repository.dart**
+
+* Updated `currentUser` from `AuthUser` to `AuthState`.
+* Updated `login` to return `OperationalAuthState`.
+* Kept repository login semantics restricted to operational sessions.
+
+11. **mobile/lib/data/repositories/auth/auth_repository_impl.dart**
+
+* Replaced `NotLoggedUser` with `AnonymousAuthState`.
+* Replaced `LoggedUser` with `OperationalAuthState`.
+* Added handling for `RestrictedInstallationAuthState` by returning `installationRegistrationRequired` without persisting tokens.
+* Added fallback handling for unknown login result types.
+* Preserved token persistence and profile loading only for operational authentication.
+
+12. **mobile/lib/data/services/apis/auth/auth_api.dart**
+
+* Updated login parsing to return `AuthState`.
+* Replaced direct `LoggedUser` parsing with `AuthState.fromLoginMap`.
+* Added login-specific backend error mapping for `INSTALLATION_LIMIT_REACHED`.
+* Preserved API envelope error details in login failures.
+
+13. **mobile/lib/data/services/apis/installation/dtos/installation_registration_response_dto.dart**
+
+* Added DTO for installation registration responses.
+* Mapped operational tokens, installation resource id, and installation status from backend response data.
+
+14. **mobile/lib/data/services/apis/installation/installation_api.dart**
+
+* Added `InstallationApi`.
+* Implemented `POST /security/installations`.
+* Sent restricted access token through `Authorization`.
+* Sent `X-Installation-Id` and `X-Step-Up-Token` headers.
+* Added response envelope parsing, malformed response handling, and backend error propagation.
+
+15. **mobile/lib/data/services/services.dart**
+
+* Registered `InstallationApi` in the data service composition.
+* Wired the API with `RestClient` and `InstallationIdentityService`.
+
+16. **mobile/lib/ui/pages/auth/viewmodel/login_viewmodel.dart**
+
+* Updated login command typing from `LoggedUser` to `OperationalAuthState`.
+* Kept the login flow dependent on installation identity resolution before repository login.
+
+17. **mobile/test/core/services/client_http/dio/dio_error_mapper_test.dart**
+
+* Added coverage for mapping `INSTALLATION_LIMIT_REACHED`.
+* Verified app error code, message, HTTP status, and backend error code preservation.
+
+18. **mobile/test/core/services/client_http/interceptors/auth/auth_interceptor_test.dart**
+
+* Updated interceptor tests to provide a fake installation identity service.
+* Verified that refresh requests include `X-Installation-Id`.
+* Added coverage to ensure refresh is not called when installation identity resolution fails.
+* Verified token cleanup behavior after failed refresh preparation.
+
+19. **mobile/test/core/services/client_http/interceptors/installation/installation_interceptor_test.dart**
+
+* Updated test setup to satisfy the new `AuthInterceptor` dependency on `InstallationIdentityService`.
+
+20. **mobile/test/data/repositories/auth/auth_repository_impl_test.dart**
+
+* Updated repository tests to use `AuthState`, `OperationalAuthState`, and `AnonymousAuthState`.
+* Added coverage for restricted login responses.
+* Verified that restricted login does not persist tokens, load profile data, update session state, or mark the repository as logged in.
+* Added coverage for installation limit failures without token persistence.
+
+21. **mobile/test/data/services/apis/auth/auth_api_login_test.dart**
+
+* Added login API tests for operational authentication responses.
+* Added login API tests for restricted installation authentication responses.
+* Added coverage for `INSTALLATION_LIMIT_REACHED`.
+* Added coverage for unknown successful response shapes returning parsing errors.
+
+22. **mobile/test/data/services/apis/installation/installation_api_test.dart**
+
+* Added installation registration API tests.
+* Verified required headers for restricted token, installation identity, and step-up token.
+* Verified that no transaction password is sent during installation registration.
+* Added coverage for installation identity resolution failures.
+* Added coverage for backend registration errors and malformed response data.
+
+23. **mobile/test/ui/pages/auth/post_login_destination_test.dart**
+
+* Updated fake auth repository types to use `AuthState`, `AnonymousAuthState`, and `OperationalAuthState`.
+
+24. **mobile/test/ui/pages/auth/viewmodel/login_viewmodel_test.dart**
+
+* Updated login view model tests to use `OperationalAuthState`.
+* Replaced old logged user model references with the new auth state model.
+
+25. **mobile/test/ui/pages/splash/viewmodel/splash_viewmodel_test.dart**
+
+* Updated fake auth repository types to use `AuthState` and `AnonymousAuthState`.
+* Updated login contract typing to return `OperationalAuthState`.
+
+### Conclusion
+
+This change establishes a typed authentication model capable of representing operational sessions, anonymous state, and restricted installation authorization without mixing them in the same runtime behavior.
+
+The mobile app now recognizes installation registration requirements, avoids persisting restricted login tokens, includes installation identity during refresh, and provides a dedicated API client for registering installations.
+
+The accompanying tests validate the new login parsing, error mapping, refresh header behavior, restricted login handling, and installation registration contract.
+
+
 ## 2026/06/18 - mobile/installation-identity-03
 
 This change introduces centralized HTTP header definitions and integrates installation identity propagation into the mobile HTTP client pipeline.

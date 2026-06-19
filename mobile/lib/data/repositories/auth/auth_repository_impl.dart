@@ -9,7 +9,7 @@ import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/data/services/cache/last_login/last_login_cache_service.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
 import '/domain/common/auth/models/auth_session/auth_session.dart';
-import '/domain/common/auth/models/auth_user.dart';
+import '/domain/common/auth/models/auth_state.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthApi _api;
@@ -27,24 +27,43 @@ class AuthRepositoryImpl implements AuthRepository {
        _lastLoginCacheService = lastLoginCacheService,
        _appSection = appSection;
 
-  AuthUser _currentUser = NotLoggedUser();
+  AuthState _currentUser = AnonymousAuthState();
 
   final _log = ConsoleLog('AuthRepositoryImpl');
 
   @override
-  AuthUser get currentUser => _currentUser;
+  AuthState get currentUser => _currentUser;
 
   @override
-  bool get isLoggedIn => _currentUser is LoggedUser;
+  bool get isLoggedIn => _currentUser is OperationalAuthState;
 
   @override
-  AsyncResult<LoggedUser> login(LoginRequestDto dto) async {
-    if (isLoggedIn) return Success(_currentUser as LoggedUser);
+  AsyncResult<OperationalAuthState> login(LoginRequestDto dto) async {
+    if (isLoggedIn) return Success(_currentUser as OperationalAuthState);
 
     final result = await _api.login(dto);
     if (result.isFailure) return Result.failure(result.error!);
 
-    final user = result.value!;
+    final loginResult = result.value!;
+    if (loginResult is RestrictedInstallationAuthState) {
+      return const Failure(
+        AppError(
+          code: AppErrorCode.installationRegistrationRequired,
+          message: 'Installation registration required.',
+        ),
+      );
+    }
+
+    if (loginResult is! OperationalAuthState) {
+      return const Failure(
+        AppError(
+          code: AppErrorCode.parsingError,
+          message: 'Unknown login result.',
+        ),
+      );
+    }
+
+    final user = loginResult;
     _currentUser = user;
 
     await _storage.write(StorageKeys.accessToken, user.accessToken);
@@ -85,7 +104,7 @@ class AuthRepositoryImpl implements AuthRepository {
     _appSection.clear();
     if (!isLoggedIn) return Success(unit);
 
-    _currentUser = NotLoggedUser();
+    _currentUser = AnonymousAuthState();
 
     await _storage.delete(StorageKeys.accessToken);
     await _storage.delete(StorageKeys.refreshToken);

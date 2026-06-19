@@ -168,11 +168,13 @@ registro de instalação.
 
 ### Escopo
 
-- Substituir o parsing direto de login apenas como `LoggedUser` por um resultado
-  de login tipado.
+- Substituir o parsing direto de login apenas como `OperationalAuthState` por
+  uma hierarquia de `AuthState` que represente sessão operacional, estado
+  anônimo e autorização restrita de instalação.
 - Dar suporte à resposta operacional com `access_token` e `refresh_token`.
 - Dar suporte à resposta restrita com `restricted_access_token`,
-  `restricted_token_type`, `restricted_scope` e `restricted_expires_at`.
+  `restricted_token_type`, `restricted_scope` e `restricted_expires_at` em
+  `RestrictedInstallationAuthState`.
 - Dar suporte a `INSTALLATION_LIMIT_REACHED` como erro tipado do app.
 - Preservar o tratamento atual de aprovação da conta e verificação de contato.
 - Não persistir tokens para resultados restritos ou de limite atingido.

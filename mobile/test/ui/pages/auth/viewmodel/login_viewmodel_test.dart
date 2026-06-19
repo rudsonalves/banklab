@@ -6,7 +6,7 @@ import 'package:bankflow/data/repositories/auth/auth_repository.dart';
 import 'package:bankflow/data/services/apis/auth/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/cache/last_login/models/last_login_identity.dart';
 import 'package:bankflow/domain/common/auth/models/auth_session/auth_session.dart';
-import 'package:bankflow/domain/common/auth/models/auth_user.dart';
+import 'package:bankflow/domain/common/auth/models/auth_state.dart';
 import 'package:bankflow/domain/common/user/enums/user_role.dart';
 import 'package:bankflow/ui/pages/auth/viewmodel/login_viewmodel.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,7 +59,7 @@ class _FakeAuthRepository implements AuthRepository {
   int loginCalls = 0;
 
   @override
-  AuthUser get currentUser => NotLoggedUser();
+  AuthState get currentUser => AnonymousAuthState();
 
   @override
   bool get isLoggedIn => false;
@@ -69,10 +69,10 @@ class _FakeAuthRepository implements AuthRepository {
       throw UnimplementedError();
 
   @override
-  AsyncResult<LoggedUser> login(LoginRequestDto dto) async {
+  AsyncResult<OperationalAuthState> login(LoginRequestDto dto) async {
     loginCalls++;
     return Success(
-      LoggedUser(
+      OperationalAuthState(
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
         userId: 'user-1',

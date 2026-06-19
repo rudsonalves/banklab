@@ -6,7 +6,7 @@ import 'package:bankflow/data/repositories/auth/auth_repository.dart';
 import 'package:bankflow/data/services/apis/auth/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/cache/last_login/models/last_login_identity.dart';
 import 'package:bankflow/domain/common/auth/models/auth_session/auth_session.dart';
-import 'package:bankflow/domain/common/auth/models/auth_user.dart';
+import 'package:bankflow/domain/common/auth/models/auth_state.dart';
 import 'package:bankflow/domain/common/user/enums/user_role.dart';
 import 'package:bankflow/ui/pages/auth/models/post_login_destination.dart';
 import 'package:bankflow/ui/pages/auth/viewmodel/login_viewmodel.dart';
@@ -150,17 +150,17 @@ class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository();
 
   @override
-  AuthUser get currentUser => NotLoggedUser();
+  AuthState get currentUser => AnonymousAuthState();
 
   @override
-  bool get isLoggedIn => currentUser is LoggedUser;
+  bool get isLoggedIn => currentUser is OperationalAuthState;
 
   @override
   AsyncResult<LastLoginIdentity> getLastLoginIdentity() async =>
       throw UnimplementedError();
 
   @override
-  AsyncResult<LoggedUser> login(LoginRequestDto dto) async =>
+  AsyncResult<OperationalAuthState> login(LoginRequestDto dto) async =>
       throw UnimplementedError();
 
   @override

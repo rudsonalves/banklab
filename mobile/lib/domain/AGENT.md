@@ -17,7 +17,7 @@ concepts the app can reason about regardless of where the data came from.
 
 Current examples:
 
-- `common/auth/models/auth_user.dart`
+- `common/auth/models/auth_state.dart`
 - `common/auth/models/user_profile.dart`
 - `common/user/enums/user_role.dart`
 - `common/receipt/enums/transfer_receipt_status.dart`
@@ -64,8 +64,9 @@ Keep domain as framework-agnostic as practical, especially under `common/`.
 
 The current domain style uses plain Dart classes and enums:
 
-- `AuthUser` is a sealed class hierarchy.
-- `LoggedUser` and `NotLoggedUser` model authentication state.
+- `AuthState` is a sealed class hierarchy.
+- `OperationalAuthState`, `RestrictedInstallationAuthState`, and
+  `AnonymousAuthState` model authentication state.
 - `UserProfile` is a plain model with required fields.
 - `UserRole` is an enum with a `byName` factory fallback.
 
@@ -129,10 +130,14 @@ represents meaning beyond one endpoint payload.
 
 Current auth domain conventions:
 
-- `AuthUser` represents whether the app has a logged-in user.
-- `LoggedUser` contains token-bearing login response data currently needed by
-  the repository.
-- `NotLoggedUser` is the anonymous/default state.
+- `AuthState` represents the current authentication subject, including
+  anonymous, operational, and restricted installation states.
+- `OperationalAuthState` contains token-bearing login response data currently
+  needed by the repository.
+- `RestrictedInstallationAuthState` contains restricted authorization data for
+  the installation registration flow and must not be treated as an operational
+  session.
+- `AnonymousAuthState` is the anonymous/default state.
 - `UserProfile` represents profile details fetched after login.
 - `UserRole.byName` maps unknown role strings to `UserRole.none`.
 

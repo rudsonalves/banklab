@@ -19,6 +19,10 @@ enum AppErrorCode {
   // Generic
   unexpected,
 
+  // Installation identity
+  installationRegistrationRequired,
+  installationLimitReached,
+
   // Validation
   invalidData,
 

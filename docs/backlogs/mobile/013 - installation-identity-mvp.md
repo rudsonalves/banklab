@@ -204,14 +204,16 @@ Mobile gera e persiste installation_id
 Quando as credenciais forem válidas, mas a nova instalação precisar ser
 registrada, o mobile deve:
 
-1. manter o `restricted_access_token` separado da sessão operacional;
-2. solicitar step-up para `POST /security/installations`;
-3. informar a senha transacional somente em
+1. representar a resposta restrita como `RestrictedInstallationAuthState`, sem
+   criar uma sessão operacional;
+2. manter o `restricted_access_token` separado da sessão operacional;
+3. solicitar step-up para `POST /security/installations`;
+4. informar a senha transacional somente em
    `POST /security/step-up/authorize`;
-4. enviar o mesmo `X-Installation-Id` usado no login;
-5. chamar `POST /security/installations` com `X-Step-Up-Token`;
-6. persistir os tokens operacionais retornados pelo registro;
-7. descartar token restrito, step-up token e senha em sucesso, erro definitivo
+5. enviar o mesmo `X-Installation-Id` usado no login;
+6. chamar `POST /security/installations` com `X-Step-Up-Token`;
+7. persistir os tokens operacionais retornados pelo registro;
+8. descartar token restrito, step-up token e senha em sucesso, erro definitivo
    ou cancelamento.
 
 Depois do cadastro bem-sucedido, o fluxo segue como uma sessão autenticada
