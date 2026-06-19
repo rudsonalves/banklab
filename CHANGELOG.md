@@ -1,5 +1,94 @@
 # Changelog
 
+## 2026/06/19 - mobile/installation-identity-07
+
+This change improves the BankLab development workflow, updates database documentation, finalizes the mobile installation identity backlog, and adjusts client/testing support around installation-aware API usage.
+
+The main areas affected are the Makefile execution targets, database documentation, mobile OTP behavior, Bruno collection environments, and backlog organization.
+
+1. **Makefile**
+
+   * Added `SERVER_PORT` as a configurable API port variable.
+   * Added `port-check` to fail early when the selected database port is occupied by a non-project process.
+   * Added `port-clean` to automatically stop Docker containers conflicting with the selected `DB_PORT`.
+   * Added `api-port-clean` to stop stale API processes occupying `SERVER_PORT` before starting the API.
+   * Updated `docker-up` to run port validation before starting PostgreSQL.
+   * Renamed the main development execution flow from `run` to `run-dev`.
+   * Added `run-staging` and `run-prod` targets to start staging and production environments through the same execution flow.
+   * Simplified `staging` and added `prod` aliases using the new environment-aware run targets.
+   * Updated `api-stop` to use `SERVER_PORT` instead of the hardcoded `8080`.
+
+2. **api/docs/09-database.md**
+
+   * Rewrote the database documentation in Portuguese.
+   * Expanded the database overview, design principles, schema organization, table responsibilities, and consistency guarantees.
+   * Added detailed documentation for customer onboarding, authentication, sessions, transaction passwords, step-up tokens, financial accounts, ledger entries, app installations, and installation registration authorizations.
+   * Documented the installation registration flow, known installation limit, revoked installation behavior, and restricted authorization lifecycle.
+   * Expanded ledger semantics, idempotency behavior, indexing strategy, concurrency guarantees, invariants, known limitations, and evolution paths.
+   * Clarified the database role as an active consistency boundary rather than passive storage.
+
+3. **api/docs/images/database.png**
+
+   * Updated the database schema diagram to match the expanded database documentation.
+
+4. **docs/backlogs/mobile/done/013 - installation-identity-mvp.md**
+
+   * Moved the installation identity MVP backlog from the active mobile backlog folder to the `done` folder.
+   * Preserved the backlog content unchanged while marking the work as completed.
+
+5. **docs/backlogs/mobile/done/013 - installation-identity-mvp_tasks.md**
+
+   * Moved the installation identity MVP task list from the active mobile backlog folder to the `done` folder.
+   * Preserved the task content unchanged while consolidating completed mobile backlog items.
+
+6. **mobile/lib/ui/components/input_text/otp_input.dart**
+
+   * Updated OTP focus behavior after applying the controller text.
+   * Prevented the input from requesting focus when the OTP value is already complete.
+   * Kept focus active only when the current value length is still below the configured OTP length.
+
+7. **mobile/test/ui/components/input_text/otp_input_test.dart**
+
+   * Added test coverage to assert that the OTP input does not keep focus after receiving a complete initial value.
+   * Preserved existing assertions for `onChanged`, `onCompleted`, and digit rendering.
+
+8. **tools/bruno/banklab/collections/BankLab API/Admin/Approve User.yml**
+
+   * Added the `X-Installation-Id` header using the admin installation environment variable.
+   * Normalized the authorization header format.
+   * Simplified the empty JSON body representation.
+
+9. **tools/bruno/banklab/collections/BankLab API/Auth/Login admin.yml**
+
+   * Added the `X-Installation-Id` header to admin login requests.
+   * Connected admin authentication requests to the installation identity flow through the Bruno environment variable.
+
+10. **tools/bruno/banklab/collections/BankLab API/Auth/Login.yml**
+
+* Added the `X-Installation-Id` header to user login requests.
+* Left the value empty so each login scenario can provide the installation identifier explicitly.
+
+11. **tools/bruno/banklab/collections/BankLab API/environments/BankLab Dev.yml**
+
+* Added a new Bruno development environment.
+* Configured local `base_url`, user/admin credentials, token variables, account/user identifiers, and the admin installation identifier.
+* Marked sensitive values such as passwords, app token, access token, refresh token, and installation id as secrets.
+
+12. **tools/bruno/banklab/collections/BankLab API/environments/BankLab Staging.yml**
+
+* Renamed the previous generic Bruno environment from `BankLab Env` to `BankLab Staging`.
+* Added the admin installation identifier as a secret variable.
+* Preserved the existing staging-oriented variables while making the environment purpose explicit.
+
+### Conclusion
+
+This change set consolidates the installation identity MVP by moving its backlog items to completion, aligning Bruno requests with installation-aware authentication, and documenting the database model in greater operational detail.
+
+It also improves local and environment-specific execution reliability by adding database and API port cleanup safeguards to the Makefile.
+
+On the mobile side, the OTP component now handles complete initial values more correctly by avoiding unnecessary focus retention.
+
+
 ## 2026/06/19 - mobile/installation-identity-06
 
 This change improves the installation identity flow by refining user feedback, strengthening lifecycle logging, and documenting the REST API in a route-oriented structure.

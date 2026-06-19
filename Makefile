@@ -1,8 +1,10 @@
 .PHONY: help \
 	build test \
 	api-build api-migrate-up api-migrate-down api-test api-stop \
-	api-run api-run-dev api-run-staging env-init bootstrap \
-	dev staging \
+	api-port-clean \
+	api-run api-run-dev api-run-staging env-init bootstrap run-dev run-staging run-prod \
+	dev staging prod \
+	port-check port-clean \
 	cloudflared-tunnel \
 	mobile-test mobile-test-unit mobile-sync-ip \
 	commit diff push pull gitlog
@@ -19,6 +21,7 @@ DB_PORT ?= 5432
 DB_NAME ?= bank
 DB_USER ?= postgres
 DB_PASSWORD ?= postgres
+SERVER_PORT ?= 8080
 
 DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 MIGRATIONS_PATH=api/migrations
@@ -40,8 +43,32 @@ help: ## List available commands
 # =========================
 # Docker
 # =========================
-docker-up: env-init ## Start the selected PostgreSQL container
+docker-up: env-init port-check ## Start the selected PostgreSQL container
 	$(DOCKER_COMPOSE) up -d --build postgres
+
+port-check: ## Fail early if DB_PORT is already in use by another process/container
+	@project_pg_container="banklab-$(API_ENV)-postgres-1"; \
+	if docker ps --format '{{.Names}}' | grep -qx "$$project_pg_container"; then \
+		exit 0; \
+	fi; \
+	$(MAKE) --no-print-directory port-clean; \
+	if lsof -nP -iTCP:$(DB_PORT) -sTCP:LISTEN > /dev/null 2>&1; then \
+		echo "Port $(DB_PORT) is already allocated."; \
+		echo "Listeners:"; \
+		lsof -nP -iTCP:$(DB_PORT) -sTCP:LISTEN; \
+		echo ""; \
+		echo "Tip: stop the conflicting non-Docker process or change DB_PORT in api/$(API_ENV).env"; \
+		exit 1; \
+	fi
+
+port-clean: ## Stop conflicting Docker containers bound to DB_PORT
+	@conflict_containers=$$(docker ps --format '{{.Names}}\t{{.Ports}}' | awk -F'\t' -v p='$(DB_PORT)' '$$2 ~ ":"p"->" {print $$1}'); \
+	if [ -n "$$conflict_containers" ]; then \
+		echo "Port $(DB_PORT) is in use by Docker container(s). Running automatic cleanup:"; \
+		echo "$$conflict_containers" | sed 's/^/ - /'; \
+		echo "$$conflict_containers" | xargs docker stop > /dev/null; \
+		echo "Cleanup done."; \
+	fi
 
 docker-down: env-init ## Stop and remove Docker containers
 	$(DOCKER_COMPOSE) down
@@ -67,7 +94,13 @@ cloudflared-tunnel: ## Run the banklab Cloudflare tunnel
 # =========================
 setup: env-init docker-check docker-up db-wait migrate-up api-run ## Full setup from scratch
 
-run: env-init mobile-sync-ip docker-check docker-up db-wait migrate-up api-run ## Start full development system
+run-dev: env-init mobile-sync-ip docker-check docker-up db-wait migrate-up api-run ## Start full development system
+
+run-staging: ## Start the full staging environment
+	$(MAKE) API_ENV=staging run-dev
+
+run-prod: ## Start the full production environment
+	$(MAKE) API_ENV=prod run-dev
 
 reset: env-init docker-check docker-clean docker-up db-wait db-reset migrate-up api-run ## Hard reset environment
 
@@ -88,14 +121,13 @@ db-wait: env-init ## Wait for the database to be ready
 	exit 1
 
 bootstrap: setup ## Full bootstrap from scratch
-dev: run ## Alias para desenvolvimento
+dev: run-dev ## Alias para desenvolvimento
 
 staging: ## Start the full staging environment
-	$(MAKE) API_ENV=staging docker-check
-	$(MAKE) API_ENV=staging docker-up
-	$(MAKE) API_ENV=staging db-wait
-	$(MAKE) API_ENV=staging migrate-up
-	$(MAKE) API_ENV=staging api-run
+	$(MAKE) run-staging
+
+prod: ## Start the full production environment
+	$(MAKE) run-prod
 
 env-init: ## Create API and Mobile .env files if they do not exist
 	bash infra/scripts/ensure-env-files.sh
@@ -114,8 +146,22 @@ api-build: ## Build API binary into api/build/
 api-tests: ## Run API tests with coverage
 	cd api && go test -cover ./...
 
-api-run: env-init ## Run the selected API on the host
+api-run: env-init api-port-clean ## Run the selected API on the host
 	cd api && ENV_FILE=$(API_ENV).env go run ./cmd/api
+
+api-port-clean: ## Stop stale API process if SERVER_PORT is already occupied
+	@pid=$$(lsof -ti tcp:$(SERVER_PORT) -sTCP:LISTEN | head -n1); \
+	if [ -n "$$pid" ]; then \
+		comm=$$(ps -p $$pid -o comm= | tr -d '[:space:]'); \
+		if [ "$$comm" = "api" ] || [ "$$comm" = "go" ] || echo "$$comm" | grep -Eq '(^|/)api$$|go-build'; then \
+			echo "Port $(SERVER_PORT) is occupied by stale API process (pid=$$pid, comm=$$comm). Cleaning up..."; \
+			kill $$pid; \
+		else \
+			echo "Port $(SERVER_PORT) is occupied by another process (pid=$$pid, comm=$$comm)."; \
+			echo "Stop it manually or change SERVER_PORT in api/$(API_ENV).env"; \
+			exit 1; \
+		fi; \
+	fi
 
 api-run-dev: ## Run API with api/dev.env
 	$(MAKE) mobile-sync-ip
@@ -124,11 +170,11 @@ api-run-dev: ## Run API with api/dev.env
 api-run-staging: ## Run API with api/staging.env
 	$(MAKE) API_ENV=staging api-run
 
-api-stop: ## Stop the API listening on port 8080
+api-stop: ## Stop the API listening on SERVER_PORT
 	@if command -v fuser > /dev/null 2>&1; then \
-		fuser -k 8080/tcp; \
+		fuser -k $(SERVER_PORT)/tcp; \
 	elif command -v lsof > /dev/null 2>&1; then \
-		pid=$$(lsof -ti tcp:8080); \
+		pid=$$(lsof -ti tcp:$(SERVER_PORT)); \
 		[ -z "$$pid" ] || kill $$pid; \
 	else \
 		echo "Install psmisc (fuser) or lsof to use api-stop"; \
