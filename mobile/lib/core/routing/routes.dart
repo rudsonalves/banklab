@@ -5,7 +5,8 @@ abstract interface class AppRoute {
 
 enum AuthRoutes implements AppRoute {
   login('/login'),
-  shortLogin('/short-login');
+  shortLogin('/short-login'),
+  installationCertification('/installation-certification');
 
   const AuthRoutes(this.routePath);
 

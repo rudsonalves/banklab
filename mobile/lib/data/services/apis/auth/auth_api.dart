@@ -1,11 +1,14 @@
 import '/core/resources/app_env.dart';
+import '/core/resources/app_http_headers.dart';
 import '/core/result/result.dart';
 import '/core/services/client_http/client_http.dart';
 import '/core/services/logging/console_log.dart';
 import '/data/services/apis/core/api_envelope.dart';
 import '/domain/common/auth/models/auth_session/auth_session.dart';
-import '/domain/common/auth/models/auth_user.dart';
+import '/domain/common/auth/models/auth_state.dart';
 import 'dtos/login_request_dto.dart';
+
+const _installationLimitReachedBackendCode = 'INSTALLATION_LIMIT_REACHED';
 
 class AuthApi {
   final RestClient _client;
@@ -14,12 +17,13 @@ class AuthApi {
 
   final _log = ConsoleLog('AuthApi');
 
-  AsyncResult<LoggedUser> login(LoginRequestDto dto) async {
+  /// Attempts to log in with the provided credentials. Returns an [AuthState] on success.
+  AsyncResult<AuthState> login(LoginRequestDto dto) async {
     final response = await _client.post(
       RestClientRequest(
         path: '/auth/login',
         headers: {
-          'X-App-Token': AppEnv.appToken,
+          AppHttpHeaders.appToken: AppEnv.appToken,
         },
         body: dto.toMap(),
       ),
@@ -52,17 +56,19 @@ class AuthApi {
         );
       }
 
-      final envelope = ApiEnvelope<LoggedUser>.fromMap(
+      final envelope = ApiEnvelope<AuthState>.fromMap(
         resp.data as Map<String, dynamic>,
-        LoggedUser.fromMap,
+        AuthState.fromLoginMap,
       );
 
       if (envelope.error != null) {
-        _log.error('API error: ${envelope.error!.message}', label: 'login');
+        final error = envelope.error!;
+        _log.error('API error: ${error.message}', label: 'login');
         return Failure(
           AppError(
-            code: AppErrorCode.httpError,
-            message: envelope.error!.message,
+            code: _mapLoginBackendErrorCode(error.code),
+            message: error.message,
+            details: error.toAppErrorDetails(),
           ),
         );
       }
@@ -84,6 +90,7 @@ class AuthApi {
     }
   }
 
+  /// Fetches the current authentication session, if any.
   AsyncResult<AuthSession> getAuthSession() async {
     final result = await _client.get(
       RestClientRequest(
@@ -153,5 +160,14 @@ class AuthApi {
         ),
       );
     }
+  }
+
+  /// Maps backend error codes to app-specific error codes for the login operation.
+  AppErrorCode _mapLoginBackendErrorCode(String code) {
+    if (code == _installationLimitReachedBackendCode) {
+      return AppErrorCode.installationLimitReached;
+    }
+
+    return AppErrorCode.httpError;
   }
 }

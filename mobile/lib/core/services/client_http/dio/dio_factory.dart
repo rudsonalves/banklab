@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../resources/app_env.dart';
+import '../../../resources/app_http_headers.dart';
 
 class DioFactory {
   static Dio create({
@@ -13,8 +14,8 @@ class DioFactory {
         connectTimeout: Duration(milliseconds: AppEnv.connectTimeout),
         receiveTimeout: Duration(milliseconds: AppEnv.receiveTimeout),
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
+          AppHttpHeaders.accept: 'application/json',
+          AppHttpHeaders.contentType: 'application/json',
           ...?defaultHeaders,
         },
       ),

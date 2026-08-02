@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,8 +28,11 @@ import (
 	authdomain "github.com/seu-usuario/bank-api/internal/auth/domain"
 	authinfrastructure "github.com/seu-usuario/bank-api/internal/auth/infrastructure"
 	customerinfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
+	sharedheaders "github.com/seu-usuario/bank-api/internal/shared/http/headers"
 	"golang.org/x/crypto/bcrypt"
 )
+
+const testInstallationID = "550e8400-e29b-41d4-a716-446655440000"
 
 func TestIntegration_AuthAndAuthorizationFlows(t *testing.T) {
 	ctx := context.Background()
@@ -458,6 +462,8 @@ func ensureIntegrationSchema(t *testing.T, ctx context.Context, pool *pgxpool.Po
 			revoked_at TIMESTAMP WITH TIME ZONE,
 			created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 		)`,
+		`ALTER TABLE user_sessions
+			ADD COLUMN IF NOT EXISTS installation_id UUID`,
 	}
 
 	for _, statement := range statements {
@@ -514,6 +520,9 @@ func performJSONRequest(t *testing.T, url, method string, payload any, token str
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	if strings.HasSuffix(url, "/auth/login") {
+		req.Header.Set(sharedheaders.InstallationID, testInstallationID)
+	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}

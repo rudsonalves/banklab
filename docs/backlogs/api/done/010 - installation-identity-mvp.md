@@ -2,7 +2,7 @@
 
 ## 1. Status
 
-- Tipo: Research
+- Tipo: Planning
 - Área: Security
 - Prioridade: High
 - Estado: Discussão
@@ -11,8 +11,9 @@ Este backlog define as responsabilidades da API no segundo sinal contextual da
 evolução Zero Trust do BankLab. A geração, persistência local e propagação do
 identificador pertencem ao backlog mobile 013.
 
-Ele ainda não autoriza implementação: vínculo, estados, revogação e rollout
-devem ser fechados antes da criação das tasks da API.
+A implementação deve respeitar a ordem de dependência definida neste documento:
+primeiro a base compartilhada, depois os fluxos que consultam, registram,
+revogam ou aplicam instalação em sessão.
 
 ## 2. Contexto
 
@@ -36,6 +37,10 @@ Definir a parte da API para um MVP de identidade de instalação que:
 - permita consultar e revogar instalações;
 - disponibilize a instalação como sinal contextual para políticas futuras;
 - preserve o backend como fonte de verdade sobre o estado da associação.
+
+Este backlog volta a ser a fonte única da API para este MVP. A implementação
+deve seguir a ordem de dependência descrita aqui, começando pela base
+compartilhada antes dos fluxos que dependem dela.
 
 ## 4. Princípios de segurança
 
@@ -61,6 +66,7 @@ app_installations
 - status
 - platform
 - app_version
+- app_build
 - first_seen_at
 - last_seen_at
 - revoked_at
@@ -131,7 +137,7 @@ Após autenticar as credenciais, a API segue uma destas regras:
 3. **Nova instalação com outra já cadastrada:** emite uma autorização de acesso
    restrito para permitir somente o step-up e o registro da instalação.
 4. **Instalação revogada:** não reativa nem reassocia silenciosamente. O acesso
-   deve ser negado ou direcionado a um fluxo de recuperação ainda a definir.
+   deve ser negado.
 5. **Limite atingido:** se o usuário já possuir três instalações `known`, a API
    não permite o registro de uma quarta instalação. Uma associação existente
    precisa ser revogada antes de continuar.
@@ -171,14 +177,24 @@ Quando o limite já estiver atingido, `POST /auth/login` deve retornar:
 {
   "data": {
     "authentication_status": "installation_limit_reached",
-    "max_installations": 3
+    "max_installations": 3,
+    "known_installations_count": 3,
+    "installation_registered": false,
+    "next_action": "revoke_existing_installation"
   },
   "error": null
 }
 ```
 
-O contrato final ainda deve decidir se a autorização restrita poderá acessar o
-gerenciamento de instalações para liberar uma vaga.
+Nesse cenário, a API não deve emitir autorização restrita nem abrir fluxo de
+registro para a nova instalação. O login apenas informa que:
+
+- a instalação atual ainda não está cadastrada;
+- o usuário já atingiu o máximo de três instalações `known`.
+
+A continuidade fica a cargo do mobile: orientar o usuário a acessar uma
+instalação já cadastrada e, a partir dela, revogar outra instalação para
+liberar vaga.
 
 ### Autorização restrita para nova instalação
 
@@ -189,7 +205,7 @@ credenciais estão corretas, mas a instalação é nova, o login retorna:
 {
   "data": {
     "authentication_status": "installation_registration_required",
-    "access_token": "<restricted-access-token>",
+    "restricted_access_token": "<jwt>",
     "expires_in": 300
   },
   "error": null
@@ -206,8 +222,64 @@ Essa autorização:
   autenticadas;
 - expira sem criar associação caso o fluxo seja abandonado.
 
-O mecanismo final para representar e aplicar a restrição no token, persistência
-e middleware ainda precisa ser definido.
+O MVP usará uma tabela própria, consistente com o desenho já adotado para
+`step_up_tokens`, sem reutilizar `user_sessions`.
+
+Claims mínimas do `restricted_access_token`:
+
+```text
+sub
+jti
+token_type = restricted_access
+scope = installation.register
+installation_id
+iat
+exp
+```
+
+Persistência sugerida:
+
+```text
+installation_registration_authorizations
+- id
+- jti
+- user_id
+- installation_id
+- scope
+- status
+- expires_at
+- consumed_at
+- created_at
+```
+
+Status mínimos:
+
+```text
+active
+consumed
+revoked
+```
+
+Regras de consistência:
+
+- `jti` deve ser único;
+- deve existir no máximo uma autorização `active` por
+  `(user_id, installation_id, scope)`;
+- `expired` pode ser tratado como estado derivado de `expires_at`, sem exigir
+  transição persistida;
+- a autorização precisa ser invalidada ao concluir com sucesso o registro.
+
+Aplicação no middleware:
+
+- manter o middleware atual para sessão operacional;
+- adicionar um middleware específico para acesso restrito;
+- esse middleware deve validar o JWT, exigir
+  `token_type = restricted_access` e o `scope` esperado;
+- o contexto da requisição deve carregar ao menos `user_id`,
+  `installation_id`, `jti` e `scope`;
+- `POST /security/step-up/authorize` e `POST /security/installations` devem
+  aceitar esse contexto restrito sem serem tratados como sessão operacional
+  completa.
 
 ### Step-up para o registro
 
@@ -231,6 +303,11 @@ Authorization: Bearer <restricted-access-token>
 A resposta contém o `step_up_token` já adotado pelo projeto, curto, de uso
 único e escopado para `POST /security/installations`.
 
+Senha transacional ativa é pré-requisito para registrar uma nova instalação.
+Se a senha estiver `not_set` ou `locked`, a API não deve emitir `step_up_token`
+para `POST /security/installations` e o registro não pode prosseguir nesse
+momento.
+
 ### Registro explícito
 
 Instalações posteriores à primeira são cadastradas por:
@@ -253,6 +330,22 @@ O endpoint:
 7. cria a sessão operacional vinculada à instalação;
 8. retorna access token e refresh token operacionais.
 
+Após o cadastro bem-sucedido, não existe novo login intermediário. O
+`restricted_access_token` é invalidado e descartado, e a autenticação passa a
+ser a sessão operacional normal.
+
+O `access_token` operacional deve carregar o `installation_id` associado à
+sessão. Esse claim permite que middleware e casos de uso validem o vínculo
+entre:
+
+- usuário autenticado;
+- instalação declarada no `X-Installation-Id`;
+- instalação vinculada à sessão criada após o cadastro.
+
+O `refresh_token` permanece como token opaco de sessão, mas o refresh deve
+revalidar o mesmo `X-Installation-Id` da sessão em curso antes de emitir novos
+tokens.
+
 Futuramente, prova de vida poderá autorizar o mesmo endpoint sem alterar a
 responsabilidade do registro.
 
@@ -263,8 +356,9 @@ O `X-Installation-Id` também deve acompanhar:
 - todas as requisições autenticadas por access token.
 
 Para requisições autenticadas, o identificador declarado deve corresponder à
-instalação vinculada à sessão. A API não deve reassociar silenciosamente uma
-sessão existente quando receber outro identificador; a troca exige novo login.
+instalação vinculada à sessão e ao `installation_id` presente no
+`access_token`. A API não deve reassociar silenciosamente uma sessão existente
+quando receber outro identificador; a troca exige novo login.
 
 Endpoints consolidados:
 
@@ -279,6 +373,15 @@ DELETE /security/installations/{installation_resource_id}
 - `DELETE` revoga uma associação usando um identificador público gerado pela
   API, nunca o `installation_id` fornecido pelo cliente.
 
+Para o MVP, `DELETE /security/installations/{installation_resource_id}` não
+exige step-up. A operação só pode revogar outra instalação do mesmo usuário:
+
+- a API deve impedir a revogação da instalação vinculada à sessão atual;
+- a resposta de erro deve deixar claro que a instalação em uso não pode ser
+  removida por esse fluxo;
+- sair da instalação atual continua sendo responsabilidade do logout, não da
+  revogação.
+
 Embora o contrato HTTP use `DELETE`, a revogação é lógica:
 
 - a linha não é removida fisicamente;
@@ -287,24 +390,47 @@ Embora o contrato HTTP use `DELETE`, a revogação é lógica:
 - a associação permanece disponível para auditoria e histórico;
 - uma instalação revogada não volta a `known` por novo login.
 
-Questões de contrato ainda abertas:
+Erros já definidos para o header e o vínculo da sessão:
 
-- Quais metadados da instalação são necessários no MVP além de plataforma e
-  versão do app?
-- Como representar e aplicar a autorização restrita no JWT, persistência e
-  middleware?
-- A autorização restrita pode listar e revogar instalações para liberar uma
-  vaga?
-- `DELETE /security/installations/{installation_resource_id}` também exige
-  step-up?
-- Como registrar uma nova instalação quando a senha transacional estiver
-  `not_set` ou `locked`?
-- Como recuperar acesso quando todas as instalações anteriores estiverem
-  indisponíveis ou revogadas?
-- A ausência do header bloqueia login, refresh e requisições autenticadas desde
-  o primeiro release ou somente após o período de rollout?
-- Qual erro deve ser retornado quando o header divergir da instalação vinculada
-  à sessão?
+- `X-Installation-Id` ausente ou malformado, quando obrigatório:
+
+```http
+400 Bad Request
+```
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INVALID_INSTALLATION_ID",
+    "message": "X-Installation-Id must be a canonical UUID v4."
+  }
+}
+```
+
+- `X-Installation-Id` válido, mas divergente da instalação vinculada à sessão:
+
+```http
+403 Forbidden
+```
+
+```json
+{
+  "data": null,
+  "error": {
+    "code": "INSTALLATION_MISMATCH",
+    "message": "The provided installation does not match the authenticated session."
+  }
+}
+```
+
+Para o MVP, não existe fase de rollout tolerante sem header. O
+`X-Installation-Id` é obrigatório desde o primeiro release da feature em:
+
+- `POST /auth/login`;
+- `POST /auth/refresh`;
+- logout, quando exposto pela API;
+- todas as requisições autenticadas por `access_token`.
 
 ## 7. Fluxos a definir
 
@@ -359,17 +485,32 @@ API recebe X-Installation-Id desconhecido
 
 ### Revogação
 
-Precisamos decidir se a revogação de uma instalação:
+Para o MVP, revogar uma instalação paralisa esse acesso imediatamente:
 
-- encerra imediatamente todas as sessões associadas;
-- impede apenas novas operações sensíveis;
-- exige novo step-up em outra instalação para recuperação.
+- todos os `access_token` associados à instalação revogada deixam de valer na
+  hora;
+- todos os `refresh_token` associados à instalação revogada devem ser
+  invalidados no mesmo momento;
+- a instalação revogada não pode concluir novas operações nem renovar sessão;
+- a API deve tratar a revogação como corte imediato de acesso, não como bloqueio
+  apenas em operações futuras.
 
 ## 8. Relação com sessão e policy enforcement
 
 O bootstrap de sessão deve ser considerado o ponto de retorno do estado da
 instalação, mas o JWT não deve carregar uma confiança imutável durante toda a
 sua validade.
+
+Para o MVP:
+
+- o `access_token` operacional carrega `installation_id`;
+- o middleware de sessão operacional deve extrair esse claim e compará-lo com o
+  `X-Installation-Id` da requisição;
+- `POST /auth/refresh` deve exigir o mesmo `X-Installation-Id` vinculado à
+  sessão atual antes de renovar os tokens;
+- divergência entre header e claim deve negar a operação e exigir novo login;
+- a API não deve usar esse claim para inferir confiança de dispositivo, apenas
+  vínculo de instalação.
 
 Uma política futura poderá avaliar:
 
@@ -384,40 +525,47 @@ No primeiro corte, a instalação deve ser coletada e registrada antes de ser
 obrigatória para transferências. Isso permite observar o contrato e os estados
 sem introduzir bloqueios prematuros no fluxo financeiro.
 
-## 9. Decisões necessárias antes das tasks
+## 9. Ordem de implementação por dependência
 
-- [x] Definir header e formato aceito: `X-Installation-Id` com UUID v4
-  canônico.
-- [ ] Definir erro retornado para identificador malformado.
-- [ ] Definir vínculo entre usuário, instalação e sessão.
-- [ ] Definir estados e transições da instalação.
-- [x] Definir bootstrap: a primeira instalação do usuário é associada
-  atomicamente durante o login.
-- [x] Definir histórico: instalações revogadas não são removidas e continuam
-  contando como associações anteriores.
-- [x] Definir limite: no máximo três instalações `known` por usuário;
-  revogadas não ocupam vaga.
-- [ ] Definir contrato HTTP final para `installation_limit_reached`.
-- [ ] Definir acesso da autorização restrita ao gerenciamento para liberar uma
-  vaga.
-- [x] Definir novas instalações: login emite autorização restrita; senha
-  transacional emite step-up para `POST /security/installations`; o endpoint
-  executa o registro.
-- [x] Definir endpoints de registro, listagem e revogação.
-- [ ] Definir representação, TTL, persistência e middleware da autorização
-  restrita.
-- [x] Definir `POST /security/installations` como operação elegível para
-  step-up.
-- [ ] Implementar a operação na whitelist de step-up.
-- [ ] Definir recuperação para senha transacional ausente ou bloqueada.
-- [ ] Definir validação do vínculo em refresh e requisições autenticadas.
-- [ ] Definir efeitos da revogação sobre refresh e access tokens.
-- [ ] Definir dados retornados no bootstrap da sessão.
-- [ ] Definir retenção, auditoria e minimização de metadados.
-- [ ] Definir estratégia de compatibilidade para clientes sem o header.
-- [ ] Definir em qual etapa o sinal passa a afetar operações sensíveis.
+A separação operacional deste MVP fica em um documento próprio para evitar que
+o backlog principal misture decisão de produto, modelo de ameaça e divisão de
+execução.
 
-## 10. Fora de escopo
+Ver:
+
+- [010 - split-installation-identity-by-dependency.md](<010 - split-installation-identity-by-dependency.md>)
+
+## 10. Estado atual de implementação
+
+O trabalho deve ser retomado considerando que apenas o contrato mínimo de
+entrada pode avançar antes da infraestrutura compartilhada.
+
+Estado esperado neste ponto:
+
+- `X-Installation-Id` validado no login;
+- erro `INVALID_INSTALLATION_ID` definido;
+- constantes compartilhadas de header disponíveis;
+- demais fluxos dependentes aguardando base de dados, domínio, repositórios,
+  sessão e JWT com vínculo de instalação.
+
+Não considerar como concluídos, até que a base exista:
+
+- bootstrap automático da primeira instalação;
+- classificação operacional de instalação no login;
+- emissão de `restricted_access_token`;
+- registro explícito de instalação;
+- listagem e revogação de instalações;
+- refresh e middleware vinculados à instalação.
+
+## 11. Backlogs derivados
+
+Os backlogs derivados devem seguir a separação por dependência técnica definida
+no documento de split.
+
+- [010 - split-installation-identity-by-dependency.md](<010 - split-installation-identity-by-dependency.md>):
+  separação dos backlogs por ordem de dependência técnica.
+
+## 12. Fora de escopo
 
 - biometria local como prova para o backend;
 - attestation de plataforma;
@@ -432,17 +580,18 @@ sem introduzir bloqueios prematuros no fluxo financeiro.
 - correlação entre reinstalações no mesmo aparelho;
 - painel administrativo de instalações.
 
-## 11. Critérios para encerrar a discussão
+## 13. Critérios para encerrar a discussão
 
 - Modelo de ameaça e limitações do sinal documentados.
 - Contrato HTTP definido entre API e mobile.
 - Ciclo de vida e revogação definidos.
 - Limite e comportamento concorrente definidos.
 - Relação com `user_sessions` definida.
-- Estratégia de rollout sem bloqueio definida.
-- Backlogs de implementação da API e do mobile derivados desta decisão.
+- Estratégia de obrigatoriedade do header definida.
+- Ordem de implementação por dependência definida.
+- Relação com o backlog mobile definida.
 
-## 12. Referências internas
+## 14. Referências internas
 
 - [ZTA MVP - fundação e decisões](<done/006 - zta-mvp-foundation.md>)
 - [Auth session bootstrap](<done/009 - auth-session-bootstrap.md>)

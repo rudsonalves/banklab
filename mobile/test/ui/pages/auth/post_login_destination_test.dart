@@ -1,10 +1,12 @@
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/app_section/app_section.dart';
+import 'package:bankflow/core/services/installation_identity/installation_identity.dart';
+import 'package:bankflow/core/services/secure_storage/local_secure_storage.dart';
 import 'package:bankflow/data/repositories/auth/auth_repository.dart';
 import 'package:bankflow/data/services/apis/auth/dtos/login_request_dto.dart';
 import 'package:bankflow/data/services/cache/last_login/models/last_login_identity.dart';
 import 'package:bankflow/domain/common/auth/models/auth_session/auth_session.dart';
-import 'package:bankflow/domain/common/auth/models/auth_user.dart';
+import 'package:bankflow/domain/common/auth/models/auth_state.dart';
 import 'package:bankflow/domain/common/user/enums/user_role.dart';
 import 'package:bankflow/ui/pages/auth/models/post_login_destination.dart';
 import 'package:bankflow/ui/pages/auth/viewmodel/login_viewmodel.dart';
@@ -15,6 +17,7 @@ void main() {
     test('returns sessionError when userProfile is missing', () {
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: AppSection(),
       );
 
@@ -28,6 +31,7 @@ void main() {
       final appSection = AppSection()..setAuthSession(_session());
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -42,6 +46,7 @@ void main() {
         ..setAuthSession(_session(hasOperationalAccount: false));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -56,6 +61,7 @@ void main() {
         ..setAuthSession(_session(status: TransactionPasswordStatus.notSet));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -70,6 +76,7 @@ void main() {
         ..setAuthSession(_session(status: TransactionPasswordStatus.locked));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -84,6 +91,7 @@ void main() {
         ..setAuthSession(_session(status: TransactionPasswordStatus.unknown));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -100,6 +108,7 @@ void main() {
         ..setAuthSession(_session(status: TransactionPasswordStatus.notSet));
       final viewModel = LoginViewModel(
         authRepository: _FakeAuthRepository(),
+        installationIdentityService: _FakeInstallationIdentityService(),
         appSection: appSection,
       );
 
@@ -141,22 +150,67 @@ class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository();
 
   @override
-  AuthUser get currentUser => NotLoggedUser();
+  AuthState get currentUser => AnonymousAuthState();
 
   @override
-  bool get isLoggedIn => currentUser is LoggedUser;
+  bool get isLoggedIn => currentUser is OperationalAuthState;
 
   @override
   AsyncResult<LastLoginIdentity> getLastLoginIdentity() async =>
       throw UnimplementedError();
 
   @override
-  AsyncResult<LoggedUser> login(LoginRequestDto dto) async =>
+  AsyncResult<AuthState> login(LoginRequestDto dto) async =>
       throw UnimplementedError();
+
+  @override
+  AsyncResult<OperationalAuthState> certifyInstallation(
+    String transactionPassword,
+  ) async => throw UnimplementedError();
 
   @override
   AsyncResult<Unit> logout() async => throw UnimplementedError();
 
   @override
   AsyncResult<AuthSession> getAuthSession() async => throw UnimplementedError();
+}
+
+class _FakeInstallationIdentityService extends InstallationIdentityService {
+  _FakeInstallationIdentityService()
+    : super(
+        secureStorage: _NoopSecureStorage(),
+        markerStore: _NoopMarkerStore(),
+      );
+
+  @override
+  AsyncResult<String> resolve() async {
+    return const Success('018f7b82-4a3d-4f71-9ad7-dedc8e5b10c8');
+  }
+}
+
+class _NoopMarkerStore implements InstallationMarkerStore {
+  @override
+  AsyncResult<bool> hasMarker() async => const Success(true);
+
+  @override
+  AsyncResult<Unit> markResolved() async => const Success(unit);
+}
+
+class _NoopSecureStorage implements LocalSecureStorage {
+  @override
+  AsyncResult<Unit> write(String key, String value) async =>
+      const Success(unit);
+
+  @override
+  AsyncResult<String> read(String key) async =>
+      const Success('018f7b82-4a3d-4f71-9ad7-dedc8e5b10c8');
+
+  @override
+  AsyncResult<Unit> delete(String key) async => const Success(unit);
+
+  @override
+  AsyncResult<Unit> deleteAll() async => const Success(unit);
+
+  @override
+  Future<List<String>> keysWithPrefix(String pattern) async => const [];
 }

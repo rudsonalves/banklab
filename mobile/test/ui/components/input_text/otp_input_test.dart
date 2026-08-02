@@ -68,6 +68,13 @@ void main() {
 
     expect(changedValue, '987654');
     expect(completedValue, '987654');
+    expect(
+      tester
+          .widget<TextField>(find.byType(TextField, skipOffstage: false))
+          .focusNode
+          ?.hasFocus,
+      isFalse,
+    );
 
     for (final digit in '987654'.characters) {
       expect(find.text(digit), findsOneWidget);

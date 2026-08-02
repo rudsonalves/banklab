@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:bankflow/core/resources/app_http_headers.dart';
 import 'package:bankflow/core/resources/storage_keys.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/interceptors/auth/auth_interceptor.dart';
+import 'package:bankflow/core/services/installation_identity/installation_identity.dart';
 import 'package:bankflow/core/services/secure_storage/local_secure_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,6 +21,7 @@ void main() {
         });
         var refreshCalls = 0;
         var protectedCalls = 0;
+        late RequestOptions refreshOptions;
 
         final authDio = Dio(BaseOptions(baseUrl: 'https://api.test'));
         final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'));
@@ -30,7 +33,7 @@ void main() {
         ) async {
           protectedCalls++;
 
-          final authorization = options.headers['Authorization'];
+          final authorization = options.headers[AppHttpHeaders.authorization];
           if (authorization == 'Bearer new-access') {
             return _jsonResponse(200, {
               'data': {'ok': true},
@@ -48,6 +51,7 @@ void main() {
           _,
         ) async {
           refreshCalls++;
+          refreshOptions = options;
           await Future<void>.delayed(const Duration(milliseconds: 20));
 
           return _jsonResponse(200, {
@@ -63,6 +67,7 @@ void main() {
             authDio: authDio,
             refreshDio: refreshDio,
             secureStorage: storage,
+            installationIdentityService: _FakeInstallationIdentityService(),
             baseUrl: 'https://api.test',
           ),
         );
@@ -75,6 +80,10 @@ void main() {
         expect(responses.map((response) => response.statusCode), [200, 200]);
         expect(refreshCalls, 1);
         expect(protectedCalls, 4);
+        expect(
+          refreshOptions.headers[AppHttpHeaders.installationId],
+          _installationId,
+        );
         expect(storage.values[StorageKeys.accessToken], 'new-access');
         expect(storage.values[StorageKeys.refreshToken], 'new-refresh');
         expect(storage.deleteCalls, isEmpty);
@@ -126,6 +135,7 @@ void main() {
             authDio: authDio,
             refreshDio: refreshDio,
             secureStorage: storage,
+            installationIdentityService: _FakeInstallationIdentityService(),
             baseUrl: 'https://api.test',
           ),
         );
@@ -189,6 +199,7 @@ void main() {
             authDio: authDio,
             refreshDio: refreshDio,
             secureStorage: storage,
+            installationIdentityService: _FakeInstallationIdentityService(),
             baseUrl: 'https://api.test',
           ),
         );
@@ -202,8 +213,72 @@ void main() {
         expect(protectedCalls, 2);
       },
     );
+
+    test(
+      'does not send refresh request when installation identity fails',
+      () async {
+        final storage = _MemorySecureStorage({
+          StorageKeys.accessToken: 'old-access',
+          StorageKeys.refreshToken: 'old-refresh',
+        });
+        var refreshCalls = 0;
+
+        final authDio = Dio(BaseOptions(baseUrl: 'https://api.test'));
+        final refreshDio = Dio(BaseOptions(baseUrl: 'https://api.test'));
+
+        authDio.httpClientAdapter = _FakeHttpClientAdapter((
+          options,
+          _,
+          _,
+        ) async {
+          return _jsonResponse(401, {
+            'error': {'code': 'UNAUTHORIZED'},
+          });
+        });
+        refreshDio.httpClientAdapter = _FakeHttpClientAdapter((
+          options,
+          _,
+          _,
+        ) async {
+          refreshCalls++;
+          return _jsonResponse(200, {
+            'data': {'access_token': 'new-access'},
+          });
+        });
+
+        authDio.interceptors.add(
+          AuthInterceptor(
+            authDio: authDio,
+            refreshDio: refreshDio,
+            secureStorage: storage,
+            installationIdentityService: _FakeInstallationIdentityService(
+              result: const Failure(
+                AppError(
+                  code: AppErrorCode.storageError,
+                  message: 'identity failed',
+                ),
+              ),
+            ),
+            baseUrl: 'https://api.test',
+          ),
+        );
+
+        await expectLater(
+          authDio.get('/protected'),
+          throwsA(isA<DioException>()),
+        );
+
+        expect(refreshCalls, 0);
+        expect(storage.deleteCalls, [
+          StorageKeys.accessToken,
+          StorageKeys.refreshToken,
+        ]);
+      },
+    );
   });
 }
+
+const _installationId = '018f7b82-4a3d-4f71-9ad7-dedc8e5b10c8';
 
 ResponseBody _jsonResponse(int statusCode, Map<String, Object?> body) {
   return ResponseBody.fromString(
@@ -260,6 +335,47 @@ class _MemorySecureStorage implements LocalSecureStorage {
     values[key] = value;
     return const Success(unit);
   }
+}
+
+class _FakeInstallationIdentityService extends InstallationIdentityService {
+  _FakeInstallationIdentityService({
+    Result<String> result = const Success(_installationId),
+  }) : _result = result,
+       super(
+         secureStorage: _NoopSecureStorage(),
+         markerStore: _NoopMarkerStore(),
+       );
+
+  final Result<String> _result;
+
+  @override
+  AsyncResult<String> resolve() async => _result;
+}
+
+class _NoopMarkerStore implements InstallationMarkerStore {
+  @override
+  AsyncResult<bool> hasMarker() async => const Success(true);
+
+  @override
+  AsyncResult<Unit> markResolved() async => const Success(unit);
+}
+
+class _NoopSecureStorage implements LocalSecureStorage {
+  @override
+  AsyncResult<Unit> write(String key, String value) async =>
+      const Success(unit);
+
+  @override
+  AsyncResult<String> read(String key) async => const Success(_installationId);
+
+  @override
+  AsyncResult<Unit> delete(String key) async => const Success(unit);
+
+  @override
+  AsyncResult<Unit> deleteAll() async => const Success(unit);
+
+  @override
+  Future<List<String>> keysWithPrefix(String pattern) async => const [];
 }
 
 class _FakeHttpClientAdapter implements HttpClientAdapter {

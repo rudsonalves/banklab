@@ -4,12 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	installationdomain "github.com/seu-usuario/bank-api/internal/installation/domain"
 )
 
 type LoginUserUseCase struct {
@@ -18,10 +20,16 @@ type LoginUserUseCase struct {
 	hasher                     domain.PasswordHasher
 	tokenService               domain.TokenService
 	sessionRepo                domain.SessionRepository
+	installationClassifier     InstallationLoginClassifier
+	firstInstallationBootstrap FirstInstallationBootstrapper
+	restrictedAuthorization    RestrictedInstallationAuthorizationIssuer
+	transactor                 domain.Transactor
 	refreshSessionTTL          time.Duration
 }
 
 const defaultRefreshSessionTTL = 30 * 24 * time.Hour
+
+var errFirstInstallationBootstrapLostRace = errors.New("first installation bootstrap lost race")
 
 type AccountProvisioningChecker interface {
 	ExistsByCustomerID(ctx context.Context, customerID uuid.UUID) (bool, error)
@@ -59,18 +67,59 @@ func (uc *LoginUserUseCase) WithRefreshSessionTTL(ttl time.Duration) *LoginUserU
 	return uc
 }
 
+func (uc *LoginUserUseCase) WithInstallationClassifier(classifier InstallationLoginClassifier) *LoginUserUseCase {
+	if classifier != nil {
+		uc.installationClassifier = classifier
+	}
+
+	return uc
+}
+
+func (uc *LoginUserUseCase) WithFirstInstallationBootstrapper(
+	bootstrapper FirstInstallationBootstrapper,
+) *LoginUserUseCase {
+	if bootstrapper != nil {
+		uc.firstInstallationBootstrap = bootstrapper
+	}
+
+	return uc
+}
+
+func (uc *LoginUserUseCase) WithRestrictedInstallationAuthorizationIssuer(
+	issuer RestrictedInstallationAuthorizationIssuer,
+) *LoginUserUseCase {
+	if issuer != nil {
+		uc.restrictedAuthorization = issuer
+	}
+
+	return uc
+}
+
+func (uc *LoginUserUseCase) WithTransactor(transactor domain.Transactor) *LoginUserUseCase {
+	if transactor != nil {
+		uc.transactor = transactor
+	}
+
+	return uc
+}
+
 type LoginUserInput struct {
-	Email    string
-	Password string
+	Email          string
+	Password       string
+	InstallationID uuid.UUID
 }
 
 type LoginUserOutput struct {
-	AccessToken  string
-	RefreshToken string
-	UserID       uuid.UUID
-	Email        string
-	Role         string
-	CustomerID   *uuid.UUID
+	AccessToken           string
+	RefreshToken          string
+	RestrictedAccessToken string
+	RestrictedTokenType   string
+	RestrictedScope       string
+	RestrictedExpiresAt   *time.Time
+	UserID                uuid.UUID
+	Email                 string
+	Role                  string
+	CustomerID            *uuid.UUID
 }
 
 // Execute performs the login operation for a user. It validates the provided email
@@ -112,10 +161,47 @@ func (uc *LoginUserUseCase) Execute(
 		return nil, err
 	}
 
+	var installationDecision *InstallationLoginDecision
+	if uc.installationClassifier != nil {
+		installationDecision, err = uc.installationClassifier.Classify(ctx, user.ID, input.InstallationID)
+		if err != nil {
+			return nil, fmt.Errorf("classify login installation: %w", err)
+		}
+	}
+
+	if installationDecision != nil && installationDecision.Classification == InstallationLoginFirst {
+		if err := uc.bootstrapFirstInstallation(ctx, user.ID, input.InstallationID); err != nil {
+			return nil, err
+		}
+	}
+
+	if installationDecision != nil {
+		switch installationDecision.Classification {
+		case InstallationLoginRevoked:
+			return nil, installationdomain.ErrInstallationRevoked
+		case InstallationLoginLimitReached:
+			return nil, installationdomain.ErrInstallationLimitReached
+		case InstallationLoginNew:
+			return uc.issueRestrictedInstallationAuthorization(ctx, user, input.InstallationID)
+		case InstallationLoginKnown, InstallationLoginFirst:
+		default:
+			return nil, domain.ErrInvalidData
+		}
+	}
+
+	return uc.issueOperationalSession(ctx, user, input.InstallationID)
+}
+
+func (uc *LoginUserUseCase) issueOperationalSession(
+	ctx context.Context,
+	user *domain.User,
+	installationID uuid.UUID,
+) (*LoginUserOutput, error) {
 	accessToken, err := uc.tokenService.GenerateAccessToken(domain.TokenClaims{
-		UserID:     user.ID,
-		Role:       user.Role,
-		CustomerID: user.CustomerID,
+		UserID:         user.ID,
+		Role:           user.Role,
+		CustomerID:     user.CustomerID,
+		InstallationID: optionalUUID(installationID),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("generate access token: %w", err)
@@ -129,7 +215,12 @@ func (uc *LoginUserUseCase) Execute(
 	hash := sha256.Sum256([]byte(refreshToken))
 	tokenHash := hex.EncodeToString(hash[:])
 
-	err = uc.sessionRepo.Create(ctx, user.ID, tokenHash, time.Now().UTC().Add(uc.refreshSessionTTL))
+	err = uc.sessionRepo.CreateWithInstallation(ctx, domain.CreateSessionInput{
+		UserID:         user.ID,
+		TokenHash:      tokenHash,
+		ExpiresAt:      time.Now().UTC().Add(uc.refreshSessionTTL),
+		InstallationID: optionalUUID(installationID),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
@@ -142,6 +233,57 @@ func (uc *LoginUserUseCase) Execute(
 		Role:         string(user.Role),
 		CustomerID:   user.CustomerID,
 	}, nil
+}
+
+type RestrictedInstallationAuthorizationIssuer interface {
+	Issue(
+		ctx context.Context,
+		userID uuid.UUID,
+		installationID uuid.UUID,
+		now time.Time,
+	) (*RestrictedInstallationAuthorization, error)
+}
+
+type RestrictedInstallationAuthorization struct {
+	Token     string
+	TokenType string
+	Scope     string
+	ExpiresAt time.Time
+}
+
+func (uc *LoginUserUseCase) issueRestrictedInstallationAuthorization(
+	ctx context.Context,
+	user *domain.User,
+	installationID uuid.UUID,
+) (*LoginUserOutput, error) {
+	if uc.restrictedAuthorization == nil {
+		return nil, fmt.Errorf("restricted installation authorization issuer not configured")
+	}
+
+	authorization, err := uc.restrictedAuthorization.Issue(ctx, user.ID, installationID, time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("issue restricted installation authorization: %w", err)
+	}
+
+	expiresAt := authorization.ExpiresAt
+	return &LoginUserOutput{
+		RestrictedAccessToken: authorization.Token,
+		RestrictedTokenType:   authorization.TokenType,
+		RestrictedScope:       authorization.Scope,
+		RestrictedExpiresAt:   &expiresAt,
+		UserID:                user.ID,
+		Email:                 user.Email,
+		Role:                  string(user.Role),
+		CustomerID:            user.CustomerID,
+	}, nil
+}
+
+func optionalUUID(value uuid.UUID) *uuid.UUID {
+	if value == uuid.Nil {
+		return nil
+	}
+
+	return &value
 }
 
 func (uc *LoginUserUseCase) validateLoginEligibility(ctx context.Context, user *domain.User) error {
@@ -185,4 +327,53 @@ func validateContactVerification(user *domain.User) error {
 	}
 
 	return domain.NewContactNotVerifiedError(emailVerified, phoneVerified)
+}
+
+type FirstInstallationBootstrapper interface {
+	BootstrapFirstInstallation(ctx context.Context, userID uuid.UUID, installationID uuid.UUID, now time.Time) error
+}
+
+func (uc *LoginUserUseCase) bootstrapFirstInstallation(
+	ctx context.Context,
+	userID uuid.UUID,
+	installationID uuid.UUID,
+) error {
+	if uc.transactor == nil {
+		return fmt.Errorf("first installation transactor not configured")
+	}
+	if uc.firstInstallationBootstrap == nil {
+		return fmt.Errorf("first installation bootstrapper not configured")
+	}
+	if uc.installationClassifier == nil {
+		return fmt.Errorf("installation classifier not configured")
+	}
+
+	return uc.transactor.RunInTx(ctx, func(txCtx context.Context) error {
+		lockedUser, err := uc.userRepo.FindByIDForUpdate(txCtx, userID)
+		if err != nil {
+			return fmt.Errorf("lock user for first installation bootstrap: %w", err)
+		}
+		if lockedUser == nil {
+			return domain.ErrUserNotFound
+		}
+
+		decision, err := uc.installationClassifier.Classify(txCtx, userID, installationID)
+		if err != nil {
+			return fmt.Errorf("reclassify login installation in bootstrap: %w", err)
+		}
+		if decision == nil || decision.Classification != InstallationLoginFirst {
+			return errFirstInstallationBootstrapLostRace
+		}
+
+		if err := uc.firstInstallationBootstrap.BootstrapFirstInstallation(
+			txCtx,
+			userID,
+			installationID,
+			time.Now().UTC(),
+		); err != nil {
+			return fmt.Errorf("bootstrap first installation: %w", err)
+		}
+
+		return nil
+	})
 }

@@ -1,4 +1,5 @@
 import '/core/resources/app_env.dart';
+import '/core/resources/app_http_headers.dart';
 import '/core/result/result.dart';
 import '/core/services/client_http/client_http.dart';
 import '/core/services/logging/console_log.dart';
@@ -22,7 +23,7 @@ class ContactVerificationApi {
       RestClientRequest(
         path: '/auth/contact-verifications',
         headers: {
-          'X-App-Token': AppEnv.appToken,
+          AppHttpHeaders.appToken: AppEnv.appToken,
         },
         body: dto.toMap(),
       ),
@@ -119,7 +120,7 @@ class ContactVerificationApi {
       RestClientRequest(
         path: '/auth/contact-verifications/confirm',
         headers: {
-          'X-App-Token': AppEnv.appToken,
+          AppHttpHeaders.appToken: AppEnv.appToken,
         },
         body: dto.toMap(),
       ),

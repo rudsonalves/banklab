@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '/core/config/dependencies.dart';
 import '/core/routing/routes.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
+import '/ui/pages/auth/installation_certification/installation_certification_page.dart';
+import '/ui/pages/auth/installation_certification/viewmodel/installation_certification_viewmodel.dart';
 import '/ui/pages/auth/login/login_page.dart';
 import '/ui/pages/auth/short_login/short_login_page.dart';
 import '/ui/pages/auth/viewmodel/login_viewmodel.dart';
@@ -38,5 +40,16 @@ List<RouteBase> authRoutes() => [
         ),
       );
     },
+  ),
+
+  GoRoute(
+    path: AuthRoutes.installationCertification.routePath,
+    name: AuthRoutes.installationCertification.routeName,
+    pageBuilder: (context, state) => AppCustomTransactionPage(
+      key: state.pageKey,
+      child: InstallationCertificationPage(
+        viewModel: injector.get<InstallationCertificationViewModel>(),
+      ),
+    ),
   ),
 ];

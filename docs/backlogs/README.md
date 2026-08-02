@@ -12,6 +12,7 @@ Os backlogs fazem parte da superfície colaborativa do projeto. Eles não são a
 backlogs/
 |-- api/          # discussões e backlogs ativos da API
 |-- api/done/     # histórico resolvido ou implementado da API
+|-- api/olds/     # backlogs substituídos por uma organização mais nova
 |-- mobile/       # discussões e backlogs ativos do mobile
 |-- mobile/done/  # histórico resolvido ou implementado do mobile
 `-- discussion.md # notas amplas de discussão técnica
@@ -21,6 +22,7 @@ backlogs/
 
 - Arquivos diretamente em `api/` ou `mobile/` representam assuntos ativos ou em planejamento.
 - Arquivos dentro de `done/` representam backlogs já resolvidos, implementados ou substituídos por decisões mais novas.
+- Arquivos dentro de `olds/` representam versões substituídas de backlogs ainda úteis como histórico de discussão.
 - Backlogs concluídos devem permanecer no repositório como histórico de deliberação.
 
 ## Backlogs ativos
@@ -28,8 +30,27 @@ backlogs/
 ### API
 
 - [010 - installation-identity-mvp.md](<api/010 - installation-identity-mvp.md>):
-  validação do header, vínculo com usuário e sessão, persistência backend,
-  estados, revogação e rollout.
+  backlog principal do MVP de identidade de instalação na API.
+- [010 - split-installation-identity-by-dependency.md](<api/010 - split-installation-identity-by-dependency.md>):
+  separação dos backlogs API por ordem de dependência técnica.
+- [011 - installation-identity-entry-contract.md](<api/011 - installation-identity-entry-contract.md>):
+  contrato mínimo de `X-Installation-Id` no login.
+- [012 - installation-identity-domain-contracts.md](<api/012 - installation-identity-domain-contracts.md>):
+  domínio, estados, erros e portas internas.
+- [013 - installation-identity-database-schema.md](<api/013 - installation-identity-database-schema.md>):
+  migrations, tabelas, constraints e índices.
+- [014 - installation-identity-repositories.md](<api/014 - installation-identity-repositories.md>):
+  implementações Postgres e operações atômicas.
+- [015 - installation-identity-session-tokens-context.md](<api/015 - installation-identity-session-tokens-context.md>):
+  sessão, claims, token restrito e contexto autenticado.
+- [016 - installation-identity-login-usecases.md](<api/016 - installation-identity-login-usecases.md>):
+  classificação, bootstrap, limite e autorização restrita no login.
+- [017 - installation-identity-management-usecases.md](<api/017 - installation-identity-management-usecases.md>):
+  registro explícito, listagem, revogação e efeitos em sessão.
+- [018 - installation-identity-delivery-enforcement.md](<api/018 - installation-identity-delivery-enforcement.md>):
+  handlers, middlewares, enforcement e contrato REST.
+- [019 - installation-identity-audit-retention.md](<api/019 - installation-identity-audit-retention.md>):
+  auditoria, retenção, minimização e documentação operacional.
 
 ### Mobile
 

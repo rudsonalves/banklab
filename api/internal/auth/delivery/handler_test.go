@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/application"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	sharedheaders "github.com/seu-usuario/bank-api/internal/shared/http/headers"
 )
 
 type registerUserUseCaseMock struct {
@@ -415,6 +416,7 @@ func TestHandler_Login_Success(t *testing.T) {
 	}
 	handler := New(nil, loginUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	req.Header.Set(sharedheaders.InstallationID, "550e8400-e29b-41d4-a716-446655440000")
 	rec := httptest.NewRecorder()
 
 	handler.Login(rec, req)
@@ -455,6 +457,10 @@ func TestHandler_Login_Success(t *testing.T) {
 		t.Fatalf("expected user id %q, got %q", userID.String(), got.Data.UserID)
 	}
 
+	if loginUC.input.InstallationID.String() != "550e8400-e29b-41d4-a716-446655440000" {
+		t.Fatalf("expected installation id to be propagated, got %q", loginUC.input.InstallationID.String())
+	}
+
 	if got.Error != nil {
 		t.Fatalf("expected nil error, got %#v", got.Error)
 	}
@@ -464,6 +470,7 @@ func TestHandler_Login_InvalidCredentials(t *testing.T) {
 	loginUC := &loginUserUseCaseMock{err: domain.ErrInvalidCredentials}
 	handler := New(nil, loginUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"wrong"}`))
+	req.Header.Set(sharedheaders.InstallationID, "550e8400-e29b-41d4-a716-446655440000")
 	rec := httptest.NewRecorder()
 
 	handler.Login(rec, req)
@@ -491,6 +498,7 @@ func TestHandler_Login_AccountApprovalRequired(t *testing.T) {
 	loginUC := &loginUserUseCaseMock{err: domain.ErrAccountApprovalRequired}
 	handler := New(nil, loginUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	req.Header.Set(sharedheaders.InstallationID, "550e8400-e29b-41d4-a716-446655440000")
 	rec := httptest.NewRecorder()
 
 	handler.Login(rec, req)
@@ -528,6 +536,7 @@ func TestHandler_Login_ContactNotVerified(t *testing.T) {
 	loginUC := &loginUserUseCaseMock{err: domain.NewContactNotVerifiedError(false, true)}
 	handler := New(nil, loginUC, nil, nil, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	req.Header.Set(sharedheaders.InstallationID, "550e8400-e29b-41d4-a716-446655440000")
 	rec := httptest.NewRecorder()
 
 	handler.Login(rec, req)
@@ -570,6 +579,89 @@ func TestHandler_Login_ContactNotVerified(t *testing.T) {
 	}
 }
 
+func TestHandler_Login_MissingInstallationID(t *testing.T) {
+	loginUC := &loginUserUseCaseMock{}
+	handler := New(nil, loginUC, nil, nil, nil, nil)
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+	rec := httptest.NewRecorder()
+
+	handler.Login(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	if loginUC.called {
+		t.Fatal("expected use case not to be called")
+	}
+
+	var got struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+
+	if got.Error.Code != "INVALID_INSTALLATION_ID" {
+		t.Fatalf("expected error code %q, got %q", "INVALID_INSTALLATION_ID", got.Error.Code)
+	}
+
+	if got.Error.Message != "X-Installation-Id must be a canonical UUID v4." {
+		t.Fatalf("expected error message %q, got %q", "X-Installation-Id must be a canonical UUID v4.", got.Error.Message)
+	}
+}
+
+func TestHandler_Login_InvalidInstallationID(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{name: "not uuid", value: "not-a-uuid"},
+		{name: "uuid v1", value: "550e8400-e29b-11d4-a716-446655440000"},
+		{name: "without hyphens", value: "550e8400e29b41d4a716446655440000"},
+		{name: "uppercase", value: "550E8400-E29B-41D4-A716-446655440000"},
+		{name: "blank", value: "   "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loginUC := &loginUserUseCaseMock{}
+			handler := New(nil, loginUC, nil, nil, nil, nil)
+			req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"email":"user@example.com","password":"password123"}`))
+			req.Header.Set(sharedheaders.InstallationID, tt.value)
+			rec := httptest.NewRecorder()
+
+			handler.Login(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+			}
+
+			if loginUC.called {
+				t.Fatal("expected use case not to be called")
+			}
+
+			var got struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+
+			if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+				t.Fatalf("failed to decode response body: %v", err)
+			}
+
+			if got.Error.Code != "INVALID_INSTALLATION_ID" {
+				t.Fatalf("expected error code %q, got %q", "INVALID_INSTALLATION_ID", got.Error.Code)
+			}
+		})
+	}
+}
+
 func TestHandler_Refresh_Success(t *testing.T) {
 	refreshUC := &refreshAccessTokenUseCaseMock{output: &application.RefreshAccessTokenOutput{
 		AccessToken:  "new-access-token",
@@ -577,6 +669,7 @@ func TestHandler_Refresh_Success(t *testing.T) {
 	}}
 	handler := New(nil, nil, nil, refreshUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"valid-refresh-token"}`))
+	req.Header.Set(sharedheaders.InstallationID, "550e8400-e29b-41d4-a716-446655440000")
 	rec := httptest.NewRecorder()
 
 	handler.Refresh(rec, req)
@@ -591,6 +684,9 @@ func TestHandler_Refresh_Success(t *testing.T) {
 
 	if refreshUC.input.RefreshToken != "valid-refresh-token" {
 		t.Fatalf("expected refresh token %q, got %q", "valid-refresh-token", refreshUC.input.RefreshToken)
+	}
+	if refreshUC.input.InstallationID.String() != "550e8400-e29b-41d4-a716-446655440000" {
+		t.Fatalf("expected installation id to be propagated, got %q", refreshUC.input.InstallationID.String())
 	}
 
 	var got struct {
@@ -622,6 +718,7 @@ func TestHandler_Refresh_InvalidToken(t *testing.T) {
 	refreshUC := &refreshAccessTokenUseCaseMock{err: domain.ErrInvalidToken}
 	handler := New(nil, nil, nil, refreshUC, nil, nil)
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", strings.NewReader(`{"refresh_token":"bad-token"}`))
+	req.Header.Set(sharedheaders.InstallationID, "550e8400-e29b-41d4-a716-446655440000")
 	rec := httptest.NewRecorder()
 
 	handler.Refresh(rec, req)

@@ -127,8 +127,9 @@ Interceptors handle transport concerns, never presentation concerns.
 
 `AuthInterceptor` currently:
 
-- adds `Authorization: Bearer <token>` when an access token is stored
-- skips requests that already include `Authorization`
+- adds `AppHttpHeaders.authorization` with bearer value when an access token is
+  stored
+- skips requests that already include `AppHttpHeaders.authorization`
 - attempts refresh on `401` responses, except on the refresh endpoint
 - persists new tokens when refresh succeeds
 - retries the original request with the new access token

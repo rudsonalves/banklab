@@ -15,6 +15,16 @@ func TestDefaultStepUpEndpointPolicy_AllowsInternalTransferCreate(t *testing.T) 
 	}
 }
 
+func TestDefaultStepUpEndpointPolicy_AllowsInstallationRegisterCreate(t *testing.T) {
+	policy := NewDefaultStepUpEndpointPolicy()
+
+	err := policy.Validate(StepUpEndpointInstallationRegisterCreate)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
 func TestDefaultStepUpEndpointPolicy_RejectsUnknownEndpoint(t *testing.T) {
 	policy := NewDefaultStepUpEndpointPolicy()
 

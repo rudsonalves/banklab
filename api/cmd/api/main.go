@@ -24,6 +24,9 @@ import (
 	customerDelivery "github.com/seu-usuario/bank-api/internal/customer/delivery"
 	customerInfrastructure "github.com/seu-usuario/bank-api/internal/customer/infrastructure"
 	"github.com/seu-usuario/bank-api/internal/database"
+	installationApplication "github.com/seu-usuario/bank-api/internal/installation/application"
+	installationDelivery "github.com/seu-usuario/bank-api/internal/installation/delivery"
+	installationInfrastructure "github.com/seu-usuario/bank-api/internal/installation/infrastructure"
 	securityApplication "github.com/seu-usuario/bank-api/internal/security/application"
 	securityDelivery "github.com/seu-usuario/bank-api/internal/security/delivery"
 	securityDomain "github.com/seu-usuario/bank-api/internal/security/domain"
@@ -36,7 +39,7 @@ func newAuthRouter(
 	authHandler *authDelivery.Handler,
 	customerHandler *customerDelivery.Handler,
 	appTokenMiddleware func(http.Handler) http.Handler,
-	withAuth func(http.Handler) http.Handler,
+	withOperationalAuth func(http.Handler) http.Handler,
 ) *http.ServeMux {
 	authRouter := http.NewServeMux()
 
@@ -49,35 +52,41 @@ func newAuthRouter(
 
 	// Session refresh is authenticated by the refresh token payload itself.
 	authRouter.Handle("POST /auth/refresh", http.HandlerFunc(authHandler.Refresh))
-	authRouter.Handle("GET /auth/me", withAuth(http.HandlerFunc(authHandler.Me)))
-	authRouter.Handle("GET /auth/session", withAuth(http.HandlerFunc(authHandler.Session)))
+	authRouter.Handle("GET /auth/me", withOperationalAuth(http.HandlerFunc(authHandler.Me)))
+	authRouter.Handle("GET /auth/session", withOperationalAuth(http.HandlerFunc(authHandler.Session)))
 
 	return authRouter
 }
 
 func newAPIRouter(
-	withAuth func(http.Handler) http.Handler,
+	withOperationalAuth func(http.Handler) http.Handler,
+	withOperationalOrRestrictedAuth func(http.Handler) http.Handler,
+	withRestrictedAuth func(http.Handler) http.Handler,
 	adminHandler *adminDelivery.Handler,
 	accountHandler *accountDelivery.Handler,
 	customerHandler *customerDelivery.Handler,
+	installationHandler *installationDelivery.Handler,
 	statementHandler *statementDelivery.Handler,
 	transactionHandler *transactionDelivery.Handler,
 	securityHandler *securityDelivery.Handler,
 ) *http.ServeMux {
 	apiRouter := http.NewServeMux()
-	apiRouter.Handle("POST /admin/users/{id}/approve", withAuth(http.HandlerFunc(adminHandler.ApproveUser)))
-	apiRouter.Handle("POST /admin/customers/{customer_id}/accounts", withAuth(http.HandlerFunc(accountHandler.CreateAccountForCustomer)))
+	apiRouter.Handle("POST /admin/users/{id}/approve", withOperationalAuth(http.HandlerFunc(adminHandler.ApproveUser)))
+	apiRouter.Handle("POST /admin/customers/{customer_id}/accounts", withOperationalAuth(http.HandlerFunc(accountHandler.CreateAccountForCustomer)))
 
-	apiRouter.Handle("GET /customers/me", withAuth(http.HandlerFunc(customerHandler.Me)))
+	apiRouter.Handle("GET /customers/me", withOperationalAuth(http.HandlerFunc(customerHandler.Me)))
 
-	apiRouter.Handle("GET /accounts", withAuth(http.HandlerFunc(accountHandler.ListAccounts)))
-	apiRouter.Handle("GET /accounts/internal-transfers/recipients", withAuth(http.HandlerFunc(accountHandler.LookupInternalTransferRecipients)))
-	apiRouter.Handle("GET /accounts/{id}/statement", withAuth(http.HandlerFunc(statementHandler.Statement)))
-	apiRouter.Handle("GET /accounts/{id}/balance", withAuth(http.HandlerFunc(accountHandler.GetBalance)))
-	apiRouter.Handle("POST /accounts/internal-transfers", withAuth(http.HandlerFunc(transactionHandler.Transfer)))
-	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
-	apiRouter.Handle("POST /security/transaction-password", withAuth(http.HandlerFunc(securityHandler.CreateTransactionPassword)))
-	apiRouter.Handle("POST /security/step-up/authorize", withAuth(http.HandlerFunc(securityHandler.AuthorizeStepUp)))
+	apiRouter.Handle("GET /accounts", withOperationalAuth(http.HandlerFunc(accountHandler.ListAccounts)))
+	apiRouter.Handle("GET /accounts/internal-transfers/recipients", withOperationalAuth(http.HandlerFunc(accountHandler.LookupInternalTransferRecipients)))
+	apiRouter.Handle("GET /accounts/{id}/statement", withOperationalAuth(http.HandlerFunc(statementHandler.Statement)))
+	apiRouter.Handle("GET /accounts/{id}/balance", withOperationalAuth(http.HandlerFunc(accountHandler.GetBalance)))
+	apiRouter.Handle("POST /accounts/internal-transfers", withOperationalAuth(http.HandlerFunc(transactionHandler.Transfer)))
+	apiRouter.Handle("GET /accounts/transfer/{transaction_reference}/receipt", withOperationalAuth(http.HandlerFunc(transactionHandler.TransferReceipt)))
+	apiRouter.Handle("POST /security/transaction-password", withOperationalAuth(http.HandlerFunc(securityHandler.CreateTransactionPassword)))
+	apiRouter.Handle("POST /security/step-up/authorize", withOperationalOrRestrictedAuth(http.HandlerFunc(securityHandler.AuthorizeStepUp)))
+	apiRouter.Handle("POST /security/installations", withRestrictedAuth(http.HandlerFunc(installationHandler.Register)))
+	apiRouter.Handle("GET /security/installations", withOperationalAuth(http.HandlerFunc(installationHandler.List)))
+	apiRouter.Handle("DELETE /security/installations/{installation_resource_id}", withOperationalAuth(http.HandlerFunc(installationHandler.Revoke)))
 
 	// Terminal cash operations are intentionally disabled until a real terminal channel exists.
 	// apiRouter.Handle("POST /terminal/accounts/{id}/deposit", withAuth(http.HandlerFunc(transactionHandler.Deposit)))
@@ -114,6 +123,8 @@ func main() {
 	userRepo := authInfrastructure.NewPostgresUserRepository(db)
 	sessionRepo := authInfrastructure.NewPostgresSessionRepository(db)
 	contactVerificationRepo := authInfrastructure.NewPostgresContactVerificationRepository(db)
+	installationRepo := installationInfrastructure.NewPostgresInstallationRepository(db)
+	restrictedAuthorizationRepo := installationInfrastructure.NewPostgresRestrictedAuthorizationRepository(db)
 	transactionPasswordRepo := securityInfrastructure.NewPostgresTransactionPasswordRepository(db)
 	stepUpTokenRepo := securityInfrastructure.NewPostgresStepUpTokenRepository(db)
 	transactor := authInfrastructure.NewPostgresTransactor(db)
@@ -127,6 +138,10 @@ func main() {
 		config.TransactionPasswordPepper,
 	)
 	tokenService := authInfrastructure.NewJWTTokenService(config.JWTSecret, config.JWTAccessTokenDuration)
+	restrictedAccessTokenService := installationInfrastructure.NewJWTRestrictedAccessTokenService(
+		config.JWTSecret,
+		restrictedAuthorizationRepo,
+	)
 	stepUpTokenSigner := securityInfrastructure.NewJWTStepUpTokenSigner(config.JWTSecret)
 	stepUpTokenVerifier := securityInfrastructure.NewJWTStepUpTokenVerifier(config.JWTSecret)
 
@@ -154,7 +169,16 @@ func main() {
 		transactor,
 	)
 	loginUserUC := authApplication.NewLoginUserUseCase(userRepo, accountRepo, hasher, tokenService, sessionRepo).
-		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
+		WithRefreshSessionTTL(config.JWTRefreshTokenDuration).
+		WithInstallationClassifier(authApplication.NewDefaultInstallationLoginClassifier(
+			authApplication.NewInstallationLoginRepositoryAdapter(installationRepo),
+		)).
+		WithFirstInstallationBootstrapper(authApplication.NewFirstInstallationBootstrapperAdapter(installationRepo)).
+		WithRestrictedInstallationAuthorizationIssuer(authApplication.NewDefaultRestrictedInstallationAuthorizationIssuer(
+			restrictedAuthorizationRepo,
+			restrictedAccessTokenService,
+		)).
+		WithTransactor(transactor)
 	refreshAccessTokenUC := authApplication.NewRefreshAccessTokenUseCase(userRepo, tokenService, sessionRepo, transactor).
 		WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
 	getCurrentUserUC := authApplication.NewGetCurrentUserUseCase(userRepo)
@@ -175,6 +199,17 @@ func main() {
 		securityDomain.NewDefaultStepUpPublicOperationResolver(),
 	)
 	enforceStepUpUC := securityApplication.NewEnforceStepUpUseCase(stepUpTokenVerifier, stepUpTokenRepo)
+	registerInstallationUC := installationApplication.NewRegisterInstallationUseCase(
+		userRepo,
+		installationRepo,
+		restrictedAuthorizationRepo,
+		tokenService,
+		sessionRepo,
+		transactor,
+		enforceStepUpUC,
+	).WithRefreshSessionTTL(config.JWTRefreshTokenDuration)
+	listInstallationsUC := installationApplication.NewListInstallationsUseCase(installationRepo)
+	revokeInstallationUC := installationApplication.NewRevokeInstallationUseCase(installationRepo, sessionRepo, transactor)
 	approveUserUC := adminApplication.NewApproveUserUseCase(userRepo, accountRepo, customerRepo, transactor, branchPolicy)
 
 	getCustomerMeUC := customerApplication.NewGetCustomerMe(customerRepo)
@@ -197,25 +232,40 @@ func main() {
 	)
 	adminHandler := adminDelivery.New(approveUserUC)
 	customerHandler := customerDelivery.New(nil, getCustomerMeUC, checkCPFUC)
+	installationHandler := installationDelivery.New(registerInstallationUC, listInstallationsUC, revokeInstallationUC)
 	securityHandler := securityDelivery.New(createTransactionPasswordUC, authorizeStepUpUC)
 
 	// ======================
 	// Middlewares
 	// ======================
 	appTokenMiddleware := sharedhttpmiddleware.AppToken(config.AppToken)
-	authMiddleware := authDelivery.NewJWTMiddleware(tokenService)
+	authMiddleware := authDelivery.NewJWTMiddleware(tokenService).
+		WithRestrictedAccessTokenVerifier(restrictedAccessTokenService)
 
-	withAuth := authMiddleware.RequireAuth
+	withOperationalAuth := authMiddleware.RequireOperationalAuth
+	withOperationalOrRestrictedAuth := authMiddleware.RequireOperationalOrRestrictedAuth
+	withRestrictedAuth := authMiddleware.RequireRestrictedAuth
 
 	// ======================
 	// Routers
 	// ======================
 
 	// --- Auth Router ---
-	authRouter := newAuthRouter(authHandler, customerHandler, appTokenMiddleware, withAuth)
+	authRouter := newAuthRouter(authHandler, customerHandler, appTokenMiddleware, withOperationalAuth)
 
 	// --- API Router ---
-	apiRouter := newAPIRouter(withAuth, adminHandler, accountHandler, customerHandler, statementHandler, transactionHandler, securityHandler)
+	apiRouter := newAPIRouter(
+		withOperationalAuth,
+		withOperationalOrRestrictedAuth,
+		withRestrictedAuth,
+		adminHandler,
+		accountHandler,
+		customerHandler,
+		installationHandler,
+		statementHandler,
+		transactionHandler,
+		securityHandler,
+	)
 
 	// ======================
 	// Main Router

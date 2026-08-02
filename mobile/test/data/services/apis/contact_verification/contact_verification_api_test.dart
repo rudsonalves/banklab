@@ -1,4 +1,5 @@
 import 'package:bankflow/core/resources/app_env.dart';
+import 'package:bankflow/core/resources/app_http_headers.dart';
 import 'package:bankflow/core/result/result.dart';
 import 'package:bankflow/core/services/client_http/client_http.dart';
 import 'package:bankflow/data/services/apis/contact_verification/contact_verification_api.dart';
@@ -12,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ContactVerificationApi.requestContactVerification', () {
     test(
-      'calls POST /auth/contact-verifications with X-App-Token and request body',
+      'calls POST /auth/contact-verifications with app token header and request body',
       () async {
         final client = _FakeRestClient(
           postResult: Result.success(
@@ -35,7 +36,7 @@ void main() {
         expect(client.postCalls, 1);
         expect(client.lastPostRequest?.path, '/auth/contact-verifications');
         expect(
-          client.lastPostRequest?.headers?['X-App-Token'],
+          client.lastPostRequest?.headers?[AppHttpHeaders.appToken],
           AppEnv.appToken,
         );
         expect(client.lastPostRequest?.body, {
@@ -106,7 +107,7 @@ void main() {
 
   group('ContactVerificationApi.confirmContactVerification', () {
     test(
-      'calls POST /auth/contact-verifications/confirm with X-App-Token and request body',
+      'calls POST /auth/contact-verifications/confirm with app token header and request body',
       () async {
         final client = _FakeRestClient(
           postResult: Result.success(
@@ -132,7 +133,7 @@ void main() {
           '/auth/contact-verifications/confirm',
         );
         expect(
-          client.lastPostRequest?.headers?['X-App-Token'],
+          client.lastPostRequest?.headers?[AppHttpHeaders.appToken],
           AppEnv.appToken,
         );
         expect(client.lastPostRequest?.body, {

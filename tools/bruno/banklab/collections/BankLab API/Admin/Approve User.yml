@@ -8,13 +8,14 @@ http:
   url: "{{base_url}}/admin/users/{{id}}/approve"
   headers:
     - name: Authorization
-      value: "Bearer {{access_token}}"
+      value: Bearer {{access_token}}
     - name: Content-Type
       value: application/json
+    - name: X-Installation-Id
+      value: "{{x_installation_id_admin}}"
   body:
     type: json
-    data: |-
-      {}
+    data: "{}"
   auth: inherit
 
 settings:

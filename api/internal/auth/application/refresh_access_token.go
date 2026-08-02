@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/seu-usuario/bank-api/internal/auth/domain"
+	installationdomain "github.com/seu-usuario/bank-api/internal/installation/domain"
 )
 
 type RefreshAccessTokenUseCase struct {
@@ -50,7 +51,8 @@ func (uc *RefreshAccessTokenUseCase) WithRefreshSessionTTL(ttl time.Duration) *R
 }
 
 type RefreshAccessTokenInput struct {
-	RefreshToken string
+	RefreshToken   string
+	InstallationID uuid.UUID
 }
 
 type RefreshAccessTokenOutput struct {
@@ -81,25 +83,30 @@ func (uc *RefreshAccessTokenUseCase) Execute(
 	hash := sha256.Sum256([]byte(refreshToken))
 	tokenHash := hex.EncodeToString(hash[:])
 
-	storedUserID, expiresAt, revoked, err := uc.sessionRepo.FindByTokenHash(ctx, tokenHash)
+	session, err := uc.sessionRepo.FindByTokenHashWithInstallation(ctx, tokenHash)
 	if err != nil {
 		return nil, fmt.Errorf("find session by token hash: %w", err)
 	}
 
-	if storedUserID == uuid.Nil {
+	if session == nil || session.UserID == uuid.Nil {
 		return nil, domain.ErrInvalidToken
 	}
 
-	if revoked {
+	if session.Revoked {
 		return nil, domain.ErrInvalidToken
 	}
 
-	if time.Now().UTC().After(expiresAt.UTC()) {
+	if time.Now().UTC().After(session.ExpiresAt.UTC()) {
 		return nil, domain.ErrInvalidToken
 	}
 
-	if storedUserID != userID {
+	if session.UserID != userID {
 		return nil, domain.ErrInvalidToken
+	}
+	if input.InstallationID != uuid.Nil {
+		if session.InstallationID == nil || *session.InstallationID != input.InstallationID {
+			return nil, installationdomain.ErrInstallationMismatch
+		}
 	}
 
 	user, err := uc.userRepo.FindByID(ctx, userID)
@@ -111,9 +118,10 @@ func (uc *RefreshAccessTokenUseCase) Execute(
 	}
 
 	accessToken, err := uc.tokenService.GenerateAccessToken(domain.TokenClaims{
-		UserID:     user.ID,
-		Role:       user.Role,
-		CustomerID: user.CustomerID,
+		UserID:         user.ID,
+		Role:           user.Role,
+		CustomerID:     user.CustomerID,
+		InstallationID: session.InstallationID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("generate access token: %w", err)
@@ -131,7 +139,12 @@ func (uc *RefreshAccessTokenUseCase) Execute(
 		if err := uc.sessionRepo.Revoke(txCtx, tokenHash); err != nil {
 			return fmt.Errorf("revoke old session: %w", err)
 		}
-		if err := uc.sessionRepo.Create(txCtx, user.ID, newTokenHash, time.Now().UTC().Add(uc.refreshSessionTTL)); err != nil {
+		if err := uc.sessionRepo.CreateWithInstallation(txCtx, domain.CreateSessionInput{
+			UserID:         user.ID,
+			TokenHash:      newTokenHash,
+			ExpiresAt:      time.Now().UTC().Add(uc.refreshSessionTTL),
+			InstallationID: session.InstallationID,
+		}); err != nil {
 			return fmt.Errorf("create new session: %w", err)
 		}
 		return nil

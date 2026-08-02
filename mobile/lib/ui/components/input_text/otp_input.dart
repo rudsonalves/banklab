@@ -149,7 +149,10 @@ class _OtpInputState extends State<OtpInput> {
     _controller.selection = TextSelection.collapsed(
       offset: _controller.text.length,
     );
-    _focusNode.requestFocus();
+
+    if (_controller.text.length < widget.lenth) {
+      _focusNode.requestFocus();
+    }
   }
 }
 

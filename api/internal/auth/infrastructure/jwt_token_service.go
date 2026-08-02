@@ -21,8 +21,9 @@ type JWTTokenService struct {
 }
 
 type jwtClaims struct {
-	Role       string  `json:"role"`
-	CustomerID *string `json:"customer_id,omitempty"`
+	Role           string  `json:"role"`
+	CustomerID     *string `json:"customer_id,omitempty"`
+	InstallationID *string `json:"installation_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -45,10 +46,16 @@ func (s *JWTTokenService) GenerateAccessToken(claims domain.TokenClaims) (string
 		s := claims.CustomerID.String()
 		cidStr = &s
 	}
+	var installationIDStr *string
+	if claims.InstallationID != nil {
+		s := claims.InstallationID.String()
+		installationIDStr = &s
+	}
 
 	payload := jwtClaims{
-		Role:       string(claims.Role),
-		CustomerID: cidStr,
+		Role:           string(claims.Role),
+		CustomerID:     cidStr,
+		InstallationID: installationIDStr,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   claims.UserID.String(),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -125,11 +132,20 @@ func (s *JWTTokenService) ParseAccessToken(token string) (*domain.TokenClaims, e
 		}
 		customerID = &cid
 	}
+	var installationID *uuid.UUID
+	if parsedClaims.InstallationID != nil {
+		iid, err := uuid.Parse(*parsedClaims.InstallationID)
+		if err != nil {
+			return nil, errors.New("invalid installation_id claim: not a valid uuid")
+		}
+		installationID = &iid
+	}
 
 	return &domain.TokenClaims{
-		UserID:     userID,
-		Role:       domain.Role(parsedClaims.Role),
-		CustomerID: customerID,
+		UserID:         userID,
+		Role:           domain.Role(parsedClaims.Role),
+		CustomerID:     customerID,
+		InstallationID: installationID,
 	}, nil
 }
 

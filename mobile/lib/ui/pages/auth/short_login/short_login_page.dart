@@ -6,12 +6,14 @@ import '/core/routing/models/transaction_password_setup_origin.dart';
 import '/core/routing/routes.dart';
 import '/data/services/apis/auth/dtos/login_request_dto.dart';
 import '/data/services/cache/last_login/models/last_login_identity.dart';
+import '/domain/common/auth/models/auth_state.dart';
 import '/ui/components/base/safe_scaffold.dart';
 import '/ui/components/buttons/big_button.dart';
 import '/ui/components/input_text/basic_input_text.dart';
 import '/ui/components/messages/app_snackbar.dart';
 import '../models/post_login_destination.dart';
 import '../viewmodel/login_viewmodel.dart';
+import '../widgets/installation_limit_dialog.dart';
 
 const _accountApprovalRequiredMessage =
     'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar sua conta.';
@@ -204,6 +206,11 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
 
     if (loginCommand.isFailure) {
       final error = loginCommand.error;
+      if (error?.code == AppErrorCode.installationLimitReached) {
+        _handleInstallationLimitReached();
+        return;
+      }
+
       final message = _resolveLoginErrorMessage(error);
 
       AppSnackbar.show(
@@ -216,7 +223,15 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
       return;
     }
 
-    if (loginCommand.isSuccess) _handlePostLoginDestination();
+    if (loginCommand.isSuccess) {
+      final authState = loginCommand.value;
+      if (authState is RestrictedInstallationAuthState) {
+        context.goNamed(AuthRoutes.installationCertification.routeName);
+        return;
+      }
+
+      _handlePostLoginDestination();
+    }
   }
 
   void _handlePostLoginDestination() {
@@ -252,6 +267,12 @@ class _ShortLoginPageState extends State<ShortLoginPage> {
         );
         return;
     }
+  }
+
+  Future<void> _handleInstallationLimitReached() async {
+    await showInstallationLimitDialog(context);
+    if (!mounted) return;
+    context.goNamed(AuthRoutes.login.routeName);
   }
 
   String _resolveLoginErrorMessage(AppError? error) {

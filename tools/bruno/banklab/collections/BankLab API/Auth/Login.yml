@@ -11,6 +11,8 @@ http:
       value: "{{app_token}}"
     - name: Content-Type
       value: application/json
+    - name: X-Installation-Id
+      value: ""
   body:
     type: json
     data: |-

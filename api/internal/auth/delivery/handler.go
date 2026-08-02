@@ -12,6 +12,7 @@ import (
 	"github.com/seu-usuario/bank-api/internal/auth/application"
 	sharederrors "github.com/seu-usuario/bank-api/internal/shared/errors"
 	sharedhttp "github.com/seu-usuario/bank-api/internal/shared/http"
+	sharedheaders "github.com/seu-usuario/bank-api/internal/shared/http/headers"
 )
 
 type registerUserUseCase interface {
@@ -90,12 +91,16 @@ type userData struct {
 }
 
 type loginData struct {
-	AccessToken  string     `json:"access_token"`
-	RefreshToken string     `json:"refresh_token"`
-	UserID       uuid.UUID  `json:"user_id"`
-	Email        string     `json:"email"`
-	Role         string     `json:"role"`
-	CustomerID   *uuid.UUID `json:"customer_id,omitempty"`
+	AccessToken           string     `json:"access_token,omitempty"`
+	RefreshToken          string     `json:"refresh_token,omitempty"`
+	RestrictedAccessToken string     `json:"restricted_access_token,omitempty"`
+	RestrictedTokenType   string     `json:"restricted_token_type,omitempty"`
+	RestrictedScope       string     `json:"restricted_scope,omitempty"`
+	RestrictedExpiresAt   *time.Time `json:"restricted_expires_at,omitempty"`
+	UserID                uuid.UUID  `json:"user_id"`
+	Email                 string     `json:"email"`
+	Role                  string     `json:"role"`
+	CustomerID            *uuid.UUID `json:"customer_id,omitempty"`
 }
 
 type sessionData struct {
@@ -319,6 +324,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	installationID, err := parseCanonicalInstallationID(r.Header.Get(sharedheaders.InstallationID))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
 	var req loginUserRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -328,8 +339,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.loginUser.Execute(r.Context(), application.LoginUserInput{
-		Email:    req.Email,
-		Password: req.Password,
+		Email:          req.Email,
+		Password:       req.Password,
+		InstallationID: installationID,
 	})
 	if err != nil {
 		log.Printf("event=login_user error=%v", err)
@@ -343,13 +355,45 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sharedhttp.WriteJSON(w, http.StatusOK, loginData{
-		AccessToken:  output.AccessToken,
-		RefreshToken: output.RefreshToken,
-		UserID:       output.UserID,
-		Email:        output.Email,
-		Role:         output.Role,
-		CustomerID:   output.CustomerID,
+		AccessToken:           output.AccessToken,
+		RefreshToken:          output.RefreshToken,
+		RestrictedAccessToken: output.RestrictedAccessToken,
+		RestrictedTokenType:   output.RestrictedTokenType,
+		RestrictedScope:       output.RestrictedScope,
+		RestrictedExpiresAt:   output.RestrictedExpiresAt,
+		UserID:                output.UserID,
+		Email:                 output.Email,
+		Role:                  output.Role,
+		CustomerID:            output.CustomerID,
 	})
+}
+
+// parseCanonicalInstallationID validates and parses the installation ID
+// from the request header.
+// It ensures that the installation ID is a valid UUID version 4 and is
+// in its canonical string representation.
+// If the installation ID is invalid, it returns an error indicating an
+// invalid installation ID.
+func parseCanonicalInstallationID(raw string) (uuid.UUID, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return uuid.Nil, sharederrors.ErrInvalidInstallationID
+	}
+
+	installationID, err := uuid.Parse(value)
+	if err != nil {
+		return uuid.Nil, sharederrors.ErrInvalidInstallationID
+	}
+
+	if installationID.Version() != 4 {
+		return uuid.Nil, sharederrors.ErrInvalidInstallationID
+	}
+
+	if installationID.String() != value {
+		return uuid.Nil, sharederrors.ErrInvalidInstallationID
+	}
+
+	return installationID, nil
 }
 
 // Me handles the HTTP request for retrieving the current authenticated user's
@@ -426,6 +470,12 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	installationID, err := parseCanonicalInstallationID(r.Header.Get(sharedheaders.InstallationID))
+	if err != nil {
+		sharedhttp.WriteError(w, sharederrors.MapError(err))
+		return
+	}
+
 	var req refreshAccessTokenRequest
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -440,7 +490,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.refreshAccessToken.Execute(r.Context(), application.RefreshAccessTokenInput{
-		RefreshToken: req.RefreshToken,
+		RefreshToken:   req.RefreshToken,
+		InstallationID: installationID,
 	})
 	if err != nil {
 		log.Printf("event=refresh_access_token error=%v", err)

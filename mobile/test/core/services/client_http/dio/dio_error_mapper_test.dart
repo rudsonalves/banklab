@@ -200,6 +200,26 @@ void main() {
       expect(backendErrorCode(error), 'CONTACT_NOT_VERIFIED');
     });
 
+    test('maps INSTALLATION_LIMIT_REACHED to installationLimitReached', () {
+      final error = mapHttpError(
+        _dioBadResponse(
+          statusCode: 409,
+          data: {
+            'data': null,
+            'error': {
+              'code': 'INSTALLATION_LIMIT_REACHED',
+              'message': 'installation limit reached',
+            },
+          },
+        ),
+      );
+
+      expect(error.code, AppErrorCode.installationLimitReached);
+      expect(error.message, 'installation limit reached');
+      expect(error.statusCode, 409);
+      expect(backendErrorCode(error), 'INSTALLATION_LIMIT_REACHED');
+    });
+
     test('keeps generic forbidden as httpError when code is not approval', () {
       final error = mapHttpError(
         _dioBadResponse(

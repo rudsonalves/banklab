@@ -11,4 +11,8 @@ abstract class TransactionPasswordRepository {
   AsyncResult<StepUpAuthorizeResponseDto> authorizeInternalTransfer(
     String transactionPassword,
   );
+
+  AsyncResult<StepUpAuthorizeResponseDto> authorizeInstallationRegistration(
+    String transactionPassword,
+  );
 }

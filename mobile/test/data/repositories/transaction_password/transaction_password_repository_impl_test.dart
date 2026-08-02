@@ -259,7 +259,7 @@ void main() {
             result: Failure(
               AppError(
                 code: AppErrorCode.httpError,
-                message: 'Authorization failed',
+                message: 'Step-up auth failed',
                 details: {'code': errorCode},
               ),
             ),
@@ -274,6 +274,49 @@ void main() {
       });
     }
   });
+
+  group(
+    'TransactionPasswordRepositoryImpl.authorizeInstallationRegistration',
+    () {
+      test(
+        'delegates to API using the installation registration operation',
+        () async {
+          final api = _FakeStepUpTransactionPasswordApi(
+            result: Success(
+              StepUpAuthorizeResponseDto(
+                stepUpToken: 'opaque-step-up-token',
+                expiresIn: 120,
+              ),
+            ),
+          );
+          final repository = TransactionPasswordRepositoryImpl(
+            api: api,
+            appSection: AppSection(),
+          );
+          const transactionPassword = '123456';
+
+          final result = await repository.authorizeInstallationRegistration(
+            transactionPassword,
+          );
+
+          expect(result, isA<Success<StepUpAuthorizeResponseDto>>());
+          expect(result.value?.stepUpToken, 'opaque-step-up-token');
+          expect(result.value?.expiresIn, 120);
+          expect(api.calls, 1);
+          expect(
+            api.lastRequest?.operation,
+            StepUpOperation.installationRegistration,
+          );
+          expect(api.lastRequest?.transactionPassword, transactionPassword);
+          expect(api.lastRequest?.toMap(), {
+            'method': 'POST',
+            'path': '/security/installations',
+            'transaction_password': transactionPassword,
+          });
+        },
+      );
+    },
+  );
 }
 
 CreateTransactionPasswordRequestDto _request() {

@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '/core/resources/app_http_headers.dart';
 import '/core/resources/storage_keys.dart';
+import '/core/services/installation_identity/installation_identity.dart';
 import '/core/services/logging/console_log.dart';
 import '/core/services/secure_storage/local_secure_storage.dart';
 
@@ -17,16 +19,19 @@ class AuthInterceptor extends Interceptor {
   final Dio _authDio;
   final Dio _refreshDio;
   final LocalSecureStorage _secureStorage;
+  final InstallationIdentityService _installationIdentityService;
   Future<String>? _refreshInFlight;
 
   AuthInterceptor({
     required Dio authDio,
     required LocalSecureStorage secureStorage,
+    required InstallationIdentityService installationIdentityService,
     required String baseUrl,
     Duration timeout = const Duration(seconds: 10),
     Dio? refreshDio,
   }) : _authDio = authDio,
        _secureStorage = secureStorage,
+       _installationIdentityService = installationIdentityService,
        _refreshDio =
            refreshDio ??
            Dio(
@@ -35,7 +40,7 @@ class AuthInterceptor extends Interceptor {
                connectTimeout: timeout,
                receiveTimeout: timeout,
                headers: const {
-                 'Accept': 'application/json',
+                 AppHttpHeaders.accept: 'application/json',
                },
              ),
            );
@@ -47,8 +52,8 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // If the request already has an Authorization header, skip adding the token
-    if (options.headers.containsKey('Authorization')) {
+    // If the request already has an auth header, skip adding the token.
+    if (options.headers.containsKey(AppHttpHeaders.authorization)) {
       return handler.next(options);
     }
 
@@ -57,7 +62,9 @@ class AuthInterceptor extends Interceptor {
     tokenResult.fold(
       onSuccess: (token) {
         if (token.isNotEmpty) {
-          options.headers['Authorization'] = 'Bearer $token';
+          options.headers[AppHttpHeaders.authorization] = AppHttpHeaders.bearer(
+            token,
+          );
         }
       },
       onFailure: (_) {},
@@ -187,9 +194,24 @@ class AuthInterceptor extends Interceptor {
   }
 
   Future<String> _performRefresh(String refreshToken) async {
+    final installationIdResult = await _installationIdentityService.resolve();
+    if (installationIdResult.isFailure) {
+      final installationIdLog = installationIdResult.error!;
+      _log.error(
+        'Performing token refresh with installation identity result: $installationIdLog',
+        label: '_performRefresh',
+      );
+      throw installationIdResult.error!;
+    }
+
     final response = await _refreshDio.post(
       _refreshPath,
       data: {'refresh_token': refreshToken},
+      options: Options(
+        headers: {
+          AppHttpHeaders.installationId: installationIdResult.value,
+        },
+      ),
     );
 
     final data = response.data;
@@ -221,7 +243,7 @@ class AuthInterceptor extends Interceptor {
           method: request.method,
           headers: {
             ...request.headers,
-            'Authorization': 'Bearer $accessToken',
+            AppHttpHeaders.authorization: AppHttpHeaders.bearer(accessToken),
           },
           responseType: request.responseType,
           contentType: request.contentType,
@@ -243,7 +265,7 @@ class AuthInterceptor extends Interceptor {
 
   Future<String?> _accessTokenUpdatedAfter(DioException err) async {
     final failedToken = _bearerToken(
-      err.requestOptions.headers['Authorization'],
+      err.requestOptions.headers[AppHttpHeaders.authorization],
     );
     if (failedToken == null || failedToken.isEmpty) {
       return null;

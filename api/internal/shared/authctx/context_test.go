@@ -41,3 +41,68 @@ func TestRequireAuthenticatedUser_ReturnsErrorWhenMissing(t *testing.T) {
 		t.Fatalf("expected error %v, got %v", ErrAuthenticatedUserNotFound, err)
 	}
 }
+
+func TestOperationalSessionContext(t *testing.T) {
+	userID := uuid.New()
+	customerID := uuid.New()
+	installationID := uuid.New()
+	ctx := WithOperationalSession(context.Background(), OperationalSession{
+		UserID:         userID,
+		Role:           authdomain.RoleCustomer,
+		CustomerID:     &customerID,
+		InstallationID: &installationID,
+	})
+
+	session, ok := GetOperationalSession(ctx)
+	if !ok {
+		t.Fatal("expected operational session in context")
+	}
+	if session.UserID != userID {
+		t.Fatalf("expected user id %q, got %q", userID, session.UserID)
+	}
+	if session.InstallationID == nil || *session.InstallationID != installationID {
+		t.Fatalf("expected installation id %q, got %#v", installationID, session.InstallationID)
+	}
+}
+
+func TestRequireOperationalSession_ReturnsErrorWhenMissing(t *testing.T) {
+	session, err := RequireOperationalSession(context.Background())
+	if err != ErrOperationalSessionNotFound {
+		t.Fatalf("expected error %v, got %v", ErrOperationalSessionNotFound, err)
+	}
+	if session != nil {
+		t.Fatalf("expected nil session, got %#v", session)
+	}
+}
+
+func TestRestrictedSessionContext(t *testing.T) {
+	userID := uuid.New()
+	installationID := uuid.New()
+	ctx := WithRestrictedSession(context.Background(), RestrictedSession{
+		UserID:         userID,
+		InstallationID: installationID,
+		JTI:            "jti-1",
+		Scope:          "installation.register",
+	})
+
+	session, ok := GetRestrictedSession(ctx)
+	if !ok {
+		t.Fatal("expected restricted session in context")
+	}
+	if session.UserID != userID || session.InstallationID != installationID {
+		t.Fatalf("unexpected restricted session: %#v", session)
+	}
+	if session.JTI != "jti-1" || session.Scope != "installation.register" {
+		t.Fatalf("unexpected restricted token metadata: %#v", session)
+	}
+}
+
+func TestRequireRestrictedSession_ReturnsErrorWhenMissing(t *testing.T) {
+	session, err := RequireRestrictedSession(context.Background())
+	if err != ErrRestrictedSessionNotFound {
+		t.Fatalf("expected error %v, got %v", ErrRestrictedSessionNotFound, err)
+	}
+	if session != nil {
+		t.Fatalf("expected nil session, got %#v", session)
+	}
+}

@@ -39,12 +39,12 @@ void main() {
       final copied = response.copyWith(
         data: {'ok': false},
         statusCode: 202,
-        statusMessage: 'Accepted',
+        statusMessage: 'Created',
       );
 
       expect(copied.data, {'ok': false});
       expect(copied.statusCode, 202);
-      expect(copied.statusMessage, 'Accepted');
+      expect(copied.statusMessage, 'Created');
     });
   });
 }

@@ -1,3 +1,4 @@
+import '/core/resources/app_http_headers.dart';
 import '/core/result/result.dart';
 import '/core/services/client_http/client_http.dart';
 import '/core/services/logging/console_log.dart';
@@ -22,7 +23,7 @@ class ApiTransfer {
     final response = await _client.post(
       RestClientRequest(
         path: '/accounts/internal-transfers',
-        headers: {'X-Step-Up-Token': token},
+        headers: {AppHttpHeaders.stepUpToken: token},
         body: dto.toMap(),
       ),
     );

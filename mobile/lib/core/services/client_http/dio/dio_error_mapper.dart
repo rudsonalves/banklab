@@ -4,10 +4,12 @@ import '/core/result/result.dart';
 
 const _accountApprovalRequiredBackendCode = 'ACCOUNT_APPROVAL_REQUIRED';
 const _accountApprovalRequiredMessage =
-    'Sua conta ainda está aguardando aprovação. Assim que ela for liberada, você poderá acessar o app.';
+    'Sua conta ainda está aguardando aprovação. Assim que ela for liberada,'
+    ' você poderá acessar o app.';
 const _contactNotVerifiedBackendCode = 'CONTACT_NOT_VERIFIED';
 const _transactionPasswordLockedBackendCode = 'TRANSACTION_PASSWORD_LOCKED';
 const _transactionPasswordNotSetBackendCode = 'TRANSACTION_PASSWORD_NOT_SET';
+const _installationLimitReachedBackendCode = 'INSTALLATION_LIMIT_REACHED';
 const _contactNotVerifiedGenericMessage =
     'Confirme seu e-mail e telefone antes de entrar.';
 const _contactNotVerifiedEmailOnlyMessage =
@@ -17,6 +19,11 @@ const _contactNotVerifiedPhoneOnlyMessage =
 
 AppError mapHttpError(Object err, [StackTrace? stack]) {
   if (err is DioException) {
+    final interceptorError = err.error;
+    if (interceptorError is AppError) {
+      return interceptorError;
+    }
+
     final response = err.response;
     final data = response?.data;
 
@@ -88,6 +95,15 @@ AppError mapHttpError(Object err, [StackTrace? stack]) {
             statusCode: response?.statusCode,
             code: AppErrorCode.transactionPasswordNotSet,
             message: error['message'] ?? 'Senha transacional não configurada.',
+            details: appErrorDetails,
+          );
+        }
+
+        if (backendCode == _installationLimitReachedBackendCode) {
+          return AppError(
+            statusCode: response?.statusCode,
+            code: AppErrorCode.installationLimitReached,
+            message: error['message'] ?? 'Limite de instalações atingido.',
             details: appErrorDetails,
           );
         }

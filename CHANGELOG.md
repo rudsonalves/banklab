@@ -1,5 +1,1671 @@
 # Changelog
 
+## 2026/08/02 - mobile/installation-identity-08a
+
+This change adds a comprehensive architecture and security-flow diagram covering mobile installation identity, authentication, transactional authorization, and post-login readiness. It documents how the mobile client and backend cooperate across installation registration, session establishment, step-up validation, and sensitive financial operations.
+
+The update also captures supporting application layers, request metadata, transactional-password handling, and failure branches to provide a shared visual reference for the intended system behavior.
+
+1. **docs/images/esquemas.excalidraw**
+
+   * Added an Excalidraw source file documenting generation and secure persistence of a UUID-based device identifier.
+   * Mapped primary and composite authentication, including password or PIN, biometrics or 2FA, security-context construction, and ZTA request headers.
+   * Documented the application-layer flow across UI, view models, use cases, repositories, APIs, and storage.
+   * Added login and post-login routing diagrams covering credential failures, environment-dependent onboarding checks, OTP provisioning, and Home navigation.
+   * Described step-up authorization for sensitive operations, including transactional-password validation, short-lived tokens, token consumption, policy enforcement, and operation blocking.
+   * Added the internal-transfer enforcement flow using `X-Step-Up-Token`, with explicit authorized, denied, and error paths.
+   * Documented authentication-session readiness and transactional PIN registration, including status checks, confirmation failures, registration outcomes, and sensitive-state cleanup.
+   * Added installation-aware login using `X-Installation-Id`, covering known, first-time, new, revoked, and installation-limit states.
+   * Mapped restricted-access token handling, transactional-password step-up, installation registration, access denial, and completion of an installation-bound operational session.
+
+2. **api/.DS_Store**
+
+   * Updated the binary macOS directory metadata file under the API folder.
+
+### Conclusion
+
+The change set establishes a detailed visual reference for installation identity and security-sensitive mobile workflows. It connects authentication, installation lifecycle management, transactional authorization, and layered application architecture in a single editable diagram.
+
+This documentation clarifies the expected success and failure behavior across the mobile application and backend without modifying executable system behavior.
+
+## 2026/06/19 - mobile/installation-identity-07
+
+This change improves the BankLab development workflow, updates database documentation, finalizes the mobile installation identity backlog, and adjusts client/testing support around installation-aware API usage.
+
+The main areas affected are the Makefile execution targets, database documentation, mobile OTP behavior, Bruno collection environments, and backlog organization.
+
+1. **Makefile**
+
+   * Added `SERVER_PORT` as a configurable API port variable.
+   * Added `port-check` to fail early when the selected database port is occupied by a non-project process.
+   * Added `port-clean` to automatically stop Docker containers conflicting with the selected `DB_PORT`.
+   * Added `api-port-clean` to stop stale API processes occupying `SERVER_PORT` before starting the API.
+   * Updated `docker-up` to run port validation before starting PostgreSQL.
+   * Renamed the main development execution flow from `run` to `run-dev`.
+   * Added `run-staging` and `run-prod` targets to start staging and production environments through the same execution flow.
+   * Simplified `staging` and added `prod` aliases using the new environment-aware run targets.
+   * Updated `api-stop` to use `SERVER_PORT` instead of the hardcoded `8080`.
+
+2. **api/docs/09-database.md**
+
+   * Rewrote the database documentation in Portuguese.
+   * Expanded the database overview, design principles, schema organization, table responsibilities, and consistency guarantees.
+   * Added detailed documentation for customer onboarding, authentication, sessions, transaction passwords, step-up tokens, financial accounts, ledger entries, app installations, and installation registration authorizations.
+   * Documented the installation registration flow, known installation limit, revoked installation behavior, and restricted authorization lifecycle.
+   * Expanded ledger semantics, idempotency behavior, indexing strategy, concurrency guarantees, invariants, known limitations, and evolution paths.
+   * Clarified the database role as an active consistency boundary rather than passive storage.
+
+3. **api/docs/images/database.png**
+
+   * Updated the database schema diagram to match the expanded database documentation.
+
+4. **docs/backlogs/mobile/done/013 - installation-identity-mvp.md**
+
+   * Moved the installation identity MVP backlog from the active mobile backlog folder to the `done` folder.
+   * Preserved the backlog content unchanged while marking the work as completed.
+
+5. **docs/backlogs/mobile/done/013 - installation-identity-mvp_tasks.md**
+
+   * Moved the installation identity MVP task list from the active mobile backlog folder to the `done` folder.
+   * Preserved the task content unchanged while consolidating completed mobile backlog items.
+
+6. **mobile/lib/ui/components/input_text/otp_input.dart**
+
+   * Updated OTP focus behavior after applying the controller text.
+   * Prevented the input from requesting focus when the OTP value is already complete.
+   * Kept focus active only when the current value length is still below the configured OTP length.
+
+7. **mobile/test/ui/components/input_text/otp_input_test.dart**
+
+   * Added test coverage to assert that the OTP input does not keep focus after receiving a complete initial value.
+   * Preserved existing assertions for `onChanged`, `onCompleted`, and digit rendering.
+
+8. **tools/bruno/banklab/collections/BankLab API/Admin/Approve User.yml**
+
+   * Added the `X-Installation-Id` header using the admin installation environment variable.
+   * Normalized the authorization header format.
+   * Simplified the empty JSON body representation.
+
+9. **tools/bruno/banklab/collections/BankLab API/Auth/Login admin.yml**
+
+   * Added the `X-Installation-Id` header to admin login requests.
+   * Connected admin authentication requests to the installation identity flow through the Bruno environment variable.
+
+10. **tools/bruno/banklab/collections/BankLab API/Auth/Login.yml**
+
+* Added the `X-Installation-Id` header to user login requests.
+* Left the value empty so each login scenario can provide the installation identifier explicitly.
+
+11. **tools/bruno/banklab/collections/BankLab API/environments/BankLab Dev.yml**
+
+* Added a new Bruno development environment.
+* Configured local `base_url`, user/admin credentials, token variables, account/user identifiers, and the admin installation identifier.
+* Marked sensitive values such as passwords, app token, access token, refresh token, and installation id as secrets.
+
+12. **tools/bruno/banklab/collections/BankLab API/environments/BankLab Staging.yml**
+
+* Renamed the previous generic Bruno environment from `BankLab Env` to `BankLab Staging`.
+* Added the admin installation identifier as a secret variable.
+* Preserved the existing staging-oriented variables while making the environment purpose explicit.
+
+### Conclusion
+
+This change set consolidates the installation identity MVP by moving its backlog items to completion, aligning Bruno requests with installation-aware authentication, and documenting the database model in greater operational detail.
+
+It also improves local and environment-specific execution reliability by adding database and API port cleanup safeguards to the Makefile.
+
+On the mobile side, the OTP component now handles complete initial values more correctly by avoiding unnecessary focus retention.
+
+
+## 2026/06/19 - mobile/installation-identity-06
+
+This change improves the installation identity flow by refining user feedback, strengthening lifecycle logging, and documenting the REST API in a route-oriented structure.
+
+The update affects API documentation, installation identity logging, login error handling, installation certification messaging, and automated tests around installation lifecycle behavior.
+
+1. **api/docs/07-api-rest.md**
+
+   * Reorganized the REST API documentation around path prefixes instead of feature-oriented sections.
+   * Grouped endpoints under `/admin`, `/auth`, `/accounts`, `/customers`, `/security`, and `/terminal`.
+   * Moved endpoint-specific error scenarios closer to their respective endpoint descriptions.
+   * Renumbered the authorization model, error reference, domain notes, and Bruno setup sections.
+   * Preserved installation, step-up, transaction password, account, customer, and terminal endpoint contracts while improving navigability.
+
+2. **mobile/lib/core/services/installation_identity/installation_identity_service.dart**
+
+   * Added contextual log labels to installation identity lifecycle messages.
+   * Logged the case where the installation marker is missing and a new identity must be generated.
+   * Kept warning logs focused on lifecycle events without exposing full installation identifiers.
+
+3. **mobile/lib/ui/pages/auth/installation_certification/installation_certification_page.dart**
+
+   * Added documentation comments for token input, completion, submit, cancel, certification listener, and error resolution methods.
+   * Added specific user-facing messages for `TRANSACTION_PASSWORD_NOT_SET` and `TRANSACTION_PASSWORD_LOCKED`.
+   * Improved certification failure guidance when the user cannot authorize a new installation from the current app instance.
+
+4. **mobile/lib/ui/pages/auth/login/login_page.dart**
+
+   * Added handling for `installationLimitReached`.
+   * Displays a dedicated installation limit dialog instead of falling back to the generic login error snackbar.
+   * Returns the user to the login route after the dialog is dismissed.
+
+5. **mobile/lib/ui/pages/auth/short_login/short_login_page.dart**
+
+   * Added the same `installationLimitReached` handling used by the full login page.
+   * Displays the shared installation limit dialog and redirects back to login after dismissal.
+
+6. **mobile/lib/ui/pages/auth/widgets/installation_limit_dialog.dart**
+
+   * Added a reusable dialog for the approved installation limit case.
+   * Introduced centralized copy constants for title, primary message, secondary guidance, and action label.
+   * Guides the user to access an already authorized installation, remove an old installation, and retry login.
+
+7. **mobile/test/core/services/installation_identity/installation_identity_service_test.dart**
+
+   * Added coverage for installation identity lifecycle logging.
+   * Verified that log output includes service context and marker-missing information.
+   * Verified that old and newly generated installation identifiers are not exposed in logs.
+
+8. **mobile/test/data/repositories/auth/auth_repository_impl_test.dart**
+
+   * Added assertions to ensure installation authorization is not called when the initial app-token login fails.
+   * Added test cases for failed installation certification when step-up fails with `TRANSACTION_PASSWORD_NOT_SET`.
+   * Added test cases for failed installation certification when step-up fails with `TRANSACTION_PASSWORD_LOCKED`.
+   * Verified that installation registration is skipped and the repository remains in anonymous auth state in those blocked certification cases.
+
+9. **mobile/test/ui/pages/auth/widgets/installation_limit_dialog_test.dart**
+
+   * Added widget coverage for the installation limit dialog.
+   * Verified title, explanatory messages, action label, and dismissal behavior.
+
+### Conclusion
+
+This change improves the installation identity experience by making blocked installation states clearer to the user and safer in application behavior.
+
+It also strengthens diagnostics without leaking installation identifiers, expands test coverage for blocked certification paths, and restructures the REST API documentation to better match the backend route layout.
+
+
+## 2026/06/19 - mobile/installation-identity-05
+
+This change implements the mobile installation certification flow after a restricted login result. The login process can now return either an operational authentication state or a restricted installation state, allowing the UI to redirect the user to a certification screen before starting a full session.
+
+The update affects routing, authentication repositories, transaction password step-up authorization, installation registration, dependency injection, documentation, and related tests.
+
+1. **mobile/lib/core/routing/routes.dart**
+
+   * Added the `installationCertification` authentication route.
+   * Introduced the `/installation-certification` path for the restricted installation certification flow.
+
+2. **mobile/lib/core/routing/routes/auth_routes.dart**
+
+   * Registered the installation certification route in the authentication route list.
+   * Added route construction for `InstallationCertificationPage`.
+   * Injected `InstallationCertificationViewModel` through the existing dependency container.
+
+3. **mobile/lib/data/repositories/auth/auth_repository.dart**
+
+   * Changed `login` to return `AuthState` instead of only `OperationalAuthState`.
+   * Added `certifyInstallation`, responsible for completing restricted installation registration using the transaction password flow.
+
+4. **mobile/lib/data/repositories/auth/auth_repository_impl.dart**
+
+   * Added dependencies on `InstallationApi` and `TransactionPasswordRepository`.
+   * Updated login handling to store `RestrictedInstallationAuthState` temporarily without persisting operational session tokens.
+   * Added `certifyInstallation` to authorize installation registration through step-up validation.
+   * Registered the installation through `InstallationApi` after successful step-up authorization.
+   * Promoted the restricted state to `OperationalAuthState` after successful installation registration.
+   * Extracted operational session startup into `_startOperationalSession`.
+   * Added `_discardTemporaryAuthState` to clear restricted temporary state after failed certification attempts.
+   * Adjusted logout behavior to clear `AppSection` even when no operational user is logged in.
+
+5. **mobile/lib/data/repositories/transaction_password/transaction_password_repository.dart**
+
+   * Added `authorizeInstallationRegistration` to the transaction password repository contract.
+   * Extended the repository abstraction to support step-up authorization for installation registration.
+
+6. **mobile/lib/data/repositories/transaction_password/transaction_password_repository_impl.dart**
+
+   * Added implementation for installation registration authorization.
+   * Refactored step-up authorization into a shared `_authorize` helper.
+   * Reused the same authorization flow for internal transfers and installation registration.
+
+7. **mobile/lib/data/services/apis/transaction_password/enums/step_up_operation.dart**
+
+   * Added `installationRegistration` as a step-up operation.
+   * Mapped the operation to `POST /security/installations`.
+
+8. **mobile/lib/domain/AGENT.md**
+
+   * Documented the restricted installation authentication convention.
+   * Clarified that `AuthRepository.login` may return operational or restricted states.
+   * Documented that only operational states may persist session tokens.
+   * Documented that installation certification promotes restricted state only after step-up authorization and successful registration.
+
+9. **mobile/lib/ui/pages/auth/installation_certification/installation_certification_page.dart**
+
+   * Added the installation certification screen.
+   * Added hidden token input for the six-digit transaction password.
+   * Added cancel and certification actions through bottom buttons.
+   * Redirected invalid restricted-auth access back to login.
+   * Redirected successful certification to home.
+   * Added error feedback through `AppSnackbar`.
+
+10. **mobile/lib/ui/pages/auth/installation_certification/viewmodel/installation_certification_viewmodel.dart**
+
+* Added `InstallationCertificationViewModel`.
+* Exposed the certification command backed by `AuthRepository.certifyInstallation`.
+* Added restricted-auth state detection.
+* Added cancellation behavior through repository logout.
+
+11. **mobile/lib/ui/pages/auth/login/login_page.dart**
+
+* Updated post-login handling to inspect the returned `AuthState`.
+* Redirected restricted installation login results to the installation certification route.
+* Preserved existing post-login destination handling for operational sessions.
+
+12. **mobile/lib/ui/pages/auth/short_login/short_login_page.dart**
+
+* Updated short-login post-auth handling to support restricted installation states.
+* Redirected restricted installation results to the certification screen.
+* Preserved existing operational post-login navigation.
+
+13. **mobile/lib/ui/pages/auth/viewmodel/login_viewmodel.dart**
+
+* Updated the login command result type from `OperationalAuthState` to `AuthState`.
+* Allowed the login command to propagate restricted installation states to the UI layer.
+
+14. **mobile/lib/ui/viewmodels.dart**
+
+* Registered `InstallationCertificationViewModel` in the mobile dependency setup.
+
+15. **mobile/test/data/repositories/auth/auth_repository_impl_test.dart**
+
+* Updated login tests to expect `AuthState` results where appropriate.
+* Changed restricted installation login expectations from failure to successful restricted state.
+* Added repository factory helper to provide new dependencies.
+* Added tests for successful installation certification and operational session startup.
+* Added tests ensuring installation registration is not called when step-up authorization fails.
+* Added fake implementations for `InstallationApi`, `TransactionPasswordRepository`, and installation identity dependencies.
+
+16. **mobile/test/data/repositories/transaction_password/transaction_password_repository_impl_test.dart**
+
+* Added test coverage for installation registration step-up authorization.
+* Verified that the repository delegates using the `installationRegistration` operation.
+* Verified serialization of method, path, and transaction password for the installation registration operation.
+
+17. **mobile/test/data/services/apis/transaction_password/dtos/transaction_password_dtos_test.dart**
+
+* Added DTO serialization coverage for the installation registration step-up operation.
+* Verified that the request maps to `POST /security/installations`.
+
+18. **mobile/test/domain/usecases/transfer/transfer_usecase_test.dart**
+
+* Updated fake transaction password repository implementations to satisfy the expanded repository contract.
+
+19. **mobile/test/ui/pages/auth/post_login_destination_test.dart**
+
+* Updated fake auth repository login return type to `AuthState`.
+* Added the new `certifyInstallation` contract implementation to the fake repository.
+
+20. **mobile/test/ui/pages/auth/viewmodel/login_viewmodel_test.dart**
+
+* Updated fake auth repository login return type to `AuthState`.
+* Added the new `certifyInstallation` method required by the repository contract.
+
+21. **mobile/test/ui/pages/splash/viewmodel/splash_viewmodel_test.dart**
+
+* Updated fake auth repository login return type to `AuthState`.
+* Added the new `certifyInstallation` contract implementation.
+
+22. **mobile/test/ui/pages/auth/transaction_password/viewmodel/transaction_password_viewmodel_test.dart**
+
+* Updated fake transaction password repository implementations with the new installation registration authorization method.
+
+23. **mobile/test/ui/pages/transaction_password/setup/confirm_transaction_password_page_test.dart**
+
+* Updated fake transaction password repository implementations to match the expanded contract.
+
+24. **mobile/test/ui/pages/transaction_password/setup/create_transaction_password_page_test.dart**
+
+* Updated fake transaction password repository implementations to match the expanded contract.
+
+25. **mobile/test/ui/pages/transfer/transfer_confirmation_page_test.dart**
+
+* Updated fake transaction password repository implementations to include installation registration authorization.
+
+### Conclusion
+
+This change completes the mobile-side restricted installation certification path. Restricted login results are now routed to a dedicated certification screen instead of being treated as login failures.
+
+The authentication flow now separates temporary restricted authorization from operational sessions, preserving token persistence only after step-up authorization and successful installation registration.
+
+The related repository contracts, route definitions, view models, UI flow, documentation, and tests were updated to support the new installation certification behavior consistently.
+
+
+## 2026/06/19 - mobile/installation-identity-04
+
+This change advances the mobile installation identity flow by introducing typed authentication states, distinguishing operational sessions from restricted installation authorization responses.
+
+The update also adds the installation registration API client, propagates installation identity during token refresh, maps installation-related backend errors, and extends tests around login parsing, restricted authentication, registration headers, and refresh behavior.
+
+1. **docs/backlogs/mobile/013 - installation-identity-mvp.md**
+
+   * Updated the restricted login flow to explicitly represent restricted responses as `RestrictedInstallationAuthState`.
+   * Clarified that restricted authentication must not create an operational session.
+   * Reordered the installation registration steps to keep restricted tokens, step-up authorization, operational token persistence, and token cleanup explicit.
+
+2. **docs/backlogs/mobile/013 - installation-identity-mvp_tasks.md**
+
+   * Updated the task scope from parsing login only as an operational user to using an `AuthState` hierarchy.
+   * Documented support for operational, anonymous, and restricted installation authentication states.
+   * Clarified that restricted login data is represented by `RestrictedInstallationAuthState`.
+
+3. **mobile/lib/domain/common/auth/models/auth_state.dart**
+
+   * Added the `AuthState` sealed hierarchy.
+   * Added `OperationalAuthState` for token-bearing authenticated sessions.
+   * Added `RestrictedInstallationAuthState` for restricted installation registration authorization.
+   * Added `AnonymousAuthState` as the default unauthenticated state.
+   * Added login response shape detection through `AuthState.fromLoginMap`.
+
+4. **mobile/lib/domain/common/auth/models/auth_user.dart**
+
+   * Removed the previous `AuthUser`, `LoggedUser`, and `NotLoggedUser` model hierarchy.
+   * Replaced it with the new `AuthState` model structure.
+
+5. **mobile/lib/domain/AGENT.md**
+
+   * Updated domain documentation to reference `auth_state.dart`.
+   * Documented the new authentication state model with operational, restricted installation, and anonymous states.
+   * Clarified that restricted installation authentication must not be treated as an operational session.
+
+6. **mobile/lib/core/result/errors/app_error_code.dart**
+
+   * Added `installationRegistrationRequired`.
+   * Added `installationLimitReached`.
+   * Introduced explicit app-level error codes for installation identity login outcomes.
+
+7. **mobile/lib/core/services/client_http/dio/dio_error_mapper.dart**
+
+   * Added mapping for backend `INSTALLATION_LIMIT_REACHED`.
+   * Converted this backend error into `AppErrorCode.installationLimitReached`.
+   * Preserved backend error details in the mapped `AppError`.
+
+8. **mobile/lib/core/services/client_http/interceptors/auth/auth_interceptor.dart**
+
+   * Injected `InstallationIdentityService` into `AuthInterceptor`.
+   * Resolved the installation identity before refreshing tokens.
+   * Added `X-Installation-Id` to refresh token requests.
+   * Prevented refresh requests when installation identity resolution fails.
+
+9. **mobile/lib/core/services/core_services.dart**
+
+   * Updated dependency registration for `AuthInterceptor`.
+   * Injected `InstallationIdentityService` into the authentication interceptor factory.
+
+10. **mobile/lib/data/repositories/auth/auth_repository.dart**
+
+* Updated `currentUser` from `AuthUser` to `AuthState`.
+* Updated `login` to return `OperationalAuthState`.
+* Kept repository login semantics restricted to operational sessions.
+
+11. **mobile/lib/data/repositories/auth/auth_repository_impl.dart**
+
+* Replaced `NotLoggedUser` with `AnonymousAuthState`.
+* Replaced `LoggedUser` with `OperationalAuthState`.
+* Added handling for `RestrictedInstallationAuthState` by returning `installationRegistrationRequired` without persisting tokens.
+* Added fallback handling for unknown login result types.
+* Preserved token persistence and profile loading only for operational authentication.
+
+12. **mobile/lib/data/services/apis/auth/auth_api.dart**
+
+* Updated login parsing to return `AuthState`.
+* Replaced direct `LoggedUser` parsing with `AuthState.fromLoginMap`.
+* Added login-specific backend error mapping for `INSTALLATION_LIMIT_REACHED`.
+* Preserved API envelope error details in login failures.
+
+13. **mobile/lib/data/services/apis/installation/dtos/installation_registration_response_dto.dart**
+
+* Added DTO for installation registration responses.
+* Mapped operational tokens, installation resource id, and installation status from backend response data.
+
+14. **mobile/lib/data/services/apis/installation/installation_api.dart**
+
+* Added `InstallationApi`.
+* Implemented `POST /security/installations`.
+* Sent restricted access token through `Authorization`.
+* Sent `X-Installation-Id` and `X-Step-Up-Token` headers.
+* Added response envelope parsing, malformed response handling, and backend error propagation.
+
+15. **mobile/lib/data/services/services.dart**
+
+* Registered `InstallationApi` in the data service composition.
+* Wired the API with `RestClient` and `InstallationIdentityService`.
+
+16. **mobile/lib/ui/pages/auth/viewmodel/login_viewmodel.dart**
+
+* Updated login command typing from `LoggedUser` to `OperationalAuthState`.
+* Kept the login flow dependent on installation identity resolution before repository login.
+
+17. **mobile/test/core/services/client_http/dio/dio_error_mapper_test.dart**
+
+* Added coverage for mapping `INSTALLATION_LIMIT_REACHED`.
+* Verified app error code, message, HTTP status, and backend error code preservation.
+
+18. **mobile/test/core/services/client_http/interceptors/auth/auth_interceptor_test.dart**
+
+* Updated interceptor tests to provide a fake installation identity service.
+* Verified that refresh requests include `X-Installation-Id`.
+* Added coverage to ensure refresh is not called when installation identity resolution fails.
+* Verified token cleanup behavior after failed refresh preparation.
+
+19. **mobile/test/core/services/client_http/interceptors/installation/installation_interceptor_test.dart**
+
+* Updated test setup to satisfy the new `AuthInterceptor` dependency on `InstallationIdentityService`.
+
+20. **mobile/test/data/repositories/auth/auth_repository_impl_test.dart**
+
+* Updated repository tests to use `AuthState`, `OperationalAuthState`, and `AnonymousAuthState`.
+* Added coverage for restricted login responses.
+* Verified that restricted login does not persist tokens, load profile data, update session state, or mark the repository as logged in.
+* Added coverage for installation limit failures without token persistence.
+
+21. **mobile/test/data/services/apis/auth/auth_api_login_test.dart**
+
+* Added login API tests for operational authentication responses.
+* Added login API tests for restricted installation authentication responses.
+* Added coverage for `INSTALLATION_LIMIT_REACHED`.
+* Added coverage for unknown successful response shapes returning parsing errors.
+
+22. **mobile/test/data/services/apis/installation/installation_api_test.dart**
+
+* Added installation registration API tests.
+* Verified required headers for restricted token, installation identity, and step-up token.
+* Verified that no transaction password is sent during installation registration.
+* Added coverage for installation identity resolution failures.
+* Added coverage for backend registration errors and malformed response data.
+
+23. **mobile/test/ui/pages/auth/post_login_destination_test.dart**
+
+* Updated fake auth repository types to use `AuthState`, `AnonymousAuthState`, and `OperationalAuthState`.
+
+24. **mobile/test/ui/pages/auth/viewmodel/login_viewmodel_test.dart**
+
+* Updated login view model tests to use `OperationalAuthState`.
+* Replaced old logged user model references with the new auth state model.
+
+25. **mobile/test/ui/pages/splash/viewmodel/splash_viewmodel_test.dart**
+
+* Updated fake auth repository types to use `AuthState` and `AnonymousAuthState`.
+* Updated login contract typing to return `OperationalAuthState`.
+
+### Conclusion
+
+This change establishes a typed authentication model capable of representing operational sessions, anonymous state, and restricted installation authorization without mixing them in the same runtime behavior.
+
+The mobile app now recognizes installation registration requirements, avoids persisting restricted login tokens, includes installation identity during refresh, and provides a dedicated API client for registering installations.
+
+The accompanying tests validate the new login parsing, error mapping, refresh header behavior, restricted login handling, and installation registration contract.
+
+
+## 2026/06/18 - mobile/installation-identity-03
+
+This change introduces centralized HTTP header definitions and integrates installation identity propagation into the mobile HTTP client pipeline.
+
+The update replaces scattered literal header names with `AppHttpHeaders`, adds automatic `X-Installation-Id` injection through a dedicated interceptor, improves interceptor error mapping, and updates API services, documentation, dependency injection, and tests to use the new contract.
+
+1. **mobile/lib/core/resources/app_http_headers.dart**
+
+   * Added `AppHttpHeaders` as the centralized source for HTTP header names used by the mobile app.
+   * Added constants for common, authentication, installation, step-up, trace, and app-token headers.
+   * Added `sensitiveLowercase` to define headers that must be redacted from logs.
+   * Added `bearer()` helper to format bearer authorization values consistently.
+
+2. **mobile/lib/core/services/client_http/dio**
+
+   * Updated `DioFactory` to use `AppHttpHeaders` for default `Accept` and `Content-Type` headers.
+   * Updated `DioRestClient` to use the centralized sensitive header list when sanitizing request logs.
+   * Updated `DioErrorMapper` to preserve `AppError` instances propagated by interceptors through `DioException.error`.
+
+3. **mobile/lib/core/services/client_http/interceptors/auth**
+
+   * Refactored `AuthInterceptor` to use `AppHttpHeaders.authorization` and `AppHttpHeaders.bearer()`.
+   * Preserved the existing behavior of skipping requests that already define an authorization header.
+   * Updated retry logic after token refresh to write the refreshed authorization header through the centralized header helper.
+
+4. **mobile/lib/core/services/client_http/interceptors/installation**
+
+   * Added `InstallationInterceptor`.
+   * Resolved the installation identity before outgoing requests.
+   * Added `X-Installation-Id` to request headers when identity resolution succeeds.
+   * Blocked the request with a `DioException` carrying the original `AppError` when installation identity resolution fails.
+
+5. **mobile/lib/core/services/client_http/interceptors/device**
+
+   * Removed the old commented `DeviceInterceptor` implementation.
+   * Updated interceptor exports to expose the new installation interceptor.
+
+6. **mobile/lib/core/services/core_services.dart**
+
+   * Registered `InstallationInterceptor` in dependency injection.
+   * Updated the main `RestClient` setup to attach the installation interceptor before the auth interceptor.
+   * Clarified comments around the main Dio instance and interceptor registration order.
+
+7. **mobile/lib/data/services/apis**
+
+   * Updated auth, contact verification, registration, and transfer APIs to use `AppHttpHeaders`.
+   * Replaced literal `X-App-Token` and `X-Step-Up-Token` strings with centralized constants.
+   * Updated API documentation examples to reference `AppHttpHeaders.appToken`.
+
+8. **mobile/lib/core/AGENT.md and mobile/lib/data/services/apis/AGENT.md**
+
+   * Updated documentation to describe authorization and app-token headers through `AppHttpHeaders`.
+   * Aligned interceptor and API examples with the centralized header contract.
+
+9. **mobile/test/core/resources/app_http_headers_test.dart**
+
+   * Added tests covering exposed header names.
+   * Added coverage for bearer token formatting.
+   * Added coverage for sensitive header classification used by log redaction.
+
+10. **mobile/test/core/services/client_http**
+
+* Updated client request, response, Dio client, and auth interceptor tests to use `AppHttpHeaders`.
+* Adjusted log redaction assertions to validate sensitive headers through centralized constants.
+* Updated one response copy test expectation from `Accepted` to `Created`.
+
+11. **mobile/test/core/services/client_http/interceptors/installation**
+
+* Added tests for installation header injection.
+* Added coverage for interaction between installation and auth interceptors.
+* Added failure-path coverage to ensure unresolved installation identity blocks outgoing requests.
+* Added RestClient-level coverage to ensure interceptor failures are returned as `Failure` without reaching the HTTP adapter.
+
+12. **mobile/test/data/services/apis**
+
+* Updated contact verification and transfer API tests to assert headers through `AppHttpHeaders`.
+* Adjusted test descriptions to reference app-token behavior instead of literal header strings.
+
+13. **mobile/test/data/repositories/transaction_password**
+
+* Updated step-up authorization failure message expectation to `Step-up auth failed`.
+
+### Conclusion
+
+The mobile HTTP layer now has a single source of truth for header names, sensitive header redaction, and bearer token formatting.
+
+Installation identity is now part of the standard request pipeline, and requests are blocked when the identity cannot be resolved, preserving the underlying application error for consistent handling.
+
+The API layer, dependency injection setup, documentation, and tests were aligned with this behavior, reducing duplicated header literals and strengthening request consistency.
+
+
+## 2026/06/18 - mobile/installation-identity-02
+
+This change introduces the first mobile implementation layer for installation identity in BankLab. It adds durable installation ID storage, a non-secret local marker, identity resolution during app bootstrap, and login blocking when the installation identity cannot be resolved.
+
+The update affects core services, dependency injection, splash initialization, login flow, storage contracts, documentation, and automated tests for the installation identity lifecycle.
+
+1. **docs/backlogs/mobile/013 - installation-identity-mvp_tasks.md**
+
+   * Translated the installation identity MVP task document to Portuguese.
+   * Preserved the original task structure, scope, dependencies, acceptance criteria, and deferred items.
+   * Clarified the mobile implementation plan for local identity, HTTP propagation, restricted login, installation registration, and future management flows.
+
+2. **mobile/lib/core/resources/storage_keys.dart**
+
+   * Added `StorageKeys.installationId` for the durable installation identity stored in secure storage.
+   * Added `StorageKeys.installationLocalMarker` as a non-secret marker stored outside secure storage.
+   * Documented that logout, credential cleanup, and user switching must not delete the installation identity.
+
+3. **mobile/lib/core/services/installation_identity/**
+
+   * Added the installation identity module exports.
+   * Created `InstallationMarkerStore` as the abstraction for checking and writing the local installation marker.
+   * Implemented `FileInstallationMarkerStore` using the application support directory.
+   * Implemented `InstallationIdentityService` to resolve, validate, generate, persist, and refresh the local installation identity.
+   * Added canonical UUID v4 validation and replacement behavior for missing markers, missing values, or invalid stored values.
+   * Added failure handling for marker and secure storage errors without silently continuing.
+
+4. **mobile/lib/core/services/core_services.dart**
+
+   * Registered `InstallationMarkerStore` and `InstallationIdentityService` in core dependency injection.
+   * Inserted installation identity setup before the main HTTP client and authentication interceptor registration.
+   * Preserved the existing Dio, AuthInterceptor, and RestClient setup sequence.
+
+5. **mobile/lib/ui/pages/splash/viewmodel/splash_viewmodel.dart**
+
+   * Updated splash initialization to resolve installation identity before loading remembered login data.
+   * Added `SplashBootstrapState` to carry the optional remembered login identity.
+   * Changed missing last-login data into a successful bootstrap state instead of a blocking failure.
+   * Preserved blocking behavior when installation identity resolution fails.
+
+6. **mobile/lib/ui/pages/splash/models/splash_bootstrap_state.dart**
+
+   * Added a bootstrap state model to represent splash initialization output.
+   * Encapsulated the optional `LastLoginIdentity` used to decide between short login and full login navigation.
+
+7. **mobile/lib/ui/pages/splash/splash_page.dart**
+
+   * Updated the splash animation listener to react to initialization command state.
+   * Added a recoverable error UI when installation identity bootstrap fails.
+   * Added a retry action that re-executes initialization.
+   * Adjusted navigation to route to short login only when a remembered identity is available.
+
+8. **mobile/lib/ui/pages/auth/viewmodel/login_viewmodel.dart**
+
+   * Injected `InstallationIdentityService` into `LoginViewModel`.
+   * Wrapped login execution with installation identity resolution.
+   * Prevented login API calls when installation identity resolution fails.
+   * Preserved post-login destination resolution based on the current app session.
+
+9. **mobile/test/core/resources/storage_keys_test.dart**
+
+   * Added tests for the durable installation ID storage key.
+   * Added tests ensuring the local marker key is separate from the installation ID key.
+
+10. **mobile/test/core/services/installation_identity/installation_identity_service_test.dart**
+
+* Added lifecycle tests for first-run identity creation.
+* Added tests for UUID reuse when the local marker exists.
+* Added tests for replacing secure-storage values when the marker is missing.
+* Added tests for invalid stored identity replacement.
+* Added failure-path tests for marker lookup, secure storage read, secure storage write, and marker refresh errors.
+
+11. **mobile/test/data/repositories/auth/auth_repository_impl_test.dart**
+
+* Updated logout test coverage to confirm installation identity is not deleted during session cleanup.
+* Added tracking of deleted storage keys in the fake secure storage implementation.
+* Verified logout still clears access and refresh tokens while preserving the installation ID.
+
+12. **mobile/test/ui/pages/auth/post_login_destination_test.dart**
+
+* Updated `LoginViewModel` test setup to provide a fake installation identity service.
+* Added local fake marker and secure storage implementations required by the new constructor dependency.
+* Preserved existing post-login destination behavior tests.
+
+13. **mobile/test/ui/pages/auth/viewmodel/login_viewmodel_test.dart**
+
+* Added tests confirming login is blocked when installation identity resolution fails.
+* Added tests confirming the login repository is called only after installation identity resolves successfully.
+
+14. **mobile/test/ui/pages/splash/viewmodel/splash_viewmodel_test.dart**
+
+* Added tests confirming splash bootstrap blocks when installation identity resolution fails.
+* Added tests confirming remembered login identity is returned after successful identity resolution.
+* Added tests confirming bootstrap continues successfully when no remembered identity exists.
+
+### Conclusion
+
+This change establishes the mobile foundation for installation identity by introducing durable identity storage, a local marker contract, identity resolution, bootstrap blocking, and login protection.
+
+The mobile app now avoids entering authentication flows when it cannot safely resolve the current installation identity, while preserving existing logout behavior and short-login navigation.
+
+Test coverage was expanded across storage keys, identity lifecycle, splash initialization, login blocking, and logout cleanup behavior.
+
+
+## 2026/06/17 - mobile/installation-identity-01
+
+This change finalizes the mobile planning backlog for the Installation Identity MVP and converts the previous research-oriented document into an implementation-ready plan.
+
+The update closes the pending mobile decisions around local storage, reinstall detection, bootstrap failure behavior, restricted login, installation registration, installation limits, and deferred management capabilities. It also adds a dedicated task breakdown to guide the first mobile implementation cut.
+
+1. **docs/backlogs/mobile/013 - installation-identity-mvp.md**
+
+   * Changed the backlog type from research to planning and marked the state as ready for tasks.
+   * Updated the mobile objective to block login and API calls when a stable installation identity cannot be resolved.
+   * Expanded the installation lifecycle rules with a local marker contract to distinguish app updates from reinstall, clear-data, or incomplete restore scenarios.
+   * Defined `banklab.installation.id` as the installation identity storage key.
+   * Clarified that logout, credential cleanup, and user switching must not delete the installation identity.
+   * Documented that secure storage alone must not be treated as proof that the current installation is still the same.
+   * Reworked failure handling so bootstrap, login, and API calls are blocked when identity resolution fails.
+   * Defined the expected retry behavior and prohibited sending requests without `X-Installation-Id`.
+   * Refined the restricted installation registration flow, including token cleanup, expiration handling, cancellation handling, and transaction password preconditions.
+   * Added the approved UX message for `installation_limit_reached`.
+   * Deferred installation listing and revocation management to a future mobile implementation.
+   * Updated the decision checklist to mark storage, reinstall detection, backup/restore behavior, restricted token handling, step-up integration, limit UX, telemetry, and bootstrap tests as resolved.
+   * Adjusted the out-of-scope section to exclude mobile listing and revocation instead of API association concerns.
+   * Updated references to point to the completed API backlog and the new task document.
+
+2. **docs/backlogs/mobile/013 - installation-identity-mvp_tasks.md**
+
+   * Added a new implementation task breakdown for the Installation Identity MVP.
+   * Defined storage key and local marker tasks for distinguishing app updates from reinstall or restore cases.
+   * Added the `InstallationIdentityService` task for read-or-create UUID v4 resolution, validation, persistence, marker refresh, and safe logging.
+   * Added bootstrap blocking requirements for unresolved or failed installation identity resolution.
+   * Added the installation interceptor task to propagate `X-Installation-Id` through the main HTTP client.
+   * Added refresh-flow requirements to ensure `/auth/refresh` also sends the installation identity.
+   * Added login response modeling tasks for operational login, restricted installation registration, and installation limit outcomes.
+   * Added the installation registration API task for `POST /security/installations`.
+   * Added the step-up operation task for authorizing installation registration with the transaction password flow.
+   * Added the restricted installation certification flow task, covering password entry, step-up authorization, registration, token persistence, and cleanup.
+   * Added blocker handling tasks for installation limits and transaction password preconditions.
+   * Added safe telemetry and test coverage tasks for lifecycle, headers, restricted login, registration, and blocking outcomes.
+   * Added the final mobile verification task covering formatting, focused tests, analysis, and regression checks.
+   * Documented deferred work for installation listing, revocation, management UI, and current-installation removal protection.
+
+### Conclusion
+
+The mobile installation identity backlog is now implementation-ready and aligned with the API contract.
+
+The change establishes the expected local identity lifecycle, failure behavior, restricted registration flow, and user-facing blocker states, while explicitly deferring installation management to a later cut.
+
+The new task file provides a structured execution path for implementing the MVP without mixing it with future list and revocation features.
+
+
+## 2026/06/17 - api/installation-identity-09
+
+This change completes the audit, retention, and operational cleanup layer for the Installation Identity MVP. It documents the security boundaries of installation identity, clarifies revoked-installation behavior, and adds automated cleanup for restricted installation registration authorizations.
+
+The update affects REST documentation, authentication implementation notes, database documentation, PostgreSQL migrations, the concrete installation repository, integration tests, and backlog organization.
+
+1. **api/docs/07-api-rest.md**
+
+   * Clarified that `X-Installation-Id` is only a weak installation signal.
+   * Documented that installation identity does not replace JWT validation or step-up authorization.
+   * Expanded revocation behavior for installations.
+   * Documented that revoked installations invalidate bound refresh sessions, while already issued access tokens remain valid until their short expiration.
+   * Clarified that revoked installations remain in historical storage and do not consume known-installation slots.
+
+2. **api/docs/08-auth_implementation.md**
+
+   * Updated the token model to include restricted access tokens.
+   * Documented the restricted access token used during new installation registration.
+   * Described its scope, token type, expiration, persisted `jti`, and operational limitations.
+   * Added refresh-session behavior when sessions are bound to installations.
+   * Added protected-route requirements for matching `X-Installation-Id`.
+   * Added the installation registration flow using restricted access tokens and step-up authorization.
+   * Added audit, retention, and safe logging rules for installation identity events.
+   * Documented the cleanup policy for restricted installation registration authorizations.
+   * Renumbered authorization and design rationale sections after the new operational documentation.
+
+3. **api/docs/09-database.md**
+
+   * Added `app_installations` and `installation_registration_authorizations` to the support table list.
+   * Documented `installation_id` on refresh sessions.
+   * Added notes describing refresh-session invalidation when an installation is revoked.
+   * Added the `app_installations` table documentation, including status, slot behavior, metadata, retention, and privacy limits.
+   * Added the `installation_registration_authorizations` table documentation, including states, scope, expiration, retention, and cleanup behavior.
+
+4. **api/internal/installation/infrastructure/postgres_restricted_authorization_repository.go**
+
+   * Added `CleanupExpired` to remove restricted installation registration authorizations outside the retention window.
+   * Implemented cleanup rules for expired active authorizations, old consumed authorizations, and old revoked authorizations.
+   * Added validation for invalid cleanup inputs.
+   * Returned the number of deleted rows for operational visibility and testability.
+
+5. **api/internal/installation/infrastructure/postgres_repository_test.go**
+
+   * Added an integration test for restricted authorization cleanup.
+   * Covered removal of old active, consumed, and revoked authorizations.
+   * Verified that recent active authorizations are preserved.
+   * Added a helper to create restricted authorizations with controlled timestamps.
+
+6. **api/migrations/000015_installation_authorizations_cleanup.up.sql**
+
+   * Added the `pg_cron` extension requirement.
+   * Added partial indexes for active, consumed, and revoked restricted authorization cleanup.
+   * Added `cleanup_installation_registration_authorizations()`.
+   * Scheduled the cleanup job to run daily at 03:30.
+   * Executed the cleanup function once during migration application.
+
+7. **api/migrations/000015_installation_authorizations_cleanup.down.sql**
+
+   * Added rollback logic for the scheduled cleanup job.
+   * Removed the cleanup function.
+   * Dropped the partial indexes created for cleanup support.
+
+8. **docs/backlogs/api/done/**
+
+   * Moved installation identity backlogs 010 through 019 to the `done` folder.
+   * Marked the audit and retention backlog as concluded.
+   * Added implemented decisions covering revoked installation retention, restricted authorization cleanup, refresh-session invalidation, safe logging, and weak installation identity semantics.
+   * Added completed task documentation for the audit, retention, cleanup, and operational documentation work.
+
+9. **docs/backlogs/mobile/pendencias.md**
+
+   * Added mobile pending decisions for installation identity integration.
+   * Documented open UX and implementation questions for reinstall detection, backup and restore, storage failure, concurrency, restricted login, installation limit handling, transaction password edge cases, token expiration, installation management, telemetry, and first delivery scope.
+
+### Conclusion
+
+This change finalizes the operational retention policy for installation identity and restricted installation registration authorizations.
+
+The API documentation now presents installation identity as a weak contextual signal, with explicit limits around authentication, authorization, revocation, logging, and audit behavior.
+
+The database and repository layers now include a versioned cleanup mechanism, backed by migration, scheduled execution, and integration test coverage.
+
+
+## 2026/06/17 - api/installation-identity-08
+
+This change completes the API delivery and enforcement layer for installation identity management. It connects restricted installation registration, operational installation enforcement, installation listing, and revocation into the real API wiring.
+
+The implementation introduces dedicated installation use cases, HTTP handlers, middleware paths for operational and restricted tokens, refresh-token installation validation, and REST contract updates. It also extends step-up authorization to support installation registration under restricted authentication.
+
+1. **api/cmd/api/main.go**
+
+   * Wired the installation application and delivery modules into the API bootstrap.
+   * Added use cases for registering, listing, and revoking installations.
+   * Registered the installation handler with the main API router.
+   * Replaced generic authenticated routing with operational, restricted, and operational-or-restricted middleware flows.
+   * Added routes for:
+
+     * `POST /security/installations`
+     * `GET /security/installations`
+     * `DELETE /security/installations/{installation_resource_id}`
+   * Configured the JWT middleware with restricted access token verification.
+
+2. **api/cmd/api/routes_test.go**
+
+   * Updated router tests to account for the new middleware signatures.
+   * Verified that step-up authorization uses the operational-or-restricted authentication path.
+   * Added route-level tests confirming that installation registration uses restricted authentication, while listing and revocation use operational authentication.
+
+3. **api/internal/auth/delivery/jwt_middleware.go**
+
+   * Added operational authentication enforcement requiring `X-Installation-Id`.
+   * Added restricted authentication support using restricted access token verification.
+   * Added combined operational-or-restricted authentication for flows that may accept either context.
+   * Validated consistency between the installation header and token claims.
+   * Populated `OperationalSession` and `RestrictedSession` contexts for downstream application use.
+   * Extracted principal creation into a shared helper.
+
+4. **api/internal/auth/delivery/handler.go**
+
+   * Updated refresh-token handling to require and parse `X-Installation-Id`.
+   * Propagated the validated installation identifier to the refresh access token use case.
+
+5. **api/internal/auth/application/refresh_access_token.go**
+
+   * Extended refresh input with `InstallationID`.
+   * Added validation to ensure the refresh session belongs to the installation presented in the request.
+   * Returned installation mismatch when the header and persisted session installation differ.
+
+6. **api/internal/auth/delivery/handler_test.go**
+
+   * Updated refresh tests to include `X-Installation-Id`.
+   * Verified that the installation identifier is propagated to the refresh use case.
+   * Preserved invalid-token behavior under the new refresh contract.
+
+7. **api/internal/auth/application/errors_registry.go**
+
+   * Registered installation mismatch as a public domain error.
+   * Registered additional restricted authorization states as invalid-token responses.
+
+8. **api/internal/bootstrap/errors.go**
+
+   * Added installation application error registration to the API bootstrap.
+   * Preserved the existing registration order for admin, customer, auth, and security errors.
+
+9. **api/internal/installation/application/errors_registry.go**
+
+   * Added installation-specific error registration.
+   * Mapped installation mismatch, invalid resource identifiers, missing installations, and restricted authorization failures to stable HTTP error responses.
+
+10. **api/internal/installation/application/register_installation.go**
+
+* Added the installation registration use case.
+* Validated restricted session scope, user, installation identifier, and authorization `jti`.
+* Enforced step-up for `installation.register`.
+* Reserved a known installation slot using the installation repository.
+* Consumed restricted authorization inside the registration transaction.
+* Issued operational access and refresh tokens after successful registration.
+* Persisted the refresh session bound to the installation.
+
+11. **api/internal/installation/application/register_installation_test.go**
+
+* Added tests for successful installation registration.
+* Verified token generation, refresh-token hashing, session persistence, step-up enforcement, authorization consumption, and installation reservation.
+* Covered mismatch scenarios where registration must not consume restricted authorization or step-up.
+* Covered validation of consumed restricted authorization against the current restricted context.
+
+12. **api/internal/installation/application/list_installations.go**
+
+* Added the use case for listing installations owned by the authenticated user.
+* Returned safe installation summaries using public `resource_id`, status, and timestamps.
+* Avoided exposing the raw client-generated `installation_id`.
+
+13. **api/internal/installation/application/list_installations_test.go**
+
+* Added tests confirming that known and revoked installations are returned as safe summaries.
+* Verified that listing is scoped to the operational session user.
+
+14. **api/internal/installation/application/revoke_installation.go**
+
+* Added the installation revocation use case.
+* Validated operational session context.
+* Revoked installations by public resource identifier.
+* Prevented revocation of the current installation.
+* Invalidated refresh sessions associated with the revoked installation inside the transaction.
+
+15. **api/internal/installation/application/revoke_installation_test.go**
+
+* Added tests for successful revocation and session invalidation.
+* Verified that the current installation cannot revoke itself.
+* Ensured invalid revocation attempts do not revoke installations or invalidate sessions.
+
+16. **api/internal/installation/delivery/handler.go**
+
+* Added HTTP handlers for installation registration, listing, and revocation.
+* Parsed and validated canonical UUID values from headers and path parameters.
+* Exposed safe response DTOs for installation management.
+* Ensured list and revoke responses do not expose raw installation identifiers.
+
+17. **api/internal/installation/delivery/handler_test.go**
+
+* Added handler tests for successful registration.
+* Verified step-up token and installation header propagation.
+* Confirmed that listing does not expose `installation_id`.
+* Covered invalid installation resource identifiers during revocation.
+
+18. **api/internal/security/delivery/handler.go**
+
+* Updated step-up authorization to support restricted sessions for installation registration.
+* Preserved operational authentication requirements for other sensitive operations.
+* Rejected restricted-context step-up requests targeting operations other than `POST /security/installations`.
+
+19. **api/internal/security/domain/step_up_endpoint_policy.go**
+
+* Added `installation.register` as an allowed step-up endpoint key.
+* Included the installation registration endpoint in the default step-up policy.
+
+20. **api/internal/security/domain/step_up_endpoint_policy_test.go**
+
+* Added coverage confirming that the default step-up policy allows installation registration.
+
+21. **api/internal/security/domain/step_up_public_operation_resolver.go**
+
+* Added the public operation mapping for `POST /security/installations`.
+* Resolved that route to the `installation.register` endpoint key.
+
+22. **api/internal/security/domain/step_up_public_operation_resolver_test.go**
+
+* Added coverage confirming that `POST /security/installations` resolves to the installation registration step-up endpoint.
+
+23. **api/internal/shared/errors/codes.go**
+
+* Added the public error code `INSTALLATION_MISMATCH`.
+
+24. **api/docs/07-api-rest.md**
+
+* Updated authentication rules to require `X-Installation-Id` for refresh and operational authenticated routes.
+* Documented restricted login responses for new installations.
+* Documented installation registration, listing, and revocation endpoints.
+* Added installation-related error codes and behavior.
+* Updated step-up documentation to include installation registration as a supported public operation.
+
+25. **docs/backlogs/api/017 - installation-identity-management-usecases_tasks.md**
+
+* Added completed task documentation for installation identity management use cases.
+* Documented registration, restricted context validation, installation matching, slot reservation, authorization consumption, session creation, listing, revocation, and session invalidation.
+
+26. **docs/backlogs/api/018 - installation-identity-delivery-enforcement_tasks.md**
+
+* Added completed task documentation for delivery and enforcement of installation identity.
+* Documented refresh enforcement, operational middleware, restricted middleware, step-up support for restricted registration, installation handlers, router wiring, and REST contract validation.
+
+### Conclusion
+
+This change set completes the installation identity management flow across application, delivery, middleware, routing, error handling, tests, and documentation.
+
+The API now distinguishes operational access from restricted installation-registration access, binds authenticated flows to `X-Installation-Id`, supports secure registration of new installations through step-up, and allows users to list and revoke known installations without exposing raw installation identifiers.
+
+
+## 2026/06/17 - api/installation-identity-07
+
+This change prepares the authentication flow to carry installation identity across operational sessions, access tokens, refresh rotation, and shared authentication context.
+
+It adds persistence support for `installation_id` in user sessions, extends JWT claims, introduces restricted access token infrastructure for installation registration, and documents the related backlog tasks.
+
+1. **api/internal/auth/domain/interfaces.go**
+
+   * Extended `TokenClaims` with optional `InstallationID`.
+   * Added session creation and lookup models with installation metadata.
+   * Expanded `SessionRepository` with installation-aware create, lookup, and revocation methods.
+
+2. **api/internal/auth/application/login_user.go**
+
+   * Included `installation_id` in generated access tokens when available.
+   * Persisted refresh sessions using the installation-aware session creation flow.
+   * Added helper logic to keep legacy logins compatible when no installation ID is provided.
+
+3. **api/internal/auth/application/login_user_test.go**
+
+   * Updated session repository mocks for installation-aware session creation.
+   * Added assertions ensuring legacy login keeps `installation_id` absent.
+   * Added assertions ensuring classified installation login propagates the installation ID into both token claims and session persistence.
+
+4. **api/internal/auth/application/refresh_access_token.go**
+
+   * Replaced legacy session lookup with installation-aware session records.
+   * Preserved `installation_id` during access token generation and refresh token rotation.
+   * Created rotated refresh sessions with the same installation binding.
+
+5. **api/internal/auth/application/refresh_access_token_test.go**
+
+   * Updated refresh session mocks and stateful test repositories to support installation-aware records.
+   * Added coverage for preserving `installation_id` across refresh rotation.
+   * Added revocation support by user and installation in test doubles.
+
+6. **api/internal/auth/infrastructure/jwt_token_service.go**
+
+   * Added optional `installation_id` claim emission in access tokens.
+   * Added parsing and UUID validation for `installation_id`.
+   * Preserved compatibility with access tokens that do not contain installation metadata.
+
+7. **api/internal/auth/infrastructure/jwt_token_service_test.go**
+
+   * Added coverage for generating and parsing access tokens with `installation_id`.
+   * Added coverage for access tokens without installation identity.
+   * Added validation coverage for malformed `installation_id` claims.
+
+8. **api/internal/auth/infrastructure/postgres_session_repository.go**
+
+   * Implemented installation-aware session creation and lookup.
+   * Added session revocation by `user_id` and `installation_id`.
+   * Implemented `InstallationSessionInvalidator` through the session repository.
+
+9. **api/internal/auth/infrastructure/postgres_session_repository_test.go**
+
+   * Added integration coverage for creating, reading, and revoking sessions by installation.
+   * Verified that revocation affects only the target installation session.
+   * Verified that sessions from other installations remain active.
+
+10. **api/internal/auth/infrastructure/postgres_user_repository_test.go**
+
+* Extended the shared auth repository test schema with `user_sessions`.
+* Added `installation_id` schema support and index setup for repository tests.
+* Adjusted test users to use an admin role where customer dependencies are not required.
+
+11. **api/internal/auth/delivery/auth_authorization_integration_test.go**
+
+* Updated integration schema setup to include the optional `installation_id` column in `user_sessions`.
+
+12. **api/internal/installation/domain/restricted_token.go**
+
+* Added restricted access token claims for installation registration.
+* Defined validation rules for token type, scope, user, installation, JTI, and expiration.
+* Added signer and verifier interfaces for restricted access tokens.
+
+13. **api/internal/installation/infrastructure/jwt_restricted_access_token_service.go**
+
+* Added JWT-based restricted access token signer and verifier.
+* Validated restricted token claims against persisted restricted authorization records.
+* Added rejection paths for missing, consumed, revoked, expired, mismatched, or invalid authorizations.
+
+14. **api/internal/installation/infrastructure/jwt_restricted_access_token_service_test.go**
+
+* Added coverage for signing and verifying restricted access tokens.
+* Added validation for authorization mismatch.
+* Added validation for consumed authorization rejection.
+
+15. **api/internal/shared/authctx/context.go**
+
+* Added operational session context carrying user, role, customer, and installation identity.
+* Added restricted session context carrying user, installation, JTI, and scope.
+* Added required and optional accessors with explicit missing-context errors.
+
+16. **api/internal/shared/authctx/context_test.go**
+
+* Added tests for operational session context storage and retrieval.
+* Added tests for restricted session context storage and retrieval.
+* Added missing-context error coverage for both session types.
+
+17. **api/migrations/000014_user_sessions_installation_id.up.sql**
+
+* Added `installation_id` to `user_sessions`.
+* Added partial index on `(user_id, installation_id)` for installation-bound sessions.
+
+18. **api/migrations/000014_user_sessions_installation_id.down.sql**
+
+* Added rollback for the installation session index.
+* Added rollback for the `installation_id` column.
+
+19. **docs/backlogs/api/015 - installation-identity-session-tokens-context.md**
+
+* Linked the backlog to its dedicated task breakdown document.
+
+20. **docs/backlogs/api/015 - installation-identity-session-tokens-context_tasks.md**
+
+* Added task breakdown for session schema, repository contracts, access token claims, restricted tokens, authentication contexts, installation-based invalidation, and validation without enforcement.
+
+### Conclusion
+
+This change establishes the infrastructure required to bind authentication sessions and tokens to installation identity while preserving compatibility with legacy flows.
+
+The API can now persist installation-aware refresh sessions, propagate installation identity through access token and refresh rotation flows, validate restricted installation registration tokens, and expose operational and restricted authentication contexts for future enforcement work.
+
+
+## 2026/06/17 - api/installation-identity-05
+
+This change implements the PostgreSQL persistence layer for the installation identity module, adding schema support, repository implementations, and integration coverage for installation records and restricted registration authorizations.
+
+The update introduces the database structures required to persist known and revoked app installations, enforce the three-known-installation limit per user, and support future restricted authorization flows for installation registration.
+
+1. **api/migrations/000013_installation_identity_schema.up.sql**
+
+   * Added the `app_installations` table to persist installation identity records.
+   * Added integrity constraints for installation status, timestamps, revocation consistency, and known slot consistency.
+   * Added unique indexes for `resource_id`, `(user_id, installation_id)`, and active known slots.
+   * Added query indexes for user-based lookup, resource lookup, status filtering, and known installation counting.
+   * Added the `installation_registration_authorizations` table for restricted installation registration authorizations.
+   * Added constraints for `jti`, scope, status, expiration, and consumed timestamp consistency.
+   * Added unique and query indexes for authorization lookup, active authorization enforcement, and expiration filtering.
+
+2. **api/migrations/000013_installation_identity_schema.down.sql**
+
+   * Added rollback support for the installation identity schema.
+   * Drops authorization indexes and table before removing installation indexes and table.
+   * Keeps rollback order compatible with table dependencies.
+
+3. **api/internal/installation/infrastructure/postgres_repository.go**
+
+   * Added `PostgresInstallationRepository` implementing `domain.InstallationRepository`.
+   * Added transaction-aware executor support using `database.TxFromContext`.
+   * Implemented lookup by `(user_id, installation_id)` and `(user_id, resource_id)`.
+   * Implemented known installation counting, historical installation detection, and user installation listing.
+   * Implemented atomic first-installation bootstrap with user-level locking.
+   * Implemented atomic known-installation reservation with slot allocation and limit enforcement.
+   * Implemented logical revocation by public `resource_id`, preserving history and releasing the known slot.
+   * Added scan helpers to restore domain installation entities from PostgreSQL rows.
+   * Added PostgreSQL constraint and uniqueness error mapping to domain errors.
+
+4. **api/internal/installation/infrastructure/postgres_restricted_authorization_repository.go**
+
+   * Added `PostgresRestrictedAuthorizationRepository` implementing `domain.RestrictedAuthorizationRepository`.
+   * Implemented creation, lookup by `jti`, atomic consumption, and revocation of restricted authorizations.
+   * Added active authorization revocation by `(user_id, installation_id, scope)`.
+   * Added single-use consumption behavior based on `status = active` and `expires_at`.
+   * Added failure mapping for consumed, revoked, expired, invalid, and missing authorizations.
+   * Added scan helpers to restore restricted authorization domain entities from database rows.
+   * Added PostgreSQL error mapping for duplicate active authorizations and invalid persisted data.
+
+5. **api/internal/installation/infrastructure/postgres_repository_test.go**
+
+   * Added PostgreSQL integration tests for installation repository behavior.
+   * Covered first-installation bootstrap, historical bootstrap rejection, known installation limit enforcement, revoked slot reuse, and historical listing.
+   * Added concurrency tests ensuring only one bootstrap succeeds for a new user.
+   * Added concurrency tests ensuring known installation reservations do not exceed the configured limit.
+   * Added PostgreSQL integration tests for restricted authorization repository behavior.
+   * Covered authorization creation, lookup, active uniqueness, single-use consumption, expiration handling, and concurrent consumption.
+   * Added local test schema helpers, test user creation, cleanup helpers, and domain value constructors.
+
+6. **docs/backlogs/api/013 - installation-identity-database-schema_tasks.md**
+
+   * Marked all database schema tasks as completed.
+   * Updated task status for installation migrations, constraints, indexes, known slot support, restricted authorization schema, and rollback validation.
+
+7. **docs/backlogs/api/014 - installation-identity-repositories.md**
+
+   * Added a reference from the repository backlog to its dedicated task document.
+   * Linked the repository planning document to the new task breakdown.
+
+8. **docs/backlogs/api/014 - installation-identity-repositories_tasks.md**
+
+   * Added the task breakdown for the installation identity repository backlog.
+   * Documented eight completed tasks covering infrastructure structure, installation reads, atomic bootstrap, atomic reservation, logical revocation, restricted authorization persistence, concurrency tests, and build validation.
+   * Captured scope, acceptance criteria, and dependencies for each repository implementation step.
+
+### Conclusion
+
+This change delivers the persistence foundation for installation identity in the API. The database schema, repository implementations, and integration tests now support installation history, known installation limits, logical revocation, and restricted registration authorization storage.
+
+The module remains isolated from handlers and login wiring, keeping the implementation ready for later application and delivery integration without changing current HTTP behavior.
+
+
+## 2026/06/17 - api/installation-identity-04
+
+This change introduces the domain contracts for Installation Identity in the API. It defines the core installation aggregate, installation identifiers, login classifications, restricted registration authorizations, domain errors, repository ports, and unit tests.
+
+The update also closes the domain-contract backlog tasks and prepares the next database-schema backlog with detailed migration tasks.
+
+1. **api/internal/installation/domain/errors.go**
+
+   * Added domain errors for installation identity validation, lookup, mismatch, revocation, limit enforcement, and first-installation bootstrap conflicts.
+   * Added restricted authorization errors for invalid, missing, expired, consumed, revoked, and already-active authorization states.
+
+2. **api/internal/installation/domain/installation_id.go**
+
+   * Added `InstallationID` as a strict value object for client-provided installation identifiers.
+   * Enforced canonical UUID v4 format for installation IDs.
+   * Added `InstallationResourceID` as a separate value object for public installation management resources.
+   * Added parsing, string conversion, UUID access, and zero-value checks for both identifiers.
+
+3. **api/internal/installation/domain/installation.go**
+
+   * Added the `Installation` domain entity with persisted fields for user association, resource identity, installation identity, status, platform metadata, lifecycle timestamps, and revocation state.
+   * Added `known` and `revoked` installation statuses.
+   * Added `NewKnownInstallation` and `RestoreInstallation` constructors with invariant validation.
+   * Added validation rules for required identifiers, timestamps, status consistency, and revocation state.
+   * Added `Revoke` behavior to transition a known installation to revoked.
+   * Added login classifications for known, first, new, revoked, and limit-reached installation scenarios.
+   * Added `LoginDecision` validation around known installation count, associated installation history, and the maximum known installation limit.
+
+4. **api/internal/installation/domain/restricted_authorization.go**
+
+   * Added `RestrictedAuthorization` for installation registration authorization.
+   * Defined the initial restricted authorization scope as `installation.register`.
+   * Added the default authorization duration of five minutes.
+   * Added active, consumed, and revoked authorization statuses.
+   * Added constructors and restoration logic with invariant validation.
+   * Added expiration detection, consume behavior, and revoke behavior.
+   * Enforced single-use behavior through consumed-state validation.
+
+5. **api/internal/installation/domain/repository.go**
+
+   * Added read ports for finding installations by user and installation ID, finding by resource ID, counting known installations, checking user installation history, and listing installations.
+   * Added write ports for bootstrapping the first installation, reserving a known installation, and revoking an installation by resource ID.
+   * Added a session invalidation port for invalidating sessions by installation ID.
+   * Added restricted authorization repository ports for create, lookup, consume, revoke, and revoke-active operations.
+
+6. **api/internal/installation/domain/installation_id_test.go**
+
+   * Added tests for canonical UUID v4 installation ID parsing.
+   * Covered invalid cases such as blank values, non-UUID strings, UUID v1, non-canonical UUIDs without hyphens, and uppercase UUIDs.
+   * Verified that `InstallationResourceID` remains a separate value object from `InstallationID`.
+   * Added validation for rejecting nil installation resource IDs.
+
+7. **api/internal/installation/domain/installation_test.go**
+
+   * Added tests for creating known installations.
+   * Added revocation behavior tests, including repeated revocation rejection.
+   * Added restoration validation tests for known and revoked installation state consistency.
+   * Added login decision tests covering known, revoked, first, new, limit-reached, and invalid classification scenarios.
+
+8. **api/internal/installation/domain/restricted_authorization_test.go**
+
+   * Added tests for creating restricted authorizations with trimmed JTI values, default scope, active status, and default expiration.
+   * Added consume behavior tests, including repeated consumption rejection.
+   * Added expiration validation for restricted authorization consumption.
+   * Added revoke behavior tests, including repeated revocation rejection.
+   * Added restoration validation tests for active, consumed, revoked, invalid scope, blank JTI, and inconsistent consumed timestamp states.
+
+9. **docs/backlogs/api/012 - installation-identity-domain-contracts_tasks.md**
+
+   * Marked all eight domain-contract tasks as completed.
+   * Updated the backlog status for installation identifiers, installation modeling, login classifications, domain errors, read ports, write ports, restricted authorization modeling, and restricted authorization ports.
+
+10. **docs/backlogs/api/013 - installation-identity-database-schema.md**
+
+* Added a direct reference to the new database schema task file.
+* Linked the parent backlog to the detailed migration task breakdown.
+
+11. **docs/backlogs/api/013 - installation-identity-database-schema_tasks.md**
+
+* Added the database schema task backlog for Installation Identity.
+* Defined tasks for creating the `app_installations` table, integrity constraints, query indexes, support for the three-known-installation limit, restricted authorization storage, authorization constraints/indexes, and migration validation.
+* Documented acceptance criteria and dependencies for each database task.
+
+### Conclusion
+
+This change establishes the Installation Identity domain layer with explicit entities, value objects, lifecycle rules, authorization rules, errors, ports, and unit coverage.
+
+It completes the domain-contract backlog and creates the next implementation path for database schema work, keeping persistence concerns separated from the domain model.
+
+
+## 2026/06/17 - api/installation-identity-03
+
+This change consolidates the installation identity entry contract and reorganizes the API backlog structure around technical dependency order. The login REST contract now explicitly documents the required `X-Installation-Id` header, including canonical UUID v4 validation and the `INVALID_INSTALLATION_ID` error behavior.
+
+The backlog documentation was refactored to separate planning by architectural dependency instead of by isolated flow. This creates a clearer sequence from entry contract, domain contracts, database schema, repositories, session/token context, use cases, delivery enforcement, and operational documentation.
+
+1. **api/docs/07-api-rest.md**
+
+   * Documented that `POST /auth/login` requires both `X-App-Token` and `X-Installation-Id`.
+   * Added request header documentation for `X-Installation-Id`.
+   * Defined the expected canonical lowercase UUID v4 format with hyphens.
+   * Clarified that the current contract only validates and propagates the installation identifier to the login application layer.
+   * Added `INVALID_INSTALLATION_ID` as a possible login error.
+   * Added the common error code description for missing or malformed installation identifiers.
+
+2. **api/internal/auth/delivery/handler_test.go**
+
+   * Expanded invalid installation identifier test coverage using table-driven cases.
+   * Added validation scenarios for non-UUID values, UUID v1, UUID without hyphens, uppercase UUID, and blank values.
+   * Preserved the assertion that invalid headers return `400 INVALID_INSTALLATION_ID`.
+   * Preserved the assertion that the login use case is not called when the installation identifier is invalid.
+
+3. **docs/backlogs/README.md**
+
+   * Updated the installation identity backlog index to reflect the new dependency-based split.
+   * Added the new split document as the operational reference for backlog sequencing.
+   * Replaced the previous flow-oriented backlog names with the new dependency-oriented structure.
+   * Updated backlog descriptions for domain contracts, database schema, repositories, session/token context, login use cases, management use cases, delivery enforcement, and audit/retention documentation.
+
+4. **docs/backlogs/api/010 - installation-identity-mvp.md**
+
+   * Removed the detailed implementation order from the main MVP backlog.
+   * Replaced the embedded implementation sequence with a reference to the dedicated split document.
+   * Simplified the derived backlog section to point to the dependency-based split.
+   * Kept the main MVP backlog focused on product decision, threat model, and scope instead of operational task sequencing.
+
+5. **docs/backlogs/api/010 - split-installation-identity-by-dependency.md**
+
+   * Added a new planning document defining the dependency-based implementation order for installation identity.
+   * Established the technical sequence from entry contract through audit, retention, and operational documentation.
+   * Defined separation rules for domain, interfaces, migrations, repositories, use cases, delivery, and enforcement.
+   * Documented the allowed exception for the minimal `X-Installation-Id` login entry contract before persistence exists.
+   * Listed the resulting backlog files from 011 through 019.
+
+6. **docs/backlogs/api/011 - installation-identity-entry-contract.md**
+
+   * Refined the backlog objective to emphasize that the entry contract does not depend on persistent domain, installation tables, or linked sessions.
+   * Clarified that this backlog is the initial layered-order exception because the HTTP header can be validated without consulting state.
+   * Updated the task preparation guidance to avoid fake repositories or premature operational classification.
+   * Added a link to the dedicated task file.
+   * Added the split document as a reference.
+
+7. **docs/backlogs/api/011 - installation-identity-entry-contract_tasks.md**
+
+   * Added the task breakdown for the completed entry contract backlog.
+   * Documented tasks for centralizing the installation header constant, defining `INVALID_INSTALLATION_ID`, validating canonical UUID v4, propagating the validated value to the application layer, covering tests, and updating REST documentation.
+   * Marked all six entry contract tasks as completed.
+   * Captured acceptance criteria and dependencies for each task.
+
+8. **docs/backlogs/api/012 - installation-identity-domain-contracts.md**
+
+   * Added the new domain contracts backlog.
+   * Defined the objective of creating stable installation identity language before database, use case, or delivery implementation.
+   * Scoped domain entities, persisted states, derived login classifications, value objects, internal errors, and application/domain ports.
+   * Explicitly excluded migrations, Postgres repositories, login changes, refresh changes, middleware, and HTTP handlers.
+
+9. **docs/backlogs/api/012 - installation-identity-domain-contracts_tasks.md**
+
+   * Added the task breakdown for domain contracts.
+   * Defined tasks for the installation identifier value object, app installation entity, login classifications, domain errors, read ports, write ports, restricted authorization model, and restricted authorization ports.
+   * Captured acceptance criteria focused on pure domain behavior and stable interfaces without database or HTTP dependencies.
+
+10. **docs/backlogs/api/012 - installation-identity-persistence-foundation.md**
+
+* Removed the previous persistence foundation backlog.
+* Replaced the combined persistence-oriented planning with the new split between domain contracts and database schema.
+
+11. **docs/backlogs/api/013 - installation-identity-database-schema.md**
+
+* Added the new database schema backlog.
+* Scoped the relational foundation for `app_installations` and `installation_registration_authorizations`.
+* Documented required states, constraints, indexes, public management identifiers, authorization expiration semantics, and migration expectations.
+* Positioned schema creation after domain contracts and before repository implementation.
+
+12. **docs/backlogs/api/013 - installation-identity-domain-repositories.md**
+
+* Removed the previous combined domain and repositories backlog.
+* Replaced it with separate domain contracts and repository implementation backlogs.
+
+13. **docs/backlogs/api/014 - installation-identity-repositories.md**
+
+* Added the new repositories backlog.
+* Scoped Postgres implementations for installation and restricted authorization ports.
+* Documented atomic operations for first-installation bootstrap, slot reservation, authorization consumption, authorization revocation, and logical installation revocation.
+* Added concurrency requirements for preventing duplicate first installations and exceeding the known-installation limit.
+
+14. **docs/backlogs/api/014 - installation-identity-session-tokens.md**
+
+* Removed the previous session and tokens backlog.
+* Replaced it with a more explicit session, tokens, and context backlog aligned with the new dependency sequence.
+
+15. **docs/backlogs/api/015 - installation-identity-session-tokens-context.md**
+
+* Added the new session, tokens, and context backlog.
+* Scoped operational session binding to user and installation.
+* Documented operational access token claims, restricted access token claims, restricted authorization validation, authenticated context, restricted context, and session invalidation interfaces.
+* Kept login classification, installation registration, revocation, and HTTP handlers out of scope.
+
+16. **docs/backlogs/api/015 - installation-identity-login-flow.md**
+
+* Removed the previous login flow backlog.
+* Replaced it with the new login use cases backlog aligned after repositories and session/token context.
+
+17. **docs/backlogs/api/016 - installation-identity-login-usecases.md**
+
+* Added the login use cases backlog.
+* Scoped installation classification during login, known-installation sessions, first-installation bootstrap, revoked-installation blocking, limit handling, restricted authorization emission, and atomicity requirements.
+* Explicitly kept schema, repositories, new handlers, refresh enforcement, authenticated route enforcement, and transactional password out of scope.
+
+18. **docs/backlogs/api/016 - installation-identity-registration-flow.md**
+
+* Removed the previous registration flow backlog.
+* Replaced it with the new registration and management use cases backlog.
+
+19. **docs/backlogs/api/017 - installation-identity-management-usecases.md**
+
+* Added the registration and management use cases backlog.
+* Scoped restricted-context registration, step-up validation, installation identifier matching, atomic slot confirmation, known-installation creation, restricted authorization consumption, operational session creation, listing, revocation, and session/token invalidation effects.
+* Kept schema, repositories, final HTTP DTOs, administrative panels, and step-up for revocation out of scope.
+
+20. **docs/backlogs/api/017 - installation-identity-management.md**
+
+* Removed the previous management backlog.
+* Replaced it with the broader registration and management use cases backlog.
+
+21. **docs/backlogs/api/018 - installation-identity-delivery-enforcement.md**
+
+* Added the delivery and enforcement backlog.
+* Scoped HTTP connection for login results, refresh header enforcement, authenticated route header enforcement, operational middleware, restricted middleware, step-up support for installation registration, installation management handlers, HTTP error standardization, REST documentation, and test collection updates.
+* Positioned delivery after the domain, persistence, repository, token, and application layers are ready.
+
+22. **docs/backlogs/api/018 - installation-identity-refresh-enforcement.md**
+
+* Removed the previous refresh and enforcement backlog.
+* Replaced it with a broader delivery and enforcement backlog that covers handlers, middleware, REST contract, and route integration.
+
+23. **docs/backlogs/api/019 - installation-identity-audit-retention.md**
+
+* Renamed the backlog focus to audit, retention, and operational documentation.
+* Raised the priority to High.
+* Expanded scope to include retention for restricted authorizations, audited events, safe logging, revocation effects over sessions and tokens, final technical documentation, and operational validation.
+* Clarified that the final documentation must not imply strong trust in `installation_id`.
+* Updated dependencies to require the preceding installation identity backlogs or their final contracts.
+
+### Conclusion
+
+This change completes the current entry-contract documentation for installation identity by making `X-Installation-Id` an explicit login requirement and tightening validation test coverage for malformed identifiers.
+
+It also restructures the installation identity planning model into a cleaner dependency-based backlog sequence. The result is a more coherent implementation path that separates domain contracts, persistence, repositories, session/token context, application use cases, delivery enforcement, and operational documentation.
+
+
+## 2026/06/16 - api/installation-identity-02
+
+This change introduces the first implementation layer for installation identity handling during authentication. The login flow now requires a canonical installation identifier, propagates it through the application layer, and introduces the initial classification model for installation-aware authentication decisions.
+
+The update also establishes shared infrastructure for HTTP headers, adds installation-specific error handling, and prepares the authentication use case for future installation registration, restricted authorization, and session binding flows. In parallel, the installation identity backlog was reorganized to follow dependency-driven implementation phases.
+
+1. **api/internal/auth/application**
+
+   * Added `InstallationLoginClassifier` and related domain models to classify login attempts as `known`, `first`, `new`, `revoked`, or `limit_reached`.
+   * Introduced installation-aware login decisions and repository contracts for installation lookup and counting.
+   * Extended `LoginUserUseCase` to receive and process `InstallationID`.
+   * Added support for first-installation bootstrap orchestration using transactional execution.
+   * Added bootstrap race-condition protection through reclassification inside a database transaction.
+   * Added configuration hooks for installation classifier, bootstrapper, and transaction manager.
+   * Added comprehensive unit test coverage for installation classification and first-installation bootstrap scenarios.
+
+2. **api/internal/auth/delivery**
+
+   * Added mandatory `X-Installation-Id` validation during `POST /auth/login`.
+   * Implemented canonical UUID v4 parsing and validation.
+   * Propagated validated installation identifiers to the login use case.
+   * Added HTTP contract validation for missing or malformed installation identifiers.
+   * Extended handler and integration tests to cover installation header propagation and validation behavior.
+
+3. **api/internal/shared/http**
+
+   * Introduced centralized shared header definitions through the new `headers` package.
+   * Consolidated `X-App-Token`, `X-Step-Up-Token`, and `X-Installation-Id` constants.
+   * Refactored middleware and transaction handlers to consume shared header definitions instead of local constants.
+   * Updated middleware tests to use the centralized header package.
+
+4. **api/internal/shared/errors**
+
+   * Added `INVALID_INSTALLATION_ID` error code.
+   * Introduced installation-specific error registration and HTTP mapping.
+   * Standardized validation failures for missing, malformed, or non-canonical installation identifiers.
+
+5. **api/internal/account/transaction**
+
+   * Refactored step-up token retrieval to use the centralized shared header package.
+   * Removed duplicated header constant definitions from transaction delivery handlers and tests.
+
+6. **docs/backlogs**
+
+   * Reorganized the Installation Identity MVP backlog structure around implementation dependencies.
+   * Replaced endpoint-oriented backlog decomposition with architecture-oriented phases.
+   * Added new backlog documents covering:
+
+     * Entry contract.
+     * Persistence foundation.
+     * Domain and repositories.
+     * Session and token infrastructure.
+     * Login flow.
+     * Registration flow.
+     * Installation management.
+     * Refresh enforcement.
+     * Audit and retention.
+   * Removed superseded backlog documents and task breakdowns that no longer matched the revised implementation strategy.
+   * Updated backlog documentation to distinguish active, completed, and archived discussions.
+
+7. **docs/.gitignore**
+
+   * Added support for ignoring the `olds/` backlog archive directory.
+
+### Conclusion
+
+This change establishes the first operational layer of the Installation Identity MVP by enforcing installation identifiers during login and introducing the application-level classification model required for future installation-aware authentication flows.
+
+The authentication architecture is now prepared for transactional first-installation registration, installation lifecycle management, restricted authorization flows, and session binding based on installation context.
+
+Documentation was reorganized to align implementation work with architectural dependencies, creating a clearer roadmap for the remaining phases of the Installation Identity initiative.
+
+
+## 2026/06/16 - api/installation-identity-01
+
+This change expands the Installation Identity MVP planning for the API and aligns the mobile backlog with the newly consolidated backend contracts.
+
+The umbrella backlog was refined into endpoint-specific and infrastructure-specific planning documents, covering login, restricted authorization, step-up, installation registration, listing, revocation, refresh, session enforcement, and shared persistence/token infrastructure.
+
+1. **docs/backlogs/README.md**
+
+   * Expanded the API backlog index for the Installation Identity MVP.
+   * Added references to the new API backlogs from `011` to `018`.
+   * Replaced the previous broad description of backlog `010` with a clearer umbrella backlog role.
+
+2. **docs/backlogs/api/010 - installation-identity-mvp.md**
+
+   * Reworked the Installation Identity MVP backlog into a consolidated umbrella document.
+   * Added `app_build` to the installation metadata model.
+   * Clarified that revoked installations are denied without recovery flow in the MVP.
+   * Finalized the `installation_limit_reached` response contract.
+   * Replaced the generic restricted access token naming with `restricted_access_token`.
+   * Defined the restricted authorization model, JWT claims, persistence table, statuses, consistency rules, and middleware expectations.
+   * Clarified that transactional password must be active before issuing step-up for installation registration.
+   * Defined that `POST /security/installations` completes the operational session bootstrap without requiring an intermediate login.
+   * Documented the operational `access_token` claim `installation_id` and its relationship with `X-Installation-Id`.
+   * Defined revocation behavior for installations, including no step-up requirement in the MVP and prevention of revoking the current installation.
+   * Added explicit error contracts for invalid installation headers and installation/session mismatches.
+   * Replaced the previous open-decision checklist with derived endpoint maps and shared infrastructure responsibilities.
+
+3. **docs/backlogs/api/011 - installation-identity-auth-login.md**
+
+   * Added the API backlog for handling installation identity during `POST /auth/login`.
+   * Defined login behavior for known installations, first installation bootstrap, new installation registration, revoked installations, and installation limit enforcement.
+   * Documented response contracts for `installation_registration_required` and `installation_limit_reached`.
+
+4. **docs/backlogs/api/011 - installation-identity-auth-login_tasks.md**
+
+   * Added detailed implementation tasks for login handling.
+   * Covered header validation, installation classification, first-installation bootstrap, operational session emission, restricted authorization, revoked installation denial, limit handling, and tests.
+
+5. **docs/backlogs/api/012 - installation-identity-step-up-authorize.md**
+
+   * Added the API backlog for authorizing `POST /security/installations` through the existing step-up flow.
+   * Defined the use of `restricted_access_token` for this flow.
+   * Documented the requirement for an active transactional password before issuing the step-up token.
+
+6. **docs/backlogs/api/012 - installation-identity-step-up-authorize_tasks.md**
+
+   * Added implementation tasks for step-up support in installation registration.
+   * Covered endpoint registration in the step-up policy, restricted access token acceptance, transactional password state validation, scoped step-up token issuance, and tests.
+
+7. **docs/backlogs/api/013 - installation-identity-register-installation.md**
+
+   * Added the API backlog for explicit installation registration through `POST /security/installations`.
+   * Defined required headers, restricted authorization validation, step-up token consumption, installation matching, limit validation, installation creation, grant invalidation, and operational token issuance.
+
+8. **docs/backlogs/api/013 - installation-identity-register-installation_tasks.md**
+
+   * Added implementation tasks for the installation registration endpoint.
+   * Covered use case orchestration, grant validation, step-up consumption, atomic installation creation, operational session creation, HTTP handler implementation, and test coverage.
+
+9. **docs/backlogs/api/014 - installation-identity-list-installations.md**
+
+   * Added the API backlog for listing user installations through `GET /security/installations`.
+   * Defined authenticated access, public management identifiers, supported installation states, MVP metadata, and session/header enforcement.
+
+10. **docs/backlogs/api/014 - installation-identity-list-installations_tasks.md**
+
+* Added implementation tasks for installation listing.
+* Covered use case creation, public response modeling, HTTP endpoint implementation, and tests for state visibility and user isolation.
+
+11. **docs/backlogs/api/015 - installation-identity-revoke-installation.md**
+
+* Added the API backlog for logical installation revocation through `DELETE /security/installations/{installation_resource_id}`.
+* Defined revocation rules, preservation of history, prevention of current-installation revocation, and immediate access cutoff.
+
+12. **docs/backlogs/api/015 - installation-identity-revoke-installation_tasks.md**
+
+* Added implementation tasks for installation revocation.
+* Covered logical revocation, current-installation protection, immediate session/token invalidation, endpoint exposure, and tests.
+
+13. **docs/backlogs/api/016 - installation-identity-auth-refresh.md**
+
+* Added the API backlog for binding `POST /auth/refresh` to the installation that originated the session.
+* Defined header requirements, session-installation matching, revoked installation denial, and refreshed access token behavior.
+
+14. **docs/backlogs/api/016 - installation-identity-auth-refresh_tasks.md**
+
+* Added implementation tasks for refresh enforcement.
+* Covered header validation, session and installation matching, revoked installation denial, refresh rotation behavior, and tests.
+
+15. **docs/backlogs/api/017 - installation-identity-session-enforcement.md**
+
+* Added the API backlog for enforcing `X-Installation-Id` on authenticated requests.
+* Defined operational token claims, middleware validation, mismatch errors, and MVP scope boundaries.
+
+16. **docs/backlogs/api/017 - installation-identity-session-enforcement_tasks.md**
+
+* Added implementation tasks for session enforcement.
+* Covered token claim extension, middleware adaptation, authenticated route enforcement, revoked installation denial, and tests.
+
+17. **docs/backlogs/api/018 - installation-identity-shared-infrastructure.md**
+
+* Added the shared infrastructure backlog for Installation Identity.
+* Defined the `app_installations` and `installation_registration_authorizations` data models.
+* Consolidated shared rules for operational sessions, restricted access tokens, grant uniqueness, header enforcement, and MVP recovery limitations.
+
+18. **docs/backlogs/api/018 - installation-identity-shared-infrastructure_tasks.md**
+
+* Added implementation tasks for shared infrastructure.
+* Covered database migrations, domain and repository contracts, Postgres persistence, JWT and context support, restricted middleware, and metadata retention/auditing decisions.
+
+19. **docs/backlogs/mobile/013 - installation-identity-mvp.md**
+
+* Aligned the mobile Installation Identity backlog with the finalized API planning.
+* Clarified that `X-Installation-Id` is mandatory from the first release of the feature.
+* Added `platform`, `app_version`, and `app_build` as the minimum metadata set expected by the API.
+* Updated the mobile flow to use `restricted_access_token` terminology.
+* Clarified that successful installation registration returns operational tokens directly.
+* Documented mobile behavior for missing or locked transactional password.
+* Refined `installation_limit_reached` handling with `known_installations_count`, `max_installations`, and `next_action`.
+* Added MVP revocation expectations, including no step-up requirement, disabling removal of the current installation, and immediate session loss after revocation.
+
+### Conclusion
+
+This change turns the Installation Identity MVP from a broad concept into a structured implementation plan split by endpoint and shared infrastructure.
+
+The API planning now defines the main contracts, token flows, persistence models, revocation behavior, session binding, refresh enforcement, and middleware responsibilities required to support installation-aware authentication.
+
+The mobile backlog was updated to reflect the backend decisions, keeping both sides aligned around mandatory `X-Installation-Id`, restricted registration, operational token bootstrap, installation limits, and revocation behavior.
+
+
 ## 2026/06/15 - api/backlog-device-identity-01
 
 This change refines the BankLab Zero Trust backlog by replacing the previous device-oriented terminology with an installation-oriented model. The update clarifies that the MVP identifies an app installation, not the physical device, and defines `X-Installation-Id` as the shared contract between API and mobile.

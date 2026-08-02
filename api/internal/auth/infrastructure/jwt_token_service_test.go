@@ -15,11 +15,13 @@ func TestJWTTokenService_GenerateAndParseAccessToken_Success(t *testing.T) {
 	service := NewJWTTokenService("test-secret", 2*time.Minute)
 	userID := uuid.MustParse("00000000-0000-0000-0000-000000000123")
 	cid := uuid.MustParse("de305d54-75b4-431b-adb2-eb6b9e546014")
+	installationID := uuid.MustParse("10000000-0000-0000-0000-000000000123")
 
 	token, err := service.GenerateAccessToken(domain.TokenClaims{
-		UserID:     userID,
-		Role:       domain.RoleCustomer,
-		CustomerID: &cid,
+		UserID:         userID,
+		Role:           domain.RoleCustomer,
+		CustomerID:     &cid,
+		InstallationID: &installationID,
 	})
 	if err != nil {
 		t.Fatalf("expected no error generating token, got %v", err)
@@ -40,6 +42,31 @@ func TestJWTTokenService_GenerateAndParseAccessToken_Success(t *testing.T) {
 
 	if claims.CustomerID == nil || *claims.CustomerID != cid {
 		t.Fatalf("expected customer id %q, got %#v", cid, claims.CustomerID)
+	}
+
+	if claims.InstallationID == nil || *claims.InstallationID != installationID {
+		t.Fatalf("expected installation id %q, got %#v", installationID, claims.InstallationID)
+	}
+}
+
+func TestJWTTokenService_GenerateAndParseAccessToken_WithoutInstallationID(t *testing.T) {
+	service := NewJWTTokenService("test-secret", 2*time.Minute)
+
+	token, err := service.GenerateAccessToken(domain.TokenClaims{
+		UserID: uuid.MustParse("00000000-0000-0000-0000-000000000123"),
+		Role:   domain.RoleAdmin,
+	})
+	if err != nil {
+		t.Fatalf("expected no error generating token, got %v", err)
+	}
+
+	claims, err := service.ParseAccessToken(token)
+	if err != nil {
+		t.Fatalf("expected no error parsing token, got %v", err)
+	}
+
+	if claims.InstallationID != nil {
+		t.Fatalf("expected nil installation id, got %#v", claims.InstallationID)
 	}
 }
 
@@ -177,6 +204,17 @@ func TestJWTTokenService_ParseAccessToken_MissingRequiredClaims(t *testing.T) {
 				"exp": time.Now().UTC().Add(time.Minute).Unix(),
 			},
 			errText: "missing role claim",
+		},
+		{
+			name: "invalid installation id",
+			claims: jwt.MapClaims{
+				"sub":             uuid.NewString(),
+				"role":            string(domain.RoleCustomer),
+				"installation_id": "not-a-uuid",
+				"iat":             time.Now().UTC().Unix(),
+				"exp":             time.Now().UTC().Add(time.Minute).Unix(),
+			},
+			errText: "invalid installation_id claim",
 		},
 	}
 
