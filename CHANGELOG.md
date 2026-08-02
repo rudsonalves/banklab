@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026/08/02 - mobile/installation-identity-08a
+
+This change adds a comprehensive architecture and security-flow diagram covering mobile installation identity, authentication, transactional authorization, and post-login readiness. It documents how the mobile client and backend cooperate across installation registration, session establishment, step-up validation, and sensitive financial operations.
+
+The update also captures supporting application layers, request metadata, transactional-password handling, and failure branches to provide a shared visual reference for the intended system behavior.
+
+1. **docs/images/esquemas.excalidraw**
+
+   * Added an Excalidraw source file documenting generation and secure persistence of a UUID-based device identifier.
+   * Mapped primary and composite authentication, including password or PIN, biometrics or 2FA, security-context construction, and ZTA request headers.
+   * Documented the application-layer flow across UI, view models, use cases, repositories, APIs, and storage.
+   * Added login and post-login routing diagrams covering credential failures, environment-dependent onboarding checks, OTP provisioning, and Home navigation.
+   * Described step-up authorization for sensitive operations, including transactional-password validation, short-lived tokens, token consumption, policy enforcement, and operation blocking.
+   * Added the internal-transfer enforcement flow using `X-Step-Up-Token`, with explicit authorized, denied, and error paths.
+   * Documented authentication-session readiness and transactional PIN registration, including status checks, confirmation failures, registration outcomes, and sensitive-state cleanup.
+   * Added installation-aware login using `X-Installation-Id`, covering known, first-time, new, revoked, and installation-limit states.
+   * Mapped restricted-access token handling, transactional-password step-up, installation registration, access denial, and completion of an installation-bound operational session.
+
+2. **api/.DS_Store**
+
+   * Updated the binary macOS directory metadata file under the API folder.
+
+### Conclusion
+
+The change set establishes a detailed visual reference for installation identity and security-sensitive mobile workflows. It connects authentication, installation lifecycle management, transactional authorization, and layered application architecture in a single editable diagram.
+
+This documentation clarifies the expected success and failure behavior across the mobile application and backend without modifying executable system behavior.
+
 ## 2026/06/19 - mobile/installation-identity-07
 
 This change improves the BankLab development workflow, updates database documentation, finalizes the mobile installation identity backlog, and adjusts client/testing support around installation-aware API usage.
