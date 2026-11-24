@@ -14,3 +14,5 @@ mobile/.flutter-plugins-dependencies
 api/*.env
 
 .pdf
+
+.commit/
